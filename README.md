@@ -46,7 +46,34 @@
 
 详细的版本更新日志请参阅 [CHANGELOG.md](CHANGELOG.md)。
 
-### 最新版本 v4.0.0 - 邮件通知系统
+### 最新版本 v4.1.0 - AI 系统全面升级 🤖
+
+**核心功能**：
+
+- 🤖 **多模型架构**：支持 Workers AI（9个模型）+ OpenAI 兼容 API
+- 💬 **AI 对话系统**：全新对话页面，SSE 流式响应，RAG 文件问答
+- ⚙️ **AI 配置中心**：模型管理、功能级配置、一键快速启用、连接测试
+- 📊 **批量操作优化**：摘要/标签/索引全部支持取消+超时+错误限制
+- 📱 **移动端完整支持**：AI 对话 + AI 配置入口
+
+**技术实现**：
+
+- Model Gateway Pattern（适配器模式）
+- 三层模型回退机制
+- 功能级模型可配置化
+- Drizzle ORM camelCase 字段修复
+
+**新增 API 路由**：
+
+```
+/api/ai-config      # AI 配置管理（11 个端点）
+/api/ai-chat        # AI 对话系统（8 个端点）
+/api/ai             # AI 文件处理功能（增强）
+```
+
+详细说明请参阅 [docs/AI_FEATURES.md](docs/AI_FEATURES.md) 和 [docs/API_AI.md](docs/API_AI.md)。
+
+### 历史版本 v4.0.0 - 邮件通知系统
 
 **核心功能**：
 
@@ -148,7 +175,16 @@
 
 </details>
 
-- 🤖 **AI 功能**: 文件摘要、图片描述、智能标签、语义搜索、智能重命名
+- 🤖 **AI 功能 v4.1.0 全面升级**:
+  - 多模型支持：Workers AI（9个模型）+ OpenAI 兼容 API
+  - AI 对话系统：SSE 流式响应、会话管理、RAG 文件问答
+  - AI 配置中心：模型管理、功能级配置、一键启用、连接测试
+  - 文件摘要生成（可配置专用模型）
+  - 图片智能描述 + 标签生成（需 vision 能力模型）
+  - 语义搜索（Vectorize 向量索引）
+  - 智能重命名建议
+  - 批量操作优化（取消+超时+错误限制）
+  - 详细说明: [docs/AI_FEATURES.md](docs/AI_FEATURES.md)
 - 📥 **离线下载**: 支持 URL 离线下载到云存储
 - 📡 **WebDAV**: 完整的 WebDAV 协议支持（优化 Windows 资源管理器兼容性）
 - 🔄 **存储桶迁移**: 支持在不同存储桶之间迁移文件（跨 provider）
@@ -180,7 +216,7 @@
 | 后端   | Hono 4 + Cloudflare Workers          |
 | 数据库 | Cloudflare D1 (SQLite) + Drizzle ORM |
 | 存储   | S3 兼容协议 + Telegram Bot API       |
-| AI     | Cloudflare AI + Vectorize            |
+| AI     | Cloudflare Workers AI + Vectorize + OpenAI Compatible |
 | 认证   | JWT + bcrypt                         |
 | 邮件   | Resend API (v4.0.0+)                 |
 
@@ -578,7 +614,9 @@ ossshelf/
 | `/api/api-keys`      | API Keys 管理 (v3.5.0)                    |
 | `/api/groups`        | 用户组管理 (v3.6.0)                       |
 | `/api/webhooks`      | Webhook 管理 (v3.6.0)                     |
-| `/api/ai`            | AI 功能 (v3.7.0)                          |
+| `/api/ai`            | AI 文件处理功能 (v3.7.0, v4.1.0 增强) |
+| `/api/ai-config`     | AI 配置管理 (v4.1.0 新增)               |
+| `/api/ai-chat`       | AI 对话系统 (v4.1.0 新增)               |
 | `/api/analytics`     | 存储分析 (v3.8.0)                         |
 | `/api/notifications` | 通知系统 (v3.8.0)                         |
 | `/api/v1`            | RESTful v1 API (v3.6.0)                   |
