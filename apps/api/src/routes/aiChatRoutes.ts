@@ -17,7 +17,7 @@ import { ERROR_CODES } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
 import { z } from 'zod';
 import { ModelGateway, RagEngine } from '../lib/ai';
-import type { StreamChunk, FileContext } from '../lib/ai/types';
+import type { StreamChunk } from '../lib/ai/types';
 import { logger } from '@osshelf/shared';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -25,35 +25,53 @@ app.use('/*', authMiddleware);
 
 app.get('/sessions', async (c) => {
   const userId = c.get('userId')!;
-  const db = getDb(c.env.DB);
 
-  const sessions = await db
-    .select()
-    .from(aiChatSessions)
-    .where(eq(aiChatSessions.userId, userId))
-    .orderBy(desc(aiChatSessions.updatedAt))
-    .limit(50)
-    .all();
+  try {
+    const db = getDb(c.env.DB);
 
-  const sessionWithCounts = await Promise.all(
-    sessions.map(async (session) => {
-      const messages = await db
-        .select({ id: aiChatMessages.id })
-        .from(aiChatMessages)
-        .where(eq(aiChatMessages.sessionId, session.id))
-        .all();
+    const sessions = await db
+      .select()
+      .from(aiChatSessions)
+      .where(eq(aiChatSessions.userId, userId))
+      .orderBy(desc(aiChatSessions.updatedAt))
+      .limit(50)
+      .all();
 
-      return {
-        ...session,
-        messageCount: messages.length,
-      };
-    })
-  );
+    const sessionWithCounts = await Promise.all(
+      sessions.map(async (session) => {
+        try {
+          const messages = await db
+            .select({ id: aiChatMessages.id })
+            .from(aiChatMessages)
+            .where(eq(aiChatMessages.sessionId, session.id))
+            .all();
 
-  return c.json({
-    success: true,
-    data: sessionWithCounts,
-  });
+          return {
+            ...session,
+            messageCount: messages.length,
+          };
+        } catch (msgError) {
+          logger.error('AI Chat', 'Failed to get message count', { sessionId: session.id }, msgError);
+          return {
+            ...session,
+            messageCount: 0,
+          };
+        }
+      })
+    );
+
+    return c.json({
+      success: true,
+      data: sessionWithCounts,
+    });
+  } catch (error) {
+    logger.error('AI Chat', 'Failed to get sessions', { userId }, error);
+    return c.json({
+      success: false,
+      error: { code: ERROR_CODES.INTERNAL_ERROR, message: '获取会话列表失败' },
+      data: [],
+    });
+  }
 });
 
 app.post('/sessions', async (c) => {

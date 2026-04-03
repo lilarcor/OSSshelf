@@ -95,6 +95,7 @@ function App() {
         <Route path="/starred" element={<Starred />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/ai-chat" element={<AIChat />} />
+        <Route path="/ai-chat/:sessionId" element={<AIChat />} />
         <Route path="/ai-settings" element={<AISettings />} />
       </Route>
 

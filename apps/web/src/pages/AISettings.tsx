@@ -320,9 +320,9 @@ export function AISettings() {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-8">
-      {/* 页面标题 - 响应式 */}
-      <div className="bg-gradient-to-r from-purple-50 via-white to-pink-50 dark:from-purple-950/30 dark:via-slate-900 dark:to-pink-950/30 border-b sticky top-16 z-10 backdrop-blur-sm bg-opacity-90">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* 页面标题 - 固定在顶部 */}
+      <div className="flex-shrink-0 bg-gradient-to-r from-purple-50 via-white to-pink-50 dark:from-purple-950/30 dark:via-slate-900 dark:to-pink-950/30 border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
             <div className="flex items-center gap-3">
@@ -407,8 +407,8 @@ export function AISettings() {
         </div>
       </div>
 
-      {/* 主内容区 */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* 主内容区 - 可滚动 */}
+      <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-y-auto">
         {/* ========== 模型管理标签页 ========== */}
         {activeTab === 'models' && (
           <div className="space-y-4">
@@ -831,18 +831,6 @@ export function AISettings() {
             )}
           </div>
         )}
-
-        {/* 底部快捷导航 */}
-        <div className="mt-8 pt-6 border-t">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <Button variant="outline" onClick={() => navigate('/ai-chat')} className="w-full sm:w-auto">
-              ← 返回 AI 对话
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/settings')} className="w-full sm:w-auto">
-              系统设置 →
-            </Button>
-          </div>
-        </div>
       </div>
 
       {/* 添加/编辑模型弹窗 */}

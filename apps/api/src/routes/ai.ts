@@ -566,7 +566,9 @@ app.get('/file/:fileId', async (c) => {
 async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTask): Promise<void> {
   const db = getDb(env.DB);
   const taskKey = `ai:summarize:task:${userId}`;
-  const concurrency = 5;
+  const concurrency = 3;
+  const FILE_TIMEOUT_MS = 30000; // 单个文件处理超时30秒
+  const MAX_ERRORS = 10; // 连续错误上限
 
   try {
     const allFiles = await db
@@ -590,15 +592,40 @@ async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTa
     await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
 
     const summarizeFile = async (fileId: string): Promise<{ success: boolean; error?: string }> => {
+      // 检查任务是否已取消
+      const currentTask = await env.KV.get(taskKey, 'json');
+      if (currentTask && (currentTask as SummarizeTask).status === 'cancelled') {
+        return { success: false, error: '任务已取消' };
+      }
+
+      // 添加超时控制
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FILE_TIMEOUT_MS);
+
       try {
         await generateFileSummary(env, fileId);
+        clearTimeout(timeoutId);
         return { success: true };
       } catch (error) {
+        clearTimeout(timeoutId);
+        if ((error as Error).name === 'AbortError') {
+          return { success: false, error: '处理超时' };
+        }
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     };
 
+    let consecutiveErrors = 0;
+
     for (let i = 0; i < editableFiles.length; i += concurrency) {
+      // 每批开始前检查是否已取消
+      const currentTask = await env.KV.get(taskKey, 'json');
+      if (currentTask && (currentTask as SummarizeTask).status === 'cancelled') {
+        task.status = 'cancelled';
+        task.error = '用户手动取消';
+        break;
+      }
+
       const batch = editableFiles.slice(i, i + concurrency);
       const results = await Promise.allSettled(batch.map((f) => summarizeFile(f.id)));
 
@@ -606,21 +633,33 @@ async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTa
         if (result.status === 'fulfilled') {
           if (result.value.success) {
             task.processed = (task.processed || 0) + 1;
+            consecutiveErrors = 0;
           } else {
             task.failed = (task.failed || 0) + 1;
+            consecutiveErrors++;
           }
         } else {
           task.failed = (task.failed || 0) + 1;
+          consecutiveErrors++;
         }
+      }
+
+      // 连续错误过多，终止任务
+      if (consecutiveErrors >= MAX_ERRORS) {
+        task.status = 'failed';
+        task.error = `连续${MAX_ERRORS}次错误，任务终止`;
+        break;
       }
 
       task.updatedAt = new Date().toISOString();
       await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
     }
 
-    task.status = 'completed';
-    task.completedAt = new Date().toISOString();
-    task.updatedAt = new Date().toISOString();
+    if (task.status !== 'cancelled' && task.status !== 'failed') {
+      task.status = 'completed';
+      task.completedAt = new Date().toISOString();
+      task.updatedAt = new Date().toISOString();
+    }
   } catch (error) {
     task.status = 'failed';
     task.error = error instanceof Error ? error.message : String(error);
@@ -633,7 +672,9 @@ async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTa
 async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promise<void> {
   const db = getDb(env.DB);
   const taskKey = `ai:tags:task:${userId}`;
-  const concurrency = 5;
+  const concurrency = 3;
+  const FILE_TIMEOUT_MS = 60000; // 图片处理超时60秒
+  const MAX_ERRORS = 10;
 
   try {
     const allImages = await db
@@ -656,15 +697,40 @@ async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promi
     await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
 
     const generateTags = async (fileId: string): Promise<{ success: boolean; error?: string }> => {
+      // 检查任务是否已取消
+      const currentTask = await env.KV.get(taskKey, 'json');
+      if (currentTask && (currentTask as TagsTask).status === 'cancelled') {
+        return { success: false, error: '任务已取消' };
+      }
+
+      // 添加超时控制
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FILE_TIMEOUT_MS);
+
       try {
         await generateImageTags(env, fileId);
+        clearTimeout(timeoutId);
         return { success: true };
       } catch (error) {
+        clearTimeout(timeoutId);
+        if ((error as Error).name === 'AbortError') {
+          return { success: false, error: '处理超时' };
+        }
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     };
 
+    let consecutiveErrors = 0;
+
     for (let i = 0; i < allImages.length; i += concurrency) {
+      // 每批开始前检查是否已取消
+      const currentTask = await env.KV.get(taskKey, 'json');
+      if (currentTask && (currentTask as TagsTask).status === 'cancelled') {
+        task.status = 'cancelled';
+        task.error = '用户手动取消';
+        break;
+      }
+
       const batch = allImages.slice(i, i + concurrency);
       const results = await Promise.allSettled(batch.map((f) => generateTags(f.id)));
 
@@ -672,21 +738,33 @@ async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promi
         if (result.status === 'fulfilled') {
           if (result.value.success) {
             task.processed = (task.processed || 0) + 1;
+            consecutiveErrors = 0;
           } else {
             task.failed = (task.failed || 0) + 1;
+            consecutiveErrors++;
           }
         } else {
           task.failed = (task.failed || 0) + 1;
+          consecutiveErrors++;
         }
+      }
+
+      // 连续错误过多，终止任务
+      if (consecutiveErrors >= MAX_ERRORS) {
+        task.status = 'failed';
+        task.error = `连续${MAX_ERRORS}次错误，任务终止`;
+        break;
       }
 
       task.updatedAt = new Date().toISOString();
       await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
     }
 
-    task.status = 'completed';
-    task.completedAt = new Date().toISOString();
-    task.updatedAt = new Date().toISOString();
+    if (task.status !== 'cancelled' && task.status !== 'failed') {
+      task.status = 'completed';
+      task.completedAt = new Date().toISOString();
+      task.updatedAt = new Date().toISOString();
+    }
   } catch (error) {
     task.status = 'failed';
     task.error = error instanceof Error ? error.message : String(error);
@@ -699,7 +777,9 @@ async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promi
 async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Promise<void> {
   const db = getDb(env.DB);
   const taskKey = `ai:index:task:${userId}`;
-  const concurrency = 5;
+  const concurrency = 3;
+  const FILE_TIMEOUT_MS = 60000; // 单个文件索引超时60秒
+  const MAX_ERRORS = 10; // 连续错误上限
 
   try {
     const allUnindexed = await db
@@ -721,19 +801,45 @@ async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Pro
     await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
 
     const indexFile = async (fileId: string): Promise<{ success: boolean; error?: string }> => {
+      // 检查任务是否已取消
+      const currentTask = await env.KV.get(taskKey, 'json');
+      if (currentTask && (currentTask as IndexTask).status === 'cancelled') {
+        return { success: false, error: '任务已取消' };
+      }
+
+      // 添加超时控制
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FILE_TIMEOUT_MS);
+
       try {
         const text = await buildFileTextForVector(env, fileId);
         if (!text || text.trim().length === 0) {
-          return { success: false, error: 'Empty text content' };
+          clearTimeout(timeoutId);
+          return { success: false, error: '文件内容为空' };
         }
         await indexFileVector(env, fileId, text);
+        clearTimeout(timeoutId);
         return { success: true };
       } catch (error) {
+        clearTimeout(timeoutId);
+        if ((error as Error).name === 'AbortError') {
+          return { success: false, error: '处理超时' };
+        }
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     };
 
+    let consecutiveErrors = 0;
+
     for (let i = 0; i < allUnindexed.length; i += concurrency) {
+      // 每批开始前检查是否已取消
+      const currentTask = await env.KV.get(taskKey, 'json');
+      if (currentTask && (currentTask as IndexTask).status === 'cancelled') {
+        task.status = 'cancelled';
+        task.error = '用户手动取消';
+        break;
+      }
+
       const batch = allUnindexed.slice(i, i + concurrency);
       const results = await Promise.allSettled(batch.map((f) => indexFile(f.id)));
 
@@ -741,21 +847,33 @@ async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Pro
         if (result.status === 'fulfilled') {
           if (result.value.success) {
             task.processed = (task.processed || 0) + 1;
+            consecutiveErrors = 0;
           } else {
             task.failed = (task.failed || 0) + 1;
+            consecutiveErrors++;
           }
         } else {
           task.failed = (task.failed || 0) + 1;
+          consecutiveErrors++;
         }
+      }
+
+      // 连续错误过多，终止任务
+      if (consecutiveErrors >= MAX_ERRORS) {
+        task.status = 'failed';
+        task.error = `连续${MAX_ERRORS}次错误，任务终止`;
+        break;
       }
 
       task.updatedAt = new Date().toISOString();
       await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
     }
 
-    task.status = 'completed';
-    task.completedAt = new Date().toISOString();
-    task.updatedAt = new Date().toISOString();
+    if (task.status !== 'cancelled' && task.status !== 'failed') {
+      task.status = 'completed';
+      task.completedAt = new Date().toISOString();
+      task.updatedAt = new Date().toISOString();
+    }
   } catch (error) {
     task.status = 'failed';
     task.error = error instanceof Error ? error.message : String(error);

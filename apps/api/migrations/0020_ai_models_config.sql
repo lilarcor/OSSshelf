@@ -1,4 +1,4 @@
--- 0019_ai_models_config.sql
+-- 0020_ai_models_config.sql
 -- AI模型配置表
 -- 支持多模型接入（Workers AI + 自定义API）
 

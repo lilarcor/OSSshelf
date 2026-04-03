@@ -40,7 +40,7 @@ export class ModelGateway {
       const model = await db
         .select()
         .from(aiModels)
-        .where(and(eq(aiModels.userId, userId), eq(aiModels.isActive, 1)))
+        .where(and(eq(aiModels.userId, userId), eq(aiModels.isActive, true)))
         .get();
 
       if (!model) {
@@ -120,12 +120,12 @@ export class ModelGateway {
     request: ChatCompletionRequest,
     modelId?: string
   ): Promise<ChatCompletionResponse> {
-    const modelConfig = modelId
+    let modelConfig = modelId
       ? await this.getModelById(modelId, userId)
       : await this.getActiveModel(userId);
 
     if (!modelConfig) {
-      throw new Error('No active model configured. Please configure an AI model in settings.');
+      modelConfig = this.getDefaultWorkersAiModel();
     }
 
     const adapter = this.getAdapter(modelConfig);
@@ -150,12 +150,12 @@ export class ModelGateway {
     onChunk: (chunk: StreamChunk) => void,
     options?: { modelId?: string; signal?: AbortSignal }
   ): Promise<void> {
-    const modelConfig = options?.modelId
+    let modelConfig = options?.modelId
       ? await this.getModelById(options.modelId, userId)
       : await this.getActiveModel(userId);
 
     if (!modelConfig) {
-      throw new Error('No active model configured. Please configure an AI model in settings.');
+      modelConfig = this.getDefaultWorkersAiModel();
     }
 
     const adapter = this.getAdapter(modelConfig);
@@ -202,6 +202,23 @@ export class ModelGateway {
 
   clearCache(): void {
     this.adapterCache.clear();
+  }
+
+  private getDefaultWorkersAiModel(): ModelConfig {
+    return {
+      id: 'default-workers-ai',
+      userId: '',
+      name: 'Workers AI 默认模型',
+      provider: 'workers_ai',
+      modelId: '@cf/meta/llama-3.1-8b-instruct',
+      isActive: true,
+      capabilities: ['chat'],
+      maxTokens: 4096,
+      temperature: 0.7,
+      configJson: {},
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
   }
 
   static getAvailableProviders(): Array<{

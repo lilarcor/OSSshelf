@@ -11,7 +11,7 @@
 
 import { Hono } from 'hono';
 import { eq, and } from 'drizzle-orm';
-import { getDb, aiModels, aiUsageStats } from '../db';
+import { getDb, aiModels } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { ERROR_CODES } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
@@ -93,7 +93,7 @@ app.post('/models', async (c) => {
     const db = getDb(c.env.DB);
 
     if (data.isActive) {
-      await db.update(aiModels).set({ isActive: 0 }).where(eq(aiModels.userId, userId));
+      await db.update(aiModels).set({ isActive: false }).where(eq(aiModels.userId, userId));
     }
 
     const apiKeyEncrypted = data.apiKey ? await encryptApiKey(data.apiKey) : null;
@@ -106,7 +106,7 @@ app.post('/models', async (c) => {
       modelId: data.modelId,
       apiEndpoint: data.apiEndpoint || null,
       apiKeyEncrypted,
-      isActive: data.isActive ? 1 : 0,
+      isActive: data.isActive,
       capabilities: JSON.stringify(data.capabilities),
       maxTokens: data.maxTokens,
       temperature: data.temperature,
@@ -166,10 +166,10 @@ app.put('/models/:modelId', async (c) => {
 
   try {
     if (data.isActive) {
-      await db.update(aiModels).set({ isActive: 0 }).where(eq(aiModels.userId, userId));
+      await db.update(aiModels).set({ isActive: false }).where(eq(aiModels.userId, userId));
     }
 
-    let apiKeyEncrypted = existingModel.api_key_encrypted;
+    let apiKeyEncrypted = existingModel.apiKeyEncrypted;
     if (data.apiKey !== undefined) {
       apiKeyEncrypted = data.apiKey ? await encryptApiKey(data.apiKey) : null;
     }
@@ -249,8 +249,8 @@ app.post('/models/:modelId/activate', async (c) => {
   }
 
   try {
-    await db.update(aiModels).set({ isActive: 0 }).where(eq(aiModels.userId, userId));
-    await db.update(aiModels).set({ isActive: 1, updatedAt: new Date().toISOString() }).where(eq(aiModels.id, modelId));
+    await db.update(aiModels).set({ isActive: false }).where(eq(aiModels.userId, userId));
+    await db.update(aiModels).set({ isActive: true, updatedAt: new Date().toISOString() }).where(eq(aiModels.id, modelId));
 
     logger.info('AI', 'Model activated', { userId, modelId });
 
@@ -264,17 +264,15 @@ app.post('/models/:modelId/activate', async (c) => {
   }
 });
 
-app.get('/providers', (_c) => {
-  return c => {
-    return c.json({
-      success: true,
-      data: {
-        providers: ModelGateway.getAvailableProviders(),
-        workersAiModels: WorkersAiAdapter.getAvailableModels(),
-        openAiModels: OpenAiCompatibleAdapter.getPopularModels(),
-      },
-    });
-  };
+app.get('/providers', (c) => {
+  return c.json({
+    success: true,
+    data: {
+      providers: ModelGateway.getAvailableProviders(),
+      workersAiModels: WorkersAiAdapter.getAvailableModels(),
+      openAiModels: OpenAiCompatibleAdapter.getPopularModels(),
+    },
+  });
 });
 
 app.get('/status', async (c) => {

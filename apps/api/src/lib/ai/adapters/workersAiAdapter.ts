@@ -8,7 +8,7 @@
  * - 支持聊天和嵌入模型
  */
 
-import type { Env } from '../../types/env';
+import type { Env } from '../../../types/env';
 import type {
   IModelAdapter,
   ModelConfig,
@@ -17,7 +17,7 @@ import type {
   StreamChunk,
   EmbeddingRequest,
   EmbeddingResponse,
-} from './types';
+} from '../types';
 import { logger } from '@osshelf/shared';
 
 export class WorkersAiAdapter implements IModelAdapter {
