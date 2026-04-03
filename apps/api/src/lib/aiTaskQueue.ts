@@ -192,17 +192,35 @@ export async function enqueueAiTasks(
     throw new Error('AI 任务队列未配置');
   }
 
-  const messages = fileIds.map((fileId) => ({
-    body: {
-      type,
-      fileId,
-      userId,
-      taskId,
-    } as AiTaskMessage,
-  }));
+  const BATCH_SIZE = 50;
+  const batches: Array<Array<{ body: AiTaskMessage }>> = [];
 
-  await env.AI_TASKS_QUEUE.sendBatch(messages);
-  logger.info('AI_QUEUE', 'Enqueued tasks', { type, count: messages.length, taskId });
+  for (let i = 0; i < fileIds.length; i += BATCH_SIZE) {
+    const batchFileIds = fileIds.slice(i, i + BATCH_SIZE);
+    batches.push(
+      batchFileIds.map((fileId) => ({
+        body: {
+          type,
+          fileId,
+          userId,
+          taskId,
+        } as AiTaskMessage,
+      }))
+    );
+  }
+
+  for (let i = 0; i < batches.length; i++) {
+    await env.AI_TASKS_QUEUE.sendBatch(batches[i]);
+    logger.info('AI_QUEUE', 'Enqueued batch', {
+      type,
+      batch: i + 1,
+      totalBatches: batches.length,
+      batchSize: batches[i].length,
+      taskId,
+    });
+  }
+
+  logger.info('AI_QUEUE', 'All tasks enqueued', { type, totalFiles: fileIds.length, taskId });
 }
 
 export async function createTaskRecord(
