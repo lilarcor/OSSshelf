@@ -35,7 +35,7 @@ export function NotificationBell({ className, align = 'right', direction = 'down
     
     const connectSSE = () => {
       try {
-        const eventSource = new EventSource(`${API_BASE}/notifications/stream`, {
+        const eventSource = new EventSource(`${API_BASE}/api/notifications/stream`, {
           withCredentials: true
         });
 
