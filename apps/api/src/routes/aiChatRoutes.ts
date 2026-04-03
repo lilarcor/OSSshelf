@@ -275,12 +275,25 @@ async function handleNormalChat(
       createdAt: new Date().toISOString(),
     });
 
+    const existingMessages = await db
+      .select()
+      .from(aiChatMessages)
+      .where(eq(aiChatMessages.sessionId, actualSessionId))
+      .orderBy(aiChatMessages.createdAt)
+      .all();
+
+    const conversationHistory = existingMessages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
     const ragEngine = new RagEngine(c.env);
     const ragContext = await ragEngine.buildContext({
       query,
       userId,
       maxFiles,
       includeFileContent,
+      conversationHistory,
     });
 
     const gateway = new ModelGateway(c.env);
@@ -385,21 +398,35 @@ async function handleStreamChat(
       createdAt: new Date().toISOString(),
     });
 
+    const existingMessages = await db
+      .select()
+      .from(aiChatMessages)
+      .where(eq(aiChatMessages.sessionId, actualSessionId))
+      .orderBy(aiChatMessages.createdAt)
+      .all();
+
+    const conversationHistory = existingMessages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
     const ragEngine = new RagEngine(c.env);
     const ragContext = await ragEngine.buildContext({
       query,
       userId,
       maxFiles,
       includeFileContent,
+      conversationHistory,
     });
 
     const gateway = new ModelGateway(c.env);
 
+    let fullContent = '';
+    let streamError: Error | null = null;
+
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          let fullContent = '';
-
           await gateway.chatCompletionStream(
             userId,
             {
@@ -416,6 +443,27 @@ async function handleStreamChat(
             },
             c.req.raw.signal
           );
+        } catch (error) {
+          streamError = error instanceof Error ? error : new Error(String(error));
+          logger.error('AI Chat', 'Stream chat failed', { userId }, error);
+          controller.error(error);
+        }
+      },
+    });
+
+    c.executionCtx.waitUntil(
+      (async () => {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          
+          if (streamError || !fullContent) {
+            logger.warn('AI Chat', 'Skipping message save due to stream error or empty content', { 
+              userId, 
+              hasError: !!streamError,
+              contentLength: fullContent.length 
+            });
+            return;
+          }
 
           const latencyMs = Date.now() - startTime;
           const sourcesJson = JSON.stringify(
@@ -440,12 +488,13 @@ async function handleStreamChat(
             latencyMs,
             createdAt: new Date().toISOString(),
           });
+
+          logger.info('AI Chat', 'Assistant message saved', { sessionId: actualSessionId, contentLength: finalContent.length });
         } catch (error) {
-          logger.error('AI Chat', 'Stream chat failed', { userId }, error);
-          controller.error(error);
+          logger.error('AI Chat', 'Failed to save assistant message', { userId, sessionId: actualSessionId }, error);
         }
-      },
-    });
+      })()
+    );
 
     return new Response(stream, {
       headers: {
