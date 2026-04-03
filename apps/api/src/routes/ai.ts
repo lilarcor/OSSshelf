@@ -36,7 +36,13 @@ import {
   isAIConfigured,
   searchAndFetchFiles,
 } from '../lib/vectorIndex';
-import { generateFileSummary, generateImageTags, suggestFileName, suggestFileNameFromContent, canGenerateSummary } from '../lib/ai/features';
+import {
+  generateFileSummary,
+  generateImageTags,
+  suggestFileName,
+  suggestFileNameFromContent,
+  canGenerateSummary,
+} from '../lib/ai/features';
 import { createNotification, sendNotification } from '../lib/notificationUtils';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -119,7 +125,10 @@ app.post('/index/all', async (c) => {
     });
   }
 
-  // total 由 runBatchIndexTask 内部快照确定，这里先用 0 占位
+  if (existingTask) {
+    await c.env.KV.delete(taskKey);
+  }
+
   const task: IndexTask = {
     id: crypto.randomUUID(),
     status: 'running',
@@ -217,6 +226,10 @@ app.post('/summarize/batch', async (c) => {
     });
   }
 
+  if (existingTask) {
+    await c.env.KV.delete(taskKey);
+  }
+
   const task: SummarizeTask = {
     id: crypto.randomUUID(),
     status: 'running',
@@ -284,6 +297,10 @@ app.post('/tags/batch', async (c) => {
         message: '已有标签生成任务正在运行，请等待完成',
       },
     });
+  }
+
+  if (existingTask) {
+    await c.env.KV.delete(taskKey);
   }
 
   const task: TagsTask = {
@@ -368,6 +385,272 @@ app.get('/tags/task', async (c) => {
   }
 
   return c.json({ success: true, data: task });
+});
+
+// 具体路径路由必须在 :fileId 参数路由之前
+app.get('/index/stats', async (c) => {
+  const userId = c.get('userId')!;
+  const db = getDb(c.env.DB);
+
+  const allFiles = await db
+    .select()
+    .from(files)
+    .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false)))
+    .all();
+
+  const stats = {
+    editable: { total: 0, noSummary: 0, notIndexed: 0 },
+    image: { total: 0, noTags: 0, notIndexed: 0 },
+    other: { total: 0, notIndexed: 0 },
+  };
+
+  for (const file of allFiles) {
+    const isEditable = canGenerateSummary(file.mimeType, file.name);
+    const isImage = file.mimeType?.startsWith('image/') ?? false;
+
+    if (isEditable) {
+      stats.editable.total++;
+      if (!file.aiSummary) stats.editable.noSummary++;
+      if (!file.vectorIndexedAt) stats.editable.notIndexed++;
+    } else if (isImage) {
+      stats.image.total++;
+      if (!file.aiTags) stats.image.noTags++;
+      if (!file.vectorIndexedAt) stats.image.notIndexed++;
+    } else {
+      stats.other.total++;
+      if (!file.vectorIndexedAt) stats.other.notIndexed++;
+    }
+  }
+
+  return c.json({ success: true, data: stats });
+});
+
+app.get('/index/vectors', async (c) => {
+  const userId = c.get('userId')!;
+  const db = getDb(c.env.DB);
+  const page = parseInt(c.req.query('page') || '1');
+  const pageSize = parseInt(c.req.query('pageSize') || '20');
+  const search = c.req.query('search') || '';
+
+  const allFiles = await db
+    .select()
+    .from(files)
+    .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false)))
+    .all();
+
+  const indexedFiles = allFiles
+    .filter((f) => f.vectorIndexedAt)
+    .filter((f) => !search || f.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => new Date(b.vectorIndexedAt!).getTime() - new Date(a.vectorIndexedAt!).getTime());
+
+  const total = indexedFiles.length;
+  const totalPages = Math.ceil(total / pageSize);
+  const offset = (page - 1) * pageSize;
+  const paginatedFiles = indexedFiles.slice(offset, offset + pageSize);
+
+  const vectorsWithMetadata = paginatedFiles.map((file) => ({
+    id: file.id,
+    name: file.name,
+    mimeType: file.mimeType,
+    size: file.size,
+    vectorIndexedAt: file.vectorIndexedAt,
+    aiSummary: file.aiSummary,
+    indexedTextLength: (file.name + (file.aiSummary || '') + (file.description || '')).length,
+    indexedTextPreview: file.name + (file.aiSummary ? ` - ${file.aiSummary.slice(0, 100)}...` : ''),
+  }));
+
+  return c.json({
+    success: true,
+    data: {
+      vectors: vectorsWithMetadata,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+      },
+    },
+  });
+});
+
+app.delete('/index/vectors/:fileId', async (c) => {
+  const userId = c.get('userId')!;
+  const fileId = c.req.param('fileId');
+  const db = getDb(c.env.DB);
+
+  const file = await db
+    .select()
+    .from(files)
+    .where(and(eq(files.id, fileId), eq(files.userId, userId)))
+    .get();
+
+  if (!file) {
+    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '文件不存在' } }, 404);
+  }
+
+  try {
+    if (c.env.VECTORIZE) {
+      await c.env.VECTORIZE.deleteByIds([fileId]);
+    }
+
+    await db.update(files).set({ vectorIndexedAt: null }).where(eq(files.id, fileId));
+
+    return c.json({ success: true, data: { message: '向量索引已删除' } });
+  } catch (error) {
+    logger.error('AI', 'Failed to delete vector', { fileId }, error);
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '删除向量索引失败' } }, 500);
+  }
+});
+
+app.get('/index/diagnose', async (c) => {
+  const userId = c.get('userId')!;
+  const db = getDb(c.env.DB);
+
+  const diagnoseResult = {
+    vectorize: {
+      configured: !!c.env.VECTORIZE,
+      totalCount: 0,
+      userCount: 0,
+      sampleVectors: [] as Array<{ id: string; score: number; metadata: Record<string, unknown> }>,
+    },
+    database: {
+      totalFiles: 0,
+      indexedFiles: 0,
+      filesWithSummary: 0,
+    },
+    testSearch: {
+      success: false,
+      resultCount: 0,
+      error: '',
+    },
+  };
+
+  try {
+    if (c.env.VECTORIZE) {
+      const testVector = new Array(1024).fill(0).map(() => Math.random());
+      const allResults = await c.env.VECTORIZE.query(testVector, {
+        topK: 100,
+        returnMetadata: 'all',
+      });
+      diagnoseResult.vectorize.totalCount = allResults.matches.length;
+
+      const userResults = await c.env.VECTORIZE.query(testVector, {
+        topK: 100,
+        filter: { userId } as VectorizeVectorMetadataFilter,
+        returnMetadata: 'all',
+      });
+      diagnoseResult.vectorize.userCount = userResults.matches.length;
+
+      diagnoseResult.vectorize.sampleVectors = userResults.matches.slice(0, 5).map((m) => ({
+        id: m.id,
+        score: m.score,
+        metadata: m.metadata as Record<string, unknown>,
+      }));
+    }
+  } catch (error) {
+    diagnoseResult.vectorize.userCount = -1;
+    logger.error('AI', 'Vectorize diagnose failed', { userId }, error);
+  }
+
+  try {
+    const allFiles = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false)))
+      .all();
+
+    diagnoseResult.database.totalFiles = allFiles.length;
+    diagnoseResult.database.indexedFiles = allFiles.filter((f) => f.vectorIndexedAt).length;
+    diagnoseResult.database.filesWithSummary = allFiles.filter((f) => f.aiSummary).length;
+  } catch (error) {
+    logger.error('AI', 'Database diagnose failed', { userId }, error);
+  }
+
+  try {
+    if (c.env.VECTORIZE && c.env.AI) {
+      const testQuery = '测试搜索';
+      const result = await (c.env.AI as any).run('@cf/baai/bge-m3', {
+        text: [testQuery],
+      });
+
+      if (result?.data?.length > 0) {
+        const searchResults = await c.env.VECTORIZE.query(result.data[0], {
+          topK: 10,
+          filter: { userId } as VectorizeVectorMetadataFilter,
+          returnMetadata: 'all',
+        });
+
+        diagnoseResult.testSearch = {
+          success: true,
+          resultCount: searchResults.matches.length,
+          error: '',
+        };
+      }
+    }
+  } catch (error) {
+    diagnoseResult.testSearch.error = error instanceof Error ? error.message : String(error);
+  }
+
+  return c.json({ success: true, data: diagnoseResult });
+});
+
+app.get('/index/sample/:fileId', async (c) => {
+  const userId = c.get('userId')!;
+  const fileId = c.req.param('fileId');
+  const db = getDb(c.env.DB);
+
+  const file = await db
+    .select()
+    .from(files)
+    .where(and(eq(files.id, fileId), eq(files.userId, userId)))
+    .get();
+
+  if (!file) {
+    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '文件不存在' } }, 404);
+  }
+
+  const result = {
+    file: {
+      id: file.id,
+      name: file.name,
+      mimeType: file.mimeType,
+      vectorIndexedAt: file.vectorIndexedAt,
+      aiSummary: file.aiSummary,
+    },
+    vectorize: null as {
+      found: boolean;
+      metadata: Record<string, unknown> | null;
+    } | null,
+    indexedText: '',
+  };
+
+  try {
+    if (c.env.VECTORIZE) {
+      const testVector = new Array(1024).fill(0).map(() => Math.random());
+      const searchResult = await c.env.VECTORIZE.query(testVector, {
+        topK: 1000,
+        filter: { userId } as VectorizeVectorMetadataFilter,
+        returnMetadata: 'all',
+      });
+
+      const found = searchResult.matches.find((m) => m.id === fileId);
+      result.vectorize = {
+        found: !!found,
+        metadata: found ? (found.metadata as Record<string, unknown>) : null,
+      };
+    }
+  } catch (error) {
+    logger.error('AI', 'Failed to check vectorize', { fileId }, error);
+  }
+
+  try {
+    const text = await buildFileTextForVector(c.env, fileId);
+    result.indexedText = text.slice(0, 500) + (text.length > 500 ? '...' : '');
+  } catch (error) {
+    logger.error('AI', 'Failed to build text', { fileId }, error);
+  }
+
+  return c.json({ success: true, data: result });
 });
 
 // :fileId 参数路由放在所有具体路径之后
@@ -617,25 +900,20 @@ async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTa
 
   const isRateLimitedError = (error: string): boolean => {
     const lowerError = error.toLowerCase();
-    return lowerError.includes('rate limit') ||
-           lowerError.includes('too many requests') ||
-           lowerError.includes('429') ||
-           lowerError.includes('throttl') ||
-           lowerError.includes('overload');
+    return (
+      lowerError.includes('rate limit') ||
+      lowerError.includes('too many requests') ||
+      lowerError.includes('429') ||
+      lowerError.includes('throttl') ||
+      lowerError.includes('overload')
+    );
   };
 
   try {
     const allFiles = await db
       .select()
       .from(files)
-      .where(
-        and(
-          eq(files.userId, userId),
-          isNull(files.deletedAt),
-          eq(files.isFolder, false),
-          isNull(files.aiSummary)
-        )
-      )
+      .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false), isNull(files.aiSummary)))
       .all();
 
     const editableFiles = allFiles.filter((f) => canGenerateSummary(f.mimeType, f.name));
@@ -645,7 +923,10 @@ async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTa
     task.failed = 0;
     await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
 
-    const summarizeFileWithRetry = async (fileId: string, retryCount: number = 0): Promise<{ success: boolean; error?: string }> => {
+    const summarizeFileWithRetry = async (
+      fileId: string,
+      retryCount: number = 0
+    ): Promise<{ success: boolean; error?: string }> => {
       const currentTask = await env.KV.get(taskKey, 'json');
       if (currentTask && (currentTask as SummarizeTask).status === 'cancelled') {
         return { success: false, error: '任务已取消' };
@@ -655,7 +936,7 @@ async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTa
       const timeoutId = setTimeout(() => controller.abort(), FILE_TIMEOUT_MS);
 
       try {
-        await generateFileSummary(env, fileId);
+        await generateFileSummary(env, fileId, undefined, undefined, controller.signal);
         clearTimeout(timeoutId);
         return { success: true };
       } catch (error) {
@@ -750,11 +1031,13 @@ async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promi
 
   const isRateLimitedError = (error: string): boolean => {
     const lowerError = error.toLowerCase();
-    return lowerError.includes('rate limit') ||
-           lowerError.includes('too many requests') ||
-           lowerError.includes('429') ||
-           lowerError.includes('throttl') ||
-           lowerError.includes('overload');
+    return (
+      lowerError.includes('rate limit') ||
+      lowerError.includes('too many requests') ||
+      lowerError.includes('429') ||
+      lowerError.includes('throttl') ||
+      lowerError.includes('overload')
+    );
   };
 
   try {
@@ -777,7 +1060,10 @@ async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promi
     task.failed = 0;
     await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
 
-    const generateTagsWithRetry = async (fileId: string, retryCount: number = 0): Promise<{ success: boolean; error?: string }> => {
+    const generateTagsWithRetry = async (
+      fileId: string,
+      retryCount: number = 0
+    ): Promise<{ success: boolean; error?: string }> => {
       const currentTask = await env.KV.get(taskKey, 'json');
       if (currentTask && (currentTask as TagsTask).status === 'cancelled') {
         return { success: false, error: '任务已取消' };
@@ -882,11 +1168,13 @@ async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Pro
 
   const isRateLimitedError = (error: string): boolean => {
     const lowerError = error.toLowerCase();
-    return lowerError.includes('rate limit') ||
-           lowerError.includes('too many requests') ||
-           lowerError.includes('429') ||
-           lowerError.includes('throttl') ||
-           lowerError.includes('overload');
+    return (
+      lowerError.includes('rate limit') ||
+      lowerError.includes('too many requests') ||
+      lowerError.includes('429') ||
+      lowerError.includes('throttl') ||
+      lowerError.includes('overload')
+    );
   };
 
   try {
@@ -894,12 +1182,7 @@ async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Pro
       .select({ id: files.id })
       .from(files)
       .where(
-        and(
-          eq(files.userId, userId),
-          isNull(files.deletedAt),
-          eq(files.isFolder, false),
-          isNull(files.vectorIndexedAt)
-        )
+        and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false), isNull(files.vectorIndexedAt))
       )
       .all();
 
@@ -908,7 +1191,10 @@ async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Pro
     task.failed = 0;
     await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
 
-    const indexFileWithRetry = async (fileId: string, retryCount: number = 0): Promise<{ success: boolean; error?: string }> => {
+    const indexFileWithRetry = async (
+      fileId: string,
+      retryCount: number = 0
+    ): Promise<{ success: boolean; error?: string }> => {
       const currentTask = await env.KV.get(taskKey, 'json');
       if (currentTask && (currentTask as IndexTask).status === 'cancelled') {
         return { success: false, error: '任务已取消' };
@@ -1007,49 +1293,6 @@ async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Pro
   await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
 }
 
-app.get('/index/stats', async (c) => {
-  const userId = c.get('userId')!;
-  const db = getDb(c.env.DB);
-
-  const allFiles = await db
-    .select()
-    .from(files)
-    .where(
-      and(
-        eq(files.userId, userId),
-        isNull(files.deletedAt),
-        eq(files.isFolder, false)
-      )
-    )
-    .all();
-
-  const stats = {
-    editable: { total: 0, noSummary: 0, notIndexed: 0 },
-    image: { total: 0, noTags: 0, notIndexed: 0 },
-    other: { total: 0, notIndexed: 0 },
-  };
-
-  for (const file of allFiles) {
-    const isEditable = canGenerateSummary(file.mimeType, file.name);
-    const isImage = file.mimeType?.startsWith('image/') ?? false;
-
-    if (isEditable) {
-      stats.editable.total++;
-      if (!file.aiSummary) stats.editable.noSummary++;
-      if (!file.vectorIndexedAt) stats.editable.notIndexed++;
-    } else if (isImage) {
-      stats.image.total++;
-      if (!file.aiTags) stats.image.noTags++;
-      if (!file.vectorIndexedAt) stats.image.notIndexed++;
-    } else {
-      stats.other.total++;
-      if (!file.vectorIndexedAt) stats.other.notIndexed++;
-    }
-  }
-
-  return c.json({ success: true, data: stats });
-});
-
 const chatSchema = z.object({
   query: z.string().min(1).max(500),
   scope: z.enum(['all', 'folder']).default('all'),
@@ -1069,10 +1312,7 @@ app.post('/chat', async (c) => {
   }
 
   if (!c.env.AI || !c.env.VECTORIZE) {
-    return c.json(
-      { success: false, error: { code: 'AI_NOT_CONFIGURED', message: 'AI 功能未配置' } },
-      503
-    );
+    return c.json({ success: false, error: { code: 'AI_NOT_CONFIGURED', message: 'AI 功能未配置' } }, 503);
   }
 
   const { query, limit } = result.data;

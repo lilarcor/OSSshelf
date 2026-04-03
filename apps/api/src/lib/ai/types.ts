@@ -51,6 +51,7 @@ export interface ChatCompletionRequest {
   temperature?: number;
   stream?: boolean;
   stop?: string[];
+  signal?: AbortSignal;
 }
 
 export interface ChatCompletionResponse {
@@ -96,7 +97,7 @@ export interface IModelAdapter {
   readonly provider: ModelProvider;
   readonly modelName: string;
 
-  chatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResponse>;
+  chatCompletion(request: ChatCompletionRequest, signal?: AbortSignal): Promise<ChatCompletionResponse>;
   chatCompletionStream(
     request: ChatCompletionRequest,
     onChunk: (chunk: StreamChunk) => void,

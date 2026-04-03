@@ -53,10 +53,10 @@ export type AiFeatureType = 'summary' | 'imageCaption' | 'imageTag' | 'rename';
 
 // 功能级模型配置接口
 export interface FeatureModelConfig {
-  summary?: string;      // 文件摘要模型 ID
+  summary?: string; // 文件摘要模型 ID
   imageCaption?: string; // 图片描述模型 ID
-  imageTag?: string;     // 图片标签模型 ID
-  rename?: string;       // 智能重命名模型 ID
+  imageTag?: string; // 图片标签模型 ID
+  rename?: string; // 智能重命名模型 ID
 }
 
 export function canGenerateSummary(mimeType: string | null, fileName: string): boolean {
@@ -78,11 +78,11 @@ async function getFeatureModelConfig(env: Env, userId: string): Promise<FeatureM
   try {
     const configKey = `ai:feature-model-config:${userId}`;
     const cached = await env.KV.get(configKey, 'json');
-    
+
     if (cached) {
       return cached as FeatureModelConfig;
     }
-    
+
     return {};
   } catch (error) {
     logger.error('AI', 'Failed to get feature model config', { userId }, error);
@@ -97,35 +97,44 @@ async function callChatModel(
   env: Env,
   userId: string,
   featureType: AiFeatureType,
-  request: ChatCompletionRequest
+  request: ChatCompletionRequest,
+  signal?: AbortSignal
 ): Promise<string> {
   const gateway = new ModelGateway(env);
-  
-  // 获取该功能的自定义模型配置
+
   const featureConfig = await getFeatureModelConfig(env, userId);
   const customModelId = featureConfig[featureType];
-  
+
   try {
-    // 尝试使用用户配置的自定义模型或默认活跃模型
-    const response = await gateway.chatCompletion(userId, request, customModelId);
+    const response = await gateway.chatCompletion(userId, request, customModelId, signal);
     return response.content;
   } catch (error) {
-    // 如果失败，尝试使用 Workers AI 默认模型作为最终回退
+    if ((error as Error).name === 'AbortError') {
+      throw error;
+    }
+
+    if (signal?.aborted) {
+      throw new DOMException('The operation was aborted', 'AbortError');
+    }
+
     logger.warn('AI', 'Custom model failed, falling back to default', { featureType, error });
-    
+
     const defaultModelId = DEFAULT_MODELS[featureType] || DEFAULT_MODELS.summary;
-    
-    // 直接调用 Workers AI（绕过 Gateway 的配置检查）
+
     if (env.AI) {
       const fallbackResponse = await (env.AI as any).run(defaultModelId, {
         messages: request.messages,
         max_tokens: request.maxTokens || 200,
         stream: false,
       });
-      
+
+      if (signal?.aborted) {
+        throw new DOMException('The operation was aborted', 'AbortError');
+      }
+
       return (fallbackResponse as { response?: string }).response?.trim() || '';
     }
-    
+
     throw error;
   }
 }
@@ -143,7 +152,7 @@ async function callVisionModel(
   const gateway = new ModelGateway(env);
   const featureConfig = await getFeatureModelConfig(env, userId);
   const customModelId = featureConfig.imageCaption;
-  
+
   try {
     if (customModelId && env.AI) {
       // 使用用户配置的自定义 vision 模型
@@ -152,12 +161,14 @@ async function callVisionModel(
         prompt,
         max_tokens: 300,
       });
-      
-      return (response as { description?: string; response?: string }).description?.trim() 
-        || (response as { response?: string }).response?.trim() 
-        || '';
+
+      return (
+        (response as { description?: string; response?: string }).description?.trim() ||
+        (response as { response?: string }).response?.trim() ||
+        ''
+      );
     }
-    
+
     // 使用默认模型
     if (env.AI) {
       const response = await (env.AI as any).run(modelId, {
@@ -165,10 +176,10 @@ async function callVisionModel(
         prompt,
         max_tokens: 300,
       });
-      
+
       return (response as { description?: string }).description?.trim() || '';
     }
-    
+
     throw new Error('AI service not available');
   } catch (error) {
     logger.error('AI', 'Vision model call failed', { modelId }, error);
@@ -179,11 +190,7 @@ async function callVisionModel(
 /**
  * 调用图片分类模型（生成标签）
  */
-async function callClassificationModel(
-  env: Env,
-  modelId: string,
-  imageData: number[]
-): Promise<unknown> {
+async function callClassificationModel(env: Env, modelId: string, imageData: number[]): Promise<unknown> {
   if (!env.AI) {
     throw new Error('AI service not configured');
   }
@@ -197,7 +204,8 @@ export async function generateFileSummary(
   env: Env,
   fileId: string,
   content?: string,
-  userId?: string
+  userId?: string,
+  signal?: AbortSignal
 ): Promise<SummaryResult> {
   if (!env.AI) {
     throw new Error('AI service not configured');
@@ -241,8 +249,7 @@ export async function generateFileSummary(
         messages: [
           {
             role: 'system',
-            content:
-              '你是文件助手。请用简洁的中文（不超过3句话）概括文件内容。如果内容是代码，请说明代码的主要功能。',
+            content: '你是文件助手。请用简洁的中文（不超过3句话）概括文件内容。如果内容是代码，请说明代码的主要功能。',
           },
           {
             role: 'user',
@@ -250,7 +257,8 @@ export async function generateFileSummary(
           },
         ],
         maxTokens: 200,
-      }
+      },
+      signal
     );
 
     await Promise.all([
@@ -377,30 +385,25 @@ export async function suggestFileName(
   }
 
   try {
-    const responseText = await callChatModel(
-      env,
-      userId || file.userId || 'default',
-      'rename',
-      {
-        messages: [
-          {
-            role: 'system',
-            content: `你是文件命名助手。根据提供的信息，建议3个简洁、有意义的中文文件名。
+    const responseText = await callChatModel(env, userId || file.userId || 'default', 'rename', {
+      messages: [
+        {
+          role: 'system',
+          content: `你是文件命名助手。根据提供的信息，建议3个简洁、有意义的中文文件名。
 规则：
 1. 每个文件名不超过20个字
 2. 保留文件扩展名 ${ext || '（无扩展名）'}
 3. 每行一个文件名，不加编号、不加解释
 4. 文件名要能反映文件主要内容
 5. 只输出文件名，不输出其他任何内容`,
-          },
-          {
-            role: 'user',
-            content: `原文件名：${file.name}\n${contextForAI}`,
-          },
-        ],
-        maxTokens: 150,
-      }
-    );
+        },
+        {
+          role: 'user',
+          content: `原文件名：${file.name}\n${contextForAI}`,
+        },
+      ],
+      maxTokens: 150,
+    });
 
     const suggestions = responseText
       .split('\n')
@@ -437,30 +440,25 @@ export async function suggestFileNameFromContent(
   const ext = extension || '';
 
   try {
-    const responseText = await callChatModel(
-      env,
-      userId || 'default',
-      'rename',
-      {
-        messages: [
-          {
-            role: 'system',
-            content: `你是文件命名助手。根据提供的文件内容，建议3个简洁、有意义的中文文件名。
+    const responseText = await callChatModel(env, userId || 'default', 'rename', {
+      messages: [
+        {
+          role: 'system',
+          content: `你是文件命名助手。根据提供的文件内容，建议3个简洁、有意义的中文文件名。
 规则：
 1. 每个文件名不超过20个字
 2. 保留文件扩展名 ${ext || '（无扩展名）'}
 3. 每行一个文件名，不加编号、不加解释
 4. 文件名要能反映文件主要内容
 5. 只输出文件名，不输出其他任何内容`,
-          },
-          {
-            role: 'user',
-            content: `文件类型：${mimeType || '未知'}\n文件内容（前${RENAME_CONTENT_LIMIT}字）：\n${content.slice(0, RENAME_CONTENT_LIMIT)}`,
-          },
-        ],
-        maxTokens: 150,
-      }
-    );
+        },
+        {
+          role: 'user',
+          content: `文件类型：${mimeType || '未知'}\n文件内容（前${RENAME_CONTENT_LIMIT}字）：\n${content.slice(0, RENAME_CONTENT_LIMIT)}`,
+        },
+      ],
+      maxTokens: 150,
+    });
 
     const suggestions = responseText
       .split('\n')

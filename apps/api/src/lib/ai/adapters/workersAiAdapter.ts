@@ -29,9 +29,13 @@ export class WorkersAiAdapter implements IModelAdapter {
     this.env = env;
   }
 
-  async chatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
+  async chatCompletion(request: ChatCompletionRequest, signal?: AbortSignal): Promise<ChatCompletionResponse> {
     if (!this.env.AI) {
       throw new Error('Workers AI service not configured');
+    }
+
+    if (signal?.aborted) {
+      throw new DOMException('The operation was aborted', 'AbortError');
     }
 
     try {
@@ -44,6 +48,10 @@ export class WorkersAiAdapter implements IModelAdapter {
         max_tokens: request.maxTokens || 4096,
         temperature: request.temperature ?? 0.7,
       });
+
+      if (signal?.aborted) {
+        throw new DOMException('The operation was aborted', 'AbortError');
+      }
 
       return {
         id: crypto.randomUUID(),

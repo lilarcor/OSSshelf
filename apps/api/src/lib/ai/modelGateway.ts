@@ -119,7 +119,8 @@ export class ModelGateway {
   async chatCompletion(
     userId: string,
     request: ChatCompletionRequest,
-    modelId?: string
+    modelId?: string,
+    signal?: AbortSignal
   ): Promise<ChatCompletionResponse> {
     let modelConfig = modelId
       ? await this.getModelById(modelId, userId)
@@ -138,11 +139,14 @@ export class ModelGateway {
       });
     }
 
-    return adapter.chatCompletion({
-      ...request,
-      maxTokens: request.maxTokens || modelConfig.maxTokens,
-      temperature: request.temperature ?? modelConfig.temperature,
-    });
+    return adapter.chatCompletion(
+      {
+        ...request,
+        maxTokens: request.maxTokens || modelConfig.maxTokens,
+        temperature: request.temperature ?? modelConfig.temperature,
+      },
+      signal
+    );
   }
 
   async chatCompletionStream(

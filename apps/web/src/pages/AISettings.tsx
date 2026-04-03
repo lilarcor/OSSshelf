@@ -17,8 +17,6 @@ import {
   Cpu,
   Plus,
   Trash2,
-  Edit2,
-  Check,
   X,
   Key,
   Cloud,
@@ -26,8 +24,6 @@ import {
   AlertCircle,
   AlertTriangle,
   Loader2,
-  ChevronDown,
-  ChevronUp,
   Database,
   RefreshCw,
   CheckCircle,
@@ -42,6 +38,7 @@ import {
   Settings2,
   Tags,
   Type,
+  Layers,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ModelCard } from '@/components/ai';
@@ -50,7 +47,7 @@ import type { AIIndexTask, AISummarizeTask, AITagsTask, AIIndexStats } from '@/s
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/utils';
 
-type TabType = 'models' | 'providers' | 'index' | 'tasks';
+type TabType = 'models' | 'providers' | 'index' | 'tasks' | 'vectors';
 
 export function AISettings() {
   const navigate = useNavigate();
@@ -80,6 +77,10 @@ export function AISettings() {
     rename: string | null;
   } | null>(null);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+  // 向量库状态
+  const [vectorPage, setVectorPage] = useState(1);
+  const [deletingVectorId, setDeletingVectorId] = useState<string | null>(null);
 
   // 查询模型列表
   const { data: models = [], isLoading: modelsLoading } = useQuery({
@@ -129,6 +130,43 @@ export function AISettings() {
       queryClient.invalidateQueries({ queryKey: ['ai-config-status'] });
     },
   });
+
+  // 向量库查询
+  const {
+    data: vectorsData,
+    isLoading: isLoadingVectors,
+    error: vectorsError,
+    refetch: refetchVectors,
+  } = useQuery({
+    queryKey: ['ai-vectors', vectorPage],
+    queryFn: () => aiApi.getVectors({ page: vectorPage, pageSize: 20 }).then((r) => r.data.data),
+    staleTime: 30000,
+  });
+
+  // 删除向量
+  const deleteVectorMutation = useMutation({
+    mutationFn: (fileId: string) => aiApi.deleteVector(fileId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-vectors'] });
+      setDeletingVectorId(null);
+    },
+    onError: () => {
+      setDeletingVectorId(null);
+    },
+  });
+
+  const handleDeleteVector = async (fileId: string, fileName: string) => {
+    if (!confirm(`确定要删除文件 "${fileName}" 的向量索引吗？`)) return;
+    setDeletingVectorId(fileId);
+    deleteVectorMutation.mutate(fileId);
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
 
   // 测试模型连接
   const [testResult, setTestResult] = useState<{
@@ -200,9 +238,7 @@ export function AISettings() {
   const quickActivateMutation = useMutation({
     mutationFn: async (workersAiModelId: string) => {
       // 检查是否已存在该模型
-      const existingModel = models.find(
-        (m) => m.provider === 'workers_ai' && m.modelId === workersAiModelId
-      );
+      const existingModel = models.find((m) => m.provider === 'workers_ai' && m.modelId === workersAiModelId);
 
       if (existingModel) {
         // 已存在则直接激活
@@ -250,9 +286,7 @@ export function AISettings() {
 
   // 任务状态自动轮询：当有任务运行时，每3秒刷新一次
   useEffect(() => {
-    const isAnyTaskRunning = [task, summarizeTask, tagsTask].some(
-      (t) => t && t.status === 'running'
-    );
+    const isAnyTaskRunning = [task, summarizeTask, tagsTask].some((t) => t && t.status === 'running');
 
     if (!isAnyTaskRunning) return;
 
@@ -316,20 +350,6 @@ export function AISettings() {
     }
   };
 
-  const handleCancelTask = async () => {
-    try {
-      const response = await aiApi.cancelIndexTask();
-      if (response.data.success && response.data.data) {
-        setTask(response.data.data.task);
-        // 立即刷新所有任务状态
-        await fetchAllTaskStatus();
-      }
-    } catch (e: any) {
-      console.error('Failed to cancel task:', e);
-    }
-  };
-
-  // 强制重置卡住的任务
   const handleForceResetTask = async (taskType: 'index' | 'summarize' | 'tags') => {
     try {
       if (taskType === 'index') {
@@ -385,12 +405,7 @@ export function AISettings() {
           </div>
           {/* 所有非 idle 和 completed 状态都显示操作按钮 */}
           {taskType && taskData.status !== 'completed' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleForceResetTask(taskType)}
-              className="text-xs"
-            >
+            <Button variant="outline" size="sm" onClick={() => handleForceResetTask(taskType)} className="text-xs">
               {taskData.status === 'running' ? '取消' : '清除'}
             </Button>
           )}
@@ -446,11 +461,11 @@ export function AISettings() {
 
   const isAIAvailable = status?.configured;
 
-  // 标签页配置（移动端友好）
   const tabs: { id: TabType; label: string; icon: typeof Cpu; badge?: number }[] = [
     { id: 'models', label: '模型', icon: Cpu, badge: models.length },
     { id: 'providers', label: '可用模型', icon: Zap },
     { id: 'index', label: '索引与处理', icon: Database },
+    { id: 'vectors', label: '向量库', icon: Layers },
     { id: 'tasks', label: '任务中心', icon: BarChart3 },
   ];
 
@@ -632,10 +647,13 @@ export function AISettings() {
                   const isPending = quickActivateMutation.isPending;
 
                   return (
-                    <div key={m.id} className={cn(
-                      "p-3 sm:p-4 border rounded-lg transition-colors relative",
-                      isActive ? "border-primary bg-primary/5" : "hover:border-primary/50"
-                    )}>
+                    <div
+                      key={m.id}
+                      className={cn(
+                        'p-3 sm:p-4 border rounded-lg transition-colors relative',
+                        isActive ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
+                      )}
+                    >
                       {isActive && (
                         <div className="absolute top-2 right-2">
                           <CheckCircle className="h-5 w-5 text-primary" />
@@ -649,7 +667,10 @@ export function AISettings() {
                         </div>
                         <div className="flex flex-wrap gap-1 flex-shrink-0">
                           {m.capabilities.map((cap) => (
-                            <span key={cap} className="px-2 py-0.5 bg-accent text-accent-foreground text-xs rounded-full">
+                            <span
+                              key={cap}
+                              className="px-2 py-0.5 bg-accent text-accent-foreground text-xs rounded-full"
+                            >
                               {cap}
                             </span>
                           ))}
@@ -658,7 +679,7 @@ export function AISettings() {
                       <div className="mt-3 pt-3 border-t">
                         <Button
                           size="sm"
-                          variant={isActive ? "default" : "outline"}
+                          variant={isActive ? 'default' : 'outline'}
                           className="w-full"
                           disabled={isPending}
                           onClick={() => quickActivateMutation.mutate(m.id)}
@@ -769,7 +790,7 @@ export function AISettings() {
                   <div className="space-y-4">
                     {/* 文件摘要模型 */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {([
+                      {[
                         {
                           key: 'summary' as const,
                           label: '文件摘要',
@@ -802,7 +823,7 @@ export function AISettings() {
                           capability: 'chat',
                           defaultModel: '@cf/meta/llama-3.1-8b-instruct',
                         },
-                      ]).map((item) => (
+                      ].map((item) => (
                         <div key={item.key} className="border rounded-lg p-3 space-y-2">
                           <div className="flex items-center gap-2">
                             <span className="text-primary">{item.icon}</span>
@@ -835,8 +856,8 @@ export function AISettings() {
                                 item.capability === 'vision'
                                   ? m.capabilities.includes('vision')
                                   : item.capability === 'classify'
-                                  ? false
-                                  : m.capabilities.includes('chat')
+                                    ? false
+                                    : m.capabilities.includes('chat')
                               )
                               .map((m) => (
                                 <option key={`wa-${m.id}`} value={m.id}>
@@ -961,6 +982,127 @@ export function AISettings() {
                   {renderTaskProgress(task, 'index')}
                 </div>
               </>
+            )}
+          </div>
+        )}
+
+        {/* ========== 向量库标签页 ========== */}
+        {activeTab === 'vectors' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg sm:text-xl font-semibold">向量索引库</h2>
+              <Button variant="outline" size="sm" onClick={() => refetchVectors()} disabled={isLoadingVectors}>
+                {isLoadingVectors ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                刷新
+              </Button>
+            </div>
+
+            {vectorsError ? <div className="text-red-500 text-sm">{String(vectorsError)}</div> : null}
+
+            <div className="border rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="text-left p-3 font-medium">文件名</th>
+                      <th className="text-left p-3 font-medium">类型</th>
+                      <th className="text-left p-3 font-medium">大小</th>
+                      <th className="text-left p-3 font-medium">索引时间</th>
+                      <th className="text-left p-3 font-medium">摘要</th>
+                      <th className="text-left p-3 font-medium">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {isLoadingVectors ? (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                          <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                          加载中...
+                        </td>
+                      </tr>
+                    ) : vectorsData?.vectors.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                          暂无向量索引数据
+                        </td>
+                      </tr>
+                    ) : (
+                      vectorsData?.vectors.map((vector) => (
+                        <tr key={vector.id} className="hover:bg-muted/30">
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <span className="truncate max-w-[200px]" title={vector.name}>
+                                {vector.name}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-3 text-muted-foreground">{vector.mimeType?.split('/')[1] || '未知'}</td>
+                          <td className="p-3 text-muted-foreground">
+                            {vector.size ? formatFileSize(vector.size) : '-'}
+                          </td>
+                          <td className="p-3 text-muted-foreground">
+                            {vector.vectorIndexedAt ? new Date(vector.vectorIndexedAt).toLocaleString('zh-CN') : '-'}
+                          </td>
+                          <td className="p-3">
+                            {vector.aiSummary ? (
+                              <span className="text-xs text-green-600 dark:text-green-400">已生成</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">无</span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                              onClick={() => handleDeleteVector(vector.id, vector.name)}
+                              disabled={deletingVectorId === vector.id}
+                            >
+                              {deletingVectorId === vector.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {vectorsData && vectorsData.pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">共 {vectorsData.pagination.total} 条记录</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={vectorPage === 1}
+                    onClick={() => setVectorPage((p) => p - 1)}
+                  >
+                    上一页
+                  </Button>
+                  <span>
+                    {vectorPage} / {vectorsData.pagination.totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={vectorPage === vectorsData.pagination.totalPages}
+                    onClick={() => setVectorPage((p) => p + 1)}
+                  >
+                    下一页
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         )}

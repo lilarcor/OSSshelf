@@ -1190,6 +1190,71 @@ export interface AIIndexStats {
   };
 }
 
+export interface AIIndexDiagnose {
+  vectorize: {
+    configured: boolean;
+    totalCount: number;
+    userCount: number;
+    sampleVectors: Array<{
+      id: string;
+      score: number;
+      metadata: Record<string, unknown>;
+    }>;
+  };
+  database: {
+    totalFiles: number;
+    indexedFiles: number;
+    filesWithSummary: number;
+    mismatchedFiles: string[];
+  };
+  testSearch: {
+    success: boolean;
+    resultCount: number;
+    sampleQuery: string;
+    error: string;
+  };
+}
+
+export interface AIIndexSample {
+  file: {
+    id: string;
+    name: string;
+    mimeType: string | null;
+    vectorIndexedAt: string | null;
+    aiSummary: string | null;
+  };
+  vectorize: {
+    found: boolean;
+    metadata: Record<string, unknown> | null;
+  } | null;
+  indexedText: string;
+}
+
+export interface VectorItem {
+  id: string;
+  name: string;
+  mimeType: string | null;
+  size: number | null;
+  vectorIndexedAt: string | null;
+  aiSummary: string | null;
+  vectorize: {
+    found: boolean;
+    metadata: Record<string, unknown> | null;
+  };
+  indexedTextLength: number;
+  indexedTextPreview: string;
+}
+
+export interface VectorListResponse {
+  vectors: VectorItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export const aiApi = {
   getStatus: () => api.get<ApiResponse<AIStatus>>('/api/ai/status'),
 
@@ -1235,6 +1300,15 @@ export const aiApi = {
   getTagsTask: () => api.get<ApiResponse<AITagsTask>>('/api/ai/tags/task'),
 
   getIndexStats: () => api.get<ApiResponse<AIIndexStats>>('/api/ai/index/stats'),
+
+  getVectors: (params?: { page?: number; pageSize?: number; search?: string }) =>
+    api.get<ApiResponse<VectorListResponse>>('/api/ai/index/vectors', { params }),
+
+  deleteVector: (fileId: string) => api.delete<ApiResponse<{ message: string }>>(`/api/ai/index/vectors/${fileId}`),
+
+  getIndexDiagnose: () => api.get<ApiResponse<AIIndexDiagnose>>('/api/ai/index/diagnose'),
+
+  getIndexSample: (fileId: string) => api.get<ApiResponse<AIIndexSample>>(`/api/ai/index/sample/${fileId}`),
 
   chat: (query: string, options?: { scope?: string; folderId?: string; limit?: number }) =>
     api.post<

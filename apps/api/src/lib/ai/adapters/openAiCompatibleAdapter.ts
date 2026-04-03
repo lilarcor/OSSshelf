@@ -28,7 +28,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
     this.config = config;
   }
 
-  async chatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
+  async chatCompletion(request: ChatCompletionRequest, signal?: AbortSignal): Promise<ChatCompletionResponse> {
     this.validateConnection();
 
     try {
@@ -42,6 +42,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
           temperature: request.temperature ?? this.config.temperature,
           stream: false,
         }),
+        signal,
       });
 
       if (!response.ok) {
