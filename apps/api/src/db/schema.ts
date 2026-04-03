@@ -8,7 +8,7 @@
  * - 使用Drizzle ORM的SQLite适配器
  */
 
-import { sqliteTable, text, integer, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable(
   'users',
