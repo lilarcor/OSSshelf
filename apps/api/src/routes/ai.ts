@@ -609,9 +609,20 @@ app.get('/file/:fileId', async (c) => {
 async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTask): Promise<void> {
   const db = getDb(env.DB);
   const taskKey = `ai:summarize:task:${userId}`;
-  const concurrency = 3;
-  const FILE_TIMEOUT_MS = 30000; // 单个文件处理超时30秒
-  const MAX_ERRORS = 10; // 连续错误上限
+  const concurrency = 2;
+  const FILE_TIMEOUT_MS = 30000;
+  const MAX_ERRORS = 15;
+  const BATCH_DELAY_MS = 1500;
+  const RATE_LIMIT_DELAY_MS = 8000;
+
+  const isRateLimitedError = (error: string): boolean => {
+    const lowerError = error.toLowerCase();
+    return lowerError.includes('rate limit') ||
+           lowerError.includes('too many requests') ||
+           lowerError.includes('429') ||
+           lowerError.includes('throttl') ||
+           lowerError.includes('overload');
+  };
 
   try {
     const allFiles = await db
@@ -634,14 +645,12 @@ async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTa
     task.failed = 0;
     await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
 
-    const summarizeFile = async (fileId: string): Promise<{ success: boolean; error?: string }> => {
-      // 检查任务是否已取消
+    const summarizeFileWithRetry = async (fileId: string, retryCount: number = 0): Promise<{ success: boolean; error?: string }> => {
       const currentTask = await env.KV.get(taskKey, 'json');
       if (currentTask && (currentTask as SummarizeTask).status === 'cancelled') {
         return { success: false, error: '任务已取消' };
       }
 
-      // 添加超时控制
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), FILE_TIMEOUT_MS);
 
@@ -654,14 +663,23 @@ async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTa
         if ((error as Error).name === 'AbortError') {
           return { success: false, error: '处理超时' };
         }
-        return { success: false, error: error instanceof Error ? error.message : String(error) };
+
+        const errorMsg = error instanceof Error ? error.message : String(error);
+
+        if (isRateLimitedError(errorMsg) && retryCount < 3) {
+          logger.warn('AI', 'Rate limited, waiting before retry', { fileId, retryCount });
+          await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY_MS * (retryCount + 1)));
+          return summarizeFileWithRetry(fileId, retryCount + 1);
+        }
+
+        return { success: false, error: errorMsg };
       }
     };
 
     let consecutiveErrors = 0;
+    let rateLimitBackoff = false;
 
     for (let i = 0; i < editableFiles.length; i += concurrency) {
-      // 每批开始前检查是否已取消
       const currentTask = await env.KV.get(taskKey, 'json');
       if (currentTask && (currentTask as SummarizeTask).status === 'cancelled') {
         task.status = 'cancelled';
@@ -669,8 +687,15 @@ async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTa
         break;
       }
 
+      if (rateLimitBackoff || (i > 0 && i % 10 === 0)) {
+        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS * 2));
+        rateLimitBackoff = false;
+      } else if (i > 0) {
+        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+
       const batch = editableFiles.slice(i, i + concurrency);
-      const results = await Promise.allSettled(batch.map((f) => summarizeFile(f.id)));
+      const results = await Promise.allSettled(batch.map((f) => summarizeFileWithRetry(f.id)));
 
       for (const result of results) {
         if (result.status === 'fulfilled') {
@@ -680,6 +705,9 @@ async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTa
           } else {
             task.failed = (task.failed || 0) + 1;
             consecutiveErrors++;
+            if (isRateLimitedError(result.value.error || '')) {
+              rateLimitBackoff = true;
+            }
           }
         } else {
           task.failed = (task.failed || 0) + 1;
@@ -687,10 +715,9 @@ async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTa
         }
       }
 
-      // 连续错误过多，终止任务
       if (consecutiveErrors >= MAX_ERRORS) {
         task.status = 'failed';
-        task.error = `连续${MAX_ERRORS}次错误，任务终止`;
+        task.error = `连续${MAX_ERRORS}次错误，任务终止（可能触发API限流，请稍后重试）`;
         break;
       }
 
@@ -715,9 +742,20 @@ async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTa
 async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promise<void> {
   const db = getDb(env.DB);
   const taskKey = `ai:tags:task:${userId}`;
-  const concurrency = 3;
-  const FILE_TIMEOUT_MS = 60000; // 图片处理超时60秒
-  const MAX_ERRORS = 10;
+  const concurrency = 2;
+  const FILE_TIMEOUT_MS = 60000;
+  const MAX_ERRORS = 15;
+  const BATCH_DELAY_MS = 2000;
+  const RATE_LIMIT_DELAY_MS = 10000;
+
+  const isRateLimitedError = (error: string): boolean => {
+    const lowerError = error.toLowerCase();
+    return lowerError.includes('rate limit') ||
+           lowerError.includes('too many requests') ||
+           lowerError.includes('429') ||
+           lowerError.includes('throttl') ||
+           lowerError.includes('overload');
+  };
 
   try {
     const allImages = await db
@@ -739,14 +777,12 @@ async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promi
     task.failed = 0;
     await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
 
-    const generateTags = async (fileId: string): Promise<{ success: boolean; error?: string }> => {
-      // 检查任务是否已取消
+    const generateTagsWithRetry = async (fileId: string, retryCount: number = 0): Promise<{ success: boolean; error?: string }> => {
       const currentTask = await env.KV.get(taskKey, 'json');
       if (currentTask && (currentTask as TagsTask).status === 'cancelled') {
         return { success: false, error: '任务已取消' };
       }
 
-      // 添加超时控制
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), FILE_TIMEOUT_MS);
 
@@ -759,14 +795,23 @@ async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promi
         if ((error as Error).name === 'AbortError') {
           return { success: false, error: '处理超时' };
         }
-        return { success: false, error: error instanceof Error ? error.message : String(error) };
+
+        const errorMsg = error instanceof Error ? error.message : String(error);
+
+        if (isRateLimitedError(errorMsg) && retryCount < 3) {
+          logger.warn('AI', 'Rate limited on tags, waiting before retry', { fileId, retryCount });
+          await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY_MS * (retryCount + 1)));
+          return generateTagsWithRetry(fileId, retryCount + 1);
+        }
+
+        return { success: false, error: errorMsg };
       }
     };
 
     let consecutiveErrors = 0;
+    let rateLimitBackoff = false;
 
     for (let i = 0; i < allImages.length; i += concurrency) {
-      // 每批开始前检查是否已取消
       const currentTask = await env.KV.get(taskKey, 'json');
       if (currentTask && (currentTask as TagsTask).status === 'cancelled') {
         task.status = 'cancelled';
@@ -774,8 +819,15 @@ async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promi
         break;
       }
 
+      if (rateLimitBackoff || (i > 0 && i % 6 === 0)) {
+        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS * 2));
+        rateLimitBackoff = false;
+      } else if (i > 0) {
+        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+
       const batch = allImages.slice(i, i + concurrency);
-      const results = await Promise.allSettled(batch.map((f) => generateTags(f.id)));
+      const results = await Promise.allSettled(batch.map((f) => generateTagsWithRetry(f.id)));
 
       for (const result of results) {
         if (result.status === 'fulfilled') {
@@ -785,6 +837,9 @@ async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promi
           } else {
             task.failed = (task.failed || 0) + 1;
             consecutiveErrors++;
+            if (isRateLimitedError(result.value.error || '')) {
+              rateLimitBackoff = true;
+            }
           }
         } else {
           task.failed = (task.failed || 0) + 1;
@@ -792,10 +847,9 @@ async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promi
         }
       }
 
-      // 连续错误过多，终止任务
       if (consecutiveErrors >= MAX_ERRORS) {
         task.status = 'failed';
-        task.error = `连续${MAX_ERRORS}次错误，任务终止`;
+        task.error = `连续${MAX_ERRORS}次错误，任务终止（可能触发API限流，请稍后重试）`;
         break;
       }
 
@@ -820,9 +874,20 @@ async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promi
 async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Promise<void> {
   const db = getDb(env.DB);
   const taskKey = `ai:index:task:${userId}`;
-  const concurrency = 3;
-  const FILE_TIMEOUT_MS = 60000; // 单个文件索引超时60秒
-  const MAX_ERRORS = 10; // 连续错误上限
+  const concurrency = 2;
+  const FILE_TIMEOUT_MS = 60000;
+  const MAX_ERRORS = 15;
+  const BATCH_DELAY_MS = 1000;
+  const RATE_LIMIT_DELAY_MS = 8000;
+
+  const isRateLimitedError = (error: string): boolean => {
+    const lowerError = error.toLowerCase();
+    return lowerError.includes('rate limit') ||
+           lowerError.includes('too many requests') ||
+           lowerError.includes('429') ||
+           lowerError.includes('throttl') ||
+           lowerError.includes('overload');
+  };
 
   try {
     const allUnindexed = await db
@@ -843,14 +908,12 @@ async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Pro
     task.failed = 0;
     await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
 
-    const indexFile = async (fileId: string): Promise<{ success: boolean; error?: string }> => {
-      // 检查任务是否已取消
+    const indexFileWithRetry = async (fileId: string, retryCount: number = 0): Promise<{ success: boolean; error?: string }> => {
       const currentTask = await env.KV.get(taskKey, 'json');
       if (currentTask && (currentTask as IndexTask).status === 'cancelled') {
         return { success: false, error: '任务已取消' };
       }
 
-      // 添加超时控制
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), FILE_TIMEOUT_MS);
 
@@ -868,14 +931,23 @@ async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Pro
         if ((error as Error).name === 'AbortError') {
           return { success: false, error: '处理超时' };
         }
-        return { success: false, error: error instanceof Error ? error.message : String(error) };
+
+        const errorMsg = error instanceof Error ? error.message : String(error);
+
+        if (isRateLimitedError(errorMsg) && retryCount < 3) {
+          logger.warn('AI', 'Rate limited on index, waiting before retry', { fileId, retryCount });
+          await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY_MS * (retryCount + 1)));
+          return indexFileWithRetry(fileId, retryCount + 1);
+        }
+
+        return { success: false, error: errorMsg };
       }
     };
 
     let consecutiveErrors = 0;
+    let rateLimitBackoff = false;
 
     for (let i = 0; i < allUnindexed.length; i += concurrency) {
-      // 每批开始前检查是否已取消
       const currentTask = await env.KV.get(taskKey, 'json');
       if (currentTask && (currentTask as IndexTask).status === 'cancelled') {
         task.status = 'cancelled';
@@ -883,8 +955,15 @@ async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Pro
         break;
       }
 
+      if (rateLimitBackoff || (i > 0 && i % 15 === 0)) {
+        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS * 3));
+        rateLimitBackoff = false;
+      } else if (i > 0) {
+        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+
       const batch = allUnindexed.slice(i, i + concurrency);
-      const results = await Promise.allSettled(batch.map((f) => indexFile(f.id)));
+      const results = await Promise.allSettled(batch.map((f) => indexFileWithRetry(f.id)));
 
       for (const result of results) {
         if (result.status === 'fulfilled') {
@@ -894,6 +973,9 @@ async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Pro
           } else {
             task.failed = (task.failed || 0) + 1;
             consecutiveErrors++;
+            if (isRateLimitedError(result.value.error || '')) {
+              rateLimitBackoff = true;
+            }
           }
         } else {
           task.failed = (task.failed || 0) + 1;
@@ -901,10 +983,9 @@ async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Pro
         }
       }
 
-      // 连续错误过多，终止任务
       if (consecutiveErrors >= MAX_ERRORS) {
         task.status = 'failed';
-        task.error = `连续${MAX_ERRORS}次错误，任务终止`;
+        task.error = `连续${MAX_ERRORS}次错误，任务终止（可能触发API限流，请稍后重试）`;
         break;
       }
 

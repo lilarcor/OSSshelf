@@ -230,13 +230,6 @@ export function AISettings() {
   useEffect(() => {
     fetchAllTaskStatus();
     fetchStats();
-
-    const interval = setInterval(() => {
-      fetchAllTaskStatus();
-      fetchStats();
-    }, 5000);
-
-    return () => clearInterval(interval);
   }, []);
 
   const fetchAllTaskStatus = async () => {
@@ -263,7 +256,7 @@ export function AISettings() {
 
     if (!isAnyTaskRunning) return;
 
-    const interval = setInterval(fetchAllTaskStatus, 3000);
+    const interval = setInterval(fetchAllTaskStatus, 10000);
     return () => clearInterval(interval);
   }, [task?.status, summarizeTask?.status, tagsTask?.status]);
 
@@ -481,6 +474,21 @@ export function AISettings() {
 
             {/* 快捷操作按钮 */}
             <div className="flex gap-2 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  fetchAllTaskStatus();
+                  fetchStats();
+                  queryClient.invalidateQueries({ queryKey: ['ai-models'] });
+                  queryClient.invalidateQueries({ queryKey: ['ai-config-status'] });
+                  queryClient.invalidateQueries({ queryKey: ['ai-feature-config'] });
+                }}
+                className="gap-2 text-xs sm:text-sm"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span className="hidden sm:inline">刷新</span>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
