@@ -25,6 +25,7 @@ import { OpenAiCompatibleAdapter } from './adapters/openAiCompatibleAdapter';
 import { logger } from '@osshelf/shared';
 import { getDb, aiModels } from '../../db';
 import { eq, and } from 'drizzle-orm';
+import { decryptCredential, getEncryptionKey, isAesGcmFormat } from '../crypto';
 
 export class ModelGateway {
   private env: Env;
@@ -47,7 +48,7 @@ export class ModelGateway {
         return null;
       }
 
-      return this.parseModelConfig(model);
+      return await this.parseAndDecryptModelConfig(model);
     } catch (error) {
       logger.error('AI', 'Failed to get active model', { userId }, error);
       return null;
@@ -67,7 +68,7 @@ export class ModelGateway {
         return null;
       }
 
-      return this.parseModelConfig(model);
+      return await this.parseAndDecryptModelConfig(model);
     } catch (error) {
       logger.error('AI', 'Failed to get model by ID', { modelId, userId }, error);
       return null;
@@ -79,7 +80,7 @@ export class ModelGateway {
       const db = getDb(this.env.DB);
       const models = await db.select().from(aiModels).where(eq(aiModels.userId, userId)).all();
 
-      return models.map((m) => this.parseModelConfig(m));
+      return Promise.all(models.map((m) => this.parseAndDecryptModelConfig(m)));
     } catch (error) {
       logger.error('AI', 'Failed to get all models', { userId }, error);
       return [];
@@ -264,5 +265,20 @@ export class ModelGateway {
       createdAt: raw.createdAt as string,
       updatedAt: raw.updatedAt as string,
     };
+  }
+
+  private async parseAndDecryptModelConfig(raw: Record<string, unknown>): Promise<ModelConfig> {
+    const config = this.parseModelConfig(raw);
+    
+    if (config.apiKeyEncrypted && isAesGcmFormat(config.apiKeyEncrypted)) {
+      try {
+        const secret = getEncryptionKey(this.env);
+        config.apiKeyDecrypted = await decryptCredential(config.apiKeyEncrypted, secret);
+      } catch (error) {
+        logger.error('AI', 'Failed to decrypt API key', { modelId: config.id }, error);
+      }
+    }
+    
+    return config;
   }
 }

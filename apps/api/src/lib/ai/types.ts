@@ -34,6 +34,7 @@ export interface ModelConfig {
   modelId: string;
   apiEndpoint?: string;
   apiKeyEncrypted?: string;
+  apiKeyDecrypted?: string;
   isActive: boolean;
   capabilities: ModelCapability[];
   maxTokens: number;

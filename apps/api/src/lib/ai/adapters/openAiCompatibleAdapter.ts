@@ -235,8 +235,9 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
       'Content-Type': 'application/json',
     };
 
-    if (this.config.apiKeyEncrypted) {
-      headers['Authorization'] = `Bearer ${this.config.apiKeyEncrypted}`;
+    const apiKey = this.config.apiKeyDecrypted || this.config.apiKeyEncrypted;
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
     }
 
     return headers;

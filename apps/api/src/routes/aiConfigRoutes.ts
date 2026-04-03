@@ -19,6 +19,7 @@ import { z } from 'zod';
 import { ModelGateway, WorkersAiAdapter, OpenAiCompatibleAdapter } from '../lib/ai';
 import type { ModelConfig } from '../lib/ai/types';
 import { logger } from '@osshelf/shared';
+import { encryptCredential, decryptCredential, getEncryptionKey, isAesGcmFormat } from '../lib/crypto';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use('/*', authMiddleware);
@@ -55,7 +56,7 @@ const updateModelSchema = z.object({
   provider: z.enum(['workers_ai', 'openai_compatible']).optional(),
   modelId: z.string().min(1).optional(),
   apiEndpoint: z.string().max(500).optional(),
-  apiKey: z.string().min(1).optional(),
+  apiKey: z.union([z.string().min(1), z.literal('')]).optional(),
   capabilities: z.array(z.enum(['chat', 'completion', 'embedding', 'vision', 'function_calling'])).optional(),
   maxTokens: z.number().int().min(1).max(128000).optional(),
   temperature: z.number().min(0).max(2).optional(),
@@ -122,7 +123,7 @@ app.post('/models', async (c) => {
       await db.update(aiModels).set({ isActive: false }).where(eq(aiModels.userId, userId));
     }
 
-    const apiKeyEncrypted = data.apiKey ? await encryptApiKey(data.apiKey) : null;
+    const apiKeyEncrypted = data.apiKey ? await encryptApiKey(data.apiKey, c.env) : null;
 
     const newModel = {
       id: crypto.randomUUID(),
@@ -196,8 +197,8 @@ app.put('/models/:modelId', async (c) => {
     }
 
     let apiKeyEncrypted = existingModel.apiKeyEncrypted;
-    if (data.apiKey !== undefined) {
-      apiKeyEncrypted = data.apiKey ? await encryptApiKey(data.apiKey) : null;
+    if (data.apiKey !== undefined && data.apiKey !== '') {
+      apiKeyEncrypted = data.apiKey ? await encryptApiKey(data.apiKey, c.env) : null;
     }
 
     const updateData: Record<string, unknown> = {
@@ -456,7 +457,6 @@ app.post('/test', async (c) => {
     } else if (provider) {
       // 测试临时配置（保存前测试）
       const actualModelId = body.modelId || (provider === 'workers_ai' ? '@cf/meta/llama-3.1-8b-instruct' : 'gpt-4o');
-      const apiKeyEncrypted = apiKey ? await encryptApiKey(apiKey) : null;
 
       testConfig = {
         id: 'test-temp',
@@ -465,7 +465,8 @@ app.post('/test', async (c) => {
         provider: provider as any,
         modelId: actualModelId,
         apiEndpoint: apiEndpoint || undefined,
-        apiKeyEncrypted: apiKeyEncrypted || undefined,
+        apiKeyEncrypted: undefined,
+        apiKeyDecrypted: apiKey || undefined,
         isActive: false,
         capabilities: ['chat'],
         maxTokens: 100,
@@ -523,12 +524,37 @@ app.post('/test', async (c) => {
   }
 });
 
-async function encryptApiKey(apiKey: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(apiKey);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+async function encryptApiKey(apiKey: string, env: Env): Promise<string> {
+  const secret = getEncryptionKey(env);
+  return encryptCredential(apiKey, secret);
+}
+
+async function decryptApiKey(encrypted: string, env: Env): Promise<string> {
+  const secret = getEncryptionKey(env);
+  return decryptCredential(encrypted, secret);
+}
+
+export function decryptModelApiKey(model: ModelConfig, env: Env): ModelConfig {
+  if (model.apiKeyEncrypted && isAesGcmFormat(model.apiKeyEncrypted)) {
+    return {
+      ...model,
+      apiKeyEncrypted: undefined,
+      apiKeyDecrypted: model.apiKeyEncrypted,
+    } as ModelConfig & { apiKeyDecrypted?: string };
+  }
+  return model;
+}
+
+export async function decryptModelApiKeyAsync(model: ModelConfig, env: Env): Promise<ModelConfig & { apiKeyDecrypted?: string }> {
+  if (model.apiKeyEncrypted && isAesGcmFormat(model.apiKeyEncrypted)) {
+    const decrypted = await decryptApiKey(model.apiKeyEncrypted, env);
+    return {
+      ...model,
+      apiKeyEncrypted: undefined,
+      apiKeyDecrypted: decrypted,
+    };
+  }
+  return model as ModelConfig & { apiKeyDecrypted?: string };
 }
 
 export default app;
