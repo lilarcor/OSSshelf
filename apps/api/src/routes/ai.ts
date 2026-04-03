@@ -189,6 +189,145 @@ app.delete('/index/task', async (c) => {
   });
 });
 
+// 批量处理路由必须在 :fileId 参数路由之前
+interface SummarizeTask {
+  id: string;
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  total: number;
+  processed: number;
+  failed: number;
+  startedAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  error?: string;
+}
+
+app.post('/summarize/batch', async (c) => {
+  const userId = c.get('userId')!;
+  const taskKey = `ai:summarize:task:${userId}`;
+  const existingTask = await c.env.KV.get(taskKey, 'json');
+
+  if (existingTask && (existingTask as SummarizeTask).status === 'running') {
+    return c.json({
+      success: false,
+      error: {
+        code: ERROR_CODES.CONFLICT,
+        message: '已有摘要生成任务正在运行，请等待完成',
+      },
+    });
+  }
+
+  const task: SummarizeTask = {
+    id: crypto.randomUUID(),
+    status: 'running',
+    total: 0,
+    processed: 0,
+    failed: 0,
+    startedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  await c.env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
+
+  c.executionCtx.waitUntil(runBatchSummarizeTask(c.env, userId, task));
+
+  return c.json({
+    success: true,
+    data: {
+      message: '批量摘要生成任务已启动，将在后台运行',
+      task,
+    },
+  });
+});
+
+app.get('/summarize/task', async (c) => {
+  const userId = c.get('userId')!;
+  const taskKey = `ai:summarize:task:${userId}`;
+
+  const task = await c.env.KV.get(taskKey, 'json');
+
+  if (!task) {
+    return c.json({
+      success: true,
+      data: {
+        status: 'idle',
+        message: '没有正在运行的摘要生成任务',
+      },
+    });
+  }
+
+  return c.json({ success: true, data: task });
+});
+
+interface TagsTask {
+  id: string;
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  total: number;
+  processed: number;
+  failed: number;
+  startedAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  error?: string;
+}
+
+app.post('/tags/batch', async (c) => {
+  const userId = c.get('userId')!;
+  const taskKey = `ai:tags:task:${userId}`;
+  const existingTask = await c.env.KV.get(taskKey, 'json');
+
+  if (existingTask && (existingTask as TagsTask).status === 'running') {
+    return c.json({
+      success: false,
+      error: {
+        code: ERROR_CODES.CONFLICT,
+        message: '已有标签生成任务正在运行，请等待完成',
+      },
+    });
+  }
+
+  const task: TagsTask = {
+    id: crypto.randomUUID(),
+    status: 'running',
+    total: 0,
+    processed: 0,
+    failed: 0,
+    startedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  await c.env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
+
+  c.executionCtx.waitUntil(runBatchTagsTask(c.env, userId, task));
+
+  return c.json({
+    success: true,
+    data: {
+      message: '批量标签生成任务已启动，将在后台运行',
+      task,
+    },
+  });
+});
+
+app.get('/tags/task', async (c) => {
+  const userId = c.get('userId')!;
+  const taskKey = `ai:tags:task:${userId}`;
+
+  const task = await c.env.KV.get(taskKey, 'json');
+
+  if (!task) {
+    return c.json({
+      success: true,
+      data: {
+        status: 'idle',
+        message: '没有正在运行的标签生成任务',
+      },
+    });
+  }
+
+  return c.json({ success: true, data: task });
+});
+
 // :fileId 参数路由放在所有具体路径之后
 app.post('/index/:fileId', async (c) => {
   const userId = c.get('userId')!;
@@ -424,75 +563,6 @@ app.get('/file/:fileId', async (c) => {
   });
 });
 
-interface SummarizeTask {
-  id: string;
-  status: 'running' | 'completed' | 'failed' | 'cancelled';
-  total: number;
-  processed: number;
-  failed: number;
-  startedAt: string;
-  updatedAt: string;
-  completedAt?: string;
-  error?: string;
-}
-
-app.post('/summarize/batch', async (c) => {
-  const userId = c.get('userId')!;
-  const taskKey = `ai:summarize:task:${userId}`;
-  const existingTask = await c.env.KV.get(taskKey, 'json');
-
-  if (existingTask && (existingTask as SummarizeTask).status === 'running') {
-    return c.json({
-      success: false,
-      error: {
-        code: ERROR_CODES.CONFLICT,
-        message: '已有摘要生成任务正在运行，请等待完成',
-      },
-    });
-  }
-
-  const task: SummarizeTask = {
-    id: crypto.randomUUID(),
-    status: 'running',
-    total: 0,
-    processed: 0,
-    failed: 0,
-    startedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  await c.env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-
-  c.executionCtx.waitUntil(runBatchSummarizeTask(c.env, userId, task));
-
-  return c.json({
-    success: true,
-    data: {
-      message: '批量摘要生成任务已启动，将在后台运行',
-      task,
-    },
-  });
-});
-
-app.get('/summarize/task', async (c) => {
-  const userId = c.get('userId')!;
-  const taskKey = `ai:summarize:task:${userId}`;
-
-  const task = await c.env.KV.get(taskKey, 'json');
-
-  if (!task) {
-    return c.json({
-      success: true,
-      data: {
-        status: 'idle',
-        message: '没有正在运行的摘要生成任务',
-      },
-    });
-  }
-
-  return c.json({ success: true, data: task });
-});
-
 async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTask): Promise<void> {
   const db = getDb(env.DB);
   const taskKey = `ai:summarize:task:${userId}`;
@@ -559,75 +629,6 @@ async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTa
 
   await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
 }
-
-interface TagsTask {
-  id: string;
-  status: 'running' | 'completed' | 'failed' | 'cancelled';
-  total: number;
-  processed: number;
-  failed: number;
-  startedAt: string;
-  updatedAt: string;
-  completedAt?: string;
-  error?: string;
-}
-
-app.post('/tags/batch', async (c) => {
-  const userId = c.get('userId')!;
-  const taskKey = `ai:tags:task:${userId}`;
-  const existingTask = await c.env.KV.get(taskKey, 'json');
-
-  if (existingTask && (existingTask as TagsTask).status === 'running') {
-    return c.json({
-      success: false,
-      error: {
-        code: ERROR_CODES.CONFLICT,
-        message: '已有标签生成任务正在运行，请等待完成',
-      },
-    });
-  }
-
-  const task: TagsTask = {
-    id: crypto.randomUUID(),
-    status: 'running',
-    total: 0,
-    processed: 0,
-    failed: 0,
-    startedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  await c.env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-
-  c.executionCtx.waitUntil(runBatchTagsTask(c.env, userId, task));
-
-  return c.json({
-    success: true,
-    data: {
-      message: '批量标签生成任务已启动，将在后台运行',
-      task,
-    },
-  });
-});
-
-app.get('/tags/task', async (c) => {
-  const userId = c.get('userId')!;
-  const taskKey = `ai:tags:task:${userId}`;
-
-  const task = await c.env.KV.get(taskKey, 'json');
-
-  if (!task) {
-    return c.json({
-      success: true,
-      data: {
-        status: 'idle',
-        message: '没有正在运行的标签生成任务',
-      },
-    });
-  }
-
-  return c.json({ success: true, data: task });
-});
 
 async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promise<void> {
   const db = getDb(env.DB);
