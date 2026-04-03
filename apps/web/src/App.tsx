@@ -31,6 +31,7 @@ import Downloads from './pages/Downloads';
 import Permissions from './pages/Permissions';
 import Analytics from './pages/Analytics';
 import Starred from './pages/Starred';
+import { AIChat } from './pages/AIChat';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isInitialized } = useAuthStore();
@@ -92,6 +93,7 @@ function App() {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/starred" element={<Starred />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/ai-chat" element={<AIChat />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

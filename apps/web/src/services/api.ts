@@ -717,6 +717,15 @@ export const batchApi = {
   permanentDelete: (fileIds: string[]) =>
     api.post<ApiResponse<BatchOperationResult & { freedBytes: number }>>('/api/batch/permanent-delete', { fileIds }),
   restore: (fileIds: string[]) => api.post<ApiResponse<BatchOperationResult>>('/api/batch/restore', { fileIds }),
+  zip: (fileIds: string[], zipName?: string) =>
+    api.post('/api/batch/zip', { fileIds, zipName }, { responseType: 'blob' }).then(res => {
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${zipName || 'download'}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1140,6 +1149,47 @@ export interface AIIndexTask {
   error?: string;
 }
 
+export interface AISummarizeTask {
+  id: string;
+  status: 'running' | 'completed' | 'failed' | 'idle' | 'cancelled';
+  total: number;
+  processed: number;
+  failed: number;
+  startedAt?: string;
+  completedAt?: string;
+  updatedAt?: string;
+  error?: string;
+}
+
+export interface AITagsTask {
+  id: string;
+  status: 'running' | 'completed' | 'failed' | 'idle' | 'cancelled';
+  total: number;
+  processed: number;
+  failed: number;
+  startedAt?: string;
+  completedAt?: string;
+  updatedAt?: string;
+  error?: string;
+}
+
+export interface AIIndexStats {
+  editable: {
+    total: number;
+    noSummary: number;
+    notIndexed: number;
+  };
+  image: {
+    total: number;
+    noTags: number;
+    notIndexed: number;
+  };
+  other: {
+    total: number;
+    notIndexed: number;
+  };
+}
+
 export const aiApi = {
   getStatus: () => api.get<ApiResponse<AIStatus>>('/api/ai/status'),
 
@@ -1171,6 +1221,22 @@ export const aiApi = {
   cancelIndexTask: () => api.delete<ApiResponse<{ message: string; task: AIIndexTask }>>('/api/ai/index/task'),
 
   deleteIndex: (fileId: string) => api.delete<ApiResponse<{ message: string }>>(`/api/ai/index/${fileId}`),
+
+  summarizeBatch: () => api.post<ApiResponse<{ message: string; task: AISummarizeTask }>>('/api/ai/summarize/batch'),
+
+  getSummarizeTask: () => api.get<ApiResponse<AISummarizeTask>>('/api/ai/summarize/task'),
+
+  tagsBatch: () => api.post<ApiResponse<{ message: string; task: AITagsTask }>>('/api/ai/tags/batch'),
+
+  getTagsTask: () => api.get<ApiResponse<AITagsTask>>('/api/ai/tags/task'),
+
+  getIndexStats: () => api.get<ApiResponse<AIIndexStats>>('/api/ai/index/stats'),
+
+  chat: (query: string, options?: { scope?: string; folderId?: string; limit?: number }) =>
+    api.post<ApiResponse<{ answer: string; sources: Array<{ id: string; name: string; mimeType: string | null; score: number }> }>>('/api/ai/chat', {
+      query,
+      ...options
+    }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

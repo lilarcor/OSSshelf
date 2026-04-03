@@ -40,6 +40,7 @@ import { throwAppError } from '../middleware/error';
 import type { Env, Variables } from '../types/env';
 import { z } from 'zod';
 import { createNotification, sendNotification, getUserInfo } from '../lib/notificationUtils';
+import { dispatchWebhook } from '../lib/webhook';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -256,6 +257,14 @@ app.post('/', authMiddleware, async (c) => {
     uploadCount: 0,
     createdAt: now,
   });
+
+  c.executionCtx.waitUntil(
+    dispatchWebhook(c.env, userId, 'share.created', {
+      shareId: shareId,
+      fileId: fileId,
+      expiresAt: expires,
+    })
+  );
 
   return c.json({
     success: true,

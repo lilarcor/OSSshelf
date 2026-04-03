@@ -4,23 +4,50 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Sparkles, Database, RefreshCw, AlertTriangle, CheckCircle, XCircle, Loader2, Square } from 'lucide-react';
+import { 
+  Sparkles, 
+  Database, 
+  RefreshCw, 
+  AlertTriangle, 
+  CheckCircle, 
+  XCircle, 
+  Loader2, 
+  Square,
+  FileText,
+  Image,
+  File,
+  Play,
+  MessageSquare
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { aiApi } from '@/services/api';
-import type { AIIndexTask } from '@/services/api';
+import type { AIIndexTask, AISummarizeTask, AITagsTask, AIIndexStats } from '@/services/api';
 import { formatDate } from '@/utils';
+import { useNavigate } from 'react-router-dom';
 
 export function AISettings() {
+  const navigate = useNavigate();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [task, setTask] = useState<AIIndexTask | null>(null);
+  const [summarizeTask, setSummarizeTask] = useState<AISummarizeTask | null>(null);
+  const [tagsTask, setTagsTask] = useState<AITagsTask | null>(null);
+  const [stats, setStats] = useState<AIIndexStats | null>(null);
   const [aiStatus, setAiStatus] = useState<{ configured: boolean; features: Record<string, boolean> } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [isStartingSummarize, setIsStartingSummarize] = useState(false);
+  const [isStartingTags, setIsStartingTags] = useState(false);
+  const [showIndexWarning, setShowIndexWarning] = useState(false);
 
   useEffect(() => {
     fetchStatus();
-    fetchTaskStatus();
-    const interval = setInterval(fetchTaskStatus, 5000);
+    fetchAllTaskStatus();
+    fetchStats();
+    
+    const interval = setInterval(() => {
+      fetchAllTaskStatus();
+      fetchStats();
+    }, 5000);
+    
     return () => clearInterval(interval);
   }, []);
 
@@ -35,24 +62,84 @@ export function AISettings() {
     }
   };
 
-  const fetchTaskStatus = async () => {
+  const fetchAllTaskStatus = async () => {
     try {
-      const response = await aiApi.getIndexStatus();
-      if (response.data.success && response.data.data) {
-        setTask(response.data.data);
+      const [indexRes, summarizeRes, tagsRes] = await Promise.all([
+        aiApi.getIndexStatus(),
+        aiApi.getSummarizeTask(),
+        aiApi.getTagsTask()
+      ]);
+      
+      if (indexRes.data.success && indexRes.data.data) {
+        setTask(indexRes.data.data);
+      }
+      if (summarizeRes.data.success && summarizeRes.data.data) {
+        setSummarizeTask(summarizeRes.data.data);
+      }
+      if (tagsRes.data.success && tagsRes.data.data) {
+        setTagsTask(tagsRes.data.data);
       }
     } catch (error) {
       console.error('Failed to fetch task status:', error);
     }
   };
 
+  const fetchStats = async () => {
+    try {
+      const response = await aiApi.getIndexStats();
+      if (response.data.success && response.data.data) {
+        setStats(response.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    }
+  };
+
+  const handleStartSummarize = async () => {
+    setIsStartingSummarize(true);
+    try {
+      const response = await aiApi.summarizeBatch();
+      if (response.data.success && response.data.data) {
+        setSummarizeTask(response.data.data.task);
+      }
+    } catch (e: any) {
+      console.error('Failed to start summarize:', e);
+    } finally {
+      setIsStartingSummarize(false);
+    }
+  };
+
+  const handleStartTags = async () => {
+    setIsStartingTags(true);
+    try {
+      const response = await aiApi.tagsBatch();
+      if (response.data.success && response.data.data) {
+        setTagsTask(response.data.data.task);
+      }
+    } catch (e: any) {
+      console.error('Failed to start tags:', e);
+    } finally {
+      setIsStartingTags(false);
+    }
+  };
+
   const handleStartIndex = async () => {
+    if (stats && (stats.editable.noSummary > 0 || stats.image.noTags > 0)) {
+      setShowIndexWarning(true);
+      return;
+    }
+    
+    await executeStartIndex();
+  };
+
+  const executeStartIndex = async () => {
     setIsStarting(true);
+    setShowIndexWarning(false);
+    setShowConfirmDialog(false);
     try {
       const response = await aiApi.indexAll();
       if (response.data.success && response.data.data) {
         setTask(response.data.data.task);
-        setShowConfirmDialog(false);
       }
     } catch (e: any) {
       console.error('Failed to start index:', e);
@@ -72,45 +159,48 @@ export function AISettings() {
     }
   };
 
-  const renderTaskStatus = () => {
-    if (!task || task.status === 'idle') {
-      return <p className="text-sm text-muted-foreground">当前没有正在运行的索引任务</p>;
+  const renderTaskProgress = (
+    taskData: AIIndexTask | AISummarizeTask | AITagsTask | null,
+    onCancel?: () => void
+  ) => {
+    if (!taskData || taskData.status === 'idle') {
+      return null;
     }
 
-    const progress = task.total > 0 ? (task.processed / task.total) * 100 : 0;
+    const progress = taskData.total > 0 ? (taskData.processed / taskData.total) * 100 : 0;
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-2 mt-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {task.status === 'running' && (
+            {taskData.status === 'running' && (
               <>
                 <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
-                <span className="text-sm font-medium">正在索引...</span>
+                <span className="text-sm font-medium">处理中...</span>
               </>
             )}
-            {task.status === 'completed' && (
+            {taskData.status === 'completed' && (
               <>
                 <CheckCircle className="h-4 w-4 text-green-500" />
-                <span className="text-sm font-medium">索引完成</span>
+                <span className="text-sm font-medium">已完成</span>
               </>
             )}
-            {task.status === 'failed' && (
+            {taskData.status === 'failed' && (
               <>
                 <XCircle className="h-4 w-4 text-red-500" />
-                <span className="text-sm font-medium">索引失败</span>
+                <span className="text-sm font-medium">失败</span>
               </>
             )}
-            {task.status === 'cancelled' && (
+            {taskData.status === 'cancelled' && (
               <>
                 <Square className="h-4 w-4 text-amber-500" />
                 <span className="text-sm font-medium">已取消</span>
               </>
             )}
           </div>
-          {(task.status === 'running' || task.status === 'cancelled') && (
-            <Button variant="outline" size="sm" onClick={handleCancelTask}>
-              {task.status === 'running' ? '取消任务' : '清除状态'}
+          {onCancel && (taskData.status === 'running' || taskData.status === 'cancelled') && (
+            <Button variant="outline" size="sm" onClick={onCancel}>
+              {taskData.status === 'running' ? '取消' : '清除'}
             </Button>
           )}
         </div>
@@ -121,28 +211,64 @@ export function AISettings() {
 
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>
-            已处理: {task.processed} / {task.total}
+            进度: {taskData.processed} / {taskData.total}
           </span>
-          {task.failed > 0 && <span className="text-red-500">失败: {task.failed}</span>}
+          {taskData.failed > 0 && <span className="text-red-500">失败: {taskData.failed}</span>}
         </div>
-
-        {task.startedAt && <p className="text-xs text-muted-foreground">开始时间: {formatDate(task.startedAt)}</p>}
-        {task.completedAt && <p className="text-xs text-muted-foreground">完成时间: {formatDate(task.completedAt)}</p>}
-        {task.error && <p className="text-xs text-red-500">{task.error}</p>}
       </div>
     );
   };
+
+  const renderStatsCard = (
+    title: string,
+    icon: React.ReactNode,
+    total: number,
+    items: Array<{ label: string; count: number; color?: string }>,
+    actionButton?: React.ReactNode
+  ) => (
+    <div className="border rounded-lg p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h4 className="font-medium">{title}</h4>
+        </div>
+        <span className="text-2xl font-bold">{total}</span>
+      </div>
+      
+      <div className="space-y-2">
+        {items.map((item, idx) => (
+          <div key={idx} className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{item.label}</span>
+            <span className={`font-medium ${item.color || ''}`}>{item.count}</span>
+          </div>
+        ))}
+      </div>
+
+      {actionButton}
+    </div>
+  );
 
   const isAIAvailable = aiStatus?.configured;
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <h3 className="text-lg font-medium flex items-center gap-2">
-          <Sparkles className="h-5 w-5" />
-          AI 功能
-        </h3>
-        <p className="text-sm text-muted-foreground">配置 Cloudflare Workers AI 功能</p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h3 className="text-xl font-semibold flex items-center gap-2">
+            <Sparkles className="h-6 w-6 text-purple-500" />
+            AI 功能中心
+          </h3>
+          <p className="text-sm text-muted-foreground">管理AI处理任务，提升文件搜索与分析能力</p>
+        </div>
+        
+        <Button
+          variant="outline"
+          onClick={() => navigate('/ai-chat')}
+          className="flex items-center gap-2"
+        >
+          <MessageSquare className="h-4 w-4" />
+          AI问答
+        </Button>
       </div>
 
       {!isAIAvailable && (
@@ -155,20 +281,115 @@ export function AISettings() {
       )}
 
       {isAIAvailable && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div>
-              <p className="font-medium">语义搜索索引</p>
-              <p className="text-sm text-muted-foreground">为文件建立向量索引以支持语义搜索</p>
-            </div>
-            <Button variant="outline" onClick={() => setShowConfirmDialog(true)} disabled={task?.status === 'running'}>
-              <Database className="h-4 w-4 mr-2" />
-              一键生成索引
-            </Button>
+        <>
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">💡 建议处理顺序</p>
+            <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside">
+              <li>批量生成可编辑文件摘要（提升文本文件语义理解）</li>
+              <li>批量生成图片标签+描述（增强图片搜索能力）</li>
+              <li>执行一键索引（建立完整向量索引）</li>
+            </ol>
           </div>
 
-          {renderTaskStatus()}
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {renderStatsCard(
+              '可编辑文件',
+              <FileText className="h-5 w-5 text-blue-500" />,
+              stats?.editable.total || 0,
+              [
+                { label: '未生成摘要', count: stats?.editable.noSummary || 0, color: 'text-amber-600' },
+                { label: '未索引', count: stats?.editable.notIndexed || 0, color: 'text-red-600' }
+              ],
+              <div className="pt-3 border-t mt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleStartSummarize}
+                  disabled={isStartingSummarize || summarizeTask?.status === 'running'}
+                >
+                  {isStartingSummarize || summarizeTask?.status === 'running' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      处理中...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-2" />
+                      批量生成摘要
+                    </>
+                  )}
+                </Button>
+                {renderTaskProgress(summarizeTask)}
+              </div>
+            )}
+
+            {renderStatsCard(
+              '图片文件',
+              <Image className="h-5 w-5 text-green-500" />,
+              stats?.image.total || 0,
+              [
+                { label: '未生成标签', count: stats?.image.noTags || 0, color: 'text-amber-600' },
+                { label: '未索引', count: stats?.image.notIndexed || 0, color: 'text-red-600' }
+              ],
+              <div className="pt-3 border-t mt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleStartTags}
+                  disabled={isStartingTags || tagsTask?.status === 'running'}
+                >
+                  {isStartingTags || tagsTask?.status === 'running' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      处理中...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-2" />
+                      批量生成标签
+                    </>
+                  )}
+                </Button>
+                {renderTaskProgress(tagsTask)}
+              </div>
+            )}
+
+            {renderStatsCard(
+              '其他文件',
+              <File className="h-5 w-5 text-gray-500" />,
+              stats?.other.total || 0,
+              [
+                { label: '未索引', count: stats?.other.notIndexed || 0, color: 'text-red-600' }
+              ]
+            )}
+          </div>
+
+          <div className="border rounded-lg p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  语义搜索索引
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  为所有文件建立向量索引，支持智能语义搜索
+                </p>
+              </div>
+              <Button
+                variant="default"
+                onClick={() => setShowConfirmDialog(true)}
+                disabled={task?.status === 'running'}
+              >
+                <Database className="h-4 w-4 mr-2" />
+                一键生成索引
+              </Button>
+            </div>
+
+            {renderTaskProgress(task, handleCancelTask)}
+          </div>
+        </>
       )}
 
       {showConfirmDialog && (
@@ -201,6 +422,60 @@ export function AISettings() {
               <Button onClick={handleStartIndex} disabled={isStarting}>
                 {isStarting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 确认开始
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showIndexWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setShowIndexWarning(false)} />
+          <div className="relative bg-background border rounded-lg shadow-lg w-full max-w-lg mx-4 p-6 space-y-4">
+            <div className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              <h4 className="font-semibold">建议先完成预处理</h4>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <p>检测到以下文件尚未完成AI预处理，直接索引可能影响搜索质量：</p>
+              
+              <div className="space-y-2">
+                {stats?.editable.noSummary && stats.editable.noSummary > 0 && (
+                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                    <p className="font-medium text-amber-800 dark:text-amber-200">
+                      📄 {stats.editable.noSummary} 个可编辑文件未生成摘要
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                      建议先批量生成摘要，提升语义理解质量
+                    </p>
+                  </div>
+                )}
+                
+                {stats?.image.noTags && stats.image.noTags > 0 && (
+                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                    <p className="font-medium text-amber-800 dark:text-amber-200">
+                      🖼️ {stats.image.noTags} 个图片未生成标签
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                      建议先批量生成标签，增强图片搜索能力
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-muted-foreground">
+                您也可以选择直接索引，系统将使用文件名作为索引内容。
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowIndexWarning(false)}>
+                返回处理
+              </Button>
+              <Button onClick={executeStartIndex} disabled={isStarting}>
+                {isStarting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                直接索引
               </Button>
             </div>
           </div>

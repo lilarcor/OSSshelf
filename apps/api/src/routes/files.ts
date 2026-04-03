@@ -52,6 +52,7 @@ import {
 import { checkAndClaimDedup, releaseFileRef, computeSha256Hex } from '../lib/dedup';
 import { createVersionSnapshot, shouldCreateVersion } from '../lib/versionManager';
 import { autoProcessFile, isAIConfigured } from '../lib/aiFeatures';
+import { dispatchWebhook } from '../lib/webhook';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -516,6 +517,28 @@ app.post('/upload', async (c) => {
       deduped: dedupResult.isDuplicate,
     },
   });
+
+  c.executionCtx.waitUntil(
+    dispatchWebhook(c.env, userId, 'file.uploaded', {
+      fileId,
+      fileName: uploadFile.name,
+      size: uploadFile.size,
+      mimeType: fileMime,
+      bucketId: finalBucketId,
+    })
+  );
+
+  c.executionCtx.waitUntil(
+    (async () => {
+      try {
+        if (await isAIConfigured(c.env)) {
+          await autoProcessFile(c.env, fileId);
+        }
+      } catch (error) {
+        logger.error('FILES', '自动处理文件失败', { fileId }, error);
+      }
+    })()
+  );
 
   return c.json({
     success: true,
@@ -1389,6 +1412,14 @@ app.put('/:id/content', async (c) => {
     }
   }
 
+  c.executionCtx.waitUntil(
+    dispatchWebhook(c.env, userId, 'file.updated', {
+      fileId,
+      fileName: file.name,
+      size: newSize,
+    })
+  );
+
   return c.json({
     success: true,
     data: {
@@ -1550,6 +1581,14 @@ app.delete('/:id', async (c) => {
       isFolder: file.isFolder,
     },
   });
+
+  c.executionCtx.waitUntil(
+    dispatchWebhook(c.env, userId, 'file.deleted', {
+      fileId,
+      fileName: file.name,
+      isFolder: file.isFolder,
+    })
+  );
 
   return c.json({ success: true, data: { message: '已移入回收站' } });
 });
