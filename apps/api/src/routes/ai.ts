@@ -44,6 +44,7 @@ import {
   canGenerateSummary,
 } from '../lib/ai/features';
 import { createNotification, sendNotification } from '../lib/notificationUtils';
+import { enqueueAiTasks, createTaskRecord } from '../lib/aiTaskQueue';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use('/*', authMiddleware);
@@ -112,6 +113,16 @@ app.post('/index/batch', async (c) => {
 app.post('/index/all', async (c) => {
   const userId = c.get('userId')!;
 
+  if (!c.env.AI_TASKS_QUEUE) {
+    return c.json({
+      success: false,
+      error: {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        message: 'AI 任务队列未配置，请联系管理员',
+      },
+    }, 503);
+  }
+
   const taskKey = `ai:index:task:${userId}`;
   const existingTask = await c.env.KV.get(taskKey, 'json');
 
@@ -125,31 +136,42 @@ app.post('/index/all', async (c) => {
     });
   }
 
-  if (existingTask) {
-    await c.env.KV.delete(taskKey);
+  const db = getDb(c.env.DB);
+  const allUnindexed = await db
+    .select({ id: files.id })
+    .from(files)
+    .where(
+      and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false), isNull(files.vectorIndexedAt))
+    )
+    .all();
+
+  if (allUnindexed.length === 0) {
+    return c.json({
+      success: true,
+      data: {
+        message: '没有需要索引的文件',
+        task: { status: 'completed', total: 0, processed: 0, failed: 0 },
+      },
+    });
   }
 
-  const task: IndexTask = {
-    id: crypto.randomUUID(),
-    status: 'running',
-    total: 0,
-    processed: 0,
-    failed: 0,
-    startedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  const task = await createTaskRecord(c.env, 'index', userId, allUnindexed.length);
+  const fileIds = allUnindexed.map((f) => f.id);
 
-  await c.env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
+  try {
+    await enqueueAiTasks(c.env, 'index', fileIds, userId, task.id);
 
-  c.executionCtx.waitUntil(runBatchIndexTask(c.env, userId, task));
-
-  return c.json({
-    success: true,
-    data: {
-      message: '索引任务已启动，将在后台运行',
-      task,
-    },
-  });
+    return c.json({
+      success: true,
+      data: {
+        message: `索引任务已启动，共 ${allUnindexed.length} 个文件`,
+        task,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '启动任务失败';
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message } }, 500);
+  }
 });
 
 app.get('/index/status', async (c) => {
@@ -213,6 +235,17 @@ interface SummarizeTask {
 
 app.post('/summarize/batch', async (c) => {
   const userId = c.get('userId')!;
+
+  if (!c.env.AI_TASKS_QUEUE) {
+    return c.json({
+      success: false,
+      error: {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        message: 'AI 任务队列未配置，请联系管理员',
+      },
+    }, 503);
+  }
+
   const taskKey = `ai:summarize:task:${userId}`;
   const existingTask = await c.env.KV.get(taskKey, 'json');
 
@@ -226,31 +259,42 @@ app.post('/summarize/batch', async (c) => {
     });
   }
 
-  if (existingTask) {
-    await c.env.KV.delete(taskKey);
+  const db = getDb(c.env.DB);
+  const allFiles = await db
+    .select()
+    .from(files)
+    .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false), isNull(files.aiSummary)))
+    .all();
+
+  const editableFiles = allFiles.filter((f) => canGenerateSummary(f.mimeType, f.name));
+
+  if (editableFiles.length === 0) {
+    return c.json({
+      success: true,
+      data: {
+        message: '没有需要生成摘要的文件',
+        task: { status: 'completed', total: 0, processed: 0, failed: 0 },
+      },
+    });
   }
 
-  const task: SummarizeTask = {
-    id: crypto.randomUUID(),
-    status: 'running',
-    total: 0,
-    processed: 0,
-    failed: 0,
-    startedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  const task = await createTaskRecord(c.env, 'summary', userId, editableFiles.length);
+  const fileIds = editableFiles.map((f) => f.id);
 
-  await c.env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
+  try {
+    await enqueueAiTasks(c.env, 'summary', fileIds, userId, task.id);
 
-  c.executionCtx.waitUntil(runBatchSummarizeTask(c.env, userId, task));
-
-  return c.json({
-    success: true,
-    data: {
-      message: '批量摘要生成任务已启动，将在后台运行',
-      task,
-    },
-  });
+    return c.json({
+      success: true,
+      data: {
+        message: `摘要生成任务已启动，共 ${editableFiles.length} 个文件`,
+        task,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '启动任务失败';
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message } }, 500);
+  }
 });
 
 app.get('/summarize/task', async (c) => {
@@ -286,6 +330,17 @@ interface TagsTask {
 
 app.post('/tags/batch', async (c) => {
   const userId = c.get('userId')!;
+
+  if (!c.env.AI_TASKS_QUEUE) {
+    return c.json({
+      success: false,
+      error: {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        message: 'AI 任务队列未配置，请联系管理员',
+      },
+    }, 503);
+  }
+
   const taskKey = `ai:tags:task:${userId}`;
   const existingTask = await c.env.KV.get(taskKey, 'json');
 
@@ -299,31 +354,48 @@ app.post('/tags/batch', async (c) => {
     });
   }
 
-  if (existingTask) {
-    await c.env.KV.delete(taskKey);
+  const db = getDb(c.env.DB);
+  const allImages = await db
+    .select()
+    .from(files)
+    .where(
+      and(
+        eq(files.userId, userId),
+        isNull(files.deletedAt),
+        eq(files.isFolder, false),
+        isNull(files.aiTags),
+        sql`${files.mimeType} LIKE 'image/%'`
+      )
+    )
+    .all();
+
+  if (allImages.length === 0) {
+    return c.json({
+      success: true,
+      data: {
+        message: '没有需要生成标签的图片',
+        task: { status: 'completed', total: 0, processed: 0, failed: 0 },
+      },
+    });
   }
 
-  const task: TagsTask = {
-    id: crypto.randomUUID(),
-    status: 'running',
-    total: 0,
-    processed: 0,
-    failed: 0,
-    startedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  const task = await createTaskRecord(c.env, 'tags', userId, allImages.length);
+  const fileIds = allImages.map((f) => f.id);
 
-  await c.env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
+  try {
+    await enqueueAiTasks(c.env, 'tags', fileIds, userId, task.id);
 
-  c.executionCtx.waitUntil(runBatchTagsTask(c.env, userId, task));
-
-  return c.json({
-    success: true,
-    data: {
-      message: '批量标签生成任务已启动，将在后台运行',
-      task,
-    },
-  });
+    return c.json({
+      success: true,
+      data: {
+        message: `标签生成任务已启动，共 ${allImages.length} 张图片`,
+        task,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '启动任务失败';
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message } }, 500);
+  }
 });
 
 // 取消摘要任务
@@ -888,410 +960,6 @@ app.get('/file/:fileId', async (c) => {
     },
   });
 });
-
-async function runBatchSummarizeTask(env: Env, userId: string, task: SummarizeTask): Promise<void> {
-  const db = getDb(env.DB);
-  const taskKey = `ai:summarize:task:${userId}`;
-  const concurrency = 2;
-  const FILE_TIMEOUT_MS = 30000;
-  const MAX_ERRORS = 15;
-  const BATCH_DELAY_MS = 1500;
-  const RATE_LIMIT_DELAY_MS = 8000;
-
-  const isRateLimitedError = (error: string): boolean => {
-    const lowerError = error.toLowerCase();
-    return (
-      lowerError.includes('rate limit') ||
-      lowerError.includes('too many requests') ||
-      lowerError.includes('429') ||
-      lowerError.includes('throttl') ||
-      lowerError.includes('overload')
-    );
-  };
-
-  try {
-    const allFiles = await db
-      .select()
-      .from(files)
-      .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false), isNull(files.aiSummary)))
-      .all();
-
-    const editableFiles = allFiles.filter((f) => canGenerateSummary(f.mimeType, f.name));
-
-    task.total = editableFiles.length;
-    task.processed = 0;
-    task.failed = 0;
-    await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-
-    const summarizeFileWithRetry = async (
-      fileId: string,
-      retryCount: number = 0
-    ): Promise<{ success: boolean; error?: string }> => {
-      const currentTask = await env.KV.get(taskKey, 'json');
-      if (currentTask && (currentTask as SummarizeTask).status === 'cancelled') {
-        return { success: false, error: '任务已取消' };
-      }
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), FILE_TIMEOUT_MS);
-
-      try {
-        await generateFileSummary(env, fileId, undefined, undefined, controller.signal);
-        clearTimeout(timeoutId);
-        return { success: true };
-      } catch (error) {
-        clearTimeout(timeoutId);
-        if ((error as Error).name === 'AbortError') {
-          return { success: false, error: '处理超时' };
-        }
-
-        const errorMsg = error instanceof Error ? error.message : String(error);
-
-        if (isRateLimitedError(errorMsg) && retryCount < 3) {
-          logger.warn('AI', 'Rate limited, waiting before retry', { fileId, retryCount });
-          await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY_MS * (retryCount + 1)));
-          return summarizeFileWithRetry(fileId, retryCount + 1);
-        }
-
-        return { success: false, error: errorMsg };
-      }
-    };
-
-    let consecutiveErrors = 0;
-    let rateLimitBackoff = false;
-
-    for (let i = 0; i < editableFiles.length; i += concurrency) {
-      const currentTask = await env.KV.get(taskKey, 'json');
-      if (currentTask && (currentTask as SummarizeTask).status === 'cancelled') {
-        task.status = 'cancelled';
-        task.error = '用户手动取消';
-        break;
-      }
-
-      if (rateLimitBackoff || (i > 0 && i % 10 === 0)) {
-        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS * 2));
-        rateLimitBackoff = false;
-      } else if (i > 0) {
-        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
-      }
-
-      const batch = editableFiles.slice(i, i + concurrency);
-      const results = await Promise.allSettled(batch.map((f) => summarizeFileWithRetry(f.id)));
-
-      for (const result of results) {
-        if (result.status === 'fulfilled') {
-          if (result.value.success) {
-            task.processed = (task.processed || 0) + 1;
-            consecutiveErrors = 0;
-          } else {
-            task.failed = (task.failed || 0) + 1;
-            consecutiveErrors++;
-            if (isRateLimitedError(result.value.error || '')) {
-              rateLimitBackoff = true;
-            }
-          }
-        } else {
-          task.failed = (task.failed || 0) + 1;
-          consecutiveErrors++;
-        }
-      }
-
-      if (consecutiveErrors >= MAX_ERRORS) {
-        task.status = 'failed';
-        task.error = `连续${MAX_ERRORS}次错误，任务终止（可能触发API限流，请稍后重试）`;
-        break;
-      }
-
-      task.updatedAt = new Date().toISOString();
-      await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-    }
-
-    if (task.status !== 'cancelled' && task.status !== 'failed') {
-      task.status = 'completed';
-      task.completedAt = new Date().toISOString();
-      task.updatedAt = new Date().toISOString();
-    }
-  } catch (error) {
-    task.status = 'failed';
-    task.error = error instanceof Error ? error.message : String(error);
-    task.updatedAt = new Date().toISOString();
-  }
-
-  await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-}
-
-async function runBatchTagsTask(env: Env, userId: string, task: TagsTask): Promise<void> {
-  const db = getDb(env.DB);
-  const taskKey = `ai:tags:task:${userId}`;
-  const concurrency = 2;
-  const FILE_TIMEOUT_MS = 60000;
-  const MAX_ERRORS = 15;
-  const BATCH_DELAY_MS = 2000;
-  const RATE_LIMIT_DELAY_MS = 10000;
-
-  const isRateLimitedError = (error: string): boolean => {
-    const lowerError = error.toLowerCase();
-    return (
-      lowerError.includes('rate limit') ||
-      lowerError.includes('too many requests') ||
-      lowerError.includes('429') ||
-      lowerError.includes('throttl') ||
-      lowerError.includes('overload')
-    );
-  };
-
-  try {
-    const allImages = await db
-      .select()
-      .from(files)
-      .where(
-        and(
-          eq(files.userId, userId),
-          isNull(files.deletedAt),
-          eq(files.isFolder, false),
-          isNull(files.aiTags),
-          sql`${files.mimeType} LIKE 'image/%'`
-        )
-      )
-      .all();
-
-    task.total = allImages.length;
-    task.processed = 0;
-    task.failed = 0;
-    await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-
-    const generateTagsWithRetry = async (
-      fileId: string,
-      retryCount: number = 0
-    ): Promise<{ success: boolean; error?: string }> => {
-      const currentTask = await env.KV.get(taskKey, 'json');
-      if (currentTask && (currentTask as TagsTask).status === 'cancelled') {
-        return { success: false, error: '任务已取消' };
-      }
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), FILE_TIMEOUT_MS);
-
-      try {
-        await generateImageTags(env, fileId);
-        clearTimeout(timeoutId);
-        return { success: true };
-      } catch (error) {
-        clearTimeout(timeoutId);
-        if ((error as Error).name === 'AbortError') {
-          return { success: false, error: '处理超时' };
-        }
-
-        const errorMsg = error instanceof Error ? error.message : String(error);
-
-        if (isRateLimitedError(errorMsg) && retryCount < 3) {
-          logger.warn('AI', 'Rate limited on tags, waiting before retry', { fileId, retryCount });
-          await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY_MS * (retryCount + 1)));
-          return generateTagsWithRetry(fileId, retryCount + 1);
-        }
-
-        return { success: false, error: errorMsg };
-      }
-    };
-
-    let consecutiveErrors = 0;
-    let rateLimitBackoff = false;
-
-    for (let i = 0; i < allImages.length; i += concurrency) {
-      const currentTask = await env.KV.get(taskKey, 'json');
-      if (currentTask && (currentTask as TagsTask).status === 'cancelled') {
-        task.status = 'cancelled';
-        task.error = '用户手动取消';
-        break;
-      }
-
-      if (rateLimitBackoff || (i > 0 && i % 6 === 0)) {
-        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS * 2));
-        rateLimitBackoff = false;
-      } else if (i > 0) {
-        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
-      }
-
-      const batch = allImages.slice(i, i + concurrency);
-      const results = await Promise.allSettled(batch.map((f) => generateTagsWithRetry(f.id)));
-
-      for (const result of results) {
-        if (result.status === 'fulfilled') {
-          if (result.value.success) {
-            task.processed = (task.processed || 0) + 1;
-            consecutiveErrors = 0;
-          } else {
-            task.failed = (task.failed || 0) + 1;
-            consecutiveErrors++;
-            if (isRateLimitedError(result.value.error || '')) {
-              rateLimitBackoff = true;
-            }
-          }
-        } else {
-          task.failed = (task.failed || 0) + 1;
-          consecutiveErrors++;
-        }
-      }
-
-      if (consecutiveErrors >= MAX_ERRORS) {
-        task.status = 'failed';
-        task.error = `连续${MAX_ERRORS}次错误，任务终止（可能触发API限流，请稍后重试）`;
-        break;
-      }
-
-      task.updatedAt = new Date().toISOString();
-      await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-    }
-
-    if (task.status !== 'cancelled' && task.status !== 'failed') {
-      task.status = 'completed';
-      task.completedAt = new Date().toISOString();
-      task.updatedAt = new Date().toISOString();
-    }
-  } catch (error) {
-    task.status = 'failed';
-    task.error = error instanceof Error ? error.message : String(error);
-    task.updatedAt = new Date().toISOString();
-  }
-
-  await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-}
-
-async function runBatchIndexTask(env: Env, userId: string, task: IndexTask): Promise<void> {
-  const db = getDb(env.DB);
-  const taskKey = `ai:index:task:${userId}`;
-  const concurrency = 2;
-  const FILE_TIMEOUT_MS = 60000;
-  const MAX_ERRORS = 15;
-  const BATCH_DELAY_MS = 1000;
-  const RATE_LIMIT_DELAY_MS = 8000;
-
-  const isRateLimitedError = (error: string): boolean => {
-    const lowerError = error.toLowerCase();
-    return (
-      lowerError.includes('rate limit') ||
-      lowerError.includes('too many requests') ||
-      lowerError.includes('429') ||
-      lowerError.includes('throttl') ||
-      lowerError.includes('overload')
-    );
-  };
-
-  try {
-    const allUnindexed = await db
-      .select({ id: files.id })
-      .from(files)
-      .where(
-        and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false), isNull(files.vectorIndexedAt))
-      )
-      .all();
-
-    task.total = allUnindexed.length;
-    task.processed = 0;
-    task.failed = 0;
-    await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-
-    const indexFileWithRetry = async (
-      fileId: string,
-      retryCount: number = 0
-    ): Promise<{ success: boolean; error?: string }> => {
-      const currentTask = await env.KV.get(taskKey, 'json');
-      if (currentTask && (currentTask as IndexTask).status === 'cancelled') {
-        return { success: false, error: '任务已取消' };
-      }
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), FILE_TIMEOUT_MS);
-
-      try {
-        const text = await buildFileTextForVector(env, fileId);
-        if (!text || text.trim().length === 0) {
-          clearTimeout(timeoutId);
-          return { success: false, error: '文件内容为空' };
-        }
-        await indexFileVector(env, fileId, text);
-        clearTimeout(timeoutId);
-        return { success: true };
-      } catch (error) {
-        clearTimeout(timeoutId);
-        if ((error as Error).name === 'AbortError') {
-          return { success: false, error: '处理超时' };
-        }
-
-        const errorMsg = error instanceof Error ? error.message : String(error);
-
-        if (isRateLimitedError(errorMsg) && retryCount < 3) {
-          logger.warn('AI', 'Rate limited on index, waiting before retry', { fileId, retryCount });
-          await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY_MS * (retryCount + 1)));
-          return indexFileWithRetry(fileId, retryCount + 1);
-        }
-
-        return { success: false, error: errorMsg };
-      }
-    };
-
-    let consecutiveErrors = 0;
-    let rateLimitBackoff = false;
-
-    for (let i = 0; i < allUnindexed.length; i += concurrency) {
-      const currentTask = await env.KV.get(taskKey, 'json');
-      if (currentTask && (currentTask as IndexTask).status === 'cancelled') {
-        task.status = 'cancelled';
-        task.error = '用户手动取消';
-        break;
-      }
-
-      if (rateLimitBackoff || (i > 0 && i % 15 === 0)) {
-        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS * 3));
-        rateLimitBackoff = false;
-      } else if (i > 0) {
-        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
-      }
-
-      const batch = allUnindexed.slice(i, i + concurrency);
-      const results = await Promise.allSettled(batch.map((f) => indexFileWithRetry(f.id)));
-
-      for (const result of results) {
-        if (result.status === 'fulfilled') {
-          if (result.value.success) {
-            task.processed = (task.processed || 0) + 1;
-            consecutiveErrors = 0;
-          } else {
-            task.failed = (task.failed || 0) + 1;
-            consecutiveErrors++;
-            if (isRateLimitedError(result.value.error || '')) {
-              rateLimitBackoff = true;
-            }
-          }
-        } else {
-          task.failed = (task.failed || 0) + 1;
-          consecutiveErrors++;
-        }
-      }
-
-      if (consecutiveErrors >= MAX_ERRORS) {
-        task.status = 'failed';
-        task.error = `连续${MAX_ERRORS}次错误，任务终止（可能触发API限流，请稍后重试）`;
-        break;
-      }
-
-      task.updatedAt = new Date().toISOString();
-      await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-    }
-
-    if (task.status !== 'cancelled' && task.status !== 'failed') {
-      task.status = 'completed';
-      task.completedAt = new Date().toISOString();
-      task.updatedAt = new Date().toISOString();
-    }
-  } catch (error) {
-    task.status = 'failed';
-    task.error = error instanceof Error ? error.message : String(error);
-    task.updatedAt = new Date().toISOString();
-  }
-
-  await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-}
 
 const chatSchema = z.object({
   query: z.string().min(1).max(500),
