@@ -346,16 +346,28 @@ app.post('/test', async (c) => {
   try {
     let testConfig: ModelConfig;
 
-    if (modelId) {
-      // 测试已保存的模型
+    if (modelId && modelId.trim()) {
+      // 测试已保存的模型（modelId 是数据库记录 ID）
       const gateway = new ModelGateway(c.env);
       const config = await gateway.getModelById(modelId, userId);
       if (!config) {
         return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '模型不存在' } }, 404);
       }
       testConfig = config;
-    } else if (provider && modelId === undefined) {
+
+      // 验证配置有效性
+      const adapter = gateway.getAdapter(testConfig);
+      const validation = adapter.validateConfig(testConfig);
+      if (!validation.valid) {
+        return c.json({
+          success: false,
+          error: { code: ERROR_CODES.VALIDATION_ERROR, message: validation.error || '配置无效' },
+          data: { valid: false, error: validation.error },
+        }, 400);
+      }
+    } else if (provider) {
       // 测试临时配置（保存前测试）
+      const actualModelId = body.modelId || (provider === 'workers_ai' ? '@cf/meta/llama-3.1-8b-instruct' : 'gpt-4o');
       const apiKeyEncrypted = apiKey ? await encryptApiKey(apiKey) : null;
 
       testConfig = {
@@ -363,7 +375,7 @@ app.post('/test', async (c) => {
         userId,
         name: '测试模型',
         provider: provider as any,
-        modelId: body.modelId || '@cf/meta/llama-3.1-8b-instruct',
+        modelId: actualModelId,
         apiEndpoint: apiEndpoint || undefined,
         apiKeyEncrypted: apiKeyEncrypted || undefined,
         isActive: false,

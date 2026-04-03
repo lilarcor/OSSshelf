@@ -211,6 +211,18 @@ export function AISettings() {
     }
   };
 
+  // 任务状态自动轮询：当有任务运行时，每3秒刷新一次
+  useEffect(() => {
+    const isAnyTaskRunning = [task, summarizeTask, tagsTask].some(
+      (t) => t && t.status === 'running'
+    );
+
+    if (!isAnyTaskRunning) return;
+
+    const interval = setInterval(fetchAllTaskStatus, 3000);
+    return () => clearInterval(interval);
+  }, [task?.status, summarizeTask?.status, tagsTask?.status]);
+
   const fetchStats = async () => {
     try {
       const response = await aiApi.getIndexStats();
@@ -270,14 +282,37 @@ export function AISettings() {
   const handleCancelTask = async () => {
     try {
       const response = await aiApi.cancelIndexTask();
-      if (response.data.success && response.data.data) setTask(response.data.data.task);
+      if (response.data.success && response.data.data) {
+        setTask(response.data.data.task);
+        // 立即刷新所有任务状态
+        await fetchAllTaskStatus();
+      }
     } catch (e: any) {
       console.error('Failed to cancel task:', e);
     }
   };
 
+  // 强制重置卡住的任务
+  const handleForceResetTask = async (taskType: 'index' | 'summarize' | 'tags') => {
+    try {
+      if (taskType === 'index') {
+        await aiApi.cancelIndexTask();
+      } else if (taskType === 'summarize') {
+        await aiApi.cancelSummarizeTask();
+      } else {
+        await aiApi.cancelTagsTask();
+      }
+      await fetchAllTaskStatus();
+    } catch (e: any) {
+      console.error('Failed to reset task:', e);
+    }
+  };
+
   // 渲染任务进度条
-  const renderTaskProgress = (taskData: AIIndexTask | AISummarizeTask | AITagsTask | null, onCancel?: () => void) => {
+  const renderTaskProgress = (
+    taskData: AIIndexTask | AISummarizeTask | AITagsTask | null,
+    taskType?: 'index' | 'summarize' | 'tags'
+  ) => {
     if (!taskData || taskData.status === 'idle') return null;
 
     const progress = taskData.total > 0 ? (taskData.processed / taskData.total) * 100 : 0;
@@ -311,8 +346,14 @@ export function AISettings() {
               </>
             )}
           </div>
-          {onCancel && (taskData.status === 'running' || taskData.status === 'cancelled') && (
-            <Button variant="outline" size="sm" onClick={onCancel} className="text-xs">
+          {/* 所有非 idle 和 completed 状态都显示操作按钮 */}
+          {taskType && taskData.status !== 'completed' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleForceResetTask(taskType)}
+              className="text-xs"
+            >
               {taskData.status === 'running' ? '取消' : '清除'}
             </Button>
           )}
@@ -702,7 +743,7 @@ export function AISettings() {
                           </>
                         )}
                       </Button>
-                      {renderTaskProgress(summarizeTask)}
+                      {renderTaskProgress(summarizeTask, 'summarize')}
                     </div>
                   )}
 
@@ -734,7 +775,7 @@ export function AISettings() {
                           </>
                         )}
                       </Button>
-                      {renderTaskProgress(tagsTask)}
+                      {renderTaskProgress(tagsTask, 'tags')}
                     </div>
                   )}
 
@@ -766,7 +807,7 @@ export function AISettings() {
                     </Button>
                   </div>
 
-                  {renderTaskProgress(task, handleCancelTask)}
+                  {renderTaskProgress(task, 'index')}
                 </div>
               </>
             )}
@@ -809,7 +850,7 @@ export function AISettings() {
                               : '已取消'}
                       </span>
                     </div>
-                    {renderTaskProgress(task, handleCancelTask)}
+                    {renderTaskProgress(task, 'index')}
                   </>
                 ) : (
                   <div className="text-sm text-muted-foreground py-4 text-center">当前无索引任务</div>
@@ -846,7 +887,7 @@ export function AISettings() {
                               : '已取消'}
                       </span>
                     </div>
-                    {renderTaskProgress(summarizeTask)}
+                    {renderTaskProgress(summarizeTask, 'summarize')}
                   </>
                 ) : (
                   <div className="text-sm text-muted-foreground py-4 text-center">当前无摘要任务</div>
@@ -881,7 +922,7 @@ export function AISettings() {
                               : '已取消'}
                       </span>
                     </div>
-                    {renderTaskProgress(tagsTask)}
+                    {renderTaskProgress(tagsTask, 'tags')}
                   </>
                 ) : (
                   <div className="text-sm text-muted-foreground py-4 text-center">当前无标签任务</div>

@@ -1220,6 +1220,10 @@ export const aiApi = {
 
   cancelIndexTask: () => api.delete<ApiResponse<{ message: string; task: AIIndexTask }>>('/api/ai/index/task'),
 
+  cancelSummarizeTask: () => api.delete<ApiResponse<{ message: string; task: AISummarizeTask }>>('/api/ai/summarize/batch'),
+
+  cancelTagsTask: () => api.delete<ApiResponse<{ message: string; task: AITagsTask }>>('/api/ai/tags/batch'),
+
   deleteIndex: (fileId: string) => api.delete<ApiResponse<{ message: string }>>(`/api/ai/index/${fileId}`),
 
   summarizeBatch: () => api.post<ApiResponse<{ message: string; task: AISummarizeTask }>>('/api/ai/summarize/batch'),

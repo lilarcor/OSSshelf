@@ -61,7 +61,7 @@ export function AIChat() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(urlSessionId || null);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -255,10 +255,16 @@ export function AIChat() {
   ];
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex bg-gradient-to-br from-slate-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-purple-950">
-      {/* 侧边栏 - 会话列表 */}
+    <div className="h-[calc(100vh-4rem)] lg:h-[calc(100vh)] flex bg-gradient-to-br from-slate-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-purple-950 relative">
+      {/* 侧边栏 - 会话列表（桌面端默认显示，移动端抽屉式） */}
       {showSidebar && (
-        <div className="w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 flex flex-col">
+        <>
+          {/* 移动端遮罩 */}
+          <div
+            className="lg:hidden fixed inset-0 z-20 bg-black/50"
+            onClick={() => setShowSidebar(false)}
+          />
+          <div className="w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 flex flex-col lg:relative lg:z-auto fixed inset-y-0 left-0 z-30 lg:static shadow-xl lg:shadow-none">
           <div className="p-4 border-b border-slate-200 dark:border-slate-700">
             <Button onClick={handleNewChat} className="w-full gap-2" variant="outline">
               <Plus className="h-4 w-4" />
@@ -299,36 +305,37 @@ export function AIChat() {
             )}
           </div>
         </div>
+        </>
       )}
 
       {/* 主聊天区域 */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* 顶部栏 */}
-        <div className="border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm px-6 py-4">
+        <div className="border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" onClick={() => setShowSidebar(!showSidebar)} className="mr-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <Button variant="ghost" size="sm" onClick={() => setShowSidebar(!showSidebar)} className="mr-1 flex-shrink-0">
                 <ChevronLeft className={`h-4 w-4 transition-transform ${!showSidebar ? 'rotate-180' : ''}`} />
               </Button>
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
-                  <Sparkles className="h-5 w-5 text-white" />
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex-shrink-0">
+                  <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <div>
-                  <h1 className="text-lg font-semibold">AI 智能助手</h1>
+                <div className="min-w-0 hidden sm:block">
+                  <h1 className="text-base sm:text-lg font-semibold">AI 智能助手</h1>
                   <p className="text-xs text-muted-foreground">基于您的文件进行智能问答</p>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               {isLoading && (
-                <Button variant="outline" size="sm" onClick={handleStop}>
+                <Button variant="outline" size="sm" onClick={handleStop} className="hidden sm:flex">
                   <StopCircle className="h-4 w-4 mr-2" />
                   停止生成
                 </Button>
               )}
-              <Button variant="ghost" size="sm" onClick={() => navigate('/ai-settings')}>
+              <Button variant="ghost" size="icon" onClick={() => navigate('/ai-settings')} className="h-8 w-8 sm:h-9 sm:w-9">
                 <Settings className="h-4 w-4" />
               </Button>
             </div>
@@ -336,8 +343,8 @@ export function AIChat() {
         </div>
 
         {/* 消息列表 */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-3 sm:py-4">
+          <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
             {messages.length === 0 && !isLoading && (
               <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">
                 <div className="p-4 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl mb-6">

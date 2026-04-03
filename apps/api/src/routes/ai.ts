@@ -309,6 +309,48 @@ app.post('/tags/batch', async (c) => {
   });
 });
 
+// 取消摘要任务
+app.delete('/summarize/batch', async (c) => {
+  const userId = c.get('userId')!;
+  const taskKey = `ai:summarize:task:${userId}`;
+  const existingTask = await c.env.KV.get(taskKey, 'json');
+
+  if (!existingTask) {
+    return c.json({ success: true, data: { message: '没有需要取消的任务' } });
+  }
+
+  const task = existingTask as SummarizeTask;
+  task.status = 'cancelled';
+  task.completedAt = new Date().toISOString();
+  task.updatedAt = new Date().toISOString();
+  task.error = '用户手动取消';
+
+  await c.env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
+
+  return c.json({ success: true, data: { message: '摘要任务已取消', task } });
+});
+
+// 取消标签任务
+app.delete('/tags/batch', async (c) => {
+  const userId = c.get('userId')!;
+  const taskKey = `ai:tags:task:${userId}`;
+  const existingTask = await c.env.KV.get(taskKey, 'json');
+
+  if (!existingTask) {
+    return c.json({ success: true, data: { message: '没有需要取消的任务' } });
+  }
+
+  const task = existingTask as TagsTask;
+  task.status = 'cancelled';
+  task.completedAt = new Date().toISOString();
+  task.updatedAt = new Date().toISOString();
+  task.error = '用户手动取消';
+
+  await c.env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
+
+  return c.json({ success: true, data: { message: '标签任务已取消', task } });
+});
+
 app.get('/tags/task', async (c) => {
   const userId = c.get('userId')!;
   const taskKey = `ai:tags:task:${userId}`;
