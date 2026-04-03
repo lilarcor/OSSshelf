@@ -13,6 +13,7 @@ import { Bell, BellOff, WifiOff } from 'lucide-react';
 import { notificationsApi } from '../../services/api';
 import { NotificationList } from './NotificationList';
 import { cn } from '../../utils';
+import { useAuthStore } from '../../stores/auth';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -28,57 +29,85 @@ export function NotificationBell({ className, align = 'right', direction = 'down
   const [isConnected, setIsConnected] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
     let fallbackInterval: NodeJS.Timeout | null = null;
+    let controller: AbortController | null = null;
     
-    const connectSSE = () => {
+    const connectSSE = async () => {
       try {
-        const eventSource = new EventSource(`${API_BASE}/api/notifications/stream`, {
-          withCredentials: true
+        controller = new AbortController();
+        const token = useAuthStore.getState().token;
+        
+        const response = await fetch(`${API_BASE}/api/notifications/stream`, {
+          method: 'GET',
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : '',
+            'Accept': 'text/event-stream'
+          },
+          credentials: 'include',
+          signal: controller.signal
         });
 
-        eventSource.onopen = () => {
-          setIsConnected(true);
-          if (fallbackInterval) {
-            clearInterval(fallbackInterval);
-            fallbackInterval = null;
-          }
-        };
+        if (!response.ok) {
+          throw new Error(`SSE connection failed: ${response.status}`);
+        }
 
-        eventSource.onmessage = (e) => {
-          try {
-            const data = JSON.parse(e.data);
-            if (typeof data.unreadCount === 'number') {
-              setUnreadCount(data.unreadCount);
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No response body');
+        }
+
+        setIsConnected(true);
+        if (fallbackInterval) {
+          clearInterval(fallbackInterval);
+          fallbackInterval = null;
+        }
+
+        let buffer = '';
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = new TextDecoder().decode(value);
+          buffer += chunk;
+          
+          const lines = buffer.split('\n');
+          for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i];
+            if (line) {
+              const trimmedLine = line.trim();
+              if (trimmedLine.startsWith('data:')) {
+                const data = trimmedLine.substring(5).trim();
+                try {
+                  const parsed = JSON.parse(data);
+                  if (typeof parsed.unreadCount === 'number') {
+                    setUnreadCount(parsed.unreadCount);
+                  }
+                } catch {
+                  // silent fail
+                }
+              }
             }
-          } catch {
-            // silent fail
           }
-        };
+          
+          buffer = lines[lines.length - 1] || '';
+        }
 
-        eventSource.onerror = () => {
-          setIsConnected(false);
-          eventSource.close();
-          // 5秒后重连
-          setTimeout(connectSSE, 5000);
-        };
-
-        eventSourceRef.current = eventSource;
-      } catch {
-        // 如果SSE连接失败，回退到轮询
+        reader.releaseLock();
+      } catch (error) {
         setIsConnected(false);
-        fetchUnreadCount();
-        fallbackInterval = setInterval(fetchUnreadCount, 30000);
+        // 5秒后重连
+        setTimeout(connectSSE, 5000);
       }
     };
 
     connectSSE();
 
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
+      if (controller) {
+        controller.abort();
       }
       if (fallbackInterval) {
         clearInterval(fallbackInterval);
