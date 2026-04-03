@@ -422,7 +422,11 @@ async function handleStreamChat(
     const gateway = new ModelGateway(c.env);
 
     let fullContent = '';
-    let streamError: Error | null = null;
+    let errorMessage: string | null = null;
+    let resolveStreamPromise: () => void;
+    const streamCompletePromise = new Promise<void>((resolve) => {
+      resolveStreamPromise = resolve;
+    });
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -434,8 +438,17 @@ async function handleStreamChat(
             },
             (chunk: StreamChunk) => {
               if (chunk.done) {
-                controller.enqueue(`data: ${JSON.stringify({ done: true, sessionId: actualSessionId })}\n\n`);
+                const sources = ragContext.relevantFiles.map((f) => ({
+                  id: f.id,
+                  name: f.name,
+                  mimeType: f.mimeType,
+                  score: f.similarityScore,
+                }));
+                controller.enqueue(
+                  `data: ${JSON.stringify({ done: true, sessionId: actualSessionId, sources })}\n\n`
+                );
                 controller.close();
+                resolveStreamPromise();
               } else {
                 fullContent += chunk.content;
                 controller.enqueue(`data: ${JSON.stringify({ content: chunk.content, done: false })}\n\n`);
@@ -444,22 +457,30 @@ async function handleStreamChat(
             c.req.raw.signal
           );
         } catch (error) {
-          streamError = error instanceof Error ? error : new Error(String(error));
+          errorMessage = error instanceof Error ? error.message : String(error);
           logger.error('AI Chat', 'Stream chat failed', { userId }, error);
           controller.error(error);
+          resolveStreamPromise();
         }
       },
     });
 
     c.executionCtx.waitUntil(
       (async () => {
+        await streamCompletePromise;
+        
         try {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          
-          if (streamError || !fullContent) {
-            logger.warn('AI Chat', 'Skipping message save due to stream error or empty content', { 
+          if (errorMessage) {
+            logger.warn('AI Chat', 'Skipping message save due to stream error', { 
               userId, 
-              hasError: !!streamError,
+              error: errorMessage
+            });
+            return;
+          }
+
+          if (!fullContent || fullContent.trim().length === 0) {
+            logger.warn('AI Chat', 'Skipping message save due to empty content', { 
+              userId, 
               contentLength: fullContent.length 
             });
             return;
@@ -489,7 +510,11 @@ async function handleStreamChat(
             createdAt: new Date().toISOString(),
           });
 
-          logger.info('AI Chat', 'Assistant message saved', { sessionId: actualSessionId, contentLength: finalContent.length });
+          logger.info('AI Chat', 'Assistant message saved successfully', { 
+            sessionId: actualSessionId, 
+            contentLength: finalContent.length,
+            latencyMs 
+          });
         } catch (error) {
           logger.error('AI Chat', 'Failed to save assistant message', { userId, sessionId: actualSessionId }, error);
         }

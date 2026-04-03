@@ -54,6 +54,10 @@ const FILE_LIST_PATTERNS = [
   /文件统计/,
   /(多少个|几个)文件/,
   /存储(情况|空间|使用)/,
+  /文件(总数|数量|个数)/,
+  /总共.*文件/,
+  /全部.*文件/,
+  /所有.*文件/,
 ];
 
 const SYSTEM_PROMPTS = {
@@ -246,6 +250,7 @@ export class RagEngine {
         userQuery: request.query,
         contextText: statsContext ? `${statsContext}\n\n${contextText}` : contextText,
         conversationContext,
+        hasStatsContext: !!statsContext,
       });
 
       const totalTokens = Math.ceil(assembledPrompt.length * ESTIMATED_TOKENS_PER_CHAR);
@@ -390,14 +395,20 @@ export class RagEngine {
     userQuery: string;
     contextText: string;
     conversationContext: string;
+    hasStatsContext?: boolean;
   }): string {
-    const { systemPrompt, userQuery, contextText, conversationContext } = params;
+    const { systemPrompt, userQuery, contextText, conversationContext, hasStatsContext } = params;
+
+    const statsGuidance = hasStatsContext
+      ? `\n重要提示：用户询问的是文件统计信息，请优先根据上方的"用户文件统计信息"部分回答，那里包含了准确的文件总数、类型分布等统计数据。不要根据下方列出的示例文件数量来回答统计问题。`
+      : '';
 
     return `${systemPrompt}
 ${conversationContext}
 == 相关文件信息 ==
 ${contextText}
 == 文件信息结束 ==
+${statsGuidance}
 
 请根据以上文件信息回答用户的问题。
 

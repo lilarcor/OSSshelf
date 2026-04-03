@@ -141,7 +141,7 @@ export function AIChat() {
 
     try {
       let fullContent = '';
-      const sources: Message['sources'] = [];
+      let sources: Message['sources'] = [];
 
       await aiApi.chatSession.chatStream(input.trim(), {
         sessionId: currentSessionId || undefined,
@@ -152,12 +152,17 @@ export function AIChat() {
             fullContent += chunk.content;
             setMessages((prev) => prev.map((m) => (m.id === assistantMessageId ? { ...m, content: fullContent } : m)));
           }
-          if (chunk.done && chunk.sessionId) {
-            setCurrentSessionId(chunk.sessionId);
-            if (!urlSessionId) {
-              navigate(`/ai-chat/${chunk.sessionId}`, { replace: true });
+          if (chunk.done) {
+            if (chunk.sessionId) {
+              setCurrentSessionId(chunk.sessionId);
+              if (!urlSessionId) {
+                navigate(`/ai-chat/${chunk.sessionId}`, { replace: true });
+              }
+              queryClient.invalidateQueries({ queryKey: ['ai-chat-sessions'] });
             }
-            queryClient.invalidateQueries({ queryKey: ['ai-chat-sessions'] });
+            if (chunk.sources) {
+              sources = chunk.sources;
+            }
           }
         },
         signal: abortControllerRef.current.signal,
