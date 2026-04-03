@@ -41,6 +41,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { ModelCard } from '@/components/ai';
 import { aiApi, type AiModel, type AiProvider, type AiWorkersAiModel, type AiOpenAiModel } from '@/services/api';
 import type { AIIndexTask, AISummarizeTask, AITagsTask, AIIndexStats } from '@/services/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -117,8 +118,64 @@ export function AISettings() {
     },
   });
 
+  // 测试模型连接
+  const [testResult, setTestResult] = useState<{
+    modelId: string;
+    valid: boolean;
+    response?: string;
+    latencyMs?: number;
+    error?: string;
+  } | null>(null);
+
+  const testModelMutation = useMutation({
+    mutationFn: async (data: { modelId?: string; provider?: string; apiEndpoint?: string; apiKey?: string }) => {
+      const result = await aiApi.config.testModel(data);
+      const dataResult = result.data.data;
+      return {
+        modelId: data.modelId || 'temp',
+        valid: dataResult?.valid ?? false,
+        response: dataResult?.response,
+        latencyMs: dataResult?.latencyMs,
+        error: dataResult?.error,
+      };
+    },
+    onSuccess: (data) => {
+      setTestResult(data);
+    },
+  });
+
   const activateMutation = useMutation({
     mutationFn: (modelId: string) => aiApi.config.activateModel(modelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-models'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-config-status'] });
+    },
+  });
+
+  // 快速启用 Workers AI 模型（一键添加并激活）
+  const quickActivateMutation = useMutation({
+    mutationFn: async (workersAiModelId: string) => {
+      // 检查是否已存在该模型
+      const existingModel = models.find(
+        (m) => m.provider === 'workers_ai' && m.modelId === workersAiModelId
+      );
+
+      if (existingModel) {
+        // 已存在则直接激活
+        await aiApi.config.activateModel(existingModel.id);
+        return { action: 'activated', modelId: existingModel.id };
+      } else {
+        // 不存在则创建并激活
+        const createResult = await aiApi.config.createModel({
+          name: providersData?.workersAiModels.find((m) => m.id === workersAiModelId)?.name || workersAiModelId,
+          provider: 'workers_ai',
+          modelId: workersAiModelId,
+          isActive: true,
+          capabilities: ['chat'],
+        });
+        return { action: 'created', modelId: createResult.data.data?.id };
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-models'] });
       queryClient.invalidateQueries({ queryKey: ['ai-config-status'] });
@@ -452,6 +509,9 @@ export function AISettings() {
                     }}
                     onActivate={() => activateMutation.mutate(model.id)}
                     isActivating={activateMutation.isPending}
+                    onTest={(modelId) => testModelMutation.mutate({ modelId })}
+                    testResult={testResult}
+                    isTesting={testModelMutation.isPending && testModelMutation.variables?.modelId === model.id}
                   />
                 ))}
               </div>
@@ -473,24 +533,69 @@ export function AISettings() {
               </div>
               <p className="text-sm text-muted-foreground mb-4">Cloudflare 内置的 AI 服务，无需配置 API 密钥即可使用</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {providersData.workersAiModels.map((m) => (
-                  <div key={m.id} className="p-3 sm:p-4 border rounded-lg hover:border-primary/50 transition-colors">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm sm:text-base truncate">{m.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-1 font-mono break-all">{m.id}</p>
-                        <p className="text-xs sm:text-sm text-muted-foreground mt-2 line-clamp-2">{m.description}</p>
+                {providersData.workersAiModels.map((m) => {
+                  const isAdded = models.some((model) => model.provider === 'workers_ai' && model.modelId === m.id);
+                  const isActive = status?.activeModel?.modelId === m.id;
+                  const isPending = quickActivateMutation.isPending;
+
+                  return (
+                    <div key={m.id} className={cn(
+                      "p-3 sm:p-4 border rounded-lg transition-colors relative",
+                      isActive ? "border-primary bg-primary/5" : "hover:border-primary/50"
+                    )}>
+                      {isActive && (
+                        <div className="absolute top-2 right-2">
+                          <CheckCircle className="h-5 w-5 text-primary" />
+                        </div>
+                      )}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0 pr-6">
+                          <h3 className="font-medium text-sm sm:text-base truncate">{m.name}</h3>
+                          <p className="text-xs text-muted-foreground mt-1 font-mono break-all">{m.id}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground mt-2 line-clamp-2">{m.description}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1 flex-shrink-0">
+                          {m.capabilities.map((cap) => (
+                            <span key={cap} className="px-2 py-0.5 bg-accent text-accent-foreground text-xs rounded-full">
+                              {cap}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-1 flex-shrink-0">
-                        {m.capabilities.map((cap) => (
-                          <span key={cap} className="px-2 py-0.5 bg-accent text-accent-foreground text-xs rounded-full">
-                            {cap}
-                          </span>
-                        ))}
+                      <div className="mt-3 pt-3 border-t">
+                        <Button
+                          size="sm"
+                          variant={isActive ? "default" : "outline"}
+                          className="w-full"
+                          disabled={isPending}
+                          onClick={() => quickActivateMutation.mutate(m.id)}
+                        >
+                          {isPending ? (
+                            <>
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              处理中...
+                            </>
+                          ) : isActive ? (
+                            <>
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              当前使用中
+                            </>
+                          ) : isAdded ? (
+                            <>
+                              <Play className="h-3 w-3 mr-1" />
+                              切换到此模型
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-3 w-3 mr-1" />
+                              快速启用
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
 
@@ -942,128 +1047,6 @@ export function AISettings() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ==================== 子组件 ====================
-
-// 模型卡片组件
-function ModelCard({
-  model,
-  isExpanded,
-  onToggleExpand,
-  onEdit,
-  onDelete,
-  onActivate,
-  isActivating,
-}: {
-  model: AiModel;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onActivate: () => void;
-  isActivating: boolean;
-}) {
-  const getProviderIcon = (provider: string) => {
-    switch (provider) {
-      case 'workers_ai':
-        return <Cloud className="h-4 w-4 text-orange-500" />;
-      case 'openai_compatible':
-        return <Zap className="h-4 w-4 text-blue-500" />;
-      default:
-        return <Cpu className="h-4 w-4" />;
-    }
-  };
-
-  return (
-    <div
-      className={`border rounded-lg transition-all ${model.isActive ? 'border-primary bg-primary/5' : 'hover:border-primary/30'}`}
-    >
-      <div className="p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            {getProviderIcon(model.provider)}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-medium text-sm sm:text-base truncate">{model.name}</h3>
-                {model.isActive && (
-                  <span className="px-2 py-0.5 bg-primary text-primary-foreground text-xs rounded-full font-medium flex-shrink-0">
-                    使用中
-                  </span>
-                )}
-              </div>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate">
-                {model.modelId} · {model.provider === 'workers_ai' ? 'Workers AI' : '自定义 API'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-            {!model.isActive && (
-              <Button variant="outline" size="sm" onClick={onActivate} disabled={isActivating} className="text-xs">
-                {isActivating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                <span className="ml-1 hidden sm:inline">激活</span>
-              </Button>
-            )}
-            <Button variant="ghost" size="icon" onClick={onEdit} className="h-8 w-8">
-              <Edit2 className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onDelete} className="h-8 w-8 text-red-500 hover:text-red-600">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onToggleExpand} className="h-8 w-8">
-              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </Button>
-          </div>
-        </div>
-
-        {isExpanded && (
-          <div className="mt-4 pt-4 border-t space-y-2 text-sm">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <span className="text-muted-foreground">提供商：</span>
-                <span className="font-medium">{model.provider}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">最大 Token：</span>
-                <span className="font-medium">{model.maxTokens.toLocaleString()}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">温度：</span>
-                <span className="font-medium">{model.temperature}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">API Key：</span>
-                <span className="font-medium">{model.hasApiKey ? '已配置' : '未配置'}</span>
-              </div>
-            </div>
-            {model.apiEndpoint && (
-              <div>
-                <span className="text-muted-foreground">API 端点：</span>
-                <span className="font-mono text-xs bg-muted px-2 py-1 rounded break-all">{model.apiEndpoint}</span>
-              </div>
-            )}
-            {model.systemPrompt && (
-              <div>
-                <span className="text-muted-foreground">系统提示词：</span>
-                <p className="mt-1 text-xs bg-muted p-2 rounded max-h-20 overflow-y-auto">{model.systemPrompt}</p>
-              </div>
-            )}
-            <div>
-              <span className="text-muted-foreground">能力：</span>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {model.capabilities.map((cap) => (
-                  <span key={cap} className="px-2 py-0.5 bg-accent text-accent-foreground text-xs rounded-full">
-                    {cap}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

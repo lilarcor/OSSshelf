@@ -175,17 +175,12 @@ export class WorkersAiAdapter implements IModelAdapter {
     description: string;
   }> {
     return [
+      // ========== 大语言模型（高参数） ==========
       {
-        id: '@cf/meta/llama-3.1-8b-instruct',
-        name: 'Llama 3.1 8B Instruct',
+        id: '@cf/deepseek/deepseek-r1-distill-qwen-32b',
+        name: 'DeepSeek R1 Distill Qwen 32B',
         capabilities: ['chat'],
-        description: 'Meta的Llama 3.1指令微调模型，支持多语言对话，适合通用问答任务',
-      },
-      {
-        id: '@cf/mistral/mistral-7b-instruct-v0.2',
-        name: 'Mistral 7B Instruct v0.2',
-        capabilities: ['chat'],
-        description: 'Mistral AI的7B参数指令模型，推理能力强，适合复杂逻辑问题',
+        description: 'DeepSeek R1蒸馏版32B参数，推理能力强，擅长数学和代码任务（推荐）',
       },
       {
         id: '@cf/qwen/qwen1.5-14b-chat-awq',
@@ -194,22 +189,44 @@ export class WorkersAiAdapter implements IModelAdapter {
         description: '通义千问14B对话模型，中文能力优秀，适合中文场景',
       },
       {
-        id: '@cf/deepseek/deepseek-r1-distill-qwen-32b',
-        name: 'DeepSeek R1 Distill Qwen 32B',
+        id: '@cf/meta/llama-3.1-8b-instruct',
+        name: 'Llama 3.1 8B Instruct',
         capabilities: ['chat'],
-        description: 'DeepSeek R1蒸馏版，推理能力强，适合数学和代码任务',
+        description: 'Meta的Llama 3.1指令微调模型，支持多语言对话，通用问答',
       },
       {
-        id: '@cf/baai/bge-m3',
-        name: 'BGE-M3 Embedding',
-        capabilities: ['embedding'],
-        description: '多语言嵌入模型，用于文本向量化（1024维）',
+        id: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+        name: 'Llama 3.3 70B Instruct (FP8)',
+        capabilities: ['chat'],
+        description: 'Meta最新Llama 3.3 70B大参数模型，性能强劲，复杂推理任务首选',
       },
+      {
+        id: '@cf/mistral/mistral-7b-instruct-v0.2',
+        name: 'Mistral 7B Instruct v0.2',
+        capabilities: ['chat'],
+        description: 'Mistral AI的7B参数指令模型，推理速度快，适合实时对话',
+      },
+      {
+        id: '@cf/google/gemma-2b-it-lora',
+        name: 'Gemma 2B LoRA',
+        capabilities: ['chat'],
+        description: 'Google轻量级2B模型，响应速度极快，适合简单任务',
+      },
+
+      // ========== 多模态视觉模型 ==========
       {
         id: '@cf/llava-hf/llava-1.5-7b-hf',
         name: 'LLaVA 1.5 7B Vision',
         capabilities: ['vision'],
         description: '多模态视觉语言模型，可以理解图片内容并生成描述',
+      },
+
+      // ========== 嵌入模型 ==========
+      {
+        id: '@cf/baai/bge-m3',
+        name: 'BGE-M3 Embedding',
+        capabilities: ['embedding'],
+        description: '多语言嵌入模型，用于文本向量化（1024维），语义搜索核心',
       },
     ];
   }

@@ -17,6 +17,7 @@ import { ERROR_CODES } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
 import { z } from 'zod';
 import { ModelGateway, WorkersAiAdapter, OpenAiCompatibleAdapter } from '../lib/ai';
+import type { ModelConfig } from '../lib/ai/types';
 import { logger } from '@osshelf/shared';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -26,16 +27,41 @@ const createModelSchema = z.object({
   name: z.string().min(1).max(100),
   provider: z.enum(['workers_ai', 'openai_compatible']),
   modelId: z.string().min(1),
-  apiEndpoint: z.string().url().optional(),
+  apiEndpoint: z.string().max(500).optional(), // 移除 .url() 验证，改为可选字符串
   apiKey: z.string().min(1).optional(),
   capabilities: z.array(z.enum(['chat', 'completion', 'embedding', 'vision', 'function_calling'])).default(['chat']),
   maxTokens: z.number().int().min(1).max(128000).default(4096),
   temperature: z.number().min(0).max(2).default(0.7),
   systemPrompt: z.string().max(2000).optional(),
   isActive: z.boolean().default(false),
+}).refine((data) => {
+  // 仅当 provider 为 openai_compatible 且提供了 apiEndpoint 时才验证 URL 格式
+  if (data.provider === 'openai_compatible' && data.apiEndpoint) {
+    try {
+      new URL(data.apiEndpoint);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}, {
+  message: 'API 端点格式无效，请输入有效的 URL',
+  path: ['apiEndpoint'],
 });
 
-const updateModelSchema = createModelSchema.partial();
+const updateModelSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  provider: z.enum(['workers_ai', 'openai_compatible']).optional(),
+  modelId: z.string().min(1).optional(),
+  apiEndpoint: z.string().max(500).optional(),
+  apiKey: z.string().min(1).optional(),
+  capabilities: z.array(z.enum(['chat', 'completion', 'embedding', 'vision', 'function_calling'])).optional(),
+  maxTokens: z.number().int().min(1).max(128000).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  systemPrompt: z.string().max(2000).optional(),
+  isActive: z.boolean().optional(),
+});
 
 app.get('/models', async (c) => {
   const userId = c.get('userId')!;
@@ -304,6 +330,97 @@ app.get('/status', async (c) => {
       },
     },
   });
+});
+
+// 测试模型连接
+app.post('/test', async (c) => {
+  const userId = c.get('userId')!;
+  const body = await c.req.json();
+  const { modelId, provider, apiEndpoint, apiKey } = body as {
+    modelId?: string;
+    provider?: string;
+    apiEndpoint?: string;
+    apiKey?: string;
+  };
+
+  try {
+    let testConfig: ModelConfig;
+
+    if (modelId) {
+      // 测试已保存的模型
+      const gateway = new ModelGateway(c.env);
+      const config = await gateway.getModelById(modelId, userId);
+      if (!config) {
+        return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '模型不存在' } }, 404);
+      }
+      testConfig = config;
+    } else if (provider && modelId === undefined) {
+      // 测试临时配置（保存前测试）
+      const apiKeyEncrypted = apiKey ? await encryptApiKey(apiKey) : null;
+
+      testConfig = {
+        id: 'test-temp',
+        userId,
+        name: '测试模型',
+        provider: provider as any,
+        modelId: body.modelId || '@cf/meta/llama-3.1-8b-instruct',
+        apiEndpoint: apiEndpoint || undefined,
+        apiKeyEncrypted: apiKeyEncrypted || undefined,
+        isActive: false,
+        capabilities: ['chat'],
+        maxTokens: 100,
+        temperature: 0.7,
+        configJson: {},
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    } else {
+      return c.json(
+        { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '请提供 modelId 或 provider' } },
+        400
+      );
+    }
+
+    // 执行测试请求
+    const gateway = new ModelGateway(c.env);
+    const adapter = gateway.getAdapter(testConfig);
+
+    const startTime = Date.now();
+    const response = await adapter.chatCompletion({
+      messages: [{ role: 'user', content: 'Hello, 请用一句话介绍你自己。' }],
+      maxTokens: 100,
+      temperature: 0.7,
+    });
+    const latencyMs = Date.now() - startTime;
+
+    return c.json({
+      success: true,
+      data: {
+        valid: true,
+        response: response.content,
+        model: response.model,
+        latencyMs,
+        usage: response.usage,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    logger.error('AI Config', 'Model test failed', { userId, provider, modelId }, error);
+
+    const errorMessage = error instanceof Error ? error.message : '测试失败';
+    return c.json({
+      success: false,
+      error: {
+        code: ERROR_CODES.INTERNAL_ERROR,
+        message: `模型测试失败: ${errorMessage}`,
+      },
+      data: {
+        valid: false,
+        error: errorMessage,
+        timestamp: new Date().toISOString(),
+      },
+    }, 500);
+  }
 });
 
 async function encryptApiKey(apiKey: string): Promise<string> {

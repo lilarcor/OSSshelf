@@ -1262,6 +1262,16 @@ export const aiApi = {
         }>
       >('/api/ai-config/providers'),
     getStatus: () => api.get<ApiResponse<AiConfigStatus>>('/api/ai-config/status'),
+    testModel: (data: { modelId?: string; provider?: string; apiEndpoint?: string; apiKey?: string }) =>
+      api.post<
+        ApiResponse<{
+          valid: boolean;
+          response?: string;
+          model?: string;
+          latencyMs?: number;
+          error?: string;
+        }>
+      >('/api/ai-config/test', data),
   },
 
   // 新增：AI会话管理（增强版）

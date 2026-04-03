@@ -5,10 +5,11 @@
  * 功能:
  * - 展示模型信息
  * - 展开/收起详情
- * - 操作按钮（编辑/删除/激活）
+ * - 操作按钮（编辑/删除/激活/测试）
  */
 
-import { Cloud, Zap, Cpu, Edit2, Trash2, Check, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { Cloud, Zap, Cpu, Edit2, Trash2, Check, ChevronDown, ChevronUp, Loader2, PlayCircle, XCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import type { AiModel } from '@/services/api';
 
@@ -20,6 +21,15 @@ interface ModelCardProps {
   onDelete: () => void;
   onActivate: () => void;
   isActivating: boolean;
+  onTest?: (modelId: string) => void;
+  testResult?: {
+    modelId: string;
+    valid: boolean;
+    response?: string;
+    latencyMs?: number;
+    error?: string;
+  } | null;
+  isTesting?: boolean;
 }
 
 export function ModelCard({
@@ -30,6 +40,9 @@ export function ModelCard({
   onDelete,
   onActivate,
   isActivating,
+  onTest,
+  testResult,
+  isTesting,
 }: ModelCardProps) {
   const getProviderIcon = (provider: string) => {
     switch (provider) {
@@ -41,6 +54,8 @@ export function ModelCard({
         return <Cpu className="h-4 w-4" />;
     }
   };
+
+  const currentTestResult = testResult?.modelId === model.id ? testResult : null;
 
   return (
     <div className={`border rounded-lg transition-all ${model.isActive ? 'border-primary bg-primary/5' : 'hover:border-primary/30'}`}>
@@ -70,6 +85,22 @@ export function ModelCard({
                 <span className="ml-1 hidden sm:inline">激活</span>
               </Button>
             )}
+            {onTest && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onTest(model.id)}
+                disabled={isTesting}
+                className="text-xs"
+              >
+                {isTesting ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <PlayCircle className="h-3 w-3" />
+                )}
+                <span className="ml-1 hidden sm:inline">测试</span>
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={onEdit} className="h-8 w-8">
               <Edit2 className="h-4 w-4" />
             </Button>
@@ -81,6 +112,42 @@ export function ModelCard({
             </Button>
           </div>
         </div>
+
+        {/* 测试结果展示 */}
+        {currentTestResult && (
+          <div className={`mt-3 p-3 rounded-lg text-sm ${
+            currentTestResult.valid
+              ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+              : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+          }`}>
+            <div className="flex items-center gap-2 mb-2">
+              {currentTestResult.valid ? (
+                <>
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="font-medium text-green-700 dark:text-green-300">连接成功</span>
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-4 w-4 text-red-600" />
+                  <span className="font-medium text-red-700 dark:text-red-300">连接失败</span>
+                </>
+              )}
+              {currentTestResult.latencyMs && (
+                <span className="text-xs text-muted-foreground ml-auto">
+                  响应时间: {currentTestResult.latencyMs}ms
+                </span>
+              )}
+            </div>
+            {currentTestResult.response && (
+              <div className="mt-2 p-2 bg-white dark:bg-slate-800 rounded text-xs">
+                <p className="line-clamp-3">{currentTestResult.response}</p>
+              </div>
+            )}
+            {currentTestResult.error && (
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">{currentTestResult.error}</p>
+            )}
+          </div>
+        )}
 
         {isExpanded && (
           <div className="mt-4 pt-4 border-t space-y-2 text-sm">
