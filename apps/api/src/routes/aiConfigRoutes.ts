@@ -332,6 +332,94 @@ app.get('/status', async (c) => {
   });
 });
 
+// 功能级模型配置
+const FEATURE_CONFIG_KEY = (userId: string) => `ai:feature-model-config:${userId}`;
+
+// 获取功能模型配置
+app.get('/feature-config', async (c) => {
+  const userId = c.get('userId')!;
+
+  try {
+    const config = await c.env.KV.get(FEATURE_CONFIG_KEY(userId), 'json');
+
+    return c.json({
+      success: true,
+      data: config || {
+        summary: null,
+        imageCaption: null,
+        imageTag: null,
+        rename: null,
+      },
+    });
+  } catch (error) {
+    logger.error('AI Config', 'Failed to get feature config', { userId }, error);
+    return c.json({
+      success: false,
+      error: { code: ERROR_CODES.INTERNAL_ERROR, message: '获取配置失败' },
+    }, 500);
+  }
+});
+
+// 保存功能模型配置
+app.put('/feature-config', async (c) => {
+  const userId = c.get('userId')!;
+  const body = await c.req.json();
+  const { summary, imageCaption, imageTag, rename } = body as {
+    summary?: string | null;
+    imageCaption?: string | null;
+    imageTag?: string | null;
+    rename?: string | null;
+  };
+
+  // 验证：如果提供了 modelId，需要验证模型存在且属于该用户
+  const gateway = new ModelGateway(c.env);
+  const validations = await Promise.all([
+    summary ? gateway.getModelById(summary, userId).then((m) => !!m) : Promise.resolve(true),
+    imageCaption ? gateway.getModelById(imageCaption, userId).then((m) => !!m) : Promise.resolve(true),
+    imageTag ? gateway.getModelById(imageTag, userId).then((m) => !!m) : Promise.resolve(true),
+    rename ? gateway.getModelById(rename, userId).then((m) => !!m) : Promise.resolve(true),
+  ]);
+
+  const [validSummary, validImageCaption, validImageTag, validRename] = validations;
+
+  if (summary && !validSummary) {
+    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '摘要模型不存在' } }, 400);
+  }
+  if (imageCaption && !validImageCaption) {
+    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '图片描述模型不存在或无 vision 能力' } }, 400);
+  }
+  if (imageTag && !validImageTag) {
+    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '图片标签模型不存在' } }, 400);
+  }
+  if (rename && !validRename) {
+    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '重命名模型不存在' } }, 400);
+  }
+
+  const config = {
+    summary: summary || null,
+    imageCaption: imageCaption || null,
+    imageTag: imageTag || null,
+    rename: rename || null,
+  };
+
+  try {
+    await c.env.KV.put(FEATURE_CONFIG_KEY(userId), JSON.stringify(config), { expirationTtl: 86400 * 30 }); // 30天过期
+
+    logger.info('AI Config', 'Feature model config saved', { userId, config });
+
+    return c.json({
+      success: true,
+      data: { message: '功能模型配置已保存', config },
+    });
+  } catch (error) {
+    logger.error('AI Config', 'Failed to save feature config', { userId }, error);
+    return c.json({
+      success: false,
+      error: { code: ERROR_CODES.INTERNAL_ERROR, message: '保存配置失败' },
+    }, 500);
+  }
+});
+
 // 测试模型连接
 app.post('/test', async (c) => {
   const userId = c.get('userId')!;

@@ -249,20 +249,20 @@ export class ModelGateway {
   private parseModelConfig(raw: Record<string, unknown>): ModelConfig {
     return {
       id: raw.id as string,
-      userId: raw.user_id as string,
+      userId: raw.userId as string,
       name: raw.name as string,
       provider: raw.provider as ModelProvider,
-      modelId: raw.model_id as string,
-      apiEndpoint: raw.api_endpoint as string | undefined,
-      apiKeyEncrypted: raw.api_key_encrypted as string | undefined,
-      isActive: Boolean(raw.is_active),
-      capabilities: JSON.parse(raw.capabilities as string || '[]'),
-      maxTokens: (raw.max_tokens as number) || 4096,
+      modelId: raw.modelId as string,
+      apiEndpoint: raw.apiEndpoint as string | undefined,
+      apiKeyEncrypted: raw.apiKeyEncrypted as string | undefined,
+      isActive: Boolean(raw.isActive),
+      capabilities: JSON.parse((raw.capabilities as string) || '[]'),
+      maxTokens: (raw.maxTokens as number) || 4096,
       temperature: (raw.temperature as number) || 0.7,
-      systemPrompt: raw.system_prompt as string | undefined,
-      configJson: JSON.parse((raw.config_json as string) || '{}'),
-      createdAt: raw.created_at as string,
-      updatedAt: raw.updated_at as string,
+      systemPrompt: raw.systemPrompt as string | undefined,
+      configJson: JSON.parse((raw.configJson as string) || '{}'),
+      createdAt: raw.createdAt as string,
+      updatedAt: raw.updatedAt as string,
     };
   }
 }

@@ -461,7 +461,7 @@ app.post('/summarize/:fileId', async (c) => {
   }
 
   try {
-    const result = await generateFileSummary(c.env, fileId);
+    const result = await generateFileSummary(c.env, fileId, undefined, userId);
 
     sendNotification(c, {
       userId,
@@ -502,7 +502,7 @@ app.post('/tags/:fileId', async (c) => {
   }
 
   try {
-    const result = await generateImageTags(c.env, fileId);
+    const result = await generateImageTags(c.env, fileId, undefined, userId);
 
     sendNotification(c, {
       userId,
@@ -539,7 +539,7 @@ app.post('/rename-suggest/:fileId', async (c) => {
   }
 
   try {
-    const result = await suggestFileName(c.env, fileId);
+    const result = await suggestFileName(c.env, fileId, undefined, userId);
     return c.json({ success: true, data: result });
   } catch (error) {
     const message = error instanceof Error ? error.message : '生成重命名建议失败';
@@ -554,6 +554,7 @@ const nameSuggestSchema = z.object({
 });
 
 app.post('/name-suggest', async (c) => {
+  const userId = c.get('userId')!;
   const body = await c.req.json();
   const result = nameSuggestSchema.safeParse(body);
 
@@ -567,7 +568,7 @@ app.post('/name-suggest', async (c) => {
   const { content, mimeType, extension } = result.data;
 
   try {
-    const suggestions = await suggestFileNameFromContent(c.env, content, mimeType || null, extension || '');
+    const suggestions = await suggestFileNameFromContent(c.env, content, mimeType || null, extension || '', userId);
     return c.json({ success: true, data: suggestions });
   } catch (error) {
     const message = error instanceof Error ? error.message : '生成命名建议失败';

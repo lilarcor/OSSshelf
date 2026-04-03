@@ -34,11 +34,14 @@ import {
   XCircle,
   Square,
   FileText,
-  Image,
+  Image as ImageIcon,
   File,
   Play,
   MessageSquare,
   BarChart3,
+  Settings2,
+  Tags,
+  Type,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ModelCard } from '@/components/ai';
@@ -68,6 +71,15 @@ export function AISettings() {
   const [isStartingTags, setIsStartingTags] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showIndexWarning, setShowIndexWarning] = useState(false);
+
+  // 功能级模型配置状态
+  const [featureConfig, setFeatureConfig] = useState<{
+    summary: string | null;
+    imageCaption: string | null;
+    imageTag: string | null;
+    rename: string | null;
+  } | null>(null);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   // 查询模型列表
   const { data: models = [], isLoading: modelsLoading } = useQuery({
@@ -143,6 +155,38 @@ export function AISettings() {
       setTestResult(data);
     },
   });
+
+  // 功能模型配置
+  const { data: featureConfigData, isLoading: configLoading } = useQuery({
+    queryKey: ['ai-feature-config'],
+    queryFn: () => aiApi.config.getFeatureConfig().then((r) => r.data.data),
+    staleTime: 30000,
+  });
+
+  useEffect(() => {
+    if (featureConfigData) {
+      setFeatureConfig(featureConfigData as typeof featureConfig);
+    }
+  }, [featureConfigData]);
+
+  const saveFeatureConfigMutation = useMutation({
+    mutationFn: (data: typeof featureConfig) =>
+      aiApi.config.saveFeatureConfig(data as Parameters<typeof aiApi.config.saveFeatureConfig>[0]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-feature-config'] });
+    },
+  });
+
+  // 功能模型配置变更处理
+  const handleFeatureConfigChange = (feature: keyof NonNullable<typeof featureConfig>, value: string) => {
+    if (!featureConfig) return;
+    const newConfig = { ...featureConfig, [feature]: value === '__default__' ? null : value };
+    setFeatureConfig(newConfig);
+    setIsSavingConfig(true);
+    saveFeatureConfigMutation.mutate(newConfig, {
+      onSettled: () => setIsSavingConfig(false),
+    });
+  };
 
   const activateMutation = useMutation({
     mutationFn: (modelId: string) => aiApi.config.activateModel(modelId),
@@ -703,6 +747,105 @@ export function AISettings() {
 
             {isAIAvailable && (
               <>
+                {/* 功能模型配置 */}
+                <section className="border rounded-lg p-4 sm:p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Settings2 className="h-5 w-5 text-purple-500" />
+                    <h2 className="text-lg sm:text-xl font-semibold">功能模型配置</h2>
+                    {isSavingConfig && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    为不同 AI 功能选择专用模型，留空则使用默认模型或当前激活模型
+                  </p>
+
+                  <div className="space-y-4">
+                    {/* 文件摘要模型 */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {([
+                        {
+                          key: 'summary' as const,
+                          label: '文件摘要',
+                          icon: <FileText className="h-4 w-4" />,
+                          desc: '生成文件内容摘要',
+                          capability: 'chat',
+                          defaultModel: '@cf/meta/llama-3.1-8b-instruct',
+                        },
+                        {
+                          key: 'imageCaption' as const,
+                          label: '图片描述',
+                          icon: <ImageIcon className="h-4 w-4" />,
+                          desc: '生成图片文字描述',
+                          capability: 'vision',
+                          defaultModel: '@cf/llava-hf/llava-1.5-7b-hf',
+                        },
+                        {
+                          key: 'imageTag' as const,
+                          label: '图片标签',
+                          icon: <Tags className="h-4 w-4" />,
+                          desc: '识别图片内容标签',
+                          capability: 'classify',
+                          defaultModel: '@cf/microsoft/resnet-50',
+                        },
+                        {
+                          key: 'rename' as const,
+                          label: '智能重命名',
+                          icon: <Type className="h-4 w-4" />,
+                          desc: '智能建议文件名',
+                          capability: 'chat',
+                          defaultModel: '@cf/meta/llama-3.1-8b-instruct',
+                        },
+                      ]).map((item) => (
+                        <div key={item.key} className="border rounded-lg p-3 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-primary">{item.icon}</span>
+                            <span className="font-medium text-sm">{item.label}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{item.desc}</p>
+                          <select
+                            value={featureConfig?.[item.key] || '__default__'}
+                            onChange={(e) => handleFeatureConfigChange(item.key, e.target.value)}
+                            disabled={configLoading}
+                            className="w-full px-2 py-1.5 border rounded bg-background text-sm"
+                          >
+                            <option value="__default__">使用默认模型</option>
+                            <optgroup label="已添加的自定义模型">
+                              {models
+                                .filter((m) =>
+                                  item.capability === 'classify'
+                                    ? m.provider === 'workers_ai'
+                                    : m.capabilities?.includes(item.capability) || m.capabilities?.includes('chat')
+                                )
+                                .map((m) => (
+                                  <option key={m.id} value={m.id}>
+                                    {m.name}
+                                    {m.isActive ? ' ✓' : ''}
+                                  </option>
+                                ))}
+                            </optgroup>
+                            {providersData?.workersAiModels
+                              .filter((m) =>
+                                item.capability === 'vision'
+                                  ? m.capabilities.includes('vision')
+                                  : item.capability === 'classify'
+                                  ? false
+                                  : m.capabilities.includes('chat')
+                              )
+                              .map((m) => (
+                                <option key={`wa-${m.id}`} value={m.id}>
+                                  Workers AI: {m.name}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground">
+                      💡 提示：图片描述需要支持 vision 能力的模型（如 LLaVA）；图片标签仅限 Workers AI 分类模型
+                    </div>
+                  </div>
+                </section>
+
                 {/* 处理建议 */}
                 <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                   <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">💡 建议处理顺序</p>
@@ -749,7 +892,7 @@ export function AISettings() {
 
                   {renderStatsCard(
                     '图片文件',
-                    <Image className="h-5 w-5 text-green-500" />,
+                    <ImageIcon className="h-5 w-5 text-green-500" />,
                     stats?.image.total || 0,
                     [
                       { label: '未生成标签', count: stats?.image.noTags || 0, color: 'text-amber-600' },
@@ -897,7 +1040,7 @@ export function AISettings() {
               {/* 标签任务 */}
               <div className="border rounded-lg p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Image className="h-5 w-5 text-green-500" />
+                  <ImageIcon className="h-5 w-5 text-green-500" />
                   <h3 className="font-medium">标签生成任务</h3>
                 </div>
                 {tagsTask && tagsTask.status !== 'idle' ? (

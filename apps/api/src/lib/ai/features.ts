@@ -1,12 +1,17 @@
 /**
  * features.ts
- * AI 文件处理功能模块
+ * AI 文件处理功能模块（重构版）
  *
  * 功能:
- * - 文件摘要生成
- * - 图片智能标签+描述
- * - 智能重命名建议
+ * - 文件摘要生成（支持自定义模型）
+ * - 图片智能标签+描述（支持自定义模型）
+ * - 智能重命名建议（支持自定义模型）
  * - 自动文件处理流程
+ *
+ * 改进:
+ * - 统一使用 ModelGateway 调用模型
+ * - 支持功能级模型配置
+ * - 完善默认回退机制
  */
 
 import type { Env } from '../../types/env';
@@ -15,13 +20,19 @@ import { eq } from 'drizzle-orm';
 import { getFileContent } from '../utils';
 import { isEditableFile, logger, logAiError } from '@osshelf/shared';
 import { indexFileVector, buildFileTextForVector } from '../vectorIndex';
-
-const SUMMARY_MODEL = '@cf/meta/llama-3.1-8b-instruct' as const;
-const IMAGE_CAPTION_MODEL = '@cf/llava-hf/llava-1.5-7b-hf' as const;
-const IMAGE_TAG_MODEL = '@cf/microsoft/resnet-50' as const;
+import { ModelGateway } from './modelGateway';
+import type { ChatCompletionRequest } from './types';
 
 const SUMMARY_CONTENT_LIMIT = 8192;
 const RENAME_CONTENT_LIMIT = 4096;
+
+// 默认模型 ID（当用户未配置时使用）
+const DEFAULT_MODELS = {
+  summary: '@cf/meta/llama-3.1-8b-instruct',
+  imageCaption: '@cf/llava-hf/llava-1.5-7b-hf',
+  imageTag: '@cf/microsoft/resnet-50',
+  rename: '@cf/meta/llama-3.1-8b-instruct',
+} as const;
 
 export interface SummaryResult {
   summary: string;
@@ -37,6 +48,17 @@ export interface RenameSuggestion {
   suggestions: string[];
 }
 
+// 功能类型定义
+export type AiFeatureType = 'summary' | 'imageCaption' | 'imageTag' | 'rename';
+
+// 功能级模型配置接口
+export interface FeatureModelConfig {
+  summary?: string;      // 文件摘要模型 ID
+  imageCaption?: string; // 图片描述模型 ID
+  imageTag?: string;     // 图片标签模型 ID
+  rename?: string;       // 智能重命名模型 ID
+}
+
 export function canGenerateSummary(mimeType: string | null, fileName: string): boolean {
   return isEditableFile(mimeType, fileName);
 }
@@ -49,7 +71,134 @@ export function isAIConfigured(env: Env): boolean {
   return !!(env.AI && env.VECTORIZE);
 }
 
-export async function generateFileSummary(env: Env, fileId: string, content?: string): Promise<SummaryResult> {
+/**
+ * 获取用户的 功能级模型配置
+ */
+async function getFeatureModelConfig(env: Env, userId: string): Promise<FeatureModelConfig> {
+  try {
+    const configKey = `ai:feature-model-config:${userId}`;
+    const cached = await env.KV.get(configKey, 'json');
+    
+    if (cached) {
+      return cached as FeatureModelConfig;
+    }
+    
+    return {};
+  } catch (error) {
+    logger.error('AI', 'Failed to get feature model config', { userId }, error);
+    return {};
+  }
+}
+
+/**
+ * 通过 ModelGateway 调用聊天模型（统一入口）
+ */
+async function callChatModel(
+  env: Env,
+  userId: string,
+  featureType: AiFeatureType,
+  request: ChatCompletionRequest
+): Promise<string> {
+  const gateway = new ModelGateway(env);
+  
+  // 获取该功能的自定义模型配置
+  const featureConfig = await getFeatureModelConfig(env, userId);
+  const customModelId = featureConfig[featureType];
+  
+  try {
+    // 尝试使用用户配置的自定义模型或默认活跃模型
+    const response = await gateway.chatCompletion(userId, request, customModelId);
+    return response.content;
+  } catch (error) {
+    // 如果失败，尝试使用 Workers AI 默认模型作为最终回退
+    logger.warn('AI', 'Custom model failed, falling back to default', { featureType, error });
+    
+    const defaultModelId = DEFAULT_MODELS[featureType] || DEFAULT_MODELS.summary;
+    
+    // 直接调用 Workers AI（绕过 Gateway 的配置检查）
+    if (env.AI) {
+      const fallbackResponse = await (env.AI as any).run(defaultModelId, {
+        messages: request.messages,
+        max_tokens: request.maxTokens || 200,
+        stream: false,
+      });
+      
+      return (fallbackResponse as { response?: string }).response?.trim() || '';
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * 调用图片理解模型（支持 vision 能力）
+ */
+async function callVisionModel(
+  env: Env,
+  userId: string,
+  modelId: string,
+  imageData: number[],
+  prompt: string
+): Promise<string> {
+  const gateway = new ModelGateway(env);
+  const featureConfig = await getFeatureModelConfig(env, userId);
+  const customModelId = featureConfig.imageCaption;
+  
+  try {
+    if (customModelId && env.AI) {
+      // 使用用户配置的自定义 vision 模型
+      const response = await (env.AI as any).run(customModelId, {
+        image: imageData,
+        prompt,
+        max_tokens: 300,
+      });
+      
+      return (response as { description?: string; response?: string }).description?.trim() 
+        || (response as { response?: string }).response?.trim() 
+        || '';
+    }
+    
+    // 使用默认模型
+    if (env.AI) {
+      const response = await (env.AI as any).run(modelId, {
+        image: imageData,
+        prompt,
+        max_tokens: 300,
+      });
+      
+      return (response as { description?: string }).description?.trim() || '';
+    }
+    
+    throw new Error('AI service not available');
+  } catch (error) {
+    logger.error('AI', 'Vision model call failed', { modelId }, error);
+    throw error;
+  }
+}
+
+/**
+ * 调用图片分类模型（生成标签）
+ */
+async function callClassificationModel(
+  env: Env,
+  modelId: string,
+  imageData: number[]
+): Promise<unknown> {
+  if (!env.AI) {
+    throw new Error('AI service not configured');
+  }
+
+  return await (env.AI as any).run(modelId, {
+    image: imageData,
+  });
+}
+
+export async function generateFileSummary(
+  env: Env,
+  fileId: string,
+  content?: string,
+  userId?: string
+): Promise<SummaryResult> {
   if (!env.AI) {
     throw new Error('AI service not configured');
   }
@@ -84,22 +233,25 @@ export async function generateFileSummary(env: Env, fileId: string, content?: st
   const truncatedContent = textContent.slice(0, SUMMARY_CONTENT_LIMIT);
 
   try {
-    const response = await (env.AI as any).run(SUMMARY_MODEL, {
-      messages: [
-        {
-          role: 'system',
-          content:
-            '你是文件助手。请用简洁的中文（不超过3句话）概括文件内容。如果内容是代码，请说明代码的主要功能。',
-        },
-        {
-          role: 'user',
-          content: truncatedContent,
-        },
-      ],
-      max_tokens: 200,
-    });
-
-    const summary = (response as { response?: string }).response?.trim() || '';
+    const summary = await callChatModel(
+      env,
+      userId || file.userId || 'default',
+      'summary',
+      {
+        messages: [
+          {
+            role: 'system',
+            content:
+              '你是文件助手。请用简洁的中文（不超过3句话）概括文件内容。如果内容是代码，请说明代码的主要功能。',
+          },
+          {
+            role: 'user',
+            content: truncatedContent,
+          },
+        ],
+        maxTokens: 200,
+      }
+    );
 
     await Promise.all([
       env.KV.put(cacheKey, summary, { expirationTtl: 86400 }),
@@ -113,7 +265,12 @@ export async function generateFileSummary(env: Env, fileId: string, content?: st
   }
 }
 
-export async function generateImageTags(env: Env, fileId: string, imageBuffer?: ArrayBuffer): Promise<ImageTagResult> {
+export async function generateImageTags(
+  env: Env,
+  fileId: string,
+  imageBuffer?: ArrayBuffer,
+  userId?: string
+): Promise<ImageTagResult> {
   if (!env.AI) {
     throw new Error('AI service not configured');
   }
@@ -138,21 +295,19 @@ export async function generateImageTags(env: Env, fileId: string, imageBuffer?: 
 
   try {
     const [captionResult, tagResult] = await Promise.allSettled([
-      (env.AI as any).run(IMAGE_CAPTION_MODEL, {
-        image: Array.from(uint8Array),
-        prompt:
-          'Describe this image in detail. If there is any text in the image, please transcribe it accurately. Respond in the same language as the text in the image, or in Chinese if no text is present.',
-        max_tokens: 300,
-      }),
-      (env.AI as any).run(IMAGE_TAG_MODEL, {
-        image: Array.from(uint8Array),
-      }),
+      callVisionModel(
+        env,
+        userId || file.userId || 'default',
+        DEFAULT_MODELS.imageCaption,
+        Array.from(uint8Array),
+        'Describe this image in detail. If there is any text in the image, please transcribe it accurately. Respond in the same language as the text in the image, or in Chinese if no text is present.'
+      ),
+      callClassificationModel(env, DEFAULT_MODELS.imageTag, Array.from(uint8Array)),
     ]);
 
     let caption = '';
     if (captionResult.status === 'fulfilled') {
-      const r = captionResult.value as { description?: string };
-      caption = r.description?.trim() || '';
+      caption = captionResult.value;
     }
 
     let tags: string[] = [];
@@ -177,7 +332,12 @@ export async function generateImageTags(env: Env, fileId: string, imageBuffer?: 
   }
 }
 
-export async function suggestFileName(env: Env, fileId: string, content?: string): Promise<RenameSuggestion> {
+export async function suggestFileName(
+  env: Env,
+  fileId: string,
+  content?: string,
+  userId?: string
+): Promise<RenameSuggestion> {
   if (!env.AI) {
     throw new Error('AI service not configured');
   }
@@ -217,27 +377,31 @@ export async function suggestFileName(env: Env, fileId: string, content?: string
   }
 
   try {
-    const response = await (env.AI as any).run(SUMMARY_MODEL, {
-      messages: [
-        {
-          role: 'system',
-          content: `你是文件命名助手。根据提供的信息，建议3个简洁、有意义的中文文件名。
+    const responseText = await callChatModel(
+      env,
+      userId || file.userId || 'default',
+      'rename',
+      {
+        messages: [
+          {
+            role: 'system',
+            content: `你是文件命名助手。根据提供的信息，建议3个简洁、有意义的中文文件名。
 规则：
 1. 每个文件名不超过20个字
 2. 保留文件扩展名 ${ext || '（无扩展名）'}
 3. 每行一个文件名，不加编号、不加解释
 4. 文件名要能反映文件主要内容
 5. 只输出文件名，不输出其他任何内容`,
-        },
-        {
-          role: 'user',
-          content: `原文件名：${file.name}\n${contextForAI}`,
-        },
-      ],
-      max_tokens: 150,
-    });
+          },
+          {
+            role: 'user',
+            content: `原文件名：${file.name}\n${contextForAI}`,
+          },
+        ],
+        maxTokens: 150,
+      }
+    );
 
-    const responseText = (response as { response?: string }).response || '';
     const suggestions = responseText
       .split('\n')
       .map((s: string) => s.trim())
@@ -259,7 +423,8 @@ export async function suggestFileNameFromContent(
   env: Env,
   content: string,
   mimeType: string | null,
-  extension: string
+  extension: string,
+  userId?: string
 ): Promise<RenameSuggestion> {
   if (!env.AI) {
     throw new Error('AI service not configured');
@@ -272,27 +437,31 @@ export async function suggestFileNameFromContent(
   const ext = extension || '';
 
   try {
-    const response = await (env.AI as any).run(SUMMARY_MODEL, {
-      messages: [
-        {
-          role: 'system',
-          content: `你是文件命名助手。根据提供的文件内容，建议3个简洁、有意义的中文文件名。
+    const responseText = await callChatModel(
+      env,
+      userId || 'default',
+      'rename',
+      {
+        messages: [
+          {
+            role: 'system',
+            content: `你是文件命名助手。根据提供的文件内容，建议3个简洁、有意义的中文文件名。
 规则：
 1. 每个文件名不超过20个字
 2. 保留文件扩展名 ${ext || '（无扩展名）'}
 3. 每行一个文件名，不加编号、不加解释
 4. 文件名要能反映文件主要内容
 5. 只输出文件名，不输出其他任何内容`,
-        },
-        {
-          role: 'user',
-          content: `文件类型：${mimeType || '未知'}\n文件内容（前${RENAME_CONTENT_LIMIT}字）：\n${content.slice(0, RENAME_CONTENT_LIMIT)}`,
-        },
-      ],
-      max_tokens: 150,
-    });
+          },
+          {
+            role: 'user',
+            content: `文件类型：${mimeType || '未知'}\n文件内容（前${RENAME_CONTENT_LIMIT}字）：\n${content.slice(0, RENAME_CONTENT_LIMIT)}`,
+          },
+        ],
+        maxTokens: 150,
+      }
+    );
 
-    const responseText = (response as { response?: string }).response || '';
     const suggestions = responseText
       .split('\n')
       .map((s: string) => s.trim())
@@ -360,7 +529,7 @@ function parseImageTags(result: unknown): string[] {
   return [...new Set(tags)].slice(0, 5);
 }
 
-export async function autoProcessFile(env: Env, fileId: string): Promise<void> {
+export async function autoProcessFile(env: Env, fileId: string, userId?: string): Promise<void> {
   if (!env.AI) {
     return;
   }
@@ -372,11 +541,12 @@ export async function autoProcessFile(env: Env, fileId: string): Promise<void> {
     return;
   }
 
+  const effectiveUserId = userId || file.userId || 'default';
   const tasks: Promise<void>[] = [];
 
   if (isImageFile(file.mimeType)) {
     tasks.push(
-      generateImageTags(env, fileId)
+      generateImageTags(env, fileId, undefined, effectiveUserId)
         .then(() => {})
         .catch((error) => {
           logAiError('自动图片标签', fileId, error);
@@ -386,7 +556,7 @@ export async function autoProcessFile(env: Env, fileId: string): Promise<void> {
 
   if (canGenerateSummary(file.mimeType, file.name)) {
     tasks.push(
-      generateFileSummary(env, fileId)
+      generateFileSummary(env, fileId, undefined, effectiveUserId)
         .then(() => {})
         .catch((error) => {
           logAiError('自动摘要', fileId, error);
@@ -396,16 +566,16 @@ export async function autoProcessFile(env: Env, fileId: string): Promise<void> {
 
   if (tasks.length > 0) {
     await Promise.all(tasks);
-  }
 
-  if (env.VECTORIZE) {
-    try {
-      const text = await buildFileTextForVector(env, fileId);
-      if (text && text.trim().length > 0) {
-        await indexFileVector(env, fileId, text);
+    if (env.VECTORIZE) {
+      try {
+        const text = await buildFileTextForVector(env, fileId);
+        if (text && text.trim().length > 0) {
+          await indexFileVector(env, fileId, text);
+        }
+      } catch (error) {
+        logAiError('自动向量索引', fileId, error);
       }
-    } catch (error) {
-      logAiError('自动向量索引', fileId, error);
     }
   }
 }

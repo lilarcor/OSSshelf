@@ -1276,6 +1276,22 @@ export const aiApi = {
           error?: string;
         }>
       >('/api/ai-config/test', data),
+
+    // 功能级模型配置
+    getFeatureConfig: () =>
+      api.get<ApiResponse<{
+        summary: string | null;
+        imageCaption: string | null;
+        imageTag: string | null;
+        rename: string | null;
+      }>>('/api/ai-config/feature-config'),
+
+    saveFeatureConfig: (data: {
+      summary?: string | null;
+      imageCaption?: string | null;
+      imageTag?: string | null;
+      rename?: string | null;
+    }) => api.put<ApiResponse<{ message: string; config: any }>>('/api/ai-config/feature-config', data),
   },
 
   // 新增：AI会话管理（增强版）
