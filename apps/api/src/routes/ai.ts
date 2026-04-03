@@ -36,7 +36,7 @@ import {
   isAIConfigured,
   searchAndFetchFiles,
 } from '../lib/vectorIndex';
-import { generateFileSummary, generateImageTags, suggestFileName, suggestFileNameFromContent, canGenerateSummary } from '../lib/aiFeatures';
+import { generateFileSummary, generateImageTags, suggestFileName, suggestFileNameFromContent, canGenerateSummary } from '../lib/ai/features';
 import { createNotification, sendNotification } from '../lib/notificationUtils';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();

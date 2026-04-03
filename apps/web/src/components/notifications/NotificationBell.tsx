@@ -33,20 +33,20 @@ export function NotificationBell({ className, align = 'right', direction = 'down
   useEffect(() => {
     let fallbackInterval: NodeJS.Timeout | null = null;
     let controller: AbortController | null = null;
-    
+
     const connectSSE = async () => {
       try {
         controller = new AbortController();
         const token = useAuthStore.getState().token;
-        
+
         const response = await fetch(`${API_BASE}/api/notifications/stream`, {
           method: 'GET',
           headers: {
-            'Authorization': token ? `Bearer ${token}` : '',
-            'Accept': 'text/event-stream'
+            Authorization: token ? `Bearer ${token}` : '',
+            Accept: 'text/event-stream',
           },
           credentials: 'include',
-          signal: controller.signal
+          signal: controller.signal,
         });
 
         if (!response.ok) {
@@ -65,14 +65,14 @@ export function NotificationBell({ className, align = 'right', direction = 'down
         }
 
         let buffer = '';
-        
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          
+
           const chunk = new TextDecoder().decode(value);
           buffer += chunk;
-          
+
           const lines = buffer.split('\n');
           for (let i = 0; i < lines.length - 1; i++) {
             const line = lines[i];
@@ -91,7 +91,7 @@ export function NotificationBell({ className, align = 'right', direction = 'down
               }
             }
           }
-          
+
           buffer = lines[lines.length - 1] || '';
         }
 
@@ -184,30 +184,20 @@ export function NotificationBell({ className, align = 'right', direction = 'down
           'relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors',
           className
         )}
-        title={isConnected ? "通知 (实时连接)" : "通知 (离线)"}
+        title={isConnected ? '通知 (实时连接)' : '通知 (离线)'}
       >
         {unreadCount > 0 ? (
           <>
-            <Bell className={cn(
-              "h-5 w-5",
-              isConnected ? "text-gray-600 dark:text-gray-300" : "text-gray-400"
-            )} />
+            <Bell className={cn('h-5 w-5', isConnected ? 'text-gray-600 dark:text-gray-300' : 'text-gray-400')} />
             <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-bold text-white bg-red-500 rounded-full">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
-            {!isConnected && (
-              <WifiOff className="absolute -bottom-0.5 -left-0.5 h-3 w-3 text-amber-500" />
-            )}
+            {!isConnected && <WifiOff className="absolute -bottom-0.5 -left-0.5 h-3 w-3 text-amber-500" />}
           </>
         ) : (
           <>
-            <BellOff className={cn(
-              "h-5 w-5",
-              isConnected ? "text-gray-400" : "text-gray-300"
-            )} />
-            {!isConnected && (
-              <WifiOff className="absolute -bottom-0.5 -left-0.5 h-3 w-3 text-amber-500" />
-            )}
+            <BellOff className={cn('h-5 w-5', isConnected ? 'text-gray-400' : 'text-gray-300')} />
+            {!isConnected && <WifiOff className="absolute -bottom-0.5 -left-0.5 h-3 w-3 text-amber-500" />}
           </>
         )}
       </button>

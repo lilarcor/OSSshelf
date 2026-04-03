@@ -51,7 +51,7 @@ import {
 } from '../lib/telegramChunked';
 import { checkAndClaimDedup, releaseFileRef, computeSha256Hex } from '../lib/dedup';
 import { createVersionSnapshot, shouldCreateVersion } from '../lib/versionManager';
-import { autoProcessFile, isAIConfigured } from '../lib/aiFeatures';
+import { autoProcessFile, isAIConfigured } from '../lib/ai/features';
 import { dispatchWebhook } from '../lib/webhook';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();

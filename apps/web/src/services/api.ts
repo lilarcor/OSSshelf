@@ -718,7 +718,7 @@ export const batchApi = {
     api.post<ApiResponse<BatchOperationResult & { freedBytes: number }>>('/api/batch/permanent-delete', { fileIds }),
   restore: (fileIds: string[]) => api.post<ApiResponse<BatchOperationResult>>('/api/batch/restore', { fileIds }),
   zip: (fileIds: string[], zipName?: string) =>
-    api.post('/api/batch/zip', { fileIds, zipName }, { responseType: 'blob' }).then(res => {
+    api.post('/api/batch/zip', { fileIds, zipName }, { responseType: 'blob' }).then((res) => {
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
       a.href = url;
@@ -1233,11 +1233,215 @@ export const aiApi = {
   getIndexStats: () => api.get<ApiResponse<AIIndexStats>>('/api/ai/index/stats'),
 
   chat: (query: string, options?: { scope?: string; folderId?: string; limit?: number }) =>
-    api.post<ApiResponse<{ answer: string; sources: Array<{ id: string; name: string; mimeType: string | null; score: number }> }>>('/api/ai/chat', {
+    api.post<
+      ApiResponse<{
+        answer: string;
+        sources: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
+      }>
+    >('/api/ai/chat', {
       query,
-      ...options
+      ...options,
     }),
+
+  // 新增：AI配置管理
+  config: {
+    getModels: () => api.get<ApiResponse<AiModel[]>>('/api/ai-config/models'),
+    getModel: (modelId: string) => api.get<ApiResponse<AiModel>>(`/api/ai-config/models/${modelId}`),
+    createModel: (data: CreateAiModelParams) => api.post<ApiResponse<AiModel>>('/api/ai-config/models', data),
+    updateModel: (modelId: string, data: Partial<CreateAiModelParams>) =>
+      api.put<ApiResponse<AiModel>>(`/api/ai-config/models/${modelId}`, data),
+    deleteModel: (modelId: string) => api.delete<ApiResponse<{ message: string }>>(`/api/ai-config/models/${modelId}`),
+    activateModel: (modelId: string) =>
+      api.post<ApiResponse<{ message: string; activeModelId: string }>>(`/api/ai-config/models/${modelId}/activate`),
+    getProviders: () =>
+      api.get<
+        ApiResponse<{
+          providers: AiProvider[];
+          workersAiModels: AiWorkersAiModel[];
+          openAiModels: AiOpenAiModel[];
+        }>
+      >('/api/ai-config/providers'),
+    getStatus: () => api.get<ApiResponse<AiConfigStatus>>('/api/ai-config/status'),
+  },
+
+  // 新增：AI会话管理（增强版）
+  chatSession: {
+    getSessions: () => api.get<ApiResponse<AiChatSession[]>>('/api/ai-chat/sessions'),
+    getSession: (sessionId: string) =>
+      api.get<ApiResponse<AiChatSessionDetail>>('/api/ai-chat/sessions/:sessionId'.replace(':sessionId', sessionId)),
+    createSession: (data?: { title?: string; modelId?: string }) =>
+      api.post<ApiResponse<AiChatSession>>('/api/ai-chat/sessions', data),
+    updateSession: (sessionId: string, data: { title: string }) =>
+      api.put<ApiResponse<AiChatSession>>('/api/ai-chat/sessions/:sessionId'.replace(':sessionId', sessionId), data),
+    deleteSession: (sessionId: string) =>
+      api.delete<ApiResponse<{ message: string }>>('/api/ai-chat/sessions/:sessionId'.replace(':sessionId', sessionId)),
+    // 流式聊天
+    chatStream: async (
+      query: string,
+      options: {
+        sessionId?: string;
+        modelId?: string;
+        maxFiles?: number;
+        includeFileContent?: boolean;
+        onChunk: (chunk: { content: string; done: boolean; sessionId?: string }) => void;
+        onError?: (error: Error) => void;
+        signal?: AbortSignal;
+      }
+    ) => {
+      const token = useAuthStore.getState().token;
+      const baseUrl = import.meta.env.VITE_API_URL || '';
+
+      const response = await fetch(`${baseUrl}/api/ai-chat/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          query,
+          ...options,
+          stream: true,
+        }),
+        signal: options.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No reader available');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+          try {
+            const data = JSON.parse(trimmedLine.slice(6));
+            options.onChunk(data);
+            if (data.done) return;
+          } catch {
+            continue;
+          }
+        }
+      }
+    },
+  },
 };
+
+// AI配置相关类型定义
+export interface AiModel {
+  id: string;
+  userId: string;
+  name: string;
+  provider: 'workers_ai' | 'openai_compatible';
+  modelId: string;
+  apiEndpoint?: string;
+  apiKeyEncrypted?: string;
+  hasApiKey?: boolean;
+  isActive: boolean;
+  capabilities: string[];
+  maxTokens: number;
+  temperature: number;
+  systemPrompt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAiModelParams {
+  name: string;
+  provider: 'workers_ai' | 'openai_compatible';
+  modelId: string;
+  apiEndpoint?: string;
+  apiKey?: string;
+  capabilities?: string[];
+  maxTokens?: number;
+  temperature?: number;
+  systemPrompt?: string;
+  isActive?: boolean;
+}
+
+export interface AiProvider {
+  id: string;
+  name: string;
+  description: string;
+  requiresApiKey: boolean;
+  requiresEndpoint: boolean;
+}
+
+export interface AiWorkersAiModel {
+  id: string;
+  name: string;
+  capabilities: string[];
+  description: string;
+}
+
+export interface AiOpenAiModel {
+  id: string;
+  name: string;
+  provider: string;
+  capabilities: string[];
+  description: string;
+}
+
+export interface AiConfigStatus {
+  configured: boolean;
+  activeModel: {
+    id: string;
+    name: string;
+    provider: string;
+    modelId: string;
+  } | null;
+  totalModels: number;
+  features: {
+    workersAi: boolean;
+    customApi: boolean;
+    chat: boolean;
+    embedding: boolean;
+  };
+}
+
+export interface AiChatSession {
+  id: string;
+  userId: string;
+  title: string;
+  modelId?: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount?: number;
+}
+
+export interface AiChatMessage {
+  id: string;
+  sessionId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  sources?: Array<{
+    id: string;
+    name: string;
+    mimeType: string | null;
+    score: number;
+  }>;
+  tokenCount?: number;
+  modelUsed?: string;
+  latencyMs?: number;
+  createdAt: string;
+}
+
+export interface AiChatSessionDetail extends AiChatSession {
+  messages: AiChatMessage[];
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Analytics (存储分析)

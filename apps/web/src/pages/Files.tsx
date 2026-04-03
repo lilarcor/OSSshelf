@@ -1108,9 +1108,9 @@ export default function Files() {
             <X className="h-3.5 w-3.5 mr-1" />
             取消
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => batchZipMutation.mutate({ fileIds: selectedFiles })}
             disabled={batchZipMutation.isPending}
           >

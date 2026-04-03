@@ -1,19 +1,20 @@
 /**
- * aiFeatures.ts
- * AI 功能模块
+ * features.ts
+ * AI 文件处理功能模块
  *
  * 功能:
- * - 文件摘要生成（自动触发）
- * - 图片智能描述（自动触发）
+ * - 文件摘要生成
+ * - 图片智能标签+描述
  * - 智能重命名建议
+ * - 自动文件处理流程
  */
 
-import type { Env } from '../types/env';
-import { getDb, files } from '../db';
+import type { Env } from '../../types/env';
+import { getDb, files } from '../../db';
 import { eq } from 'drizzle-orm';
-import { getFileContent } from './utils';
+import { getFileContent } from '../utils';
 import { isEditableFile, logger, logAiError } from '@osshelf/shared';
-import { indexFileVector, buildFileTextForVector } from './vectorIndex';
+import { indexFileVector, buildFileTextForVector } from '../vectorIndex';
 
 const SUMMARY_MODEL = '@cf/meta/llama-3.1-8b-instruct' as const;
 const IMAGE_CAPTION_MODEL = '@cf/llava-hf/llava-1.5-7b-hf' as const;
@@ -87,7 +88,8 @@ export async function generateFileSummary(env: Env, fileId: string, content?: st
       messages: [
         {
           role: 'system',
-          content: '你是文件助手。请用简洁的中文（不超过3句话）概括文件内容。如果内容是代码，请说明代码的主要功能。',
+          content:
+            '你是文件助手。请用简洁的中文（不超过3句话）概括文件内容。如果内容是代码，请说明代码的主要功能。',
         },
         {
           role: 'user',

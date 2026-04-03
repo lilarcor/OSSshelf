@@ -42,7 +42,7 @@ import { resolveBucketConfig, updateBucketStats, updateUserStorage, checkBucketQ
 import { checkFolderMimeTypeRestriction } from '../lib/folderPolicy';
 import { getUserOrFail, encodeFilename } from '../lib/utils';
 import { computeSha256Hex, checkAndClaimDedup, releaseFileRef } from '../lib/dedup';
-import { autoProcessFile, isAIConfigured } from '../lib/aiFeatures';
+import { autoProcessFile, isAIConfigured } from '../lib/ai/features';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use('*', authMiddleware);

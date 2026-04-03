@@ -662,7 +662,9 @@ export function NewFileDialog({
             </div>
           </div>
 
-          <div className="text-xs text-muted-foreground">提示: 输入文件名时自动检测扩展名，或直接选择文件类型。填写内容后可使用智能命名获取文件名建议。</div>
+          <div className="text-xs text-muted-foreground">
+            提示: 输入文件名时自动检测扩展名，或直接选择文件类型。填写内容后可使用智能命名获取文件名建议。
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 px-6 py-4 border-t bg-muted/30">
