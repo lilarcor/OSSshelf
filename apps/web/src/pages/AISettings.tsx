@@ -1547,17 +1547,20 @@ export function AISettings() {
 
                                 <div className="flex items-center gap-1 flex-shrink-0">
                                   {renderInput()}
-                                  {config.defaultValue !== currentValue && config.isEditable && !isEditing && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => resetSystemConfigMutation.mutate(config.key)}
-                                      disabled={resetSystemConfigMutation.isPending}
-                                      title="重置为默认值"
-                                    >
-                                      <RotateCcw className="h-3 w-3" />
-                                    </Button>
-                                  )}
+                                  {config.defaultValue !== currentValue &&
+                                    config.isEditable &&
+                                    !isEditing &&
+                                    !isModelConfig && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => resetSystemConfigMutation.mutate(config.key)}
+                                        disabled={resetSystemConfigMutation.isPending}
+                                        title="重置为默认值"
+                                      >
+                                        <RotateCcw className="h-3 w-3" />
+                                      </Button>
+                                    )}
                                 </div>
                               </div>
                             </div>

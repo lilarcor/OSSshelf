@@ -79,11 +79,19 @@ export class ModelGateway {
   async getModelById(modelId: string, userId: string): Promise<ModelConfig | null> {
     try {
       const db = getDb(this.env.DB);
-      const model = await db
+      let model = await db
         .select()
         .from(aiModels)
         .where(and(eq(aiModels.id, modelId), eq(aiModels.userId, userId)))
         .get();
+
+      if (!model) {
+        model = await db
+          .select()
+          .from(aiModels)
+          .where(and(eq(aiModels.modelId, modelId), eq(aiModels.userId, userId)))
+          .get();
+      }
 
       if (!model) return null;
       return await this.parseAndDecryptModelConfig(model);
