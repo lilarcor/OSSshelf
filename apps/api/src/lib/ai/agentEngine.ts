@@ -697,10 +697,13 @@ function callSig(toolName: string, args: Record<string, unknown>): string {
   return `${toolName}::${JSON.stringify(sorted)}`;
 }
 
-/** 从工具结果中提取文件并合并到 sources，返回是否有新文件 */
+/** 从工具结果中提取文件并合并到 sources，返回是否有新数据 */
 function mergeSourcesFromResult(result: unknown, sources: AgentSource[]): boolean {
   if (!result || typeof result !== 'object') return false;
   const r = result as any;
+
+  if (r.error) return false;
+
   const fileList: any[] = r.files || (r.file ? [r.file] : []);
 
   let hasNew = false;
@@ -710,6 +713,29 @@ function mergeSourcesFromResult(result: unknown, sources: AgentSource[]): boolea
       hasNew = true;
     }
   }
+
+  if (hasNew) return true;
+
+  if (r.fileId && r.visualDescription) {
+    if (!sources.find((s) => s.id === r.fileId)) {
+      sources.push({ id: r.fileId, name: r.fileName || r.fileId, mimeType: r.mimeType || null, score: 1.0 });
+      return true;
+    }
+    return false;
+  }
+
+  if (r.fileId && (r.sections || r.totalSections)) {
+    if (!sources.find((s) => s.id === r.fileId)) {
+      sources.push({ id: r.fileId, name: r.fileName || r.fileId, mimeType: r.mimeType || null, score: 1.0 });
+      return true;
+    }
+    return false;
+  }
+
+  if (r.total !== undefined && Array.isArray(r.files)) {
+    return true;
+  }
+
   return hasNew;
 }
 
