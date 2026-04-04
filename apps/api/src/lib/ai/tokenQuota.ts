@@ -1,39 +1,61 @@
 /**
  * tokenQuota.ts
- * 基于 KV 的 Token 日配额控制系统（Cloudflare Workers 环境）
+ * 基于数据库的 Token 配额控制系统
  *
  * 设计:
  * - 按用户 + 日期维度记录 token 用量
  * - 每次对话请求前检查剩余配额
  * - 对话完成后记录实际用量
- * - 配额每日自动重置（KV expirationTtl）
+ * - 支持历史记录查询
  * - 管理员不受配额限制
  */
 
+import { eq, and, desc, gte } from 'drizzle-orm';
+import { getDb, aiTokenUsage, type AiTokenUsage } from '../../db';
 import type { Env } from '../../types/env';
 import { logger } from '@osshelf/shared';
 
 const DAILY_TOKEN_QUOTA = 100_000;
 const ADMIN_QUOTA = 10_000_000;
-const QUOTA_KV_PREFIX = 'tokenquota:';
 
 export interface TokenQuotaResult {
   allowed: boolean;
   usedToday: number;
   remaining: number;
   quota: number;
-  resetsAt?: string;
   isAdmin?: boolean;
+}
+
+export interface TokenUsageRecord {
+  id: string;
+  userId: string;
+  date: string;
+  tokensUsed: number;
+  quota: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TokenUsageHistory {
+  date: string;
+  tokensUsed: number;
+  quota: number;
 }
 
 export async function checkTokenQuota(env: Env, userId: string, userRole?: string): Promise<TokenQuotaResult> {
   const isAdmin = userRole === 'admin';
   const today = getTodayKey();
-  const key = `${QUOTA_KV_PREFIX}${userId}:${today}`;
+  const quota = isAdmin ? ADMIN_QUOTA : DAILY_TOKEN_QUOTA;
 
   try {
-    const raw = await env.KV.get(key, 'json') as { used: number; quota: number } | null;
-    const used = raw?.used || 0;
+    const db = getDb(env.DB);
+    const record = await db
+      .select()
+      .from(aiTokenUsage)
+      .where(and(eq(aiTokenUsage.userId, userId), eq(aiTokenUsage.date, today)))
+      .get();
+
+    const used = record?.tokensUsed || 0;
 
     if (isAdmin) {
       return {
@@ -45,8 +67,6 @@ export async function checkTokenQuota(env: Env, userId: string, userRole?: strin
       };
     }
 
-    const quota = raw?.quota || DAILY_TOKEN_QUOTA;
-
     return {
       allowed: used < quota,
       usedToday: used,
@@ -54,7 +74,7 @@ export async function checkTokenQuota(env: Env, userId: string, userRole?: strin
       quota,
     };
   } catch (error) {
-    logger.error('TokenQuota', 'KV read failed, allowing request', { userId }, error);
+    logger.error('TokenQuota', 'Database read failed, allowing request', { userId }, error);
     return {
       allowed: true,
       usedToday: 0,
@@ -69,22 +89,40 @@ export async function recordTokenUsage(env: Env, userId: string, tokens: number,
   if (tokens <= 0) return;
 
   const today = getTodayKey();
-  const key = `${QUOTA_KV_PREFIX}${userId}:${today}`;
-  const ttlSeconds = secondsUntilMidnight();
   const isAdmin = userRole === 'admin';
+  const quota = isAdmin ? ADMIN_QUOTA : DAILY_TOKEN_QUOTA;
 
   try {
-    const raw = await env.KV.get(key, 'json') as { used: number; quota: number } | null;
-    const currentUsed = raw?.used || 0;
-    const newUsed = currentUsed + tokens;
+    const db = getDb(env.DB);
+    const existing = await db
+      .select()
+      .from(aiTokenUsage)
+      .where(and(eq(aiTokenUsage.userId, userId), eq(aiTokenUsage.date, today)))
+      .get();
 
-    await env.KV.put(
-      key,
-      JSON.stringify({ used: newUsed, quota: isAdmin ? ADMIN_QUOTA : DAILY_TOKEN_QUOTA }),
-      { expirationTtl: ttlSeconds }
-    );
+    const now = new Date().toISOString();
+
+    if (existing) {
+      await db
+        .update(aiTokenUsage)
+        .set({
+          tokensUsed: existing.tokensUsed + tokens,
+          updatedAt: now,
+        })
+        .where(eq(aiTokenUsage.id, existing.id));
+    } else {
+      await db.insert(aiTokenUsage).values({
+        id: crypto.randomUUID(),
+        userId,
+        date: today,
+        tokensUsed: tokens,
+        quota,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
   } catch (error) {
-    logger.error('TokenQuota', 'KV write failed', { userId, tokens }, error);
+    logger.error('TokenQuota', 'Database write failed', { userId, tokens }, error);
   }
 }
 
@@ -94,7 +132,7 @@ export function tokenQuotaExceededResponse(result: TokenQuotaResult): Response {
       success: false,
       error: {
         code: 'QUOTA_EXCEEDED',
-        message: `今日 AI Token 用量已达上限 (${formatNumber(result.usedToday)} / ${formatNumber(result.quota)})。明日 ${MIDNIGHT_RESET_TIME} 自动重置。`,
+        message: `今日 AI Token 用量已达上限 (${formatNumber(result.usedToday)} / ${formatNumber(result.quota)})。明日 00:00 自动重置。`,
         usedToday: result.usedToday,
         remaining: result.remaining,
         quota: result.quota,
@@ -113,10 +151,17 @@ export function tokenQuotaExceededResponse(result: TokenQuotaResult): Response {
   );
 }
 
-export async function getTokenUsageStats(env: Env, userId: string, userRole?: string): Promise<{
+export async function getTokenUsageStats(
+  env: Env,
+  userId: string,
+  userRole?: string
+): Promise<{
   today: { used: number; quota: number; remaining: number; isAdmin?: boolean };
+  history: TokenUsageHistory[];
 }> {
   const todayResult = await checkTokenQuota(env, userId, userRole);
+  const history = await getTokenUsageHistory(env, userId, 30);
+
   return {
     today: {
       used: todayResult.usedToday,
@@ -124,23 +169,48 @@ export async function getTokenUsageStats(env: Env, userId: string, userRole?: st
       remaining: todayResult.remaining,
       isAdmin: todayResult.isAdmin,
     },
+    history,
   };
 }
 
+export async function getTokenUsageHistory(env: Env, userId: string, days: number = 30): Promise<TokenUsageHistory[]> {
+  try {
+    const db = getDb(env.DB);
+    const startDate = getDateString(daysBefore(days));
+
+    const records = await db
+      .select()
+      .from(aiTokenUsage)
+      .where(and(eq(aiTokenUsage.userId, userId), gte(aiTokenUsage.date, startDate)))
+      .orderBy(desc(aiTokenUsage.date))
+      .all();
+
+    return records.map((r: AiTokenUsage) => ({
+      date: r.date,
+      tokensUsed: r.tokensUsed,
+      quota: r.quota,
+    }));
+  } catch (error) {
+    logger.error('TokenQuota', 'Failed to get token usage history', { userId }, error);
+    return [];
+  }
+}
+
 function getTodayKey(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+  return getDateString(new Date());
+}
+
+function getDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
-function secondsUntilMidnight(): number {
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
-  return Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
+function daysBefore(days: number): Date {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date;
 }
 
 function formatNumber(n: number): string {
@@ -148,5 +218,3 @@ function formatNumber(n: number): string {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
 }
-
-const MIDNIGHT_RESET_TIME = '00:00';
