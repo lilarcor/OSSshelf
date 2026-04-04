@@ -1,0 +1,235 @@
+source.level,source.message,dataset,timestamp,$workers.truncated,$workers.event.request.url,$workers.event.request.method,$workers.event.request.path,$workers.outcome,$workers.scriptName,$workers.eventType,$workers.executionModel,$workers.scriptVersion.id,$workers.requestId,$metadata.id,$metadata.requestId,$metadata.trigger,$metadata.service,$metadata.level,$metadata.error,$metadata.message,$metadata.account,$metadata.type,$metadata.fingerprint,$metadata.origin,$metadata.messageTemplate,$metadata.startTime,$metadata.endTime,$metadata.now
+error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",cloudflare-workers,2026-04-04T16:05:15.422Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718d5e3a194a26,01KNCKVK0YQFD7RPV0KCXZSBNC,9e718d5e3a194a26,POST /api/ai-chat/chat,ossshelf-api,error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)","Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,9813d5fe17619d09b7e0504fb2840509,fetch,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (<DOMAIN>:7625:11)
+    at async tgDownloadFile (<DOMAIN>:7642:16)
+    at async fetchFileBuffer (<DOMAIN>:31501:22)
+    at async <DOMAIN> (<DOMAIN>:31093:20)
+    at async <DOMAIN> (<DOMAIN>:31835:20)
+    at async <DOMAIN> (<DOMAIN>:33188:26)",undefined,undefined,undefined
+error,"[2026-04-04T16:05:15.422Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""7777bf18-997c-44e1-8f60-26cab97e1420""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",cloudflare-workers,2026-04-04T16:05:15.422Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718d5e3a194a26,01KNCKVK0YQFD7RPV0KCXZSBNB,9e718d5e3a194a26,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T16:05:15.422Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""7777bf18-997c-44e1-8f60-26cab97e1420""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}","[2026-04-04T16:05:15.422Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""7777bf18-997c-44e1-8f60-26cab97e1420""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",2f24288827c6b14fac807324df3a4ac2,cf-worker,90b0805fc8a952f9b4a1f244f4429afe,fetch,"[<DATETIME>] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""<UUID>""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",undefined,undefined,undefined
+error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",cloudflare-workers,2026-04-04T16:05:12.845Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718d5e3a194a26,01KNCKVGGDVVX926GGCJX3GH7P,9e718d5e3a194a26,POST /api/ai-chat/chat,ossshelf-api,error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)","Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,9813d5fe17619d09b7e0504fb2840509,fetch,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (<DOMAIN>:7625:11)
+    at async tgDownloadFile (<DOMAIN>:7642:16)
+    at async fetchFileBuffer (<DOMAIN>:31501:22)
+    at async <DOMAIN> (<DOMAIN>:31093:20)
+    at async <DOMAIN> (<DOMAIN>:31835:20)
+    at async <DOMAIN> (<DOMAIN>:33188:26)",undefined,undefined,undefined
+error,"[2026-04-04T16:05:12.845Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""efa181ed-3a88-4af1-baa1-6305c7bea5c0""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",cloudflare-workers,2026-04-04T16:05:12.845Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718d5e3a194a26,01KNCKVGGDVVX926GGCJX3GH7N,9e718d5e3a194a26,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T16:05:12.845Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""efa181ed-3a88-4af1-baa1-6305c7bea5c0""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}","[2026-04-04T16:05:12.845Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""efa181ed-3a88-4af1-baa1-6305c7bea5c0""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",2f24288827c6b14fac807324df3a4ac2,cf-worker,8abb2a39947be72b7a4353a9bea09047,fetch,"[<DATETIME>] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""<UUID>""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",undefined,undefined,undefined
+error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",cloudflare-workers,2026-04-04T16:05:10.914Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718d5e3a194a26,01KNCKVEM2Z8HMRPA2DKKKC77V,9e718d5e3a194a26,POST /api/ai-chat/chat,ossshelf-api,error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)","Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,9813d5fe17619d09b7e0504fb2840509,fetch,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (<DOMAIN>:7625:11)
+    at async tgDownloadFile (<DOMAIN>:7642:16)
+    at async fetchFileBuffer (<DOMAIN>:31501:22)
+    at async <DOMAIN> (<DOMAIN>:31093:20)
+    at async <DOMAIN> (<DOMAIN>:31835:20)
+    at async <DOMAIN> (<DOMAIN>:33188:26)",undefined,undefined,undefined
+error,"[2026-04-04T16:05:10.914Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",cloudflare-workers,2026-04-04T16:05:10.914Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718d5e3a194a26,01KNCKVEM2Z8HMRPA2DKKKC77T,9e718d5e3a194a26,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T16:05:10.914Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}","[2026-04-04T16:05:10.914Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",2f24288827c6b14fac807324df3a4ac2,cf-worker,bc03578acb2c4fc386add5846d7c0332,fetch,"[<DATETIME>] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""<UUID>""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",undefined,undefined,undefined
+error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",cloudflare-workers,2026-04-04T16:04:41.113Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718c89abbb4a26,01KNCKTHGSMM73WKHFMB056C1D,9e718c89abbb4a26,POST /api/ai-chat/chat,ossshelf-api,error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)","Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,9813d5fe17619d09b7e0504fb2840509,fetch,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (<DOMAIN>:7625:11)
+    at async tgDownloadFile (<DOMAIN>:7642:16)
+    at async fetchFileBuffer (<DOMAIN>:31501:22)
+    at async <DOMAIN> (<DOMAIN>:31093:20)
+    at async <DOMAIN> (<DOMAIN>:31835:20)
+    at async <DOMAIN> (<DOMAIN>:33188:26)",undefined,undefined,undefined
+error,"[2026-04-04T16:04:41.113Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""bf7b4a5e-5872-4edb-a150-a9a1330c58a9""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",cloudflare-workers,2026-04-04T16:04:41.113Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718c89abbb4a26,01KNCKTHGSMM73WKHFMB056C1C,9e718c89abbb4a26,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T16:04:41.113Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""bf7b4a5e-5872-4edb-a150-a9a1330c58a9""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}","[2026-04-04T16:04:41.113Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""bf7b4a5e-5872-4edb-a150-a9a1330c58a9""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",2f24288827c6b14fac807324df3a4ac2,cf-worker,a5778f49df01644b42e2acc6f2efded9,fetch,"[<DATETIME>] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""<UUID>""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",undefined,undefined,undefined
+error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",cloudflare-workers,2026-04-04T16:04:39.222Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718c89abbb4a26,01KNCKTFNP1JJ35R8XCQ9BQTRJ,9e718c89abbb4a26,POST /api/ai-chat/chat,ossshelf-api,error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)","Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,9813d5fe17619d09b7e0504fb2840509,fetch,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (<DOMAIN>:7625:11)
+    at async tgDownloadFile (<DOMAIN>:7642:16)
+    at async fetchFileBuffer (<DOMAIN>:31501:22)
+    at async <DOMAIN> (<DOMAIN>:31093:20)
+    at async <DOMAIN> (<DOMAIN>:31835:20)
+    at async <DOMAIN> (<DOMAIN>:33188:26)",undefined,undefined,undefined
+error,"[2026-04-04T16:04:39.222Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""7777bf18-997c-44e1-8f60-26cab97e1420""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",cloudflare-workers,2026-04-04T16:04:39.222Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718c89abbb4a26,01KNCKTFNP1JJ35R8XCQ9BQTRH,9e718c89abbb4a26,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T16:04:39.222Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""7777bf18-997c-44e1-8f60-26cab97e1420""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}","[2026-04-04T16:04:39.222Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""7777bf18-997c-44e1-8f60-26cab97e1420""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",2f24288827c6b14fac807324df3a4ac2,cf-worker,55b1fa879fff7e62665cd8e86e3050a0,fetch,"[<DATETIME>] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""<UUID>""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",undefined,undefined,undefined
+error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",cloudflare-workers,2026-04-04T16:04:36.924Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718c89abbb4a26,01KNCKTDDWMNT4FQ61V7VZ30HV,9e718c89abbb4a26,POST /api/ai-chat/chat,ossshelf-api,error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)","Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,9813d5fe17619d09b7e0504fb2840509,fetch,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (<DOMAIN>:7625:11)
+    at async tgDownloadFile (<DOMAIN>:7642:16)
+    at async fetchFileBuffer (<DOMAIN>:31501:22)
+    at async <DOMAIN> (<DOMAIN>:31093:20)
+    at async <DOMAIN> (<DOMAIN>:31835:20)
+    at async <DOMAIN> (<DOMAIN>:33188:26)",undefined,undefined,undefined
+error,"[2026-04-04T16:04:36.924Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",cloudflare-workers,2026-04-04T16:04:36.924Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718c89abbb4a26,01KNCKTDDWMNT4FQ61V7VZ30HT,9e718c89abbb4a26,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T16:04:36.924Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}","[2026-04-04T16:04:36.924Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",2f24288827c6b14fac807324df3a4ac2,cf-worker,db385acb98d42ad7e14d8c908812f340,fetch,"[<DATETIME>] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""<UUID>""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",undefined,undefined,undefined
+error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",cloudflare-workers,2026-04-04T16:03:00.112Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718a0e98ea4a26,01KNCKQEWGGEADDD6QDZ8P0NEK,9e718a0e98ea4a26,POST /api/ai-chat/chat,ossshelf-api,error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)","Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,9813d5fe17619d09b7e0504fb2840509,fetch,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (<DOMAIN>:7625:11)
+    at async tgDownloadFile (<DOMAIN>:7642:16)
+    at async fetchFileBuffer (<DOMAIN>:31501:22)
+    at async <DOMAIN> (<DOMAIN>:31093:20)
+    at async <DOMAIN> (<DOMAIN>:31835:20)
+    at async <DOMAIN> (<DOMAIN>:33188:26)",undefined,undefined,undefined
+error,"[2026-04-04T16:03:00.112Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""bf7b4a5e-5872-4edb-a150-a9a1330c58a9""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",cloudflare-workers,2026-04-04T16:03:00.112Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718a0e98ea4a26,01KNCKQEWGGEADDD6QDZ8P0NEJ,9e718a0e98ea4a26,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T16:03:00.112Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""bf7b4a5e-5872-4edb-a150-a9a1330c58a9""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}","[2026-04-04T16:03:00.112Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""bf7b4a5e-5872-4edb-a150-a9a1330c58a9""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",2f24288827c6b14fac807324df3a4ac2,cf-worker,e86cdb8e9785654ec620f23c65f7f3f2,fetch,"[<DATETIME>] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""<UUID>""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",undefined,undefined,undefined
+error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",cloudflare-workers,2026-04-04T16:02:58.411Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718a0e98ea4a26,01KNCKQD7B5W08B5VVGR975375,9e718a0e98ea4a26,POST /api/ai-chat/chat,ossshelf-api,error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)","Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,9813d5fe17619d09b7e0504fb2840509,fetch,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (<DOMAIN>:7625:11)
+    at async tgDownloadFile (<DOMAIN>:7642:16)
+    at async fetchFileBuffer (<DOMAIN>:31501:22)
+    at async <DOMAIN> (<DOMAIN>:31093:20)
+    at async <DOMAIN> (<DOMAIN>:31835:20)
+    at async <DOMAIN> (<DOMAIN>:33188:26)",undefined,undefined,undefined
+error,"[2026-04-04T16:02:58.411Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""7777bf18-997c-44e1-8f60-26cab97e1420""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",cloudflare-workers,2026-04-04T16:02:58.411Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718a0e98ea4a26,01KNCKQD7B5W08B5VVGR975374,9e718a0e98ea4a26,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T16:02:58.411Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""7777bf18-997c-44e1-8f60-26cab97e1420""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}","[2026-04-04T16:02:58.411Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""7777bf18-997c-44e1-8f60-26cab97e1420""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",2f24288827c6b14fac807324df3a4ac2,cf-worker,6e505bced3ef2ba41956a198d49fa846,fetch,"[<DATETIME>] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""<UUID>""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",undefined,undefined,undefined
+error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",cloudflare-workers,2026-04-04T16:02:55.680Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718a0e98ea4a26,01KNCKQAJ02ARYCVP3Y9X05NEP,9e718a0e98ea4a26,POST /api/ai-chat/chat,ossshelf-api,error,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)","Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (index.js:7625:11)
+    at async tgDownloadFile (index.js:7642:16)
+    at async fetchFileBuffer (index.js:31501:22)
+    at async AgentToolExecutor.analyzeImage (index.js:31093:20)
+    at async AgentEngine.runNative (index.js:31835:20)
+    at async Object.start (index.js:33188:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,9813d5fe17619d09b7e0504fb2840509,fetch,"Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}
+    at tgGetFileInfo (<DOMAIN>:7625:11)
+    at async tgDownloadFile (<DOMAIN>:7642:16)
+    at async fetchFileBuffer (<DOMAIN>:31501:22)
+    at async <DOMAIN> (<DOMAIN>:31093:20)
+    at async <DOMAIN> (<DOMAIN>:31835:20)
+    at async <DOMAIN> (<DOMAIN>:33188:26)",undefined,undefined,undefined
+error,"[2026-04-04T16:02:55.680Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",cloudflare-workers,2026-04-04T16:02:55.680Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,69cbea7b-2a95-4c36-8381-2b5cdf43e143,9e718a0e98ea4a26,01KNCKQAJ02ARYCVP3Y9X05NEN,9e718a0e98ea4a26,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T16:02:55.680Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}","[2026-04-04T16:02:55.680Z] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",2f24288827c6b14fac807324df3a4ac2,cf-worker,be5f545bd6cbcb6e571237effecbd60d,fetch,"[<DATETIME>] [ERROR] [AgentTool] fetchFileBuffer failed {""fileId"":""<UUID>""} Error: getFile HTTP 404: {""ok"":false,""error_code"":404,""description"":""Not Found""}",undefined,undefined,undefined

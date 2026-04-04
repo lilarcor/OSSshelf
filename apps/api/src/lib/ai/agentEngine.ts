@@ -394,7 +394,8 @@ export class AgentEngine {
             callSignatures,
             sources,
             onChunk,
-            messages
+            messages,
+            collected
           );
           toolCallCount += autoChain.callsUsed;
           roundNewData = autoChain.hadNewData || roundNewData;
@@ -579,7 +580,8 @@ export class AgentEngine {
     callSignatures: Set<string>,
     sources: AgentSource[],
     onChunk: (chunk: AgentChunk) => void,
-    messages: Array<any>
+    messages: Array<any>,
+    collectedToolCalls?: Array<{ name: string; arguments: string }>
   ): Promise<{ callsUsed: number; hadNewData: boolean }> {
     if (!['search_files', 'filter_files'].includes(calledTool)) {
       return { callsUsed: 0, hadNewData: false };
@@ -591,8 +593,18 @@ export class AgentEngine {
 
     if (imageFiles.length === 0) return { callsUsed: 0, hadNewData: false };
 
+    // 检查 AI 是否已经调用了 analyze_image，如果是则跳过自动链式调用
+    const aiCalledAnalyzeImage = collectedToolCalls?.some(
+      (tc) => tc.name === 'analyze_image'
+    ) || false;
+    if (aiCalledAnalyzeImage) {
+      logger.info('AgentEngine', 'Skipping runAutoChain - AI already called analyze_image');
+      return { callsUsed: 0, hadNewData: false };
+    }
+
     let callsUsed = 0;
     let hadNewData = false;
+    const chainResults: Array<{ fileId: string; fileName: string; result: unknown }> = [];
 
     for (const imgFile of imageFiles) {
       const chainSig = callSig('analyze_image', { fileId: imgFile.id });
@@ -613,6 +625,8 @@ export class AgentEngine {
         chainResult = { error: err instanceof Error ? err.message : '视觉分析失败' };
       }
 
+      chainResults.push({ fileId: imgFile.id, fileName: imgFile.name, result: chainResult });
+
       onChunk({
         type: 'tool_result',
         toolCallId: chainId,
@@ -625,6 +639,22 @@ export class AgentEngine {
         role: 'tool',
         content: smartTruncate(JSON.stringify(chainResult, null, 2)) + INJECTION_GUARD,
         toolCallId: chainId,
+      });
+    }
+
+    // 添加明确的指令让 AI 继续生成回复
+    if (callsUsed > 0) {
+      const summaryHint = chainResults
+        .map((r) => {
+          const res = r.result as any;
+          const desc = res?.visualDescription || res?.existingMetadata?.aiSummary || '(无描述)';
+          return `- ${r.fileName}: ${desc.slice(0, 100)}${desc.length > 100 ? '...' : ''}`;
+        })
+        .join('\n');
+
+      messages.push({
+        role: 'user',
+        content: `[系统] 已自动分析 ${callsUsed} 张图片，结果如下：\n${summaryHint}\n\n请根据以上视觉分析结果，继续回答用户的原始问题。如果图片因存储问题无法分析，请告知用户并基于已有元数据给出建议。`,
       });
     }
 

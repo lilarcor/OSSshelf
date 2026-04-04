@@ -57,6 +57,7 @@ import { getFileContent } from '../utils';
 import { tgDownloadFile } from '../telegramClient';
 import { tgDownloadChunked, isChunkedFileId } from '../telegramChunked';
 import { decryptSecret } from '../s3client';
+import { getEncryptionKey } from '../crypto';
 import type { Env } from '../../types/env';
 import { logger } from '@osshelf/shared';
 import { getAiConfigString, getAiConfigNumber } from './aiConfigService';
@@ -1445,10 +1446,10 @@ export async function fetchFileBuffer(
 
     if (tgRef) {
       const bucket = await db.select().from(storageBuckets).where(eq(storageBuckets.id, file.bucketId)).get();
-      if (!bucket) return null;
+      if (!bucket || bucket.provider !== 'telegram') return null;
 
-      const encKey = env.JWT_SECRET;
-      const botToken = await decryptSecret(bucket.secretAccessKey, encKey);
+      const encKey = getEncryptionKey(env);
+      const botToken = await decryptSecret(bucket.accessKeyId, encKey);
       const tgConfig = {
         botToken,
         chatId: bucket.bucketName,
