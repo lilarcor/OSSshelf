@@ -198,8 +198,9 @@ export async function searchSimilarFiles(
   }
 
   try {
-    // 搜索时增加 topK 以应对同一文件多个 chunk 的情况
-    const effectiveLimit = Math.min(limit * 3, 60);
+      // 搜索时增加 topK 以应对同一文件多个 chunk 的情况
+      // Cloudflare Vectorize 限制：returnMetadata='all' 时 topK 最大 50
+      const effectiveLimit = Math.min(limit * 3, 50);
 
     const result = await (env.AI as any).run(EMBEDDING_MODEL, {
       text: [query.slice(0, MAX_TEXT_LENGTH)],

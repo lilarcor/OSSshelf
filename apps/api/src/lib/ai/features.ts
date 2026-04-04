@@ -24,7 +24,7 @@ import { indexFileVector, buildFileTextForVector } from '../vectorIndex';
 import { ModelGateway } from './modelGateway';
 import type { ChatCompletionRequest } from './types';
 import { tgDownloadFile, type TelegramBotConfig } from '../telegramClient';
-import { tgDownloadChunked, TG_CHUNK_THRESHOLD } from '../telegramChunked';
+import { tgDownloadChunked, isChunkedFileId } from '../telegramChunked';
 import { decryptSecret } from '../s3client';
 
 const SUMMARY_CONTENT_LIMIT = 8192;
@@ -40,7 +40,38 @@ const SUMMARY_PROMPTS: Record<string, string> = {
 
 function getSummaryPrompt(mimeType: string | null, fileName: string): string {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
-  const codeExts = ['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'go', 'rs', 'c', 'cpp', 'h', 'cs', 'rb', 'php', 'swift', 'kt', 'scala', 'r', 'sql', 'sh', 'bash', 'yaml', 'yml', 'json', 'xml', 'html', 'css', 'scss', 'vue', 'svelte'];
+  const codeExts = [
+    'js',
+    'ts',
+    'jsx',
+    'tsx',
+    'py',
+    'java',
+    'go',
+    'rs',
+    'c',
+    'cpp',
+    'h',
+    'cs',
+    'rb',
+    'php',
+    'swift',
+    'kt',
+    'scala',
+    'r',
+    'sql',
+    'sh',
+    'bash',
+    'yaml',
+    'yml',
+    'json',
+    'xml',
+    'html',
+    'css',
+    'scss',
+    'vue',
+    'svelte',
+  ];
   const docExts = ['pdf', 'doc', 'docx', 'rtf', 'odt'];
   const sheetExts = ['csv', 'xls', 'xlsx', 'ods'];
 
@@ -254,7 +285,12 @@ async function callVisionModel(
 }
 
 function uint8ArrayToBase64(bytes: number[]): string {
-  const binaryString = String.fromCharCode(...bytes);
+  const chunkSize = 8192;
+  let binaryString = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.slice(i, i + chunkSize);
+    binaryString += String.fromCharCode(...chunk);
+  }
   return btoa(binaryString);
 }
 
@@ -484,12 +520,7 @@ export async function generateImageTags(
         Array.from(uint8Array),
         '请详细描述这张图片的内容，包括画面主体、颜色、构图等。如果有文字请准确转录。使用中文回答。'
       ),
-      callVisionModelForTags(
-        env,
-        effectiveUserId,
-        DEFAULT_MODELS.imageTag,
-        Array.from(uint8Array)
-      ),
+      callVisionModelForTags(env, effectiveUserId, DEFAULT_MODELS.imageTag, Array.from(uint8Array)),
     ]);
 
     let caption = '';
@@ -672,10 +703,7 @@ async function extractTextFromFile(env: Env, file: typeof files.$inferSelect): P
   }
 }
 
-async function resolveTgConfig(
-  env: Env,
-  bucketId: string
-): Promise<TelegramBotConfig | null> {
+async function resolveTgConfig(env: Env, bucketId: string): Promise<TelegramBotConfig | null> {
   const db = getDb(env.DB);
   const bucket = await db.select().from(storageBuckets).where(eq(storageBuckets.id, bucketId)).get();
   if (!bucket || bucket.provider !== 'telegram') return null;
@@ -693,11 +721,7 @@ async function fetchFileContentAsBuffer(env: Env, file: typeof files.$inferSelec
     const db = getDb(env.DB);
 
     // 检查是否是 Telegram 存储
-    const tgRef = await db
-      .select()
-      .from(telegramFileRefs)
-      .where(eq(telegramFileRefs.fileId, file.id))
-      .get();
+    const tgRef = await db.select().from(telegramFileRefs).where(eq(telegramFileRefs.fileId, file.id)).get();
 
     if (tgRef) {
       const tgConfig = await resolveTgConfig(env, file.bucketId);
@@ -707,7 +731,7 @@ async function fetchFileContentAsBuffer(env: Env, file: typeof files.$inferSelec
       }
 
       let stream: ReadableStream<Uint8Array> | null = null;
-      if ((tgRef.tgFileSize ?? 0) > TG_CHUNK_THRESHOLD) {
+      if (isChunkedFileId(tgRef.tgFileId)) {
         stream = await tgDownloadChunked(tgConfig, tgRef.tgFileId, db);
       } else {
         const resp = await tgDownloadFile(tgConfig, tgRef.tgFileId);
@@ -820,11 +844,7 @@ export async function enqueueAutoProcessFile(env: Env, fileId: string, userId?: 
   await autoProcessFileDirect(env, file, effectiveUserId);
 }
 
-async function autoProcessFileDirect(
-  env: Env,
-  file: typeof files.$inferSelect,
-  userId: string
-): Promise<void> {
+async function autoProcessFileDirect(env: Env, file: typeof files.$inferSelect, userId: string): Promise<void> {
   const tasks: Promise<void>[] = [];
 
   if (isImageFile(file.mimeType)) {

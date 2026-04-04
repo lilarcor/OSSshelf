@@ -405,7 +405,11 @@ export function AIChat() {
   useEffect(() => {
     fetch('/api/ai-chat/token-quota', { credentials: 'include' })
       .then(r => r.json())
-      .then(d => d.data && setTokenUsage(d.data.today))
+      .then(d => {
+        if (d.success && d.data?.today) {
+          setTokenUsage(d.data.today);
+        }
+      })
       .catch(() => {});
   }, []);
 

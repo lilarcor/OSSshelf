@@ -1,0 +1,877 @@
+source.level,source.message,dataset,timestamp,$workers.truncated,$workers.event.request.url,$workers.event.request.method,$workers.event.request.path,$workers.outcome,$workers.scriptName,$workers.eventType,$workers.executionModel,$workers.scriptVersion.id,$workers.requestId,$metadata.id,$metadata.requestId,$metadata.trigger,$metadata.service,$metadata.level,$metadata.error,$metadata.message,$metadata.account,$metadata.type,$metadata.fingerprint,$metadata.origin,$metadata.messageTemplate,$metadata.startTime,$metadata.endTime,$metadata.now
+error,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)",cloudflare-workers,2026-04-04T08:30:44.371Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef3849a2112bb,01KNBSVB4KKZEM8K11ZRRV0R35,9e6ef3849a2112bb,POST /api/ai-chat/chat,ossshelf-api,error,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)","Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,e594eaae5569fe1007d8b1986734824f,fetch,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async <DOMAIN>2 (cloudflare-internal:vectorize-api:205:21)
+    at async <DOMAIN> (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (<DOMAIN>:17398:21)
+    at async <DOMAIN> (index 0)
+    at async searchAndFetchFiles (<DOMAIN>:17464:43)
+    at async <DOMAIN> (<DOMAIN>:30159:29)
+    at async <DOMAIN> (<DOMAIN>:30663:24)
+    at async <DOMAIN> (<DOMAIN>:31963:26)",undefined,undefined,undefined
+error,"[2026-04-04T08:30:44.371Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",cloudflare-workers,2026-04-04T08:30:44.371Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef3849a2112bb,01KNBSVB4KKZEM8K11ZRRV0R34,9e6ef3849a2112bb,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T08:30:44.371Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed","[2026-04-04T08:30:44.371Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",2f24288827c6b14fac807324df3a4ac2,cf-worker,27b4245aefde7a0f3c6d71ab556ecceb,fetch,"[<DATETIME>] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",undefined,undefined,undefined
+error,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)",cloudflare-workers,2026-04-04T08:30:40.625Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef3849a2112bb,01KNBSV7FH868Y9F97P4Y1MEXF,9e6ef3849a2112bb,POST /api/ai-chat/chat,ossshelf-api,error,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)","Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,e594eaae5569fe1007d8b1986734824f,fetch,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async <DOMAIN>2 (cloudflare-internal:vectorize-api:205:21)
+    at async <DOMAIN> (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (<DOMAIN>:17398:21)
+    at async <DOMAIN> (index 0)
+    at async searchAndFetchFiles (<DOMAIN>:17464:43)
+    at async <DOMAIN> (<DOMAIN>:30159:29)
+    at async <DOMAIN> (<DOMAIN>:30663:24)
+    at async <DOMAIN> (<DOMAIN>:31963:26)",undefined,undefined,undefined
+error,"[2026-04-04T08:30:40.625Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",cloudflare-workers,2026-04-04T08:30:40.625Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef3849a2112bb,01KNBSV7FH868Y9F97P4Y1MEXE,9e6ef3849a2112bb,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T08:30:40.625Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed","[2026-04-04T08:30:40.625Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",2f24288827c6b14fac807324df3a4ac2,cf-worker,45ee81285f6f8405cb95a3084143d804,fetch,"[<DATETIME>] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",undefined,undefined,undefined
+error,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)",cloudflare-workers,2026-04-04T08:30:34.446Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef3849a2112bb,01KNBSV5DTA2YXRRHXZJ8XTERR,9e6ef3849a2112bb,POST /api/ai-chat/chat,ossshelf-api,error,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)","Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,e594eaae5569fe1007d8b1986734824f,fetch,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async <DOMAIN>2 (cloudflare-internal:vectorize-api:205:21)
+    at async <DOMAIN> (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (<DOMAIN>:17398:21)
+    at async <DOMAIN> (index 0)
+    at async searchAndFetchFiles (<DOMAIN>:17464:43)
+    at async <DOMAIN> (<DOMAIN>:30159:29)
+    at async <DOMAIN> (<DOMAIN>:30663:24)
+    at async <DOMAIN> (<DOMAIN>:31963:26)",undefined,undefined,undefined
+error,"[2026-04-04T08:30:34.446Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",cloudflare-workers,2026-04-04T08:30:34.446Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef3849a2112bb,01KNBSV5DTA2YXRRHXZJ8XTERQ,9e6ef3849a2112bb,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T08:30:34.446Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed","[2026-04-04T08:30:34.446Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",2f24288827c6b14fac807324df3a4ac2,cf-worker,3a436db9425d293150bf21331395885f,fetch,"[<DATETIME>] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",undefined,undefined,undefined
+error,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)",cloudflare-workers,2026-04-04T08:30:30.191Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,canceled,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef2defb25d496,01KNBSTY07ND0AD84JZG87K92E,9e6ef2defb25d496,POST /api/ai-chat/chat,ossshelf-api,error,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)","Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,d9940bacb8cef16d4c3b1ddfaefca9b6,fetch,,undefined,undefined,undefined
+error,"[2026-04-04T08:30:30.191Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",cloudflare-workers,2026-04-04T08:30:30.191Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,canceled,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef2defb25d496,01KNBSTY07ND0AD84JZG87K92D,9e6ef2defb25d496,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T08:30:30.191Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed","[2026-04-04T08:30:30.191Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",2f24288827c6b14fac807324df3a4ac2,cf-worker,34d809e65369223bc4090073131f781d,fetch,,undefined,undefined,undefined
+error,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)",cloudflare-workers,2026-04-04T08:30:26.848Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,canceled,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef2defb25d496,01KNBSTY07ND0AD84JZG87K92B,9e6ef2defb25d496,POST /api/ai-chat/chat,ossshelf-api,error,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)","Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,d9940bacb8cef16d4c3b1ddfaefca9b6,fetch,,undefined,undefined,undefined
+error,"[2026-04-04T08:30:26.848Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",cloudflare-workers,2026-04-04T08:30:26.848Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,canceled,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef2defb25d496,01KNBSTY07ND0AD84JZG87K92A,9e6ef2defb25d496,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T08:30:26.848Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed","[2026-04-04T08:30:26.848Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",2f24288827c6b14fac807324df3a4ac2,cf-worker,34d809e65369223bc4090073131f781d,fetch,,undefined,undefined,undefined
+error,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)",cloudflare-workers,2026-04-04T08:30:21.924Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,canceled,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef2defb25d496,01KNBSTY07ND0AD84JZG87K927,9e6ef2defb25d496,POST /api/ai-chat/chat,ossshelf-api,error,"Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)","Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed
+    at VectorizeIndexImpl._send (cloudflare-internal:vectorize-api:172:23)
+    at async VectorizeIndexImpl.queryImplV2 (cloudflare-internal:vectorize-api:205:21)
+    at async VectorizeIndexImpl.query (cloudflare-internal:vectorize-api:45:20)
+    at async searchSimilarFiles (index.js:17398:21)
+    at async Promise.all (index 0)
+    at async searchAndFetchFiles (index.js:17464:43)
+    at async AgentToolExecutor.searchFiles (index.js:30159:29)
+    at async AgentEngine.runNativeStreaming (index.js:30663:24)
+    at async Object.start (index.js:31963:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,d9940bacb8cef16d4c3b1ddfaefca9b6,fetch,,undefined,undefined,undefined
+error,"[2026-04-04T08:30:21.924Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",cloudflare-workers,2026-04-04T08:30:21.924Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,canceled,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef2defb25d496,01KNBSTY07ND0AD84JZG87K926,9e6ef2defb25d496,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-04T08:30:21.924Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed","[2026-04-04T08:30:21.924Z] [ERROR] [VECTOR] 搜索相似文件失败 Error: VECTOR_QUERY_ERROR (code = 40025): with returnValues=true or returnMetadata=all, max top K is 50, but got 60; for a top K up to 100, retry with returnValues=false and returnMetadata=indexed",2f24288827c6b14fac807324df3a4ac2,cf-worker,34d809e65369223bc4090073131f781d,fetch,,undefined,undefined,undefined
+error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18449:31)
+    at callVisionModelForTags (index.js:18474:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18601:40)
+    at async index.js:29441:20
+    at async dispatch (index.js:7709:17)
+    at async handleJwtAuth (index.js:10157:5)
+    at async authMiddleware (index.js:10119:12)
+    at async dispatch (index.js:7709:17)
+    at async errorHandler (index.js:14573:5)",cloudflare-workers,2026-04-04T08:29:12.686Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef1a48f08d496,01KNBSRHKEF8Q0SA9SSB66J5QQ,9e6ef1a48f08d496,POST /api/ai/tags/REDACTED,ossshelf-api,error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18449:31)
+    at callVisionModelForTags (index.js:18474:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18601:40)
+    at async index.js:29441:20
+    at async dispatch (index.js:7709:17)
+    at async handleJwtAuth (index.js:10157:5)
+    at async authMiddleware (index.js:10119:12)
+    at async dispatch (index.js:7709:17)
+    at async errorHandler (index.js:14573:5)","RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18449:31)
+    at callVisionModelForTags (index.js:18474:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18601:40)
+    at async index.js:29441:20
+    at async dispatch (index.js:7709:17)
+    at async handleJwtAuth (index.js:10157:5)
+    at async authMiddleware (index.js:10119:12)
+    at async dispatch (index.js:7709:17)
+    at async errorHandler (index.js:14573:5)",2f24288827c6b14fac807324df3a4ac2,cf-worker,674a33431dfbe916810b5583f9537230,fetch,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (<DOMAIN>:18449:31)
+    at <*> (<DOMAIN>:18474:31)
+    at async <DOMAIN> (index <*>)
+    at async generateImageTags (<DOMAIN>:18601:40)
+    at async <DOMAIN>:29441:20
+    at async dispatch (<DOMAIN>:7709:17)
+    at async handleJwtAuth (<DOMAIN>:10157:5)
+    at async authMiddleware (<DOMAIN>:10119:12)
+    at async dispatch (<DOMAIN>:7709:17)
+    at async errorHandler (<DOMAIN>:14573:5)",undefined,undefined,undefined
+error,"[2026-04-04T08:29:12.686Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",cloudflare-workers,2026-04-04T08:29:12.686Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef1a48f08d496,01KNBSRHKEF8Q0SA9SSB66J5QP,9e6ef1a48f08d496,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-04T08:29:12.686Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded","[2026-04-04T08:29:12.686Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",2f24288827c6b14fac807324df3a4ac2,cf-worker,0d28df547b0b8385a7f3f4b88eb2a17f,fetch,"[<DATETIME>] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",undefined,undefined,undefined
+error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18449:31)
+    at callVisionModel (index.js:18405:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18601:40)
+    at async index.js:29441:20
+    at async dispatch (index.js:7709:17)
+    at async handleJwtAuth (index.js:10157:5)
+    at async authMiddleware (index.js:10119:12)
+    at async dispatch (index.js:7709:17)
+    at async errorHandler (index.js:14573:5)",cloudflare-workers,2026-04-04T08:29:12.684Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef1a48f08d496,01KNBSRHKC1B2C1VRSKXWKSDDE,9e6ef1a48f08d496,POST /api/ai/tags/REDACTED,ossshelf-api,error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18449:31)
+    at callVisionModel (index.js:18405:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18601:40)
+    at async index.js:29441:20
+    at async dispatch (index.js:7709:17)
+    at async handleJwtAuth (index.js:10157:5)
+    at async authMiddleware (index.js:10119:12)
+    at async dispatch (index.js:7709:17)
+    at async errorHandler (index.js:14573:5)","RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18449:31)
+    at callVisionModel (index.js:18405:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18601:40)
+    at async index.js:29441:20
+    at async dispatch (index.js:7709:17)
+    at async handleJwtAuth (index.js:10157:5)
+    at async authMiddleware (index.js:10119:12)
+    at async dispatch (index.js:7709:17)
+    at async errorHandler (index.js:14573:5)",2f24288827c6b14fac807324df3a4ac2,cf-worker,ed61964f2225fced57473241d85f6f3d,fetch,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (<DOMAIN>:18449:31)
+    at callVisionModel (<DOMAIN>:18405:31)
+    at async <DOMAIN> (index 0)
+    at async generateImageTags (<DOMAIN>:18601:40)
+    at async <DOMAIN>:29441:20
+    at async dispatch (<DOMAIN>:7709:17)
+    at async handleJwtAuth (<DOMAIN>:10157:5)
+    at async authMiddleware (<DOMAIN>:10119:12)
+    at async dispatch (<DOMAIN>:7709:17)
+    at async errorHandler (<DOMAIN>:14573:5)",undefined,undefined,undefined
+error,"[2026-04-04T08:29:12.684Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",cloudflare-workers,2026-04-04T08:29:12.684Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef1a48f08d496,01KNBSRHKC1B2C1VRSKXWKSDDD,9e6ef1a48f08d496,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-04T08:29:12.684Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded","[2026-04-04T08:29:12.684Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",2f24288827c6b14fac807324df3a4ac2,cf-worker,4e8648f2b43bcd62cdb3178699e25a88,fetch,"[<DATETIME>] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",undefined,undefined,undefined
+error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18449:31)
+    at callVisionModelForTags (index.js:18474:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18601:40)
+    at async index.js:29441:20
+    at async dispatch (index.js:7709:17)
+    at async handleJwtAuth (index.js:10157:5)
+    at async authMiddleware (index.js:10119:12)
+    at async dispatch (index.js:7709:17)
+    at async errorHandler (index.js:14573:5)",cloudflare-workers,2026-04-04T08:29:00.918Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef153ce6dd496,01KNBSR63PAW0YRQE9B8X6DJSB,9e6ef153ce6dd496,POST /api/ai/tags/REDACTED,ossshelf-api,error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18449:31)
+    at callVisionModelForTags (index.js:18474:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18601:40)
+    at async index.js:29441:20
+    at async dispatch (index.js:7709:17)
+    at async handleJwtAuth (index.js:10157:5)
+    at async authMiddleware (index.js:10119:12)
+    at async dispatch (index.js:7709:17)
+    at async errorHandler (index.js:14573:5)","RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18449:31)
+    at callVisionModelForTags (index.js:18474:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18601:40)
+    at async index.js:29441:20
+    at async dispatch (index.js:7709:17)
+    at async handleJwtAuth (index.js:10157:5)
+    at async authMiddleware (index.js:10119:12)
+    at async dispatch (index.js:7709:17)
+    at async errorHandler (index.js:14573:5)",2f24288827c6b14fac807324df3a4ac2,cf-worker,674a33431dfbe916810b5583f9537230,fetch,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (<DOMAIN>:18449:31)
+    at <*> (<DOMAIN>:18474:31)
+    at async <DOMAIN> (index <*>)
+    at async generateImageTags (<DOMAIN>:18601:40)
+    at async <DOMAIN>:29441:20
+    at async dispatch (<DOMAIN>:7709:17)
+    at async handleJwtAuth (<DOMAIN>:10157:5)
+    at async authMiddleware (<DOMAIN>:10119:12)
+    at async dispatch (<DOMAIN>:7709:17)
+    at async errorHandler (<DOMAIN>:14573:5)",undefined,undefined,undefined
+error,"[2026-04-04T08:29:00.918Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",cloudflare-workers,2026-04-04T08:29:00.918Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef153ce6dd496,01KNBSR63PAW0YRQE9B8X6DJSA,9e6ef153ce6dd496,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-04T08:29:00.918Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded","[2026-04-04T08:29:00.918Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",2f24288827c6b14fac807324df3a4ac2,cf-worker,83d881c07e099416d531c5b0b9c5c9f0,fetch,"[<DATETIME>] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",undefined,undefined,undefined
+error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18449:31)
+    at callVisionModel (index.js:18405:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18601:40)
+    at async index.js:29441:20
+    at async dispatch (index.js:7709:17)
+    at async handleJwtAuth (index.js:10157:5)
+    at async authMiddleware (index.js:10119:12)
+    at async dispatch (index.js:7709:17)
+    at async errorHandler (index.js:14573:5)",cloudflare-workers,2026-04-04T08:29:00.917Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef153ce6dd496,01KNBSR63N5KTS5VHJR2TQ1GWC,9e6ef153ce6dd496,POST /api/ai/tags/REDACTED,ossshelf-api,error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18449:31)
+    at callVisionModel (index.js:18405:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18601:40)
+    at async index.js:29441:20
+    at async dispatch (index.js:7709:17)
+    at async handleJwtAuth (index.js:10157:5)
+    at async authMiddleware (index.js:10119:12)
+    at async dispatch (index.js:7709:17)
+    at async errorHandler (index.js:14573:5)","RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18449:31)
+    at callVisionModel (index.js:18405:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18601:40)
+    at async index.js:29441:20
+    at async dispatch (index.js:7709:17)
+    at async handleJwtAuth (index.js:10157:5)
+    at async authMiddleware (index.js:10119:12)
+    at async dispatch (index.js:7709:17)
+    at async errorHandler (index.js:14573:5)",2f24288827c6b14fac807324df3a4ac2,cf-worker,ed61964f2225fced57473241d85f6f3d,fetch,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (<DOMAIN>:18449:31)
+    at callVisionModel (<DOMAIN>:18405:31)
+    at async <DOMAIN> (index 0)
+    at async generateImageTags (<DOMAIN>:18601:40)
+    at async <DOMAIN>:29441:20
+    at async dispatch (<DOMAIN>:7709:17)
+    at async handleJwtAuth (<DOMAIN>:10157:5)
+    at async authMiddleware (<DOMAIN>:10119:12)
+    at async dispatch (<DOMAIN>:7709:17)
+    at async errorHandler (<DOMAIN>:14573:5)",undefined,undefined,undefined
+error,"[2026-04-04T08:29:00.917Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",cloudflare-workers,2026-04-04T08:29:00.917Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,ae89016b-aa32-48ff-910c-4642a1bd41ae,9e6ef153ce6dd496,01KNBSR63N5KTS5VHJR2TQ1GWB,9e6ef153ce6dd496,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-04T08:29:00.917Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded","[2026-04-04T08:29:00.917Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",2f24288827c6b14fac807324df3a4ac2,cf-worker,8844f4791e75dae0186674aa63337567,fetch,"[<DATETIME>] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",undefined,undefined,undefined
+error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModelForTags (index.js:18432:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)",cloudflare-workers,2026-04-04T07:59:52.402Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ec6aa5ee261f9,01KNBR2TJJZ9B7QTV1450DKQZW,9e6ec6aa5ee261f9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModelForTags (index.js:18432:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)","RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModelForTags (index.js:18432:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)",2f24288827c6b14fac807324df3a4ac2,cf-worker,12e04d280e57d04f230da96686ed78ee,fetch,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (<DOMAIN>:18407:31)
+    at <*> (<DOMAIN>:18432:31)
+    at async <DOMAIN> (index <*>)
+    at async generateImageTags (<DOMAIN>:18559:40)
+    at async <DOMAIN>:29425:20
+    at async dispatch (<DOMAIN>:7685:17)
+    at async handleJwtAuth (<DOMAIN>:10133:5)
+    at async authMiddleware (<DOMAIN>:10095:12)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async errorHandler (<DOMAIN>:14549:5)",undefined,undefined,undefined
+error,"[2026-04-04T07:59:52.402Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",cloudflare-workers,2026-04-04T07:59:52.402Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ec6aa5ee261f9,01KNBR2TJJZ9B7QTV1450DKQZV,9e6ec6aa5ee261f9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-04T07:59:52.402Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded","[2026-04-04T07:59:52.402Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",2f24288827c6b14fac807324df3a4ac2,cf-worker,886b85acd12e2f949cd83cd098e29e68,fetch,"[<DATETIME>] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",undefined,undefined,undefined
+error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModel (index.js:18363:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)",cloudflare-workers,2026-04-04T07:59:52.401Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ec6aa5ee261f9,01KNBR2TJHQ3NF07TCVFRZRAWQ,9e6ec6aa5ee261f9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModel (index.js:18363:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)","RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModel (index.js:18363:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)",2f24288827c6b14fac807324df3a4ac2,cf-worker,fb777c7ef93cfd369649e1c98da33d50,fetch,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (<DOMAIN>:18407:31)
+    at callVisionModel (<DOMAIN>:18363:31)
+    at async <DOMAIN> (index 0)
+    at async generateImageTags (<DOMAIN>:18559:40)
+    at async <DOMAIN>:29425:20
+    at async dispatch (<DOMAIN>:7685:17)
+    at async handleJwtAuth (<DOMAIN>:10133:5)
+    at async authMiddleware (<DOMAIN>:10095:12)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async errorHandler (<DOMAIN>:14549:5)",undefined,undefined,undefined
+error,"[2026-04-04T07:59:52.401Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",cloudflare-workers,2026-04-04T07:59:52.401Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ec6aa5ee261f9,01KNBR2TJHQ3NF07TCVFRZRAWP,9e6ec6aa5ee261f9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-04T07:59:52.401Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded","[2026-04-04T07:59:52.401Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",2f24288827c6b14fac807324df3a4ac2,cf-worker,be81ee896ea6540c410e4b2fc07c1b24,fetch,"[<DATETIME>] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",undefined,undefined,undefined
+error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModelForTags (index.js:18432:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)",cloudflare-workers,2026-04-04T07:58:27.050Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ec494ef2461f9,01KNBR077APK0A11D1FCGYZCWX,9e6ec494ef2461f9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModelForTags (index.js:18432:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)","RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModelForTags (index.js:18432:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)",2f24288827c6b14fac807324df3a4ac2,cf-worker,12e04d280e57d04f230da96686ed78ee,fetch,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (<DOMAIN>:18407:31)
+    at <*> (<DOMAIN>:18432:31)
+    at async <DOMAIN> (index <*>)
+    at async generateImageTags (<DOMAIN>:18559:40)
+    at async <DOMAIN>:29425:20
+    at async dispatch (<DOMAIN>:7685:17)
+    at async handleJwtAuth (<DOMAIN>:10133:5)
+    at async authMiddleware (<DOMAIN>:10095:12)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async errorHandler (<DOMAIN>:14549:5)",undefined,undefined,undefined
+error,"[2026-04-04T07:58:27.050Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",cloudflare-workers,2026-04-04T07:58:27.050Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ec494ef2461f9,01KNBR077APK0A11D1FCGYZCWW,9e6ec494ef2461f9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-04T07:58:27.050Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded","[2026-04-04T07:58:27.050Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",2f24288827c6b14fac807324df3a4ac2,cf-worker,78d8e369bd2f2f129eafa740123e650d,fetch,"[<DATETIME>] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",undefined,undefined,undefined
+error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModel (index.js:18363:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)",cloudflare-workers,2026-04-04T07:58:27.050Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ec494ef2461f9,01KNBR077APK0A11D1FCGYZCWV,9e6ec494ef2461f9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModel (index.js:18363:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)","RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModel (index.js:18363:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)",2f24288827c6b14fac807324df3a4ac2,cf-worker,fb777c7ef93cfd369649e1c98da33d50,fetch,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (<DOMAIN>:18407:31)
+    at callVisionModel (<DOMAIN>:18363:31)
+    at async <DOMAIN> (index 0)
+    at async generateImageTags (<DOMAIN>:18559:40)
+    at async <DOMAIN>:29425:20
+    at async dispatch (<DOMAIN>:7685:17)
+    at async handleJwtAuth (<DOMAIN>:10133:5)
+    at async authMiddleware (<DOMAIN>:10095:12)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async errorHandler (<DOMAIN>:14549:5)",undefined,undefined,undefined
+error,"[2026-04-04T07:58:27.050Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",cloudflare-workers,2026-04-04T07:58:27.050Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ec494ef2461f9,01KNBR077APK0A11D1FCGYZCWT,9e6ec494ef2461f9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-04T07:58:27.050Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded","[2026-04-04T07:58:27.050Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",2f24288827c6b14fac807324df3a4ac2,cf-worker,5861aa12841988194928e912f1d3d756,fetch,"[<DATETIME>] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",undefined,undefined,undefined
+error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModelForTags (index.js:18432:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)",cloudflare-workers,2026-04-04T07:58:12.463Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ec4397f9061f9,01KNBQZRZFTEQ620THJM2P85C5,9e6ec4397f9061f9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModelForTags (index.js:18432:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)","RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModelForTags (index.js:18432:31)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)",2f24288827c6b14fac807324df3a4ac2,cf-worker,12e04d280e57d04f230da96686ed78ee,fetch,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (<DOMAIN>:18407:31)
+    at <*> (<DOMAIN>:18432:31)
+    at async <DOMAIN> (index <*>)
+    at async generateImageTags (<DOMAIN>:18559:40)
+    at async <DOMAIN>:29425:20
+    at async dispatch (<DOMAIN>:7685:17)
+    at async handleJwtAuth (<DOMAIN>:10133:5)
+    at async authMiddleware (<DOMAIN>:10095:12)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async errorHandler (<DOMAIN>:14549:5)",undefined,undefined,undefined
+error,"[2026-04-04T07:58:12.463Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",cloudflare-workers,2026-04-04T07:58:12.463Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ec4397f9061f9,01KNBQZRZFTEQ620THJM2P85C4,9e6ec4397f9061f9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-04T07:58:12.463Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded","[2026-04-04T07:58:12.463Z] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",2f24288827c6b14fac807324df3a4ac2,cf-worker,6a597aa853e40e4c6cc8b1e8c41bf3d1,fetch,"[<DATETIME>] [ERROR] [AI] Vision model for tags call failed {""defaultModelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",undefined,undefined,undefined
+error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModel (index.js:18363:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)",cloudflare-workers,2026-04-04T07:58:12.456Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ec4397f9061f9,01KNBQZRZ8FGVVM5B1MFA1JDWR,9e6ec4397f9061f9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModel (index.js:18363:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)","RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (index.js:18407:31)
+    at callVisionModel (index.js:18363:31)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:18559:40)
+    at async index.js:29425:20
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)",2f24288827c6b14fac807324df3a4ac2,cf-worker,fb777c7ef93cfd369649e1c98da33d50,fetch,"RangeError: Maximum call stack size exceeded
+    at uint8ArrayToBase64 (<DOMAIN>:18407:31)
+    at callVisionModel (<DOMAIN>:18363:31)
+    at async <DOMAIN> (index 0)
+    at async generateImageTags (<DOMAIN>:18559:40)
+    at async <DOMAIN>:29425:20
+    at async dispatch (<DOMAIN>:7685:17)
+    at async handleJwtAuth (<DOMAIN>:10133:5)
+    at async authMiddleware (<DOMAIN>:10095:12)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async errorHandler (<DOMAIN>:14549:5)",undefined,undefined,undefined
+error,"[2026-04-04T07:58:12.456Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",cloudflare-workers,2026-04-04T07:58:12.456Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ec4397f9061f9,01KNBQZRZ8FGVVM5B1MFA1JDWQ,9e6ec4397f9061f9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-04T07:58:12.456Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded","[2026-04-04T07:58:12.456Z] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",2f24288827c6b14fac807324df3a4ac2,cf-worker,9bd0c727d94f86bbd3b9d3e1dee6424b,fetch,"[<DATETIME>] [ERROR] [AI] Vision model call failed {""modelId"":""@cf/llava-hf/llava-1.5-7b-hf""} Error: Maximum call stack size exceeded",undefined,undefined,undefined
+error,"Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17705:15)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)
+    at async secureHeaders2 (index.js:9987:5)
+    at async dispatch (index.js:7685:17)",cloudflare-workers,2026-04-04T07:54:38.566Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebf031f8d61f9,01KNBQS836K7Y4DQEZDZDH22AD,9e6ebf031f8d61f9,POST /api/ai-config/test,ossshelf-api,error,"Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17705:15)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)
+    at async secureHeaders2 (index.js:9987:5)
+    at async dispatch (index.js:7685:17)","Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17705:15)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)
+    at async secureHeaders2 (index.js:9987:5)
+    at async dispatch (index.js:7685:17)",2f24288827c6b14fac807324df3a4ac2,cf-worker,7fff44b2b17eac9df33fcbb4daae7521,fetch,"Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}
+    at <DOMAIN> (<DOMAIN>:17705:15)
+    at async <DOMAIN>:31433:22
+    at async dispatch (<DOMAIN>:7685:17)
+    at async handleJwtAuth (<DOMAIN>:10133:5)
+    at async authMiddleware (<DOMAIN>:10095:12)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async errorHandler (<DOMAIN>:14549:5)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async secureHeaders2 (<DOMAIN>:9987:5)
+    at async dispatch (<DOMAIN>:7685:17)",undefined,undefined,undefined
+error,"[2026-04-04T07:54:38.566Z] [ERROR] [AI Config] Model test failed {""userId"":""ca589195-75a9-456f-830f-ad7efe52a848"",""modelId"":""e81bf833-e233-441f-abd2-39f9674fbd0e""} Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}",cloudflare-workers,2026-04-04T07:54:38.566Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebf031f8d61f9,01KNBQS836K7Y4DQEZDZDH22AC,9e6ebf031f8d61f9,POST /api/ai-config/test,ossshelf-api,error,"[2026-04-04T07:54:38.566Z] [ERROR] [AI Config] Model test failed {""userId"":""ca589195-75a9-456f-830f-ad7efe52a848"",""modelId"":""e81bf833-e233-441f-abd2-39f9674fbd0e""} Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}","[2026-04-04T07:54:38.566Z] [ERROR] [AI Config] Model test failed {""userId"":""ca589195-75a9-456f-830f-ad7efe52a848"",""modelId"":""e81bf833-e233-441f-abd2-39f9674fbd0e""} Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,5bbcc58435f9411569a0c45a08f6a1d3,fetch,"[<DATETIME>] [ERROR] [AI Config] Model test failed {""userId"":""<UUID>"",""modelId"":""<UUID>""} Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17705:15)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)
+    at async secureHeaders2 (index.js:9987:5)
+    at async dispatch (index.js:7685:17)",cloudflare-workers,2026-04-04T07:54:38.566Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebf031f8d61f9,01KNBQS836K7Y4DQEZDZDH22AB,9e6ebf031f8d61f9,POST /api/ai-config/test,ossshelf-api,error,"Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17705:15)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)
+    at async secureHeaders2 (index.js:9987:5)
+    at async dispatch (index.js:7685:17)","Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17705:15)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)
+    at async secureHeaders2 (index.js:9987:5)
+    at async dispatch (index.js:7685:17)",2f24288827c6b14fac807324df3a4ac2,cf-worker,7fff44b2b17eac9df33fcbb4daae7521,fetch,"Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}
+    at <DOMAIN> (<DOMAIN>:17705:15)
+    at async <DOMAIN>:31433:22
+    at async dispatch (<DOMAIN>:7685:17)
+    at async handleJwtAuth (<DOMAIN>:10133:5)
+    at async authMiddleware (<DOMAIN>:10095:12)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async errorHandler (<DOMAIN>:14549:5)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async secureHeaders2 (<DOMAIN>:9987:5)
+    at async dispatch (<DOMAIN>:7685:17)",undefined,undefined,undefined
+error,"[2026-04-04T07:54:38.566Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}",cloudflare-workers,2026-04-04T07:54:38.566Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebf031f8d61f9,01KNBQS836K7Y4DQEZDZDH22AA,9e6ebf031f8d61f9,POST /api/ai-config/test,ossshelf-api,error,"[2026-04-04T07:54:38.566Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}","[2026-04-04T07:54:38.566Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,8cf70cac79d180f75ddce3ef68bb24fd,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 429 - {""error"":{""code"":""1302"",""message"":""您的账户已达到速率限制，请您控制请求频率""}}",undefined,undefined,undefined
+error,POST https://ossapi.wort.uk/api/ai-config/test,cloudflare-workers,2026-04-04T07:54:37.942Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebf031f8d61f9,01KNBQS80QMHS821WPBQHDK1KV,9e6ebf031f8d61f9,POST /api/ai-config/test,ossshelf-api,error,POST https://ossapi.wort.uk/api/ai-config/test,POST https://ossapi.wort.uk/api/ai-config/test,2f24288827c6b14fac807324df3a4ac2,cf-worker-event,d690836d85660fd7755c04bd9c1e4420,fetch,POST https://ossapi.wort.uk/api/ai-config/test,undefined,undefined,undefined
+error,"AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async Ai.run (cloudflare-internal:ai-api:196:19)
+    at async WorkersAiAdapter.chatCompletion (index.js:17482:24)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)",cloudflare-workers,2026-04-04T07:52:41.407Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebc28b9da61f9,01KNBQNNNZ16M972R20BJAZQD5,9e6ebc28b9da61f9,POST /api/ai-config/test,ossshelf-api,error,"AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async Ai.run (cloudflare-internal:ai-api:196:19)
+    at async WorkersAiAdapter.chatCompletion (index.js:17482:24)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)","AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async Ai.run (cloudflare-internal:ai-api:196:19)
+    at async WorkersAiAdapter.chatCompletion (index.js:17482:24)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)",2f24288827c6b14fac807324df3a4ac2,cf-worker,07329f620e0a90b7108a179bdaab4271,fetch,"AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async <DOMAIN> (cloudflare-internal:ai-api:196:19)
+    at async <DOMAIN> (<DOMAIN>:17482:24)
+    at async <DOMAIN>:31433:22
+    at async dispatch (<DOMAIN>:7685:17)
+    at async handleJwtAuth (<DOMAIN>:10133:5)
+    at async authMiddleware (<DOMAIN>:10095:12)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async errorHandler (<DOMAIN>:14549:5)
+    at async dispatch (<DOMAIN>:7685:17)",undefined,undefined,undefined
+error,"[2026-04-04T07:52:41.407Z] [ERROR] [AI Config] Model test failed {""userId"":""ca589195-75a9-456f-830f-ad7efe52a848"",""modelId"":""1dc00707-088e-44be-9103-a62907a3576f""} Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task",cloudflare-workers,2026-04-04T07:52:41.407Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebc28b9da61f9,01KNBQNNNZ16M972R20BJAZQD4,9e6ebc28b9da61f9,POST /api/ai-config/test,ossshelf-api,error,"[2026-04-04T07:52:41.407Z] [ERROR] [AI Config] Model test failed {""userId"":""ca589195-75a9-456f-830f-ad7efe52a848"",""modelId"":""1dc00707-088e-44be-9103-a62907a3576f""} Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task","[2026-04-04T07:52:41.407Z] [ERROR] [AI Config] Model test failed {""userId"":""ca589195-75a9-456f-830f-ad7efe52a848"",""modelId"":""1dc00707-088e-44be-9103-a62907a3576f""} Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task",2f24288827c6b14fac807324df3a4ac2,cf-worker,2544e0cdcabe2daf50ada1c825c41073,fetch,"[<DATETIME>] [ERROR] [AI Config] Model test failed {""userId"":""<UUID>"",""modelId"":""<UUID>""} Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task",undefined,undefined,undefined
+error,"AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async Ai.run (cloudflare-internal:ai-api:196:19)
+    at async WorkersAiAdapter.chatCompletion (index.js:17482:24)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)",cloudflare-workers,2026-04-04T07:52:41.407Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebc28b9da61f9,01KNBQNNNZ16M972R20BJAZQD3,9e6ebc28b9da61f9,POST /api/ai-config/test,ossshelf-api,error,"AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async Ai.run (cloudflare-internal:ai-api:196:19)
+    at async WorkersAiAdapter.chatCompletion (index.js:17482:24)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)","AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async Ai.run (cloudflare-internal:ai-api:196:19)
+    at async WorkersAiAdapter.chatCompletion (index.js:17482:24)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)",2f24288827c6b14fac807324df3a4ac2,cf-worker,07329f620e0a90b7108a179bdaab4271,fetch,"AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async <DOMAIN> (cloudflare-internal:ai-api:196:19)
+    at async <DOMAIN> (<DOMAIN>:17482:24)
+    at async <DOMAIN>:31433:22
+    at async dispatch (<DOMAIN>:7685:17)
+    at async handleJwtAuth (<DOMAIN>:10133:5)
+    at async authMiddleware (<DOMAIN>:10095:12)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async errorHandler (<DOMAIN>:14549:5)
+    at async dispatch (<DOMAIN>:7685:17)",undefined,undefined,undefined
+error,[2026-04-04T07:52:41.407Z] [ERROR] [AI] Workers AI chat completion failed Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task,cloudflare-workers,2026-04-04T07:52:41.407Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebc28b9da61f9,01KNBQNNNZ16M972R20BJAZQD2,9e6ebc28b9da61f9,POST /api/ai-config/test,ossshelf-api,error,[2026-04-04T07:52:41.407Z] [ERROR] [AI] Workers AI chat completion failed Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task,[2026-04-04T07:52:41.407Z] [ERROR] [AI] Workers AI chat completion failed Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task,2f24288827c6b14fac807324df3a4ac2,cf-worker,7661508067f3f4e16cbda823f694c216,fetch,[<DATETIME>] [ERROR] [AI] Workers AI chat completion failed Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task,undefined,undefined,undefined
+error,POST https://ossapi.wort.uk/api/ai-config/test,cloudflare-workers,2026-04-04T07:52:41.075Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebc28b9da61f9,01KNBQNNBKR9YP0EXNDM930R7T,9e6ebc28b9da61f9,POST /api/ai-config/test,ossshelf-api,error,POST https://ossapi.wort.uk/api/ai-config/test,POST https://ossapi.wort.uk/api/ai-config/test,2f24288827c6b14fac807324df3a4ac2,cf-worker-event,d690836d85660fd7755c04bd9c1e4420,fetch,POST https://ossapi.wort.uk/api/ai-config/test,undefined,undefined,undefined
+error,"AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async Ai.run (cloudflare-internal:ai-api:196:19)
+    at async WorkersAiAdapter.chatCompletion (index.js:17482:24)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)",cloudflare-workers,2026-04-04T07:52:26.846Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebbcc094d61f9,01KNBQN7EYTADZS8KB72YW8BWW,9e6ebbcc094d61f9,POST /api/ai-config/test,ossshelf-api,error,"AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async Ai.run (cloudflare-internal:ai-api:196:19)
+    at async WorkersAiAdapter.chatCompletion (index.js:17482:24)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)","AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async Ai.run (cloudflare-internal:ai-api:196:19)
+    at async WorkersAiAdapter.chatCompletion (index.js:17482:24)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)",2f24288827c6b14fac807324df3a4ac2,cf-worker,07329f620e0a90b7108a179bdaab4271,fetch,"AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async <DOMAIN> (cloudflare-internal:ai-api:196:19)
+    at async <DOMAIN> (<DOMAIN>:17482:24)
+    at async <DOMAIN>:31433:22
+    at async dispatch (<DOMAIN>:7685:17)
+    at async handleJwtAuth (<DOMAIN>:10133:5)
+    at async authMiddleware (<DOMAIN>:10095:12)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async errorHandler (<DOMAIN>:14549:5)
+    at async dispatch (<DOMAIN>:7685:17)",undefined,undefined,undefined
+error,"[2026-04-04T07:52:26.846Z] [ERROR] [AI Config] Model test failed {""userId"":""ca589195-75a9-456f-830f-ad7efe52a848"",""modelId"":""1dc00707-088e-44be-9103-a62907a3576f""} Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task",cloudflare-workers,2026-04-04T07:52:26.846Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebbcc094d61f9,01KNBQN7EYTADZS8KB72YW8BWV,9e6ebbcc094d61f9,POST /api/ai-config/test,ossshelf-api,error,"[2026-04-04T07:52:26.846Z] [ERROR] [AI Config] Model test failed {""userId"":""ca589195-75a9-456f-830f-ad7efe52a848"",""modelId"":""1dc00707-088e-44be-9103-a62907a3576f""} Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task","[2026-04-04T07:52:26.846Z] [ERROR] [AI Config] Model test failed {""userId"":""ca589195-75a9-456f-830f-ad7efe52a848"",""modelId"":""1dc00707-088e-44be-9103-a62907a3576f""} Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task",2f24288827c6b14fac807324df3a4ac2,cf-worker,f2672288148072fd3f4a7bdf57be3962,fetch,"[<DATETIME>] [ERROR] [AI Config] Model test failed {""userId"":""<UUID>"",""modelId"":""<UUID>""} Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task",undefined,undefined,undefined
+error,"AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async Ai.run (cloudflare-internal:ai-api:196:19)
+    at async WorkersAiAdapter.chatCompletion (index.js:17482:24)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)",cloudflare-workers,2026-04-04T07:52:26.846Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebbcc094d61f9,01KNBQN7EYTADZS8KB72YW8BWT,9e6ebbcc094d61f9,POST /api/ai-config/test,ossshelf-api,error,"AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async Ai.run (cloudflare-internal:ai-api:196:19)
+    at async WorkersAiAdapter.chatCompletion (index.js:17482:24)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)","AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async Ai.run (cloudflare-internal:ai-api:196:19)
+    at async WorkersAiAdapter.chatCompletion (index.js:17482:24)
+    at async index.js:31433:22
+    at async dispatch (index.js:7685:17)
+    at async handleJwtAuth (index.js:10133:5)
+    at async authMiddleware (index.js:10095:12)
+    at async dispatch (index.js:7685:17)
+    at async errorHandler (index.js:14549:5)
+    at async dispatch (index.js:7685:17)",2f24288827c6b14fac807324df3a4ac2,cf-worker,07329f620e0a90b7108a179bdaab4271,fetch,"AiError: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task
+    at Ai._parseError (cloudflare-internal:ai-api:218:24)
+    at async <DOMAIN> (cloudflare-internal:ai-api:196:19)
+    at async <DOMAIN> (<DOMAIN>:17482:24)
+    at async <DOMAIN>:31433:22
+    at async dispatch (<DOMAIN>:7685:17)
+    at async handleJwtAuth (<DOMAIN>:10133:5)
+    at async authMiddleware (<DOMAIN>:10095:12)
+    at async dispatch (<DOMAIN>:7685:17)
+    at async errorHandler (<DOMAIN>:14549:5)
+    at async dispatch (<DOMAIN>:7685:17)",undefined,undefined,undefined
+error,[2026-04-04T07:52:26.846Z] [ERROR] [AI] Workers AI chat completion failed Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task,cloudflare-workers,2026-04-04T07:52:26.846Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebbcc094d61f9,01KNBQN7EYTADZS8KB72YW8BWS,9e6ebbcc094d61f9,POST /api/ai-config/test,ossshelf-api,error,[2026-04-04T07:52:26.846Z] [ERROR] [AI] Workers AI chat completion failed Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task,[2026-04-04T07:52:26.846Z] [ERROR] [AI] Workers AI chat completion failed Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task,2f24288827c6b14fac807324df3a4ac2,cf-worker,6a6efee10f03e6520163a884647e49af,fetch,[<DATETIME>] [ERROR] [AI] Workers AI chat completion failed Error: 5007: No such model @cf/deepseek/deepseek-r1-distill-qwen-32b or task,undefined,undefined,undefined
+error,POST https://ossapi.wort.uk/api/ai-config/test,cloudflare-workers,2026-04-04T07:52:26.245Z,false,https://ossapi.wort.uk/api/ai-config/test,POST,/api/ai-config/test,ok,ossshelf-api,fetch,stateless,28779c02-fa0d-440e-9331-93df44712305,9e6ebbcc094d61f9,01KNBQN712VVJJXWN8N7R2BEMN,9e6ebbcc094d61f9,POST /api/ai-config/test,ossshelf-api,error,POST https://ossapi.wort.uk/api/ai-config/test,POST https://ossapi.wort.uk/api/ai-config/test,2f24288827c6b14fac807324df3a4ac2,cf-worker-event,d690836d85660fd7755c04bd9c1e4420,fetch,POST https://ossapi.wort.uk/api/ai-config/test,undefined,undefined,undefined
