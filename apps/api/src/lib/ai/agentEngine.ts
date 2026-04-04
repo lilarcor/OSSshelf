@@ -64,54 +64,82 @@ export interface TokenUsage {
 // System prompt — OSSshelf 专属
 // ────────────────────────────────────────────────────────────
 
-export const AGENT_SYSTEM_PROMPT = `你是 OSSshelf 的文件管理智能助手。OSSshelf 是一个私有云文件管理系统，支持多云存储（R2/S3/OSS/COS/B2/MinIO）、文件共享、AI 智能索引等功能。
+export const AGENT_SYSTEM_PROMPT = `你是 OSSshelf 的智能文件管家，具备专业级的文件检索与分析能力。你的核心职责是帮助用户快速找到、理解和管理他们的文件。
 
-## 你的能力
+## 🎯 你的能力矩阵
 
-你可以调用以下工具直接查询用户的文件系统数据库：
-- **search_files**: 语义/关键词混合搜索文件（最强工具，优先使用）
-- **list_recent**: 最近上传/修改的文件（用户问"有哪些文件/图片/文档"时首选）
-- **get_file_detail**: 获取文件详情（含AI摘要、标签、共享状态）
-- **get_file_content**: 读取文件内容（用户问"这个文件讲了什么"时使用）
-- **get_storage_stats**: 获取存储统计（仅用于回答数量/大小统计类问题）
-- **list_folder**: 列出文件夹内容
-- **list_starred**: 查看收藏文件
-- **list_shares**: 查看共享链接
-- **search_by_tag**: 按标签搜索
+| 工具 | 最佳使用场景 | 调用优先级 |
+|------|-------------|-----------|
+| search_files | 用户想"找XX文件"、"有没有关于XX的文档" | ⭐⭐⭐ 首选 |
+| list_recent | 用户问"有什么文件/图片/文档"、浏览型需求 | ⭐⭐⭐ 浏览首选 |
+| get_file_content | 找到文件后需要了解内容、"这个文件讲了什么" | ⭐⭐ 内容深度 |
+| get_file_detail | 需要文件的完整元数据（标签/共享/版本） | ⭐ 详情查询 |
+| list_folder | "查看XX文件夹里有什么" | ⭐ 目录导航 |
+| get_storage_stats | "有多少文件"、"存储空间用了多少" | ⭐ 统计类 |
+| list_starred | "收藏了哪些文件" | ⭐ 收藏查看 |
+| list_shares | "分享了哪些文件" | ⭐ 共享查看 |
+| search_by_tag | "找标记为XX的文件" | ⭐ 标签搜索 |
 
-## 核心行为规范（必须遵守）
+## 🧠 核心思维框架（ReAct模式）
 
-### 搜索策略
-1. **先宽泛后精确** — 用户说"找XX图片"时，先用 search_files 搜 "图片"，不要搜太长的描述性语句
-2. **搜索无结果时** — 立即换用更宽泛的关键词重试，或用 list_recent 探索
-3. **多轮对话** — 如果前一轮搜索没结果，用户追问时，尝试不同关键词，不要重复相同搜索
-4. **善用 list_recent** — 当用户问"我有什么文件/图片/文档"时，优先用 list_recent 而非 get_storage_stats
+每次回复前，先按以下步骤思考（不需要输出思考过程，但必须执行）：
 
-### 结果解读
-5. **严格基于工具结果** — 工具返回什么就说什么。如果 get_storage_stats 显示 26 个图片，绝不能说"没有图片"
-6. **数字精确** — 文件数量、大小等数据直接从工具结果读取
+### Step 1: 意图识别
+- 用户是**搜索特定文件**？→ 用 search_files
+- 用户是**浏览/探索**？→ 用 list_recent 或 list_folder
+- 用户是**统计/概览**？→ 用 get_storage_stats
+- 用户是**深入了解某文件**？→ 先 search/get_detail，再 get_file_content
 
-### 输出格式
-7. **列出文件时** — 使用 \`[FILE:id:name]\` 格式，每行一个
-8. **中文回答** — 除非用户使用其他语言
-9. **简洁聚焦** — 直接给结果，少废话
+### Step 2: 搜索策略（关键！）
+1. **关键词提取** — 从用户问题中提取核心实体词（如"项目报告 Q4" → 提取 "项目报告" 和 "Q4"）
+2. **先宽泛后精确** — 第一次搜索用简短核心词（2-4个字），不要用完整句子
+3. **类型过滤** — 如果用户明确提到"图片/PDF/文档"，务必设置 mimeType 参数
+4. **无结果处理** — 立即换更宽泛的同义词或用 list_recent 探索，不要重复相同搜索
+5. **多词尝试** — 一个词没结果就换近义词（"合同"→"协议"→"agreement"）
 
-## 能力边界
-- 你只能**读取**文件信息，不能上传、删除、移动文件
-- 无法预览原始文件内容（除非有AI摘要）`;
+### Step 3: 结果分析与链式行动（⚠️ 重要规则）
+当 search_files 返回结果时，必须分析结果数量和质量：
+- **返回 0 个结果** → 换关键词重试或用 list_recent
+- **返回 1-5 个结果且用户想了解内容** → 🔗 **立即调用 get_file_content 读取每个文件的内容**
+- **返回 6+ 个结果** → 先展示列表，如果用户追问具体文件再读取内容
+- **用户问"这个文件讲了什么/内容是什么"** → 必须调用 get_file_content
+
+### Step 4: 回答生成
+- **严格基于工具结果** — 工具返回什么数据就说什么，绝不能编造
+- **数字精确** — 文件数量、大小直接从结果读取
+- **引用来源** — 列出文件时使用 \`[FILE:id:name]\` 格式
+
+## ✅ 行为红线（违反将导致回答质量下降）
+
+1. ❌ 绝不编造文件不存在 — 即使搜索没结果也要说"未搜到相关文件"
+2. ❌ 绝不忽略工具返回的数据 — stats说26张图就不能说没有
+3. ❌ 绝不用长句做搜索关键词 — "帮我找一下上个季度的项目总结报告" → 应搜 "项目总结报告" 或 "季度报告"
+4. ❌ 绝不在一轮对话中重复相同参数的相同搜索
+5. ❌ 绝不说"我无法访问文件" — 你有完整的只读访问权限
+
+## 📝 输出规范
+- 语言：中文（除非用户用其他语言）
+- 格式：简洁直接，列出文件用 \`[FILE:id:name]\` 每行一个
+- 态度：专业、高效、有据可依
+
+## 🔒 能力边界
+- ✅ 可以：读取文件信息、搜索、获取内容摘要、查看统计
+- ❌ 不可以：上传/删除/移动/修改文件、预览原始二进制内容`;
 
 const PROMPT_BASED_SYSTEM_PROMPT = `${AGENT_SYSTEM_PROMPT}
 
-## 工具调用格式
+## 🔧 工具调用协议
 
-当需要查询数据时，使用以下格式输出工具调用（必须是合法JSON，包含在代码块中）：
+当需要查询数据时，严格按照以下JSON格式输出（必须包含在代码块中）：
 
 \`\`\`tool_call
 {"name": "工具名", "arguments": {"参数名": "参数值"}}
 \`\`\`
 
-等待工具结果后，根据结果继续回答。
-重要：每次只调用一个工具，等待结果后再决定下一步。`;
+### 调用纪律
+1. 每次只调用一个工具，等待结果后再决定下一步
+2. 搜索返回少量结果(≤5)且需了解内容时，下一步必须调用 get_file_content
+3. 参数值必须是有效的JSON格式`;
 
 interface AgentMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
@@ -339,6 +367,54 @@ export class AgentEngine {
           toolCallId: tc.id,
         });
       }
+      const chainCalls = await this.buildChainToolCalls(collectedToolCalls, messages, onChunk, sources);
+      if (chainCalls.length > 0) {
+        for (const chainTc of chainCalls) {
+          messages.push({
+            role: 'assistant',
+            content: undefined,
+            toolCalls: [chainTc],
+          });
+
+          let chainArgs: Record<string, unknown>;
+          try {
+            chainArgs = typeof chainTc.function.arguments === 'string'
+              ? JSON.parse(chainTc.function.arguments)
+              : chainTc.function.arguments || {};
+          } catch {
+            continue;
+          }
+
+          onChunk({ type: 'tool_start', toolName: chainTc.function.name, toolCallId: chainTc.id, args: chainArgs, done: false });
+
+          let chainResult: unknown;
+          try {
+            chainResult = await this.executor.execute(chainTc.function.name, chainArgs);
+
+            if (chainResult && typeof chainResult === 'object') {
+              const r = chainResult as any;
+              const fileList: any[] = r.files || (r.file ? [r.file] : []);
+              for (const f of fileList.slice(0, 10)) {
+                if (f.id && f.name && !sources.find((s) => s.id === f.id)) {
+                  sources.push({ id: f.id, name: f.name, mimeType: f.mimeType || null, score: 1.0 });
+                }
+              }
+            }
+          } catch (error) {
+            chainResult = { error: error instanceof Error ? error.message : '链式工具执行失败' };
+            logger.error('AgentEngine', 'Chain tool execution failed', { toolName: chainTc.function.name }, error);
+          }
+
+          onChunk({ type: 'tool_result', toolCallId: chainTc.id, toolName: chainTc.function.name, result: chainResult, done: false });
+
+          const sanitizedChainResult = sanitizeForLLM(JSON.stringify(chainResult, null, 2));
+          messages.push({
+            role: 'tool',
+            content: `${sanitizedChainResult}\n${TOOL_RESULT_GUARDRAIL}`,
+            toolCallId: chainTc.id,
+          });
+        }
+      }
     }
 
     return { fullText, sources, usage: totalUsage };
@@ -494,9 +570,108 @@ export class AgentEngine {
         role: 'user',
         content: `[工具 ${toolName} 的执行结果]\n\`\`\`json\n${toolResultStr}\n\`\`\`\n${TOOL_RESULT_GUARDRAIL}\n\n请根据以上工具结果继续回答用户的问题。`,
       });
+      if (toolName === 'search_files' && toolResult && typeof toolResult === 'object') {
+        try {
+          const resultData = toolResult as any;
+          const files: Array<{ id: string; name: string }> = resultData.files || [];
+
+          if (files.length > 0 && files.length <= 5) {
+            logger.info('AgentEngine', 'Chain trigger (prompt mode): auto-reading file contents', {
+              searchResultCount: files.length,
+              files: files.map((f) => f.name),
+            });
+
+            for (const file of files.slice(0, 3)) {
+              const chainToolCallId = `chain_${crypto.randomUUID().slice(0, 8)}`;
+              const chainArgs = { fileId: file.id };
+
+              onChunk({ type: 'tool_start', toolName: 'get_file_content', toolCallId: chainToolCallId, args: chainArgs, done: false });
+
+              let chainResult: unknown;
+              try {
+                chainResult = await this.executor.execute('get_file_content', chainArgs);
+
+                if (chainResult && typeof chainResult === 'object') {
+                  const cr = chainResult as any;
+                  const chainFileList: any[] = cr.files || (cr.file ? [cr.file] : []);
+                  for (const cf of chainFileList.slice(0, 10)) {
+                    if (cf.id && cf.name && !sources.find((s) => s.id === cf.id)) {
+                      sources.push({ id: cf.id, name: cf.name, mimeType: cf.mimeType || null, score: 1.0 });
+                    }
+                  }
+                }
+              } catch (error) {
+                chainResult = { error: error instanceof Error ? error.message : '链式工具执行失败' };
+                logger.error('AgentEngine', 'Chain tool execution failed (prompt)', {}, error as Error);
+              }
+
+              onChunk({ type: 'tool_result', toolCallId: chainToolCallId, toolName: 'get_file_content', result: chainResult, done: false });
+
+              const chainResultStr = sanitizeForLLM(JSON.stringify(chainResult, null, 2));
+              messages.push({
+                role: 'user',
+                content: `[链式工具 get_file_content 的执行结果（自动触发）]\n\`\`\`json\n${chainResultStr}\n\`\`\`\n${TOOL_RESULT_GUARDRAIL}\n\n请结合以上文件内容继续回答。`,
+              });
+            }
+          }
+        } catch {
+          continue;
+        }
+      }
     }
 
     return { fullText, sources };
+  }
+
+  /**
+   * 链式工具调用 — 当搜索返回少量结果时自动读取文件内容
+   *
+   * 借鉴 OpenAI Agents SDK 的 handoff 模式和 Dify 的自动工具链模式：
+   * - search_files 返回 ≤5 个文件 → 自动调用 get_file_content
+   * - 避免用户需要多轮对话才能获取文件内容
+   */
+  private async buildChainToolCalls(
+    toolCalls: Array<{ id: string; name: string; arguments: string }>,
+    messages: Array<{ role: string; content?: string; toolCalls?: any[]; toolCallId?: string }>,
+    onChunk: (chunk: AgentChunk) => void,
+    sources: AgentSource[]
+  ): Promise<Array<{ id: string; type: string; function: { name: string; arguments: string } }>> {
+    const chainCalls: Array<{ id: string; type: string; function: { name: string; arguments: string } }> = [];
+
+    for (const tc of toolCalls) {
+      if (tc.name !== 'search_files') continue;
+
+      const lastToolResult = messages[messages.length - 1];
+      if (!lastToolResult || lastToolResult.role !== 'tool') continue;
+
+      try {
+        const resultData = JSON.parse(lastToolResult.content?.replace(TOOL_RESULT_GUARDRAIL, '').trim() || '{}');
+        const files: Array<{ id: string; name: string }> = resultData.files || [];
+
+        if (files.length > 0 && files.length <= 5) {
+          logger.info('AgentEngine', 'Chain trigger: auto-reading file contents', {
+            searchResultCount: files.length,
+            files: files.map((f) => f.name),
+          });
+
+          for (const file of files.slice(0, 3)) {
+            const chainId = `chain_${crypto.randomUUID().slice(0, 8)}`;
+            chainCalls.push({
+              id: chainId,
+              type: 'function',
+              function: {
+                name: 'get_file_content',
+                arguments: JSON.stringify({ fileId: file.id }),
+              },
+            });
+          }
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    return chainCalls;
   }
 
   /**

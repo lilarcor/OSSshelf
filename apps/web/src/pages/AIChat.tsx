@@ -16,6 +16,7 @@ import {
   Plus, Trash2, ExternalLink, PanelLeftClose,
   Settings, StopCircle, Copy, Check, RefreshCw, Pencil, X,
   Loader2, Search, BarChart3, Star, Share2, Clock, Tag, Download,
+  ChevronDown,
 } from 'lucide-react';
 import { aiApi, filesApi, type AiChatMessage } from '@/services/api';
 import ReactMarkdown from 'react-markdown';
@@ -151,68 +152,135 @@ function parseFileRefs(text: string, onFileClick: (id: string, isFolder: boolean
 // Sub-components
 // ────────────────────────────────────────────────────────────
 
-function ToolCallCard({ tc }: { tc: ToolCallEvent }) {
-  const meta = TOOL_META[tc.toolName] || { label: tc.toolName, icon: <Sparkles className="h-3 w-3" /> };
+function ToolCallCard({ tc, onFileClick }: { tc: ToolCallEvent; onFileClick: (id: string) => void }) {
+  const meta = TOOL_META[tc.toolName] || { label: tc.toolName.replace(/_/g, ' '), icon: <Sparkles className="h-3 w-3" /> };
   const [expanded, setExpanded] = useState(false);
 
-  // Extract file list from result for preview
   const resultFiles: AgentFile[] = (() => {
     if (!tc.result || typeof tc.result !== 'object') return [];
-    const r = tc.result as any;
-    return (r.files || (r.file ? [r.file] : []) || []).slice(0, 6);
+    const r = tc.result as Record<string, unknown>;
+    const files = r.files as Array<{ id: string; name: string; mimeType?: string | null }> | undefined;
+    return (files || []).slice(0, 6).map(f => ({
+      id: f.id,
+      name: f.name,
+      path: '',
+      isFolder: false,
+      size: 0,
+      createdAt: '',
+      mimeType: f.mimeType ?? null,
+      parentId: null,
+      aiSummary: null,
+      aiTags: null,
+      isStarred: false,
+      description: null,
+    }));
   })();
 
+  const argsSummary = tc.args
+    ? Object.entries(tc.args).map(([k, v]) => `${k}: ${typeof v === 'string' ? v.slice(0, 30) : JSON.stringify(v).slice(0, 30)}`).join(' | ')
+    : '';
+
+  const isRunning = tc.status === 'running';
+  const isDone = tc.status === 'done';
+  const hasArgs = Boolean(tc.args && Object.keys(tc.args).length > 0);
+  const showResult = isDone && Boolean(tc.result);
+
   return (
-    <div className="my-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 overflow-hidden text-xs">
+    <div className={`my-1.5 rounded-xl overflow-hidden border ${
+      isRunning
+        ? 'border-amber-200 dark:border-amber-800 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10'
+        : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80'
+    }`}>
+      {/* Header bar — always visible */}
       <button
         onClick={() => setExpanded(v => !v)}
-        className="flex items-center gap-2 w-full px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors text-left"
+        className="flex items-center gap-2 w-full px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors text-left"
       >
-        <span className={`flex items-center justify-center h-5 w-5 rounded-full ${tc.status === 'running' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'}`}>
-          {tc.status === 'running'
+        {/* Status icon */}
+        <span className={`flex items-center justify-center h-5 w-5 rounded-full flex-shrink-0 ${
+          isRunning
+            ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 animate-pulse'
+            : 'bg-violet-100 dark:bg-violet-900/40 text-violet-600'
+        }`}>
+          {isRunning
             ? <Loader2 className="h-3 w-3 animate-spin" />
             : meta.icon
           }
         </span>
-        <span className="text-slate-600 dark:text-slate-400 font-medium">{meta.label}</span>
-        {tc.status === 'running' && <span className="text-amber-500 animate-pulse ml-1">进行中…</span>}
-        {tc.status === 'done' && Boolean(tc.result) && (
-          <span className="text-slate-400 ml-1">
-            {(tc.result as Record<string, unknown>).total !== undefined ? `${(tc.result as Record<string, unknown>).total} 项结果` : '完成'}
-          </span>
-        )}
-        <span className="ml-auto text-slate-400">{expanded ? '▲' : '▼'}</span>
+
+        {/* Tool name + status */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{meta.label}</span>
+            {isRunning && (
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">正在执行…</span>
+            )}
+            {isDone && (
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">已完成</span>
+            )}
+          </div>
+          {/* Args preview when not expanded */}
+          {!expanded && argsSummary && (
+            <p className="text-[10px] text-slate-400 mt-0.5 truncate">{argsSummary}</p>
+          )}
+        </div>
+
+        {/* Expand toggle */}
+        <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''} flex-shrink-0`} />
       </button>
 
-      {expanded && Boolean(tc.result) && (
-        <div className="px-3 pb-3 pt-1 border-t border-slate-200 dark:border-slate-700">
-          {(() => {
-            const result = tc.result as Record<string, unknown>;
-            const fileList = result.files as Array<{ id: string; name: string; mimeType?: string | null; size?: number }> | undefined;
+      {/* Expanded content */}
+      {expanded && (
+        <div className="px-3 pb-2.5 pt-0 border-t border-slate-100 dark:border-slate-700/50 space-y-2">
+          {/* Args detail */}
+          {hasArgs && (
+            <div className="pt-2">
+              <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">参数</p>
+              <pre className="text-[11px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-md p-2 overflow-auto font-mono max-h-24">
+                {JSON.stringify(tc.args, null, 2)}
+              </pre>
+            </div>
+          )}
 
-            if (fileList && Array.isArray(fileList) && fileList.length > 0) {
-              return (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {fileList.map((f) => (
+          {/* Result */}
+          {showResult && (
+            <div>
+              <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">结果</p>
+              {resultFiles.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                  {resultFiles.map((f) => (
                     <button
                       key={f.id}
-                      onClick={() => window.open(`/files/${f.id}`, '_blank')}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-violet-300 dark:hover:border-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all text-left"
+                      onClick={() => onFileClick(f.id)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 hover:border-violet-300 dark:hover:border-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all text-left"
                     >
-                      <File className="h-4 w-4 text-slate-400 shrink-0" />
-                      <span className="text-sm text-slate-700 dark:text-slate-300 truncate">{f.name}</span>
+                      <File className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                      <span className="text-xs text-slate-700 dark:text-slate-300 truncate">{f.name}</span>
                     </button>
                   ))}
                 </div>
-              );
-            }
+              ) : (
+                <pre className={`text-[11px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-md p-2 overflow-auto font-mono max-h-32`}>
+                  {(() => {
+                    const resultStr = JSON.stringify(tc.result, null, 2);
+                    return resultStr.length > 500 ? resultStr.slice(0, 500) + '\n... (已截断)' : resultStr;
+                  })()}
+                </pre>
+              )}
+            </div>
+          )}
 
-            return (
-              <pre className="text-[10px] text-slate-500 dark:text-slate-400 overflow-auto max-h-40 whitespace-pre-wrap">
-                {JSON.stringify(tc.result, null, 2) as React.ReactNode}
-              </pre>
-            );
-          })()}
+          {/* Running state placeholder */}
+          {isRunning && !tc.result && (
+            <div className="pt-1 flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+              <div className="flex gap-0.5">
+                {[0, 100, 200].map(d => (
+                  <span key={d} className="h-1 w-1 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                ))}
+              </div>
+              等待工具返回结果…
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -359,6 +427,10 @@ export function AIChat() {
       navigate(`/files?preview=${fileId}`);
     }
   }, [navigate]);
+
+  const handleToolFileClick = useCallback((id: string) => {
+    handleFileClick(id, false);
+  }, [handleFileClick]);
 
   const closePreview = useCallback(() => setPreviewFile(null), []);
 
@@ -604,12 +676,26 @@ export function AIChat() {
               </div>
             </div>
           </div>
-          <button onClick={() => navigate('/ai-settings')}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            title="AI 设置"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {tokenUsage && (
+              <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium ${tokenUsage.remaining < 10000 ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'}`}>
+                <Sparkles className="h-3 w-3" />
+                {formatTokenCount(tokenUsage.used)} / {formatTokenCount(tokenUsage.quota)}
+                {tokenUsage.remaining < 10000 && <span className="ml-0.5">⚠️</span>}
+              </div>
+            )}
+            <button onClick={() => navigate(-1)} title="返回上一页"
+              className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </button>
+            <button onClick={() => navigate('/ai-settings')}
+              className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="AI 设置"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          </div>
         </header>
 
         {/* Messages */}
@@ -651,7 +737,7 @@ export function AIChat() {
                   {/* Tool calls (above bubble, assistant only) */}
                   {msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0 && (
                     <div className="mb-2 space-y-1">
-                      {msg.toolCalls.map(tc => <ToolCallCard key={tc.id} tc={tc} />)}
+                      {msg.toolCalls.map(tc => <ToolCallCard key={tc.id} tc={tc} onFileClick={handleToolFileClick} />)}
                     </div>
                   )}
 
@@ -747,12 +833,6 @@ export function AIChat() {
               </div>
             </div>
             {input.length > 0 && <p className="text-[10px] text-slate-400 mt-1 text-right">{input.length} 字</p>}
-            {tokenUsage && (
-              <p className="text-[10px] text-slate-400 mt-0.5 text-center">
-                今日 Token: <span className={tokenUsage.remaining < 10000 ? 'text-orange-500' : ''}>{formatTokenCount(tokenUsage.used)}</span> / {formatTokenCount(tokenUsage.quota)}
-                {tokenUsage.remaining < 10000 && <span className="ml-1 text-orange-500">（剩余 {formatTokenCount(tokenUsage.remaining)}）</span>}
-              </p>
-            )}
           </div>
         </div>
       </div>

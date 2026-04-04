@@ -82,7 +82,14 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     function: {
       name: 'search_files',
       description:
-        '通过自然语言语义或关键词在用户的所有文件中搜索。适用于"帮我找关于XX的文件"、"有没有XX相关的文档"等场景。返回最相关的文件列表。',
+        `【文件搜索】通过语义理解或关键词在用户所有文件中搜索。
+🎯 最佳实践：
+  - 用简短核心词搜索（2-6个字），不要用完整句子
+  - 例："项目报告" 而非 "帮我找一下上个季度的项目总结报告"
+  - 用户提到"图片/PDF/文档"时，务必设置 mimeType 参数过滤
+🔗 链式规则：
+  - 返回 1-5 个结果时，下一步应自动调用 get_file_content 读取内容
+  - 返回 0 个结果时，换关键词重试或用 list_recent`,
       parameters: {
         type: 'object',
         properties: {
@@ -239,13 +246,19 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     function: {
       name: 'get_file_content',
       description:
-        '获取文件的内容摘要和分段信息。适用于"这个PDF里第几页说了什么"、"这个文件讲了什么"、"文件的主要内容是什么"等场景。返回AI摘要、内容分段和元数据。',
+        `【内容深度读取】获取文件的完整内容摘要和分段信息。
+⚠️ 使用时机：
+  - 搜索到目标文件后，用户想了解文件具体内容时
+  - 用户问"这个文件讲了什么"、"PDF里第几页说了什么"
+  - search_files 返回 ≤5 个结果时，应自动调用此工具读取内容
+📤 返回：AI摘要 + 内容分段（每段约1500字）+ 元数据
+💡 注意：图片/二进制文件会返回"无文本内容"提示`,
       parameters: {
         type: 'object',
         properties: {
           fileId: {
             type: 'string',
-            description: '文件的ID',
+            description: '文件的ID（从search_files或list_recent的结果中获取）',
           },
           section: {
             type: 'string',
