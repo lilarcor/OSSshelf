@@ -146,19 +146,20 @@ function ToolCallCard({ tc }: { tc: ToolCallEvent }) {
 }
 
 function AssistantContent({ content, onFileClick }: { content: string; onFileClick: (id: string, isFolder: boolean) => void }) {
-  const hasRefs = /\[(FILE|FOLDER):[^\]]+\]/.test(content);
+  const cleanedContent = content.replace(/```tool_call\s*[\s\S]*?```/g, '').trim();
+  const hasRefs = /\[(FILE|FOLDER):[^\]]+\]/.test(cleanedContent);
 
   if (!hasRefs) {
     return (
       <div className="prose prose-xs max-w-none dark:prose-invert prose-p:my-0.5 prose-headings:mt-2 prose-pre:bg-slate-950 prose-pre:p-2 prose-pre:rounded-lg prose-code:text-violet-600 dark:prose-code:text-violet-400 prose-pre:text-xs">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{content}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{cleanedContent}</ReactMarkdown>
       </div>
     );
   }
 
   return (
     <div className="text-xs leading-relaxed whitespace-pre-wrap">
-      {parseFileRefs(content, onFileClick)}
+      {parseFileRefs(cleanedContent, onFileClick)}
     </div>
   );
 }

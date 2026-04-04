@@ -15,15 +15,18 @@ import {
   MessageSquare, Send, FileText, Image, File, Sparkles, FolderOpen,
   Plus, Trash2, ExternalLink, PanelLeftClose,
   Settings, StopCircle, Copy, Check, RefreshCw, Pencil, X,
-  Loader2, Search, BarChart3, Star, Share2, Clock, Tag,
+  Loader2, Search, BarChart3, Star, Share2, Clock, Tag, Download,
 } from 'lucide-react';
-import { aiApi, type AiChatMessage } from '@/services/api';
+import { aiApi, filesApi, type AiChatMessage } from '@/services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github-dark.css';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDate } from '@/utils';
+import { FilePreview } from '@/components/files/FilePreview';
+import { useAuthStore } from '@/stores/auth';
+import type { FileItem } from '@osshelf/shared';
 
 // ────────────────────────────────────────────────────────────
 // Types
@@ -250,13 +253,13 @@ function FileChip({ file, onClick }: { file: AgentFile; onClick: () => void }) {
 
 // Renders assistant message content with [FILE:...] refs converted to buttons
 function AssistantContent({ content, onFileClick }: { content: string; onFileClick: (id: string, isFolder: boolean) => void }) {
-  // Split on file/folder refs and render mixed React content
-  const hasRefs = /\[(FILE|FOLDER):[^\]]+\]/.test(content);
+  const cleanedContent = content.replace(/```tool_call\s*[\s\S]*?```/g, '').trim();
+  const hasRefs = /\[(FILE|FOLDER):[^\]]+\]/.test(cleanedContent);
 
   if (!hasRefs) {
     return (
       <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-headings:mt-3 prose-pre:bg-slate-950 prose-code:text-violet-600 dark:prose-code:text-violet-400">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{content}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{cleanedContent}</ReactMarkdown>
       </div>
     );
   }
@@ -264,7 +267,7 @@ function AssistantContent({ content, onFileClick }: { content: string; onFileCli
   // Has refs — render inline
   return (
     <div className="text-sm leading-relaxed whitespace-pre-wrap">
-      {parseFileRefs(content, onFileClick)}
+      {parseFileRefs(cleanedContent, onFileClick)}
     </div>
   );
 }
@@ -277,6 +280,7 @@ export function AIChat() {
   const navigate = useNavigate();
   const { sessionId: urlSessionId } = useParams<{ sessionId: string }>();
   const queryClient = useQueryClient();
+  const { token } = useAuthStore();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -287,6 +291,7 @@ export function AIChat() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [tokenUsage, setTokenUsage] = useState<{ used: number; remaining: number; quota: number } | null>(null);
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -341,15 +346,21 @@ export function AIChat() {
     el.style.height = Math.min(el.scrollHeight, 160) + 'px';
   };
 
-  const handleFileClick = useCallback((fileId: string, isFolder: boolean) => {
+  const handleFileClick = useCallback(async (fileId: string, isFolder: boolean) => {
     if (isFolder) {
-      // Uses /files/:folderId route — navigates directly into that folder
       navigate(`/files/${fileId}`);
-    } else {
-      // Opens file preview via query param — Files.tsx useEffect picks this up
+      return;
+    }
+
+    try {
+      const res = await filesApi.get(fileId);
+      if (res.data?.data) setPreviewFile(res.data.data);
+    } catch {
       navigate(`/files?preview=${fileId}`);
     }
   }, [navigate]);
+
+  const closePreview = useCallback(() => setPreviewFile(null), []);
 
   const loadSession = async (sessionId: string) => {
     try {
@@ -745,6 +756,25 @@ export function AIChat() {
           </div>
         </div>
       </div>
+
+      {previewFile && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-5xl h-[85vh] bg-white dark:bg-slate-900 rounded-xl shadow-2xl overflow-hidden flex flex-col">
+            <FilePreview
+              file={previewFile}
+              token={token || ''}
+              onClose={closePreview}
+              onDownload={(f) => {
+                const a = document.createElement('a');
+                a.href = `/api/files/${f.id}/download`;
+                a.download = f.name;
+                a.click();
+              }}
+              onShare={(id) => { closePreview(); navigate(`/files?id=${id}&tab=share`); }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
