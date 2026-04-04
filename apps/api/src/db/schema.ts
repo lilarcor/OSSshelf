@@ -669,3 +669,26 @@ export const aiChatMessages = sqliteTable(
 export type AiModel = typeof aiModels.$inferSelect;
 export type AiChatSession = typeof aiChatSessions.$inferSelect;
 export type AiChatMessage = typeof aiChatMessages.$inferSelect;
+
+export const aiTasks = sqliteTable(
+  'ai_tasks',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    type: text('type').notNull(), // 'index' | 'summary' | 'tags'
+    status: text('status').notNull().default('running'), // 'running' | 'completed' | 'failed' | 'cancelled'
+    total: integer('total').notNull(),
+    processed: integer('processed').notNull().default(0),
+    failed: integer('failed').notNull().default(0),
+    startedAt: text('started_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+    completedAt: text('completed_at'),
+    error: text('error'),
+  },
+  (table) => ({
+    userTypeIdx: index('idx_ai_tasks_user_type').on(table.userId, table.type),
+    statusIdx: index('idx_ai_tasks_status').on(table.status),
+  })
+);
+
+export type AiTask = typeof aiTasks.$inferSelect;

@@ -2,63 +2,168 @@
  * aiTaskQueue.ts
  * AI 批处理任务队列处理器
  *
- * 功能:
- * - 处理单个文件的 AI 任务（索引、摘要、标签）
- * - 更新任务进度
- * - 错误处理和重试
- *
- * 优势:
- * - 每个 Worker 只处理单个文件，避免 CPU 时间限制
- * - 自动重试机制
- * - 任务进度持久化
+ * 改动：进度存储从 KV 迁移至 D1（aiTasks 表）
+ * - 使用 SQL 原子自增避免并发计数丢失
+ * - 任务状态持久化，不依赖 KV TTL
  */
 
 import type { Env, AiTaskMessage } from '../types/env';
-import { getDb, files } from '../db';
-import { eq, and, isNull } from 'drizzle-orm';
+import { getDb, aiTasks } from '../db';
+import { eq, and, sql } from 'drizzle-orm';
 import { logger } from '@osshelf/shared';
 import { indexFileVector, buildFileTextForVector } from './vectorIndex';
 import { generateFileSummary, generateImageTags } from './ai/features';
 
-interface TaskProgress {
+export type TaskStatus = 'running' | 'completed' | 'failed' | 'cancelled';
+
+export interface TaskProgress {
   id: string;
-  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  userId: string;
+  type: string;
+  status: TaskStatus;
   total: number;
   processed: number;
   failed: number;
   startedAt: string;
   updatedAt: string;
-  completedAt?: string;
-  error?: string;
+  completedAt?: string | null;
+  error?: string | null;
 }
 
-function getTaskKey(type: string, userId: string): string {
-  return `ai:${type}:task:${userId}`;
-}
+// ─── 读取任务 ──────────────────────────────────────────────────────────────
 
-async function updateTaskProgress(
+export async function getTaskRecord(
   env: Env,
-  type: string,
-  userId: string,
-  updates: Partial<TaskProgress>
+  taskId: string
 ): Promise<TaskProgress | null> {
-  const taskKey = getTaskKey(type, userId);
-  const existing = await env.KV.get(taskKey, 'json');
+  const db = getDb(env.DB);
+  const row = await db.select().from(aiTasks).where(eq(aiTasks.id, taskId)).get();
+  if (!row) return null;
+  return row as TaskProgress;
+}
 
-  if (!existing) {
-    return null;
-  }
+export async function getLatestTaskByUserType(
+  env: Env,
+  userId: string,
+  type: string
+): Promise<TaskProgress | null> {
+  const db = getDb(env.DB);
+  const normalizedType = type === 'summary' ? 'summarize' : type;
+  const row = await db
+    .select()
+    .from(aiTasks)
+    .where(and(eq(aiTasks.userId, userId), eq(aiTasks.type, normalizedType)))
+    .orderBy(sql`${aiTasks.startedAt} DESC`)
+    .limit(1)
+    .get();
+  if (!row) return null;
+  return row as TaskProgress;
+}
 
-  const task = existing as TaskProgress;
-  const updated = {
-    ...task,
-    ...updates,
-    updatedAt: new Date().toISOString(),
+// ─── 创建任务 ──────────────────────────────────────────────────────────────
+
+export async function createTaskRecord(
+  env: Env,
+  type: 'index' | 'summary' | 'tags',
+  userId: string,
+  total: number
+): Promise<TaskProgress> {
+  const db = getDb(env.DB);
+  const normalizedType = type === 'summary' ? 'summarize' : type;
+  const now = new Date().toISOString();
+
+  const task: TaskProgress = {
+    id: crypto.randomUUID(),
+    userId,
+    type: normalizedType,
+    status: 'running',
+    total,
+    processed: 0,
+    failed: 0,
+    startedAt: now,
+    updatedAt: now,
   };
 
-  await env.KV.put(taskKey, JSON.stringify(updated), { expirationTtl: 86400 });
-  return updated;
+  await db.insert(aiTasks).values(task);
+  return task;
 }
+
+// ─── 取消任务 ──────────────────────────────────────────────────────────────
+
+export async function cancelTask(
+  env: Env,
+  userId: string,
+  type: string
+): Promise<TaskProgress | null> {
+  const db = getDb(env.DB);
+  const normalizedType = type === 'summary' ? 'summarize' : type;
+  const now = new Date().toISOString();
+
+  const existing = await db
+    .select()
+    .from(aiTasks)
+    .where(
+      and(
+        eq(aiTasks.userId, userId),
+        eq(aiTasks.type, normalizedType),
+        eq(aiTasks.status, 'running')
+      )
+    )
+    .orderBy(sql`${aiTasks.startedAt} DESC`)
+    .limit(1)
+    .get();
+
+  if (!existing) return null;
+
+  await db
+    .update(aiTasks)
+    .set({ status: 'cancelled', completedAt: now, updatedAt: now, error: '用户手动取消' })
+    .where(eq(aiTasks.id, existing.id));
+
+  return { ...existing, status: 'cancelled', completedAt: now, updatedAt: now, error: '用户手动取消' };
+}
+
+// ─── 原子自增进度（关键：避免并发计数丢失）─────────────────────────────────
+
+async function incrementProcessed(env: Env, taskId: string): Promise<void> {
+  const db = getDb(env.DB);
+  const now = new Date().toISOString();
+  await db.run(
+    sql`UPDATE ai_tasks SET processed = processed + 1, updated_at = ${now} WHERE id = ${taskId}`
+  );
+  await checkAndCompleteTask(env, taskId);
+}
+
+async function incrementFailed(env: Env, taskId: string): Promise<void> {
+  const db = getDb(env.DB);
+  const now = new Date().toISOString();
+  await db.run(
+    sql`UPDATE ai_tasks SET failed = failed + 1, updated_at = ${now} WHERE id = ${taskId}`
+  );
+  await checkAndCompleteTask(env, taskId);
+}
+
+export async function checkAndCompleteTask(env: Env, taskId: string): Promise<boolean> {
+  const db = getDb(env.DB);
+  const now = new Date().toISOString();
+
+  // 原子：只有当 processed + failed >= total 时才更新为 completed
+  const result = await db.run(
+    sql`UPDATE ai_tasks
+        SET status = 'completed', completed_at = ${now}, updated_at = ${now}
+        WHERE id = ${taskId}
+          AND status = 'running'
+          AND (processed + failed) >= total`
+  );
+
+  if ((result as any).meta?.changes > 0) {
+    logger.info('AI_QUEUE', 'Task auto-completed', { taskId });
+    return true;
+  }
+  return false;
+}
+
+// ─── 任务处理器 ────────────────────────────────────────────────────────────
 
 async function handleIndexTask(env: Env, message: AiTaskMessage): Promise<{ success: boolean; error?: string }> {
   const { fileId, userId, taskId } = message;
@@ -66,24 +171,17 @@ async function handleIndexTask(env: Env, message: AiTaskMessage): Promise<{ succ
   try {
     const text = await buildFileTextForVector(env, fileId);
     if (!text || text.trim().length === 0) {
+      await incrementFailed(env, taskId);
       return { success: false, error: '文件内容为空' };
     }
 
     await indexFileVector(env, fileId, text);
-
-    await updateTaskProgress(env, 'index', userId, {
-      processed: await incrementProcessed(env, 'index', userId),
-    });
-
+    await incrementProcessed(env, taskId);
     return { success: true };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('AI_QUEUE', 'Index task failed', { fileId, taskId }, error);
-
-    await updateTaskProgress(env, 'index', userId, {
-      failed: await incrementFailed(env, 'index', userId),
-    });
-
+    await incrementFailed(env, taskId);
     return { success: false, error: errorMsg };
   }
 }
@@ -93,20 +191,12 @@ async function handleSummaryTask(env: Env, message: AiTaskMessage): Promise<{ su
 
   try {
     await generateFileSummary(env, fileId, undefined, userId);
-
-    await updateTaskProgress(env, 'summarize', userId, {
-      processed: await incrementProcessed(env, 'summarize', userId),
-    });
-
+    await incrementProcessed(env, taskId);
     return { success: true };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('AI_QUEUE', 'Summary task failed', { fileId, taskId }, error);
-
-    await updateTaskProgress(env, 'summarize', userId, {
-      failed: await incrementFailed(env, 'summarize', userId),
-    });
-
+    await incrementFailed(env, taskId);
     return { success: false, error: errorMsg };
   }
 }
@@ -116,36 +206,14 @@ async function handleTagsTask(env: Env, message: AiTaskMessage): Promise<{ succe
 
   try {
     await generateImageTags(env, fileId, undefined, userId);
-
-    await updateTaskProgress(env, 'tags', userId, {
-      processed: await incrementProcessed(env, 'tags', userId),
-    });
-
+    await incrementProcessed(env, taskId);
     return { success: true };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('AI_QUEUE', 'Tags task failed', { fileId, taskId }, error);
-
-    await updateTaskProgress(env, 'tags', userId, {
-      failed: await incrementFailed(env, 'tags', userId),
-    });
-
+    await incrementFailed(env, taskId);
     return { success: false, error: errorMsg };
   }
-}
-
-async function incrementProcessed(env: Env, type: string, userId: string): Promise<number> {
-  const taskKey = getTaskKey(type, userId);
-  const existing = await env.KV.get(taskKey, 'json');
-  if (!existing) return 0;
-  return (existing as TaskProgress).processed + 1;
-}
-
-async function incrementFailed(env: Env, type: string, userId: string): Promise<number> {
-  const taskKey = getTaskKey(type, userId);
-  const existing = await env.KV.get(taskKey, 'json');
-  if (!existing) return 0;
-  return (existing as TaskProgress).failed + 1;
 }
 
 export async function processAiTaskMessage(
@@ -156,15 +224,15 @@ export async function processAiTaskMessage(
 
   logger.info('AI_QUEUE', 'Processing task', { type, fileId, taskId });
 
-  const taskKey = getTaskKey(type === 'summary' ? 'summarize' : type, userId);
-  const task = await env.KV.get(taskKey, 'json');
+  // 检查任务是否存在且未被取消
+  const task = await getTaskRecord(env, taskId);
 
   if (!task) {
-    logger.warn('AI_QUEUE', 'Task not found, skipping', { type, taskId });
+    logger.warn('AI_QUEUE', 'Task not found in DB, skipping', { type, taskId });
     return { success: false, error: '任务不存在' };
   }
 
-  if ((task as TaskProgress).status === 'cancelled') {
+  if (task.status === 'cancelled') {
     logger.info('AI_QUEUE', 'Task cancelled, skipping', { type, taskId });
     return { success: false, error: '任务已取消' };
   }
@@ -181,6 +249,8 @@ export async function processAiTaskMessage(
   }
 }
 
+// ─── 入队 ─────────────────────────────────────────────────────────────────
+
 export async function enqueueAiTasks(
   env: Env,
   type: 'index' | 'summary' | 'tags',
@@ -193,78 +263,21 @@ export async function enqueueAiTasks(
   }
 
   const BATCH_SIZE = 50;
-  const batches: Array<Array<{ body: AiTaskMessage }>> = [];
 
   for (let i = 0; i < fileIds.length; i += BATCH_SIZE) {
-    const batchFileIds = fileIds.slice(i, i + BATCH_SIZE);
-    batches.push(
-      batchFileIds.map((fileId) => ({
-        body: {
-          type,
-          fileId,
-          userId,
-          taskId,
-        } as AiTaskMessage,
-      }))
-    );
-  }
+    const batch = fileIds.slice(i, i + BATCH_SIZE).map((fileId) => ({
+      body: { type, fileId, userId, taskId } as AiTaskMessage,
+    }));
 
-  for (let i = 0; i < batches.length; i++) {
-    await env.AI_TASKS_QUEUE.sendBatch(batches[i]);
+    await env.AI_TASKS_QUEUE.sendBatch(batch);
     logger.info('AI_QUEUE', 'Enqueued batch', {
       type,
-      batch: i + 1,
-      totalBatches: batches.length,
-      batchSize: batches[i].length,
+      batch: Math.floor(i / BATCH_SIZE) + 1,
+      totalBatches: Math.ceil(fileIds.length / BATCH_SIZE),
+      batchSize: batch.length,
       taskId,
     });
   }
 
   logger.info('AI_QUEUE', 'All tasks enqueued', { type, totalFiles: fileIds.length, taskId });
-}
-
-export async function createTaskRecord(
-  env: Env,
-  type: 'index' | 'summary' | 'tags',
-  userId: string,
-  total: number
-): Promise<TaskProgress> {
-  const taskKey = getTaskKey(type === 'summary' ? 'summarize' : type, userId);
-  const task: TaskProgress = {
-    id: crypto.randomUUID(),
-    status: 'running',
-    total,
-    processed: 0,
-    failed: 0,
-    startedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  await env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-  return task;
-}
-
-export async function checkAndCompleteTask(
-  env: Env,
-  type: 'index' | 'summary' | 'tags',
-  userId: string
-): Promise<boolean> {
-  const taskKey = getTaskKey(type === 'summary' ? 'summarize' : type, userId);
-  const task = await env.KV.get(taskKey, 'json');
-
-  if (!task) return false;
-
-  const t = task as TaskProgress;
-  const total = t.processed + t.failed;
-
-  if (total >= t.total) {
-    await updateTaskProgress(env, type === 'summary' ? 'summarize' : type, userId, {
-      status: t.failed > 0 ? 'completed' : 'completed',
-      completedAt: new Date().toISOString(),
-    });
-    logger.info('AI_QUEUE', 'Task completed', { type, userId, processed: t.processed, failed: t.failed });
-    return true;
-  }
-
-  return false;
 }

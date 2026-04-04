@@ -15,13 +15,17 @@
  */
 
 import type { Env } from '../../types/env';
-import { getDb, files } from '../../db';
+import { getDb, files, telegramFileRefs, storageBuckets } from '../../db';
 import { eq } from 'drizzle-orm';
 import { getFileContent } from '../utils';
+import { getEncryptionKey } from '../crypto';
 import { isEditableFile, logger, logAiError } from '@osshelf/shared';
 import { indexFileVector, buildFileTextForVector } from '../vectorIndex';
 import { ModelGateway } from './modelGateway';
 import type { ChatCompletionRequest } from './types';
+import { tgDownloadFile, type TelegramBotConfig } from '../telegramClient';
+import { tgDownloadChunked, TG_CHUNK_THRESHOLD } from '../telegramChunked';
+import { decryptSecret } from '../s3client';
 
 const SUMMARY_CONTENT_LIMIT = 8192;
 const RENAME_CONTENT_LIMIT = 4096;
@@ -97,7 +101,9 @@ export function isImageFile(mimeType: string | null): boolean {
 }
 
 export function isAIConfigured(env: Env): boolean {
-  return !!(env.AI && env.VECTORIZE);
+  // env.AI 用于 Workers AI 模型；自定义模型通过 DB 配置，无需 env.AI
+  // VECTORIZE 仅向量索引需要，不阻塞摘要/标签生成
+  return true; // 实际能否运行由 enqueueAutoProcessFile 内部各任务判断
 }
 
 /**
@@ -666,12 +672,57 @@ async function extractTextFromFile(env: Env, file: typeof files.$inferSelect): P
   }
 }
 
+async function resolveTgConfig(
+  env: Env,
+  bucketId: string
+): Promise<TelegramBotConfig | null> {
+  const db = getDb(env.DB);
+  const bucket = await db.select().from(storageBuckets).where(eq(storageBuckets.id, bucketId)).get();
+  if (!bucket || bucket.provider !== 'telegram') return null;
+  const encKey = getEncryptionKey(env);
+  const botToken = await decryptSecret(bucket.accessKeyId, encKey);
+  return { botToken, chatId: bucket.bucketName, apiBase: bucket.endpoint || undefined };
+}
+
 async function fetchFileContentAsBuffer(env: Env, file: typeof files.$inferSelect): Promise<ArrayBuffer | null> {
   if (!file.bucketId || !file.r2Key) {
     return null;
   }
 
   try {
+    const db = getDb(env.DB);
+
+    // 检查是否是 Telegram 存储
+    const tgRef = await db
+      .select()
+      .from(telegramFileRefs)
+      .where(eq(telegramFileRefs.fileId, file.id))
+      .get();
+
+    if (tgRef) {
+      const tgConfig = await resolveTgConfig(env, file.bucketId);
+      if (!tgConfig) {
+        logger.error('AI', 'Telegram 存储桶配置解析失败', { fileId: file.id, bucketId: file.bucketId });
+        return null;
+      }
+
+      let stream: ReadableStream<Uint8Array> | null = null;
+      if ((tgRef.tgFileSize ?? 0) > TG_CHUNK_THRESHOLD) {
+        stream = await tgDownloadChunked(tgConfig, tgRef.tgFileId, db);
+      } else {
+        const resp = await tgDownloadFile(tgConfig, tgRef.tgFileId);
+        stream = resp.body;
+      }
+
+      if (!stream) {
+        logger.error('AI', 'Telegram 文件流为空', { fileId: file.id, tgFileId: tgRef.tgFileId });
+        return null;
+      }
+
+      return new Response(stream).arrayBuffer();
+    }
+
+    // 普通 S3/R2 存储
     return await getFileContent(env, file.bucketId, file.r2Key);
   } catch (error) {
     logger.error('AI', '获取文件内容失败', { fileId: file.id, r2Key: file.r2Key }, error);

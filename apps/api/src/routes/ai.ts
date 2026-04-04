@@ -18,17 +18,6 @@ import { ERROR_CODES, logger } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
 import { z } from 'zod';
 
-interface IndexTask {
-  id: string;
-  status: 'running' | 'completed' | 'failed' | 'cancelled';
-  total: number;
-  processed: number;
-  failed: number;
-  startedAt: string;
-  updatedAt: string;
-  completedAt?: string;
-  error?: string;
-}
 import {
   indexFileVector,
   deleteFileVector,
@@ -44,7 +33,7 @@ import {
   canGenerateSummary,
 } from '../lib/ai/features';
 import { createNotification, sendNotification } from '../lib/notificationUtils';
-import { enqueueAiTasks, createTaskRecord } from '../lib/aiTaskQueue';
+import { enqueueAiTasks, createTaskRecord, cancelTask, getLatestTaskByUserType } from '../lib/aiTaskQueue';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use('/*', authMiddleware);
@@ -123,10 +112,8 @@ app.post('/index/all', async (c) => {
     }, 503);
   }
 
-  const taskKey = `ai:index:task:${userId}`;
-  const existingTask = await c.env.KV.get(taskKey, 'json');
-
-  if (existingTask && (existingTask as IndexTask).status === 'running') {
+  const existingTask = await getLatestTaskByUserType(c.env, userId, 'index');
+  if (existingTask && existingTask.status === 'running') {
     return c.json({
       success: false,
       error: {
@@ -176,66 +163,23 @@ app.post('/index/all', async (c) => {
 
 app.get('/index/status', async (c) => {
   const userId = c.get('userId')!;
-  const taskKey = `ai:index:task:${userId}`;
-
-  const task = await c.env.KV.get(taskKey, 'json');
-
+  const task = await getLatestTaskByUserType(c.env, userId, 'index');
   if (!task) {
-    return c.json({
-      success: true,
-      data: {
-        id: '',
-        status: 'idle',
-        total: 0,
-        processed: 0,
-        failed: 0,
-      },
-    });
+    return c.json({ success: true, data: { id: '', status: 'idle', total: 0, processed: 0, failed: 0 } });
   }
-
   return c.json({ success: true, data: task });
 });
 
 app.delete('/index/task', async (c) => {
   const userId = c.get('userId')!;
-  const taskKey = `ai:index:task:${userId}`;
-
-  const existingTask = await c.env.KV.get(taskKey, 'json');
-
-  if (!existingTask) {
-    return c.json({
-      success: true,
-      data: { message: '没有需要取消的任务' },
-    });
+  const task = await cancelTask(c.env, userId, 'index');
+  if (!task) {
+    return c.json({ success: true, data: { message: '没有需要取消的任务' } });
   }
-
-  const task = existingTask as IndexTask;
-  task.status = 'cancelled';
-  task.completedAt = new Date().toISOString();
-  task.updatedAt = new Date().toISOString();
-  task.error = '用户手动取消';
-
-  await c.env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-
-  return c.json({
-    success: true,
-    data: { message: '索引任务已取消', task },
-  });
+  return c.json({ success: true, data: { message: '索引任务已取消', task } });
 });
 
 // 批量处理路由必须在 :fileId 参数路由之前
-interface SummarizeTask {
-  id: string;
-  status: 'running' | 'completed' | 'failed' | 'cancelled';
-  total: number;
-  processed: number;
-  failed: number;
-  startedAt: string;
-  updatedAt: string;
-  completedAt?: string;
-  error?: string;
-}
-
 app.post('/summarize/batch', async (c) => {
   const userId = c.get('userId')!;
 
@@ -249,10 +193,8 @@ app.post('/summarize/batch', async (c) => {
     }, 503);
   }
 
-  const taskKey = `ai:summarize:task:${userId}`;
-  const existingTask = await c.env.KV.get(taskKey, 'json');
-
-  if (existingTask && (existingTask as SummarizeTask).status === 'running') {
+  const existingTask = await getLatestTaskByUserType(c.env, userId, 'summarize');
+  if (existingTask && existingTask.status === 'running') {
     return c.json({
       success: false,
       error: {
@@ -302,37 +244,12 @@ app.post('/summarize/batch', async (c) => {
 
 app.get('/summarize/task', async (c) => {
   const userId = c.get('userId')!;
-  const taskKey = `ai:summarize:task:${userId}`;
-
-  const task = await c.env.KV.get(taskKey, 'json');
-
+  const task = await getLatestTaskByUserType(c.env, userId, 'summarize');
   if (!task) {
-    return c.json({
-      success: true,
-      data: {
-        id: '',
-        status: 'idle',
-        total: 0,
-        processed: 0,
-        failed: 0,
-      },
-    });
+    return c.json({ success: true, data: { id: '', status: 'idle', total: 0, processed: 0, failed: 0 } });
   }
-
   return c.json({ success: true, data: task });
 });
-
-interface TagsTask {
-  id: string;
-  status: 'running' | 'completed' | 'failed' | 'cancelled';
-  total: number;
-  processed: number;
-  failed: number;
-  startedAt: string;
-  updatedAt: string;
-  completedAt?: string;
-  error?: string;
-}
 
 app.post('/tags/batch', async (c) => {
   const userId = c.get('userId')!;
@@ -347,10 +264,8 @@ app.post('/tags/batch', async (c) => {
     }, 503);
   }
 
-  const taskKey = `ai:tags:task:${userId}`;
-  const existingTask = await c.env.KV.get(taskKey, 'json');
-
-  if (existingTask && (existingTask as TagsTask).status === 'running') {
+  const existingTask = await getLatestTaskByUserType(c.env, userId, 'tags');
+  if (existingTask && existingTask.status === 'running') {
     return c.json({
       success: false,
       error: {
@@ -407,64 +322,29 @@ app.post('/tags/batch', async (c) => {
 // 取消摘要任务
 app.delete('/summarize/batch', async (c) => {
   const userId = c.get('userId')!;
-  const taskKey = `ai:summarize:task:${userId}`;
-  const existingTask = await c.env.KV.get(taskKey, 'json');
-
-  if (!existingTask) {
+  const task = await cancelTask(c.env, userId, 'summarize');
+  if (!task) {
     return c.json({ success: true, data: { message: '没有需要取消的任务' } });
   }
-
-  const task = existingTask as SummarizeTask;
-  task.status = 'cancelled';
-  task.completedAt = new Date().toISOString();
-  task.updatedAt = new Date().toISOString();
-  task.error = '用户手动取消';
-
-  await c.env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-
   return c.json({ success: true, data: { message: '摘要任务已取消', task } });
 });
 
 // 取消标签任务
 app.delete('/tags/batch', async (c) => {
   const userId = c.get('userId')!;
-  const taskKey = `ai:tags:task:${userId}`;
-  const existingTask = await c.env.KV.get(taskKey, 'json');
-
-  if (!existingTask) {
+  const task = await cancelTask(c.env, userId, 'tags');
+  if (!task) {
     return c.json({ success: true, data: { message: '没有需要取消的任务' } });
   }
-
-  const task = existingTask as TagsTask;
-  task.status = 'cancelled';
-  task.completedAt = new Date().toISOString();
-  task.updatedAt = new Date().toISOString();
-  task.error = '用户手动取消';
-
-  await c.env.KV.put(taskKey, JSON.stringify(task), { expirationTtl: 86400 });
-
   return c.json({ success: true, data: { message: '标签任务已取消', task } });
 });
 
 app.get('/tags/task', async (c) => {
   const userId = c.get('userId')!;
-  const taskKey = `ai:tags:task:${userId}`;
-
-  const task = await c.env.KV.get(taskKey, 'json');
-
+  const task = await getLatestTaskByUserType(c.env, userId, 'tags');
   if (!task) {
-    return c.json({
-      success: true,
-      data: {
-        id: '',
-        status: 'idle',
-        total: 0,
-        processed: 0,
-        failed: 0,
-      },
-    });
+    return c.json({ success: true, data: { id: '', status: 'idle', total: 0, processed: 0, failed: 0 } });
   }
-
   return c.json({ success: true, data: task });
 });
 

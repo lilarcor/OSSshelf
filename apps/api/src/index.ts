@@ -208,7 +208,7 @@ export default {
             fileId: message.body.fileId,
           });
 
-          await checkAndCompleteTask(env, message.body.type, message.body.userId);
+          await checkAndCompleteTask(env, message.body.taskId);
         } else {
           message.retry();
           appLogger.warn('QUEUE', '任务处理失败，将重试', {

@@ -116,6 +116,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         max_tokens: request.maxTokens || this.config.maxTokens,
         temperature: request.temperature ?? this.config.temperature,
         stream: true,
+        stream_options: { include_usage: true },
       };
 
       if (request.tools && request.tools.length > 0) {
@@ -189,6 +190,22 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
             try {
               const data = JSON.parse(trimmedLine.slice(6));
               const delta = data.choices?.[0]?.delta;
+
+              // 解析 usage（stream_options.include_usage=true 时，最后一个 chunk 含此字段）
+              if (data.usage) {
+                onChunk({
+                  id: data.id || crypto.randomUUID(),
+                  content: '',
+                  role: 'assistant',
+                  model: this.config.modelId,
+                  done: false,
+                  usage: {
+                    promptTokens: data.usage.prompt_tokens,
+                    completionTokens: data.usage.completion_tokens,
+                    totalTokens: data.usage.total_tokens,
+                  },
+                });
+              }
 
               if (delta?.content) {
                 onChunk({
