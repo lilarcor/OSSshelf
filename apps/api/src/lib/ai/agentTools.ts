@@ -61,6 +61,8 @@ import { getEncryptionKey } from '../crypto';
 import type { Env } from '../../types/env';
 import { logger } from '@osshelf/shared';
 import { getAiConfigString, getAiConfigNumber } from './aiConfigService';
+import { ModelGateway } from './modelGateway';
+import type { ModelConfig } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 公共类型
@@ -851,10 +853,8 @@ export class AgentToolExecutor {
       };
     }
 
-    // 尝试获取图片数据
     const buffer = await fetchFileBuffer(this.env, file);
     if (!buffer) {
-      // 降级：返回已有的 AI 元数据
       return {
         fileId,
         fileName: file.name,
@@ -870,22 +870,6 @@ export class AgentToolExecutor {
       };
     }
 
-    // 视觉模型分析
-    if (!this.env.AI) {
-      return {
-        fileId,
-        fileName: file.name,
-        mimeType: file.mimeType,
-        visualDescription: null,
-        existingMetadata: {
-          aiTags: file.aiTags || null,
-          aiSummary: file.aiSummary || null,
-          description: file.description || null,
-        },
-        note: 'Workers AI 未绑定，无法进行视觉分析。已返回已有元数据供参考。',
-      };
-    }
-
     try {
       const imageBytes = new Uint8Array(buffer);
       const visionModelId = await getAiConfigString(
@@ -895,16 +879,89 @@ export class AgentToolExecutor {
       );
       const visionMaxTokens = await getAiConfigNumber(this.env, 'ai.vision.max_tokens', 600);
 
-      const result = await (this.env.AI as any).run(visionModelId, {
-        image: Array.from(imageBytes),
-        prompt: question,
-        max_tokens: visionMaxTokens,
-      });
+      const resolved = await resolveModelForCall(this.env, this.userId, visionModelId);
 
-      const description: string =
-        typeof result === 'string'
-          ? result
-          : ((result as any)?.description ?? (result as any)?.response ?? JSON.stringify(result));
+      let description: string;
+
+      if (resolved.type === 'custom') {
+        const customModel = resolved.config;
+        if (customModel.provider === 'openai_compatible') {
+          if (!customModel.capabilities.includes('vision')) {
+            logger.warn('AgentTool', 'Custom model does not support vision', {
+              modelId: visionModelId,
+              capabilities: customModel.capabilities,
+            });
+            return {
+              fileId,
+              fileName: file.name,
+              mimeType: file.mimeType,
+              visualDescription: null,
+              error: '配置的模型不支持视觉分析',
+              existingMetadata: {
+                aiTags: file.aiTags || null,
+                aiSummary: file.aiSummary || null,
+                description: file.description || null,
+              },
+              note: '请在 AI 设置中配置支持视觉的模型（如 glm-4v-flash）。',
+            };
+          }
+          const gateway = new ModelGateway(this.env);
+          const base64Image = uint8ArrayToBase64(imageBytes);
+          const response = await gateway.chatCompletion(
+            this.userId,
+            {
+              messages: [
+                {
+                  role: 'user',
+                  content: [
+                    { type: 'text', text: question },
+                    { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
+                  ],
+                },
+              ],
+              maxTokens: visionMaxTokens,
+            },
+            visionModelId
+          );
+          description = response.content.trim();
+        } else if (this.env.AI) {
+          const result = await (this.env.AI as any).run(visionModelId, {
+            image: Array.from(imageBytes),
+            prompt: question,
+            max_tokens: visionMaxTokens,
+          });
+          description =
+            (result as any)?.description?.trim() ||
+            (result as any)?.response?.trim() ||
+            '';
+        } else {
+          throw new Error('No AI service available for this model type');
+        }
+      } else {
+        if (!this.env.AI) {
+          return {
+            fileId,
+            fileName: file.name,
+            mimeType: file.mimeType,
+            visualDescription: null,
+            existingMetadata: {
+              aiTags: file.aiTags || null,
+              aiSummary: file.aiSummary || null,
+              description: file.description || null,
+            },
+            note: 'Workers AI 未绑定，无法进行视觉分析。已返回已有元数据供参考。',
+          };
+        }
+        const result = await (this.env.AI as any).run(visionModelId, {
+          image: Array.from(imageBytes),
+          prompt: question,
+          max_tokens: visionMaxTokens,
+        });
+        description =
+          typeof result === 'string'
+            ? result
+            : ((result as any)?.description ?? (result as any)?.response ?? JSON.stringify(result));
+      }
 
       return {
         fileId,
@@ -1477,6 +1534,29 @@ export async function fetchFileBuffer(
 // ─────────────────────────────────────────────────────────────────────────────
 // 辅助函数
 // ─────────────────────────────────────────────────────────────────────────────
+
+async function resolveModelForCall(
+  env: Env,
+  userId: string,
+  modelId: string
+): Promise<{ type: 'custom'; config: ModelConfig } | { type: 'workers_ai'; modelId: string }> {
+  const gateway = new ModelGateway(env);
+  const customModel = await gateway.getModelById(modelId, userId);
+  if (customModel) {
+    return { type: 'custom', config: customModel };
+  }
+  return { type: 'workers_ai', modelId };
+}
+
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  const chunkSize = 8192;
+  let binaryString = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.slice(i, i + chunkSize);
+    binaryString += String.fromCharCode(...chunk);
+  }
+  return btoa(binaryString);
+}
 
 function toAgentFile(f: Record<string, unknown>): AgentFile {
   return {

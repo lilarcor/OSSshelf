@@ -34,6 +34,8 @@ import {
 } from '../lib/ai/features';
 import { createNotification, sendNotification } from '../lib/notificationUtils';
 import { enqueueAiTasks, createTaskRecord, cancelTask, getLatestTaskByUserType } from '../lib/aiTaskQueue';
+import { ModelGateway } from '../lib/ai/modelGateway';
+import { getAiConfigString, getAiConfigNumber } from '../lib/ai/aiConfigService';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use('/*', authMiddleware);
@@ -904,22 +906,28 @@ app.post('/chat', async (c) => {
     })
     .join('\n\n');
 
-  const response = await (c.env.AI as any).run('@cf/meta/llama-3.1-8b-instruct', {
-    messages: [
-      {
-        role: 'system',
-        content:
-          '你是文件助手。根据提供的文件信息回答用户问题。回答要简洁准确，并在末尾用"来源：[序号]"注明引用了哪些文件。如果文件信息不足以回答问题，请如实说明。',
-      },
-      {
-        role: 'user',
-        content: `用户问题：${query}\n\n相关文件信息：\n${context}`,
-      },
-    ],
-    max_tokens: 500,
-  });
+  const chatModelId = await getAiConfigString(c.env, 'ai.default_model.chat', '@cf/meta/llama-3.1-8b-instruct');
+  const gateway = new ModelGateway(c.env);
+  const response = await gateway.chatCompletion(
+    userId,
+    {
+      messages: [
+        {
+          role: 'system',
+          content:
+            '你是文件助手。根据提供的文件信息回答用户问题。回答要简洁准确，并在末尾用"来源：[序号]"注明引用了哪些文件。如果文件信息不足以回答问题，请如实说明。',
+        },
+        {
+          role: 'user',
+          content: `用户问题：${query}\n\n相关文件信息：\n${context}`,
+        },
+      ],
+      maxTokens: 500,
+    },
+    chatModelId
+  );
 
-  const answer = (response as { response?: string }).response?.trim() || '无法生成回答，请重试。';
+  const answer = response.content.trim() || '无法生成回答，请重试。';
 
   return c.json({
     success: true,
