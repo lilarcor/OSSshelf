@@ -12,10 +12,29 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  MessageSquare, Send, FileText, Sparkles, FolderOpen,
-  Plus, Trash2, ExternalLink, X, Settings, StopCircle, Copy, Check,
-  RefreshCw, Loader2, Search, BarChart3, Star, Share2,
-  Clock, Tag, PanelRightClose, ChevronDown,
+  MessageSquare,
+  Send,
+  FileText,
+  Sparkles,
+  FolderOpen,
+  Plus,
+  Trash2,
+  ExternalLink,
+  X,
+  Settings,
+  StopCircle,
+  Copy,
+  Check,
+  RefreshCw,
+  Loader2,
+  Search,
+  BarChart3,
+  Star,
+  Share2,
+  Clock,
+  Tag,
+  PanelRightClose,
+  ChevronDown,
 } from 'lucide-react';
 import { aiApi, type AiChatMessage } from '@/services/api';
 import ReactMarkdown from 'react-markdown';
@@ -59,22 +78,18 @@ interface SseChunk {
 }
 
 const TOOL_META: Record<string, { label: string; icon: React.ReactNode }> = {
-  search_files:     { label: '搜索文件',     icon: <Search className="h-3 w-3" /> },
-  list_folder:      { label: '浏览文件夹',   icon: <FolderOpen className="h-3 w-3" /> },
-  get_file_detail:  { label: '获取文件详情', icon: <FileText className="h-3 w-3" /> },
+  search_files: { label: '搜索文件', icon: <Search className="h-3 w-3" /> },
+  list_folder: { label: '浏览文件夹', icon: <FolderOpen className="h-3 w-3" /> },
+  get_file_detail: { label: '获取文件详情', icon: <FileText className="h-3 w-3" /> },
   get_file_content: { label: '读取文件内容', icon: <FileText className="h-3 w-3" /> },
-  get_storage_stats:{ label: '查询存储统计', icon: <BarChart3 className="h-3 w-3" /> },
-  list_starred:     { label: '查看收藏',     icon: <Star className="h-3 w-3" /> },
-  list_shares:      { label: '查看共享',     icon: <Share2 className="h-3 w-3" /> },
-  list_recent:      { label: '最近文件',     icon: <Clock className="h-3 w-3" /> },
-  search_by_tag:    { label: '标签搜索',     icon: <Tag className="h-3 w-3" /> },
+  get_storage_stats: { label: '查询存储统计', icon: <BarChart3 className="h-3 w-3" /> },
+  list_starred: { label: '查看收藏', icon: <Star className="h-3 w-3" /> },
+  list_shares: { label: '查看共享', icon: <Share2 className="h-3 w-3" /> },
+  list_recent: { label: '最近文件', icon: <Clock className="h-3 w-3" /> },
+  search_by_tag: { label: '标签搜索', icon: <Tag className="h-3 w-3" /> },
 };
 
-const SUGGESTED = [
-  '帮我找最近上传的文件',
-  '查看我的存储统计',
-  '有哪些带有"项目"标签的文件？',
-];
+const SUGGESTED = ['帮我找最近上传的文件', '查看我的存储统计', '有哪些带有"项目"标签的文件？'];
 
 function parseFileRefs(text: string, onFileClick: (id: string, isFolder: boolean) => void): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
@@ -95,10 +110,11 @@ function parseFileRefs(text: string, onFileClick: (id: string, isFolder: boolean
         onClick={() => onFileClick(id!, isFolder)}
         className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-[11px] font-medium transition-all group"
       >
-        {isFolder
-          ? <FolderOpen className="h-2.5 w-2.5 text-amber-500" />
-          : <FileText className="h-2.5 w-2.5 text-violet-500" />
-        }
+        {isFolder ? (
+          <FolderOpen className="h-2.5 w-2.5 text-amber-500" />
+        ) : (
+          <FileText className="h-2.5 w-2.5 text-violet-500" />
+        )}
         <span className="max-w-[80px] truncate">{name}</span>
         <ExternalLink className="h-2 w-2 opacity-0 group-hover:opacity-100 transition-opacity" />
       </button>
@@ -120,14 +136,13 @@ function ToolCallCard({ tc }: { tc: ToolCallEvent }) {
   return (
     <div className="my-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 overflow-hidden text-[11px]">
       <button
-        onClick={() => setExpanded(v => !v)}
+        onClick={() => setExpanded((v) => !v)}
         className="flex items-center gap-1.5 w-full px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors text-left"
       >
-        <span className={`flex items-center justify-center h-4 w-4 rounded-full ${tc.status === 'running' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'}`}>
-          {tc.status === 'running'
-            ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
-            : meta.icon
-          }
+        <span
+          className={`flex items-center justify-center h-4 w-4 rounded-full ${tc.status === 'running' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'}`}
+        >
+          {tc.status === 'running' ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : meta.icon}
         </span>
         <span className="text-slate-600 dark:text-slate-400 font-medium">{meta.label}</span>
         {tc.status === 'running' && <span className="text-amber-500 animate-pulse ml-1 text-[10px]">进行中…</span>}
@@ -145,22 +160,28 @@ function ToolCallCard({ tc }: { tc: ToolCallEvent }) {
   );
 }
 
-function AssistantContent({ content, onFileClick }: { content: string; onFileClick: (id: string, isFolder: boolean) => void }) {
+function AssistantContent({
+  content,
+  onFileClick,
+}: {
+  content: string;
+  onFileClick: (id: string, isFolder: boolean) => void;
+}) {
   const cleanedContent = content.replace(/```tool_call\s*[\s\S]*?```/g, '').trim();
   const hasRefs = /\[(FILE|FOLDER):[^\]]+\]/.test(cleanedContent);
 
   if (!hasRefs) {
     return (
       <div className="prose prose-xs max-w-none dark:prose-invert prose-p:my-0.5 prose-headings:mt-2 prose-pre:bg-slate-950 prose-pre:p-2 prose-pre:rounded-lg prose-code:text-violet-600 dark:prose-code:text-violet-400 prose-pre:text-xs">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{cleanedContent}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+          {cleanedContent}
+        </ReactMarkdown>
       </div>
     );
   }
 
   return (
-    <div className="text-xs leading-relaxed whitespace-pre-wrap">
-      {parseFileRefs(cleanedContent, onFileClick)}
-    </div>
+    <div className="text-xs leading-relaxed whitespace-pre-wrap">{parseFileRefs(cleanedContent, onFileClick)}</div>
   );
 }
 
@@ -183,7 +204,7 @@ export function AIChatWidget() {
 
   const { data: sessions = [] } = useQuery({
     queryKey: ['ai-chat-sessions'],
-    queryFn: () => aiApi.chatSession.getSessions().then(r => r.data.data ?? []),
+    queryFn: () => aiApi.chatSession.getSessions().then((r) => r.data.data ?? []),
     staleTime: 30000,
     enabled: isOpen,
   });
@@ -217,7 +238,9 @@ export function AIChatWidget() {
     } else {
       document.body.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [isOpen]);
 
   const autoResize = (el: HTMLTextAreaElement) => {
@@ -225,13 +248,16 @@ export function AIChatWidget() {
     el.style.height = Math.min(el.scrollHeight, 120) + 'px';
   };
 
-  const handleFileClick = useCallback((fileId: string, isFolder: boolean) => {
-    if (isFolder) {
-      navigate(`/files/${fileId}`);
-    } else {
-      navigate(`/files?preview=${fileId}`);
-    }
-  }, [navigate]);
+  const handleFileClick = useCallback(
+    (fileId: string, isFolder: boolean) => {
+      if (isFolder) {
+        navigate(`/files/${fileId}`);
+      } else {
+        navigate(`/files?preview=${fileId}`);
+      }
+    },
+    [navigate]
+  );
 
   const loadSession = async (sessionId: string) => {
     try {
@@ -239,119 +265,156 @@ export function AIChatWidget() {
       const res = await aiApi.chatSession.getSession(sessionId);
       if (res.data.success && res.data.data) {
         setCurrentSessionId(sessionId);
-        setMessages(res.data.data.messages.map((m: AiChatMessage) => ({
-          id: m.id, role: m.role as 'user' | 'assistant', content: m.content,
-          sources: m.sources, timestamp: new Date(m.createdAt),
-        })));
+        setMessages(
+          res.data.data.messages.map((m: AiChatMessage) => ({
+            id: m.id,
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+            sources: m.sources,
+            timestamp: new Date(m.createdAt),
+          }))
+        );
       }
-    } catch (e) { console.error(e); }
-    finally { setIsLoading(false); setShowSessionMenu(false); }
-  };
-
-  const sendMessage = useCallback(async (query: string, regenerateFromId?: string) => {
-    if (!query.trim() || isLoading) return;
-
-    if (regenerateFromId) {
-      setMessages(prev => {
-        const idx = prev.findIndex(m => m.id === regenerateFromId);
-        return idx >= 0 ? prev.slice(0, idx) : prev;
-      });
-    } else {
-      setMessages(prev => [...prev, {
-        id: crypto.randomUUID(), role: 'user', content: query, timestamp: new Date(),
-      }]);
-      setInput('');
-      if (inputRef.current) inputRef.current.style.height = 'auto';
-    }
-
-    setIsLoading(true);
-    const assistantId = crypto.randomUUID();
-    const toolCallsMap = new Map<string, ToolCallEvent>();
-
-    setMessages(prev => [...prev, {
-      id: assistantId, role: 'assistant', content: '', toolCalls: [], timestamp: new Date(), isLoading: true,
-    }]);
-
-    abortRef.current = new AbortController();
-
-    try {
-      await aiApi.chatSession.chatStream(query, {
-        sessionId: currentSessionId || undefined,
-        maxFiles: 8,
-        includeFileContent: false,
-        onChunk: (raw: SseChunk) => {
-          if (raw.toolStart && raw.toolCallId && raw.toolName) {
-            const tc: ToolCallEvent = {
-              id: raw.toolCallId,
-              toolName: raw.toolName,
-              args: raw.args || {},
-              status: 'running',
-            };
-            toolCallsMap.set(raw.toolCallId, tc);
-            setMessages(prev => prev.map(m =>
-              m.id === assistantId ? { ...m, toolCalls: [...(m.toolCalls || []), tc] } : m
-            ));
-            return;
-          }
-
-          if (raw.toolResult && raw.toolCallId) {
-            const existing = toolCallsMap.get(raw.toolCallId);
-            if (existing) { existing.result = raw.result; existing.status = 'done'; }
-            setMessages(prev => prev.map(m =>
-              m.id === assistantId ? {
-                ...m,
-                toolCalls: (m.toolCalls || []).map(tc =>
-                  tc.id === raw.toolCallId ? { ...tc, result: raw.result, status: 'done' as const } : tc
-                ),
-              } : m
-            ));
-            return;
-          }
-
-          if (raw.content) {
-            setMessages(prev => prev.map(m =>
-              m.id === assistantId ? { ...m, content: (m.content || '') + raw.content! } : m
-            ));
-          }
-
-          if (raw.done) {
-            setMessages(prev => prev.map(m =>
-              m.id === assistantId
-                ? { ...m, isLoading: false, sources: raw.sources || [] }
-                : m
-            ));
-            if (raw.sessionId) {
-              setCurrentSessionId(raw.sessionId);
-              queryClient.invalidateQueries({ queryKey: ['ai-chat-sessions'] });
-            }
-          }
-        },
-        signal: abortRef.current.signal,
-      });
     } catch (e) {
-      const name = (e as Error).name;
-      if (name !== 'AbortError') {
-        setMessages(prev => prev.map(m =>
-          m.id === assistantId ? { ...m, content: '抱歉，遇到了问题，请稍后再试。', isLoading: false } : m
-        ));
-      } else {
-        setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, isLoading: false } : m));
-      }
+      console.error(e);
     } finally {
       setIsLoading(false);
-      abortRef.current = null;
+      setShowSessionMenu(false);
     }
-  }, [isLoading, currentSessionId, queryClient]);
+  };
+
+  const sendMessage = useCallback(
+    async (query: string, regenerateFromId?: string) => {
+      if (!query.trim() || isLoading) return;
+
+      if (regenerateFromId) {
+        setMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === regenerateFromId);
+          return idx >= 0 ? prev.slice(0, idx) : prev;
+        });
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: 'user',
+            content: query,
+            timestamp: new Date(),
+          },
+        ]);
+        setInput('');
+        if (inputRef.current) inputRef.current.style.height = 'auto';
+      }
+
+      setIsLoading(true);
+      const assistantId = crypto.randomUUID();
+      const toolCallsMap = new Map<string, ToolCallEvent>();
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantId,
+          role: 'assistant',
+          content: '',
+          toolCalls: [],
+          timestamp: new Date(),
+          isLoading: true,
+        },
+      ]);
+
+      abortRef.current = new AbortController();
+
+      try {
+        await aiApi.chatSession.chatStream(query, {
+          sessionId: currentSessionId || undefined,
+          maxFiles: 8,
+          includeFileContent: false,
+          onChunk: (raw: SseChunk) => {
+            if (raw.toolStart && raw.toolCallId && raw.toolName) {
+              const tc: ToolCallEvent = {
+                id: raw.toolCallId,
+                toolName: raw.toolName,
+                args: raw.args || {},
+                status: 'running',
+              };
+              toolCallsMap.set(raw.toolCallId, tc);
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantId ? { ...m, toolCalls: [...(m.toolCalls || []), tc] } : m))
+              );
+              return;
+            }
+
+            if (raw.toolResult && raw.toolCallId) {
+              const existing = toolCallsMap.get(raw.toolCallId);
+              if (existing) {
+                existing.result = raw.result;
+                existing.status = 'done';
+              }
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? {
+                        ...m,
+                        toolCalls: (m.toolCalls || []).map((tc) =>
+                          tc.id === raw.toolCallId ? { ...tc, result: raw.result, status: 'done' as const } : tc
+                        ),
+                      }
+                    : m
+                )
+              );
+              return;
+            }
+
+            if (raw.content) {
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantId ? { ...m, content: (m.content || '') + raw.content! } : m))
+              );
+            }
+
+            if (raw.done) {
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantId ? { ...m, isLoading: false, sources: raw.sources || [] } : m))
+              );
+              if (raw.sessionId) {
+                setCurrentSessionId(raw.sessionId);
+                queryClient.invalidateQueries({ queryKey: ['ai-chat-sessions'] });
+              }
+            }
+          },
+          signal: abortRef.current.signal,
+        });
+      } catch (e) {
+        const name = (e as Error).name;
+        if (name !== 'AbortError') {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId ? { ...m, content: '抱歉，遇到了问题，请稍后再试。', isLoading: false } : m
+            )
+          );
+        } else {
+          setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, isLoading: false } : m)));
+        }
+      } finally {
+        setIsLoading(false);
+        abortRef.current = null;
+      }
+    },
+    [isLoading, currentSessionId, queryClient]
+  );
 
   const handleRegenerate = (msgId: string) => {
-    const idx = messages.findIndex(m => m.id === msgId);
+    const idx = messages.findIndex((m) => m.id === msgId);
     if (idx <= 0) return;
     const userMsg = messages[idx - 1];
     if (userMsg?.role !== 'user') return;
     sendMessage(userMsg.content, msgId);
   };
 
-  const handleNewChat = () => { setMessages([]); setCurrentSessionId(null); setInput(''); };
+  const handleNewChat = () => {
+    setMessages([]);
+    setCurrentSessionId(null);
+    setInput('');
+  };
 
   const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -366,7 +429,7 @@ export function AIChatWidget() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const lastAssistantIdx = messages.reduce((last, m, i) => m.role === 'assistant' ? i : last, -1);
+  const lastAssistantIdx = messages.reduce((last, m, i) => (m.role === 'assistant' ? i : last), -1);
   const currentSessionTitle = sessions.find((s: any) => s.id === currentSessionId)?.title ?? 'AI 助手';
 
   return (
@@ -385,8 +448,11 @@ export function AIChatWidget() {
           aria-label="打开 AI 对话"
         >
           {/* 脉冲环 */}
-          <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500
-            animate-ping opacity-20" style={{ animationDuration: '2.5s' }} />
+          <span
+            className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500
+            animate-ping opacity-20"
+            style={{ animationDuration: '2.5s' }}
+          />
 
           {/* 图标 */}
           <MessageSquare className="h-6 w-6 text-white relative z-10 group-hover:rotate-12 transition-transform duration-300" />
@@ -427,10 +493,12 @@ export function AIChatWidget() {
             {/* 会话切换器 */}
             <div className="relative" ref={sessionMenuRef}>
               <button
-                onClick={() => setShowSessionMenu(v => !v)}
+                onClick={() => setShowSessionMenu((v) => !v)}
                 className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors max-w-[180px]"
               >
-                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{currentSessionTitle}</span>
+                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                  {currentSessionTitle}
+                </span>
                 <ChevronDown className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
               </button>
 
@@ -446,23 +514,29 @@ export function AIChatWidget() {
                     <div className="my-1 border-t border-slate-100 dark:border-slate-700" />
                     {sessions.length === 0 ? (
                       <p className="text-xs text-slate-400 text-center py-3">暂无历史对话</p>
-                    ) : sessions.map((session: any) => (
-                      <div key={session.id} onClick={() => loadSession(session.id)}
-                        className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors text-left ${
-                          session.id === currentSessionId
-                            ? 'bg-violet-50 dark:bg-violet-900/20'
-                            : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                        }`}
-                      >
-                        <span className="text-xs font-medium truncate flex-1 text-slate-700 dark:text-slate-300">{session.title}</span>
-                        <button
-                          onClick={(e) => handleDeleteSession(e, session.id)}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500 transition-all"
+                    ) : (
+                      sessions.map((session: any) => (
+                        <div
+                          key={session.id}
+                          onClick={() => loadSession(session.id)}
+                          className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors text-left ${
+                            session.id === currentSessionId
+                              ? 'bg-violet-50 dark:bg-violet-900/20'
+                              : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                          }`}
                         >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
+                          <span className="text-xs font-medium truncate flex-1 text-slate-700 dark:text-slate-300">
+                            {session.title}
+                          </span>
+                          <button
+                            onClick={(e) => handleDeleteSession(e, session.id)}
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500 transition-all"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
@@ -471,14 +545,20 @@ export function AIChatWidget() {
 
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
-              onClick={() => { setIsOpen(false); navigate('/ai-settings'); }}
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/ai-settings');
+              }}
               className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title="AI 设置"
             >
               <Settings className="h-4 w-4" />
             </button>
             <button
-              onClick={() => { setIsOpen(false); navigate('/ai-chat'); }}
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/ai-chat');
+              }}
               className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title="打开完整页面"
             >
@@ -506,7 +586,9 @@ export function AIChatWidget() {
                 <p className="text-xs text-slate-400 mb-4 max-w-[220px]">可以搜索文件、查看统计、浏览文件夹</p>
                 <div className="grid grid-cols-1 gap-1.5 w-full max-w-[260px]">
                   {SUGGESTED.map((q, i) => (
-                    <button key={i} onClick={() => setInput(q)}
+                    <button
+                      key={i}
+                      onClick={() => setInput(q)}
                       className="text-left p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-violet-300 dark:hover:border-violet-700 hover:bg-violet-50/50 dark:hover:bg-violet-900/10 transition-all text-xs text-slate-600 dark:text-slate-400 group"
                     >
                       <Sparkles className="h-3 w-3 text-violet-500 mb-1 group-hover:scale-110 transition-transform inline-block mr-1" />
@@ -528,15 +610,19 @@ export function AIChatWidget() {
                 <div className="max-w-[88%] min-w-0">
                   {msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0 && (
                     <div className="mb-1.5 space-y-1">
-                      {msg.toolCalls.map(tc => <ToolCallCard key={tc.id} tc={tc} />)}
+                      {msg.toolCalls.map((tc) => (
+                        <ToolCallCard key={tc.id} tc={tc} />
+                      ))}
                     </div>
                   )}
 
-                  <div className={`rounded-xl px-3 py-2.5 text-xs leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-gradient-to-br from-violet-600 to-purple-600 text-white rounded-tr-md'
-                      : 'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-tl-md'
-                  }`}>
+                  <div
+                    className={`rounded-xl px-3 py-2.5 text-xs leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-gradient-to-br from-violet-600 to-purple-600 text-white rounded-tr-md'
+                        : 'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-tl-md'
+                    }`}
+                  >
                     {msg.role === 'assistant' && msg.content ? (
                       <AssistantContent content={msg.content} onFileClick={handleFileClick} />
                     ) : (
@@ -545,11 +631,17 @@ export function AIChatWidget() {
 
                     {msg.isLoading && !msg.content && (
                       <div className="flex items-center gap-1">
-                        {[0, 150, 300].map(d => (
-                          <span key={d} className="h-1 w-1 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                        {[0, 150, 300].map((d) => (
+                          <span
+                            key={d}
+                            className="h-1 w-1 rounded-full bg-violet-400 animate-bounce"
+                            style={{ animationDelay: `${d}ms` }}
+                          />
                         ))}
                         <span className="text-[10px] text-slate-400 ml-1">
-                          {msg.toolCalls && msg.toolCalls.some(t => t.status === 'running') ? '正在查询…' : '正在思考…'}
+                          {msg.toolCalls && msg.toolCalls.some((t) => t.status === 'running')
+                            ? '正在查询…'
+                            : '正在思考…'}
                         </span>
                       </div>
                     )}
@@ -558,7 +650,9 @@ export function AIChatWidget() {
                   {msg.sources && msg.sources.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       {msg.sources.map((src, i) => (
-                        <button key={i} onClick={() => handleFileClick(src.id, false)}
+                        <button
+                          key={i}
+                          onClick={() => handleFileClick(src.id, false)}
                           className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-violet-50 dark:hover:bg-violet-900/30 border border-slate-200 dark:border-slate-700 hover:border-violet-300 transition-all text-[10px] text-slate-500 hover:text-violet-700 dark:hover:text-violet-300 group"
                         >
                           <FileText className="h-2.5 w-2.5 text-slate-400 group-hover:text-violet-500" />
@@ -572,14 +666,20 @@ export function AIChatWidget() {
                     <div className={`flex items-center gap-1 mt-0.5 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                       <span className="text-[9px] text-slate-400">{formatDate(msg.timestamp.toISOString())}</span>
                       {msg.role === 'assistant' && msg.content && (
-                        <button onClick={() => handleCopy(msg.id, msg.content)}
+                        <button
+                          onClick={() => handleCopy(msg.id, msg.content)}
                           className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition-colors"
                         >
-                          {copiedId === msg.id ? <Check className="h-2.5 w-2.5 text-green-500" /> : <Copy className="h-2.5 w-2.5" />}
+                          {copiedId === msg.id ? (
+                            <Check className="h-2.5 w-2.5 text-green-500" />
+                          ) : (
+                            <Copy className="h-2.5 w-2.5" />
+                          )}
                         </button>
                       )}
                       {msg.role === 'assistant' && index === lastAssistantIdx && !isLoading && (
-                        <button onClick={() => handleRegenerate(msg.id)}
+                        <button
+                          onClick={() => handleRegenerate(msg.id)}
                           className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-violet-600 transition-colors"
                         >
                           <RefreshCw className="h-2.5 w-2.5" />
@@ -590,7 +690,9 @@ export function AIChatWidget() {
                 </div>
 
                 {msg.role === 'user' && (
-                  <div className="h-6 w-6 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300">你</div>
+                  <div className="h-6 w-6 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                    你
+                  </div>
                 )}
               </div>
             ))}
@@ -602,21 +704,37 @@ export function AIChatWidget() {
         {/* 输入区域 */}
         <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 safe-bottom">
           <div className="flex items-end gap-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 focus-within:border-violet-400 dark:focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-400/20 transition-all px-3 py-2">
-            <textarea ref={inputRef} value={input}
-              onChange={e => { setInput(e.target.value); autoResize(e.target); }}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                autoResize(e.target);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage(input);
+                }
+              }}
               placeholder="问我任何关于你的文件的问题…"
               className="flex-1 resize-none bg-transparent text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none min-h-[32px] max-h-[120px] py-0.5"
-              rows={1} disabled={isLoading} />
+              rows={1}
+              disabled={isLoading}
+            />
             <div className="flex items-center pb-0.5 flex-shrink-0">
               {isLoading ? (
-                <button onClick={() => abortRef.current?.abort()}
+                <button
+                  onClick={() => abortRef.current?.abort()}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 text-[11px] font-medium transition-colors border border-red-200 dark:border-red-800"
                 >
-                  <StopCircle className="h-3 w-3" /><span>停止</span>
+                  <StopCircle className="h-3 w-3" />
+                  <span>停止</span>
                 </button>
               ) : (
-                <button onClick={() => sendMessage(input)} disabled={!input.trim()}
+                <button
+                  onClick={() => sendMessage(input)}
+                  disabled={!input.trim()}
                   className="h-7 w-7 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white disabled:text-slate-400 flex items-center justify-center transition-colors shadow-sm"
                 >
                   <Send className="h-3 w-3" />

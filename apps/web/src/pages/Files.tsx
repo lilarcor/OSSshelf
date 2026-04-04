@@ -280,26 +280,29 @@ export default function Files() {
     // Only run once files have loaded (avoids double-fetch during mount)
     if (files.length === 0 && !searchParams.get('preview') && !searchParams.get('highlight')) return;
 
-    filesApi.get(previewId).then((res) => {
-      const file = res.data.data;
-      if (!file) return;
-      if (file.isFolder) {
-        navigate(`/files/${file.id}`, { replace: true });
-      } else {
-        setPreviewFile(file);
+    filesApi
+      .get(previewId)
+      .then((res) => {
+        const file = res.data.data;
+        if (!file) return;
+        if (file.isFolder) {
+          navigate(`/files/${file.id}`, { replace: true });
+        } else {
+          setPreviewFile(file);
+          const next = new URLSearchParams(searchParams);
+          next.delete('preview');
+          next.delete('highlight');
+          setSearchParams(next, { replace: true });
+        }
+      })
+      .catch(() => {
+        // File not found or no permission — silently ignore
         const next = new URLSearchParams(searchParams);
         next.delete('preview');
         next.delete('highlight');
         setSearchParams(next, { replace: true });
-      }
-    }).catch(() => {
-      // File not found or no permission — silently ignore
-      const next = new URLSearchParams(searchParams);
-      next.delete('preview');
-      next.delete('highlight');
-      setSearchParams(next, { replace: true });
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   const fileMutations = useFileMutations();

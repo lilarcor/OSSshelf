@@ -103,13 +103,16 @@ app.post('/index/all', async (c) => {
   const userId = c.get('userId')!;
 
   if (!c.env.AI_TASKS_QUEUE) {
-    return c.json({
-      success: false,
-      error: {
-        code: ERROR_CODES.INTERNAL_ERROR,
-        message: 'AI 任务队列未配置，请联系管理员',
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ERROR_CODES.INTERNAL_ERROR,
+          message: 'AI 任务队列未配置，请联系管理员',
+        },
       },
-    }, 503);
+      503
+    );
   }
 
   const existingTask = await getLatestTaskByUserType(c.env, userId, 'index');
@@ -184,13 +187,16 @@ app.post('/summarize/batch', async (c) => {
   const userId = c.get('userId')!;
 
   if (!c.env.AI_TASKS_QUEUE) {
-    return c.json({
-      success: false,
-      error: {
-        code: ERROR_CODES.INTERNAL_ERROR,
-        message: 'AI 任务队列未配置，请联系管理员',
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ERROR_CODES.INTERNAL_ERROR,
+          message: 'AI 任务队列未配置，请联系管理员',
+        },
       },
-    }, 503);
+      503
+    );
   }
 
   const existingTask = await getLatestTaskByUserType(c.env, userId, 'summarize');
@@ -255,13 +261,16 @@ app.post('/tags/batch', async (c) => {
   const userId = c.get('userId')!;
 
   if (!c.env.AI_TASKS_QUEUE) {
-    return c.json({
-      success: false,
-      error: {
-        code: ERROR_CODES.INTERNAL_ERROR,
-        message: 'AI 任务队列未配置，请联系管理员',
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ERROR_CODES.INTERNAL_ERROR,
+          message: 'AI 任务队列未配置，请联系管理员',
+        },
       },
-    }, 503);
+      503
+    );
   }
 
   const existingTask = await getLatestTaskByUserType(c.env, userId, 'tags');

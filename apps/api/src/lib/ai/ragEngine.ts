@@ -222,7 +222,12 @@ export class RagEngine {
           relevantFiles: [],
           assembledPrompt: emptyPrompt,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPTS.default + '\n\n注意：当前未找到与此问题相关的文件。如果这是一个关于文件管理的通用问题，你可以根据你的知识回答；如果是特定文件内容的询问，请告知用户需要先上传或索引相关文件。' },
+            {
+              role: 'system',
+              content:
+                SYSTEM_PROMPTS.default +
+                '\n\n注意：当前未找到与此问题相关的文件。如果这是一个关于文件管理的通用问题，你可以根据你的知识回答；如果是特定文件内容的询问，请告知用户需要先上传或索引相关文件。',
+            },
             { role: 'user', content: request.query },
           ],
           totalTokens: 0,
@@ -251,7 +256,8 @@ export class RagEngine {
       // Inject conversation history as real message turns (skip last user msg which is the current query)
       const history = request.conversationHistory || [];
       const historyWithoutCurrent = history.slice(0, -1); // last entry is the current user msg already
-      for (const msg of historyWithoutCurrent.slice(-10)) { // last 10 turns max
+      for (const msg of historyWithoutCurrent.slice(-10)) {
+        // last 10 turns max
         structuredMessages.push({ role: msg.role as 'user' | 'assistant', content: msg.content });
       }
 

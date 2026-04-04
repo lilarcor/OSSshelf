@@ -37,12 +37,12 @@ import { logger } from '@osshelf/shared';
 // 配置常量
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MAX_TOOL_CALLS     = 20;   // 单次响应最大工具调用次数
-const MAX_IDLE_ROUNDS    = 3;    // 连续 N 轮无新文件信息后退出
+const MAX_TOOL_CALLS = 20; // 单次响应最大工具调用次数
+const MAX_IDLE_ROUNDS = 3; // 连续 N 轮无新文件信息后退出
 const MAX_CONTEXT_TOKENS = 10000;
-const RESERVE_TOKENS     = 2500;
-const TOKENS_PER_CHAR    = 0.5;
-const MAX_TOOL_RESULT_CHARS = 6000;  // 单个工具结果最大字符数
+const RESERVE_TOKENS = 2500;
+const TOKENS_PER_CHAR = 0.5;
+const MAX_TOOL_RESULT_CHARS = 6000; // 单个工具结果最大字符数
 const TOOL_CALL_REGEX = /```tool_call\s*([\s\S]*?)```/;
 
 const INJECTION_GUARD = `
@@ -53,11 +53,11 @@ const INJECTION_GUARD = `
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type AgentChunk =
-  | { type: 'text';        content: string;                               done: false }
-  | { type: 'tool_start';  toolName: string; toolCallId: string; args: Record<string, unknown>; done: false }
+  | { type: 'text'; content: string; done: false }
+  | { type: 'tool_start'; toolName: string; toolCallId: string; args: Record<string, unknown>; done: false }
   | { type: 'tool_result'; toolCallId: string; toolName: string; result: unknown; done: false }
-  | { type: 'done';        sessionId: string; sources: AgentSource[]; usage?: TokenUsage; done: true }
-  | { type: 'error';       message: string;                               done: true };
+  | { type: 'done'; sessionId: string; sources: AgentSource[]; usage?: TokenUsage; done: true }
+  | { type: 'error'; message: string; done: true };
 
 export interface AgentSource {
   id: string;
@@ -197,7 +197,10 @@ export class AgentEngine {
     this.gateway = new ModelGateway(env);
   }
 
-  private async getModelCapabilities(modelId: string | undefined, userId: string): Promise<{
+  private async getModelCapabilities(
+    modelId: string | undefined,
+    userId: string
+  ): Promise<{
     nativeToolCalling: boolean;
     vision: boolean;
   }> {
@@ -250,7 +253,6 @@ export class AgentEngine {
     onChunk: (chunk: AgentChunk) => void,
     signal?: AbortSignal
   ): Promise<{ fullText: string; sources: AgentSource[]; usage?: TokenUsage }> {
-
     const messages: Array<{ role: string; content?: string; toolCalls?: any[]; toolCallId?: string }> = [
       { role: 'system', content: AGENT_SYSTEM_PROMPT },
       ...this.buildHistory(conversationHistory, query),
@@ -294,8 +296,9 @@ export class AgentEngine {
               hasToolCalls = true;
               for (const tc of chunk.toolCalls) {
                 const ex = collected.find((c) => c.id === tc.id);
-                if (ex) { if (tc.arguments) ex.arguments += tc.arguments; }
-                else collected.push({ id: tc.id || randomId(), name: tc.name || '', arguments: tc.arguments || '' });
+                if (ex) {
+                  if (tc.arguments) ex.arguments += tc.arguments;
+                } else collected.push({ id: tc.id || randomId(), name: tc.name || '', arguments: tc.arguments || '' });
               }
               return;
             }
@@ -311,8 +314,9 @@ export class AgentEngine {
 
         if (streamUsage) accumUsage(totalUsage, streamUsage);
       } catch (err) {
-        if (isExpectedAbort(err, hasToolCalls)) { /* ok */ }
-        else if (!isAbortError(err)) {
+        if (isExpectedAbort(err, hasToolCalls)) {
+          /* ok */
+        } else if (!isAbortError(err)) {
           logger.error('AgentEngine', 'LLM stream error (native)', {}, err);
           onChunk({ type: 'error', message: 'AI 模型调用失败，请检查模型配置', done: true });
           return { fullText, sources, usage: totalUsage };
@@ -329,7 +333,8 @@ export class AgentEngine {
         role: 'assistant',
         content: streamContent || undefined,
         toolCalls: collected.map((tc) => ({
-          id: tc.id, type: 'function',
+          id: tc.id,
+          type: 'function',
           function: { name: tc.name, arguments: tc.arguments },
         })),
       });
@@ -340,15 +345,21 @@ export class AgentEngine {
         if (toolCallCount >= MAX_TOOL_CALLS) break;
 
         let toolArgs: Record<string, unknown>;
-        try { toolArgs = JSON.parse(tc.arguments || '{}'); }
-        catch { continue; }
+        try {
+          toolArgs = JSON.parse(tc.arguments || '{}');
+        } catch {
+          continue;
+        }
 
         // 重复调用检测
         const sig = callSig(tc.name, toolArgs);
         if (callSignatures.has(sig)) {
           messages.push({
             role: 'tool',
-            content: JSON.stringify({ _skipped: true, reason: `工具 ${tc.name} 已用相同参数调用过，跳过以防循环。请更换参数或工具。` }),
+            content: JSON.stringify({
+              _skipped: true,
+              reason: `工具 ${tc.name} 已用相同参数调用过，跳过以防循环。请更换参数或工具。`,
+            }),
             toolCallId: tc.id,
           });
           continue;
@@ -377,7 +388,13 @@ export class AgentEngine {
         // 自动链式：图片结果 → analyze_image
         if (caps.vision && toolCallCount < MAX_TOOL_CALLS) {
           const autoChain = await this.runAutoChain(
-            tc.name, toolArgs, result, callSignatures, sources, onChunk, messages
+            tc.name,
+            toolArgs,
+            result,
+            callSignatures,
+            sources,
+            onChunk,
+            messages
           );
           toolCallCount += autoChain.callsUsed;
           roundNewData = autoChain.hadNewData || roundNewData;
@@ -406,7 +423,6 @@ export class AgentEngine {
     onChunk: (chunk: AgentChunk) => void,
     signal?: AbortSignal
   ): Promise<{ fullText: string; sources: AgentSource[]; usage?: TokenUsage }> {
-
     const messages: Array<{ role: string; content: string }> = [
       { role: 'system', content: PROMPT_BASED_SYSTEM_PROMPT },
       ...this.buildHistory(conversationHistory, query),
@@ -460,8 +476,9 @@ export class AgentEngine {
           { modelId, signal: combinedSignal }
         );
       } catch (err) {
-        if (isExpectedAbort(err, foundToolCall)) { /* ok */ }
-        else if (!isAbortError(err)) {
+        if (isExpectedAbort(err, foundToolCall)) {
+          /* ok */
+        } else if (!isAbortError(err)) {
           logger.error('AgentEngine', 'LLM stream error (prompt)', {}, err);
           onChunk({ type: 'error', message: 'AI 模型调用失败，请检查模型配置', done: true });
           return { fullText, sources };
@@ -494,7 +511,10 @@ export class AgentEngine {
         toolArgs = parsed.arguments || {};
       } catch {
         const clean = buffer.replace(TOOL_CALL_REGEX, '').trim();
-        if (clean) { onChunk({ type: 'text', content: clean, done: false }); fullText += clean; }
+        if (clean) {
+          onChunk({ type: 'text', content: clean, done: false });
+          fullText += clean;
+        }
         messages.push({ role: 'assistant', content: buffer });
         break;
       }
@@ -593,7 +613,13 @@ export class AgentEngine {
         chainResult = { error: err instanceof Error ? err.message : '视觉分析失败' };
       }
 
-      onChunk({ type: 'tool_result', toolCallId: chainId, toolName: 'analyze_image', result: chainResult, done: false });
+      onChunk({
+        type: 'tool_result',
+        toolCallId: chainId,
+        toolName: 'analyze_image',
+        result: chainResult,
+        done: false,
+      });
 
       messages.push({
         role: 'tool',
@@ -637,9 +663,7 @@ export class AgentEngine {
 
 /** 构建稳定的工具调用签名（用于去重检测） */
 function callSig(toolName: string, args: Record<string, unknown>): string {
-  const sorted = Object.fromEntries(
-    Object.entries(args).sort(([a], [b]) => a.localeCompare(b))
-  );
+  const sorted = Object.fromEntries(Object.entries(args).sort(([a], [b]) => a.localeCompare(b)));
   return `${toolName}::${JSON.stringify(sorted)}`;
 }
 
@@ -674,9 +698,7 @@ function smartTruncate(text: string): string {
     // 通用截断：保留结构，截断超长字符串值
     const truncObj = truncateStrings(obj, 500);
     const restr2 = JSON.stringify(truncObj, null, 2);
-    return restr2.length <= MAX_TOOL_RESULT_CHARS
-      ? restr2
-      : text.slice(0, MAX_TOOL_RESULT_CHARS) + '\n...(结果已截断)';
+    return restr2.length <= MAX_TOOL_RESULT_CHARS ? restr2 : text.slice(0, MAX_TOOL_RESULT_CHARS) + '\n...(结果已截断)';
   } catch {
     return text.slice(0, MAX_TOOL_RESULT_CHARS) + '\n...(结果已截断)';
   }

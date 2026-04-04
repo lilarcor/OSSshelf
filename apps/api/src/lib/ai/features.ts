@@ -26,9 +26,20 @@ import type { ChatCompletionRequest } from './types';
 import { tgDownloadFile, type TelegramBotConfig } from '../telegramClient';
 import { tgDownloadChunked, isChunkedFileId } from '../telegramChunked';
 import { decryptSecret } from '../s3client';
+import { initializeAiConfig, getAiConfigString, getAiConfigNumber, getAiConfigBoolean } from './aiConfigService';
 
-const SUMMARY_CONTENT_LIMIT = 8192;
-const RENAME_CONTENT_LIMIT = 4096;
+const DEFAULT_SUMMARY_CONTENT_LIMIT = 8192;
+const DEFAULT_RENAME_CONTENT_LIMIT = 4096;
+
+async function getContentLimits(env: Env): Promise<{ summary: number; rename: number }> {
+  try {
+    const summaryLimit = await getAiConfigNumber(env, 'ai.summary.content_limit', DEFAULT_SUMMARY_CONTENT_LIMIT);
+    const renameLimit = await getAiConfigNumber(env, 'ai.rename.content_limit', DEFAULT_RENAME_CONTENT_LIMIT);
+    return { summary: summaryLimit, rename: renameLimit };
+  } catch {
+    return { summary: DEFAULT_SUMMARY_CONTENT_LIMIT, rename: DEFAULT_RENAME_CONTENT_LIMIT };
+  }
+}
 
 const SUMMARY_PROMPTS: Record<string, string> = {
   default: '你是文件助手。请用简洁的中文（不超过3句话）概括文件主要内容。',
@@ -37,6 +48,31 @@ const SUMMARY_PROMPTS: Record<string, string> = {
   markdown: '你是技术文档助手。请概括 Markdown 文档的结构、主要章节和核心内容。（不超过3句话）',
   spreadsheet: '你是数据分析助手。请概括表格/数据文件的数据类型、关键字段和数据趋势。（不超过3句话）',
 };
+
+async function getSummaryPromptFromConfig(env: Env): Promise<Record<string, string>> {
+  try {
+    const defaultPrompt = await getAiConfigString(env, 'ai.summary.prompt.default', SUMMARY_PROMPTS.default);
+    const codePrompt = await getAiConfigString(env, 'ai.summary.prompt.code', SUMMARY_PROMPTS.code);
+    const documentPrompt = await getAiConfigString(env, 'ai.summary.prompt.document', SUMMARY_PROMPTS.document);
+    const markdownPrompt = await getAiConfigString(env, 'ai.summary.prompt.markdown', SUMMARY_PROMPTS.markdown);
+    const spreadsheetPrompt = await getAiConfigString(
+      env,
+      'ai.summary.prompt.spreadsheet',
+      SUMMARY_PROMPTS.spreadsheet
+    );
+
+    return {
+      default: defaultPrompt,
+      code: codePrompt,
+      document: documentPrompt,
+      markdown: markdownPrompt,
+      spreadsheet: spreadsheetPrompt,
+    };
+  } catch (error) {
+    logger.warn('AI', 'Failed to load prompts from config, using defaults');
+    return SUMMARY_PROMPTS;
+  }
+}
 
 function getSummaryPrompt(mimeType: string | null, fileName: string): string {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
@@ -90,13 +126,25 @@ function getSummaryPrompt(mimeType: string | null, fileName: string): string {
   return SUMMARY_PROMPTS.default;
 }
 
-// 默认模型 ID（当用户未配置时使用）
-const DEFAULT_MODELS = {
-  summary: '@cf/meta/llama-3.1-8b-instruct',
-  imageCaption: '@cf/llava-hf/llava-1.5-7b-hf',
-  imageTag: '@cf/llava-hf/llava-1.5-7b-hf',
-  rename: '@cf/meta/llama-3.1-8b-instruct',
-} as const;
+// 默认模型 ID（当用户未配置时使用）- 现在从配置表读取
+async function getDefaultModels(env: Env): Promise<Record<string, string>> {
+  try {
+    return {
+      summary: await getAiConfigString(env, 'ai.default_model.summary', '@cf/meta/llama-3.1-8b-instruct'),
+      imageCaption: await getAiConfigString(env, 'ai.default_model.image_caption', '@cf/llava-hf/llava-1.5-7b-hf'),
+      imageTag: await getAiConfigString(env, 'ai.default_model.image_tag', '@cf/llava-hf/llava-1.5-7b-hf'),
+      rename: await getAiConfigString(env, 'ai.default_model.rename', '@cf/meta/llama-3.1-8b-instruct'),
+    };
+  } catch (error) {
+    logger.warn('AI', 'Failed to load default models from config, using hardcoded fallback');
+    return {
+      summary: '@cf/meta/llama-3.1-8b-instruct',
+      imageCaption: '@cf/llava-hf/llava-1.5-7b-hf',
+      imageTag: '@cf/llava-hf/llava-1.5-7b-hf',
+      rename: '@cf/meta/llama-3.1-8b-instruct',
+    };
+  }
+}
 
 export interface SummaryResult {
   summary: string;
@@ -185,7 +233,8 @@ async function callChatModel(
 
     logger.warn('AI', 'Custom model failed, falling back to default', { featureType, error });
 
-    const defaultModelId = DEFAULT_MODELS[featureType] || DEFAULT_MODELS.summary;
+    const defaultModels = await getDefaultModels(env);
+    const defaultModelId = defaultModels[featureType] || defaultModels.summary;
 
     if (env.AI) {
       const fallbackResponse = await (env.AI as any).run(defaultModelId, {
@@ -420,6 +469,7 @@ export async function generateFileSummary(
     throw new Error('AI service not configured');
   }
 
+  const contentLimits = await getContentLimits(env);
   const db = getDb(env.DB);
   const file = await db.select().from(files).where(eq(files.id, fileId)).get();
 
@@ -436,7 +486,7 @@ export async function generateFileSummary(
 
   let textContent = content;
   if (!textContent) {
-    textContent = await extractTextFromFile(env, file);
+    textContent = await extractTextFromFile(env, file, contentLimits.summary);
   }
 
   if (!textContent) {
@@ -447,7 +497,7 @@ export async function generateFileSummary(
     throw new Error('文件内容太短（少于50字符），无法生成摘要');
   }
 
-  const truncatedContent = textContent.slice(0, SUMMARY_CONTENT_LIMIT);
+  const truncatedContent = textContent.slice(0, contentLimits.summary);
 
   try {
     const summary = await callChatModel(
@@ -510,17 +560,18 @@ export async function generateImageTags(
 
   const uint8Array = new Uint8Array(imageData);
   const effectiveUserId = userId || file.userId || 'default';
+  const defaultModels = await getDefaultModels(env);
 
   try {
     const [captionResult, tagResult] = await Promise.allSettled([
       callVisionModel(
         env,
         effectiveUserId,
-        DEFAULT_MODELS.imageCaption,
+        defaultModels.imageCaption,
         Array.from(uint8Array),
         '请详细描述这张图片的内容，包括画面主体、颜色、构图等。如果有文字请准确转录。使用中文回答。'
       ),
-      callVisionModelForTags(env, effectiveUserId, DEFAULT_MODELS.imageTag, Array.from(uint8Array)),
+      callVisionModelForTags(env, effectiveUserId, defaultModels.imageTag, Array.from(uint8Array)),
     ]);
 
     let caption = '';
@@ -560,6 +611,7 @@ export async function suggestFileName(
     throw new Error('AI service not configured');
   }
 
+  const contentLimits = await getContentLimits(env);
   const db = getDb(env.DB);
   const file = await db.select().from(files).where(eq(files.id, fileId)).get();
 
@@ -578,7 +630,7 @@ export async function suggestFileName(
       textContent = await extractTextFromFile(env, file);
     }
     if (textContent && textContent.length >= 30) {
-      contextForAI = `文件内容（前${RENAME_CONTENT_LIMIT}字）：\n${textContent.slice(0, RENAME_CONTENT_LIMIT)}`;
+      contextForAI = `文件内容（前${contentLimits.rename}字）：\n${textContent.slice(0, contentLimits.rename)}`;
       isContentBased = true;
     } else {
       contextForAI = `文件类型：${file.mimeType || '未知'}`;
@@ -647,6 +699,7 @@ export async function suggestFileNameFromContent(
     throw new Error('文件内容太短（少于30字符），无法生成命名建议');
   }
 
+  const contentLimits = await getContentLimits(env);
   const ext = extension || '';
 
   try {
@@ -664,7 +717,7 @@ export async function suggestFileNameFromContent(
         },
         {
           role: 'user',
-          content: `文件类型：${mimeType || '未知'}\n文件内容（前${RENAME_CONTENT_LIMIT}字）：\n${content.slice(0, RENAME_CONTENT_LIMIT)}`,
+          content: `文件类型：${mimeType || '未知'}\n文件内容（前${contentLimits.rename}字）：\n${content.slice(0, contentLimits.rename)}`,
         },
       ],
       maxTokens: 150,
@@ -686,7 +739,7 @@ export async function suggestFileNameFromContent(
   }
 }
 
-async function extractTextFromFile(env: Env, file: typeof files.$inferSelect): Promise<string> {
+async function extractTextFromFile(env: Env, file: typeof files.$inferSelect, limit?: number): Promise<string> {
   if (!canGenerateSummary(file.mimeType, file.name)) {
     return '';
   }
@@ -696,7 +749,8 @@ async function extractTextFromFile(env: Env, file: typeof files.$inferSelect): P
     if (!content) return '';
 
     const decoder = new TextDecoder('utf-8');
-    return decoder.decode(content).slice(0, SUMMARY_CONTENT_LIMIT);
+    const contentLimit = limit || DEFAULT_SUMMARY_CONTENT_LIMIT;
+    return decoder.decode(content).slice(0, contentLimit);
   } catch (error) {
     logger.error('AI', '提取文件文本失败', { fileId: file.id }, error);
     return '';
@@ -794,6 +848,12 @@ export async function enqueueAutoProcessFile(env: Env, fileId: string, userId?: 
     return;
   }
 
+  const autoProcessEnabled = await getAiConfigBoolean(env, 'ai.feature.auto_process_enabled', true);
+  if (!autoProcessEnabled) {
+    logger.debug('AI', '自动处理功能已禁用', { fileId });
+    return;
+  }
+
   const db = getDb(env.DB);
   const file = await db.select().from(files).where(eq(files.id, fileId)).get();
 
@@ -814,7 +874,8 @@ export async function enqueueAutoProcessFile(env: Env, fileId: string, userId?: 
     taskTypes.push('summary');
   }
 
-  if (env.VECTORIZE && taskTypes.length > 0) {
+  const vectorIndexEnabled = await getAiConfigBoolean(env, 'ai.feature.vector_index_enabled', true);
+  if (env.VECTORIZE && taskTypes.length > 0 && vectorIndexEnabled) {
     taskTypes.push('index');
   }
 

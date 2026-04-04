@@ -190,11 +190,7 @@ export default {
         })
     );
   },
-  async queue(
-    batch: MessageBatch<AiTaskMessage>,
-    env: Env,
-    ctx: ExecutionContext
-  ) {
+  async queue(batch: MessageBatch<AiTaskMessage>, env: Env, ctx: ExecutionContext) {
     appLogger.info('QUEUE', '收到队列消息', { count: batch.messages.length });
 
     for (const message of batch.messages) {
@@ -219,10 +215,15 @@ export default {
         }
       } catch (error) {
         message.retry();
-        appLogger.error('QUEUE', '任务处理异常', {
-          type: message.body.type,
-          fileId: message.body.fileId,
-        }, error);
+        appLogger.error(
+          'QUEUE',
+          '任务处理异常',
+          {
+            type: message.body.type,
+            fileId: message.body.fileId,
+          },
+          error
+        );
       }
     }
   },

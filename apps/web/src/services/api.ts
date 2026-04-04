@@ -1260,7 +1260,8 @@ export const aiApi = {
 
   cancelIndexTask: () => api.delete<ApiResponse<{ message: string; task: AIIndexTask }>>('/api/ai/index/task'),
 
-  cancelSummarizeTask: () => api.delete<ApiResponse<{ message: string; task: AISummarizeTask }>>('/api/ai/summarize/batch'),
+  cancelSummarizeTask: () =>
+    api.delete<ApiResponse<{ message: string; task: AISummarizeTask }>>('/api/ai/summarize/batch'),
 
   cancelTagsTask: () => api.delete<ApiResponse<{ message: string; task: AITagsTask }>>('/api/ai/tags/batch'),
 
@@ -1328,12 +1329,14 @@ export const aiApi = {
 
     // 功能级模型配置
     getFeatureConfig: () =>
-      api.get<ApiResponse<{
-        summary: string | null;
-        imageCaption: string | null;
-        imageTag: string | null;
-        rename: string | null;
-      }>>('/api/ai-config/feature-config'),
+      api.get<
+        ApiResponse<{
+          summary: string | null;
+          imageCaption: string | null;
+          imageTag: string | null;
+          rename: string | null;
+        }>
+      >('/api/ai-config/feature-config'),
 
     saveFeatureConfig: (data: {
       summary?: string | null;
@@ -1341,6 +1344,13 @@ export const aiApi = {
       imageTag?: string | null;
       rename?: string | null;
     }) => api.put<ApiResponse<{ message: string; config: any }>>('/api/ai-config/feature-config', data),
+
+    // AI系统配置（高级配置）
+    getSystemConfig: () => api.get<ApiResponse<AiSystemConfigItem[]>>('/api/ai-config/system-config'),
+    updateSystemConfig: (key: string, value: unknown) =>
+      api.put<ApiResponse<{ message: string; key: string }>>(`/api/ai-config/system-config/${key}`, { value }),
+    resetSystemConfig: (key: string) =>
+      api.post<ApiResponse<{ message: string; key: string }>>(`/api/ai-config/system-config/${key}/reset`),
   },
 
   // 新增：AI会话管理（增强版）
@@ -1432,6 +1442,25 @@ export const aiApi = {
 };
 
 // AI配置相关类型定义
+export interface AiSystemConfigItem {
+  id: string;
+  key: string;
+  category: string;
+  label: string;
+  description: string | null;
+  valueType: 'string' | 'number' | 'boolean' | 'json';
+  stringValue: string | null;
+  numberValue: number | null;
+  booleanValue: boolean;
+  jsonValue: string | null;
+  defaultValue: string;
+  isSystem: boolean;
+  isEditable: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AiModel {
   id: string;
   userId: string;

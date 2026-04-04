@@ -737,12 +737,7 @@ app.post('/zip', async (c) => {
     .select()
     .from(files)
     .where(
-      and(
-        eq(files.userId, userId),
-        isNull(files.deletedAt),
-        eq(files.isFolder, false),
-        inArray(files.id, fileIds)
-      )
+      and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false), inArray(files.id, fileIds))
     )
     .all();
 

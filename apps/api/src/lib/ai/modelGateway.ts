@@ -26,17 +26,37 @@ import { logger } from '@osshelf/shared';
 import { getDb, aiModels } from '../../db';
 import { eq, and } from 'drizzle-orm';
 import { decryptCredential, getEncryptionKey, isAesGcmFormat } from '../crypto';
+import { getAiConfigString, getAiConfigNumber, initializeAiConfig } from './aiConfigService';
 
-const MAX_RETRIES = 3;
-const RETRY_BASE_DELAY_MS = 500;
-const REQUEST_TIMEOUT_MS = 30_000;
+const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_RETRY_BASE_DELAY_MS = 500;
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 
 export class ModelGateway {
   private env: Env;
   private adapterCache: Map<string, { adapter: IModelAdapter; version: string }> = new Map();
+  private retryConfig: { maxRetries: number; baseDelayMs: number; timeoutMs: number } | null = null;
 
   constructor(env: Env) {
     this.env = env;
+  }
+
+  private async getRetryConfig(): Promise<{ maxRetries: number; baseDelayMs: number; timeoutMs: number }> {
+    if (this.retryConfig) return this.retryConfig;
+    try {
+      this.retryConfig = {
+        maxRetries: await getAiConfigNumber(this.env, 'ai.request.max_retries', DEFAULT_MAX_RETRIES),
+        baseDelayMs: await getAiConfigNumber(this.env, 'ai.request.retry_base_delay_ms', DEFAULT_RETRY_BASE_DELAY_MS),
+        timeoutMs: await getAiConfigNumber(this.env, 'ai.request.timeout_ms', DEFAULT_REQUEST_TIMEOUT_MS),
+      };
+      return this.retryConfig;
+    } catch {
+      return {
+        maxRetries: DEFAULT_MAX_RETRIES,
+        baseDelayMs: DEFAULT_RETRY_BASE_DELAY_MS,
+        timeoutMs: DEFAULT_REQUEST_TIMEOUT_MS,
+      };
+    }
   }
 
   async getActiveModel(userId: string): Promise<ModelConfig | null> {
@@ -136,11 +156,7 @@ export class ModelGateway {
     );
   }
 
-  async embedding(
-    userId: string,
-    request: EmbeddingRequest,
-    modelId?: string
-  ): Promise<EmbeddingResponse> {
+  async embedding(userId: string, request: EmbeddingRequest, modelId?: string): Promise<EmbeddingResponse> {
     return this.callWithRetry(
       () => this.embeddingInternal(userId, request, modelId),
       `embedding(${modelId || 'active'})`
@@ -149,12 +165,14 @@ export class ModelGateway {
 
   clearCache(): void {
     this.adapterCache.clear();
+    this.retryConfig = null;
   }
 
   private async callWithRetry<T>(fn: () => Promise<T>, operation: string): Promise<T> {
+    const { maxRetries, baseDelayMs } = await this.getRetryConfig();
     let lastError: unknown;
 
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         return await fn();
       } catch (error) {
@@ -164,11 +182,11 @@ export class ModelGateway {
         const isRetryable = !status || status >= 500 || status === 429;
         const isAbort = (error as Error)?.name === 'AbortError';
 
-        if (!isRetryable || isAbort || attempt >= MAX_RETRIES - 1) {
+        if (!isRetryable || isAbort || attempt >= maxRetries - 1) {
           throw error;
         }
 
-        const delayMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+        const delayMs = baseDelayMs * Math.pow(2, attempt);
         logger.warn('AI', `Retrying ${operation}`, { attempt: attempt + 1, delayMs, status });
         await new Promise((r) => setTimeout(r, delayMs));
       }
@@ -187,7 +205,7 @@ export class ModelGateway {
     const adapter = this.getAdapter(modelConfig);
     this.injectSystemPrompt(request, modelConfig);
 
-    const timeoutSignal = this.createTimeoutSignal(signal);
+    const timeoutSignal = await this.createTimeoutSignal(signal);
 
     try {
       return await adapter.chatCompletion(
@@ -213,7 +231,7 @@ export class ModelGateway {
     const adapter = this.getAdapter(modelConfig);
     this.injectSystemPrompt(request, modelConfig);
 
-    const timeoutSignal = this.createTimeoutSignal(options?.signal);
+    const timeoutSignal = await this.createTimeoutSignal(options?.signal);
 
     try {
       return await adapter.chatCompletionStream(
@@ -235,9 +253,7 @@ export class ModelGateway {
     request: EmbeddingRequest,
     modelId?: string
   ): Promise<EmbeddingResponse> {
-    const modelConfig = modelId
-      ? await this.getModelById(modelId, userId)
-      : await this.getActiveModel(userId);
+    const modelConfig = modelId ? await this.getModelById(modelId, userId) : await this.getActiveModel(userId);
 
     if (!modelConfig) {
       throw new Error('No active model configured');
@@ -261,7 +277,7 @@ export class ModelGateway {
     const activeConfig = await this.getActiveModel(userId);
     if (activeConfig) return activeConfig;
 
-    return this.getDefaultWorkersAiModel();
+    return await this.getDefaultWorkersAiModel();
   }
 
   private injectSystemPrompt(request: ChatCompletionRequest, modelConfig: ModelConfig): void {
@@ -273,9 +289,10 @@ export class ModelGateway {
     }
   }
 
-  private createTimeoutSignal(externalSignal?: AbortSignal): AbortController {
+  private async createTimeoutSignal(externalSignal?: AbortSignal): Promise<AbortController> {
+    const { timeoutMs } = await this.getRetryConfig();
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     if (externalSignal) {
       if (externalSignal.aborted) {
@@ -284,10 +301,14 @@ export class ModelGateway {
         return controller;
       }
 
-      externalSignal.addEventListener('abort', () => {
-        clearTimeout(timeoutId);
-        controller.abort();
-      }, { once: true });
+      externalSignal.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timeoutId);
+          controller.abort();
+        },
+        { once: true }
+      );
     }
 
     return controller;
@@ -304,24 +325,28 @@ export class ModelGateway {
     let hash = 0;
     for (let i = 0; i < versionPart.length; i++) {
       const char = versionPart.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash |= 0;
     }
 
     return `${config.provider}:${config.id}:v${Math.abs(hash).toString(16).slice(0, 8)}`;
   }
 
-  private getDefaultWorkersAiModel(): ModelConfig {
+  private async getDefaultWorkersAiModel(): Promise<ModelConfig> {
+    const modelId = await getAiConfigString(this.env, 'ai.default_model.chat', '@cf/meta/llama-3.1-8b-instruct');
+    const maxTokens = await getAiConfigNumber(this.env, 'ai.model.max_tokens', 4096);
+    const temperature = await getAiConfigNumber(this.env, 'ai.model.temperature', 0.7);
+
     return {
       id: 'default-workers-ai',
       userId: '',
       name: 'Workers AI 默认模型',
       provider: 'workers_ai',
-      modelId: '@cf/meta/llama-3.1-8b-instruct',
+      modelId,
       isActive: true,
       capabilities: ['chat'],
-      maxTokens: 4096,
-      temperature: 0.7,
+      maxTokens,
+      temperature,
       configJson: {},
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -339,7 +364,8 @@ export class ModelGateway {
       {
         id: 'workers_ai',
         name: 'Cloudflare Workers AI',
-        description: 'Cloudflare内置的AI服务，无需配置API密钥，直接使用。支持自定义模型ID。注意：不支持 Native Function Calling，工具调用走 Prompt-Based Fallback',
+        description:
+          'Cloudflare内置的AI服务，无需配置API密钥，直接使用。支持自定义模型ID。注意：不支持 Native Function Calling，工具调用走 Prompt-Based Fallback',
         requiresApiKey: false,
         requiresEndpoint: false,
       },

@@ -39,13 +39,18 @@
  *  17. compare_files        比较两个文本文件的内容差异（摘要级）
  */
 
+import { eq, and, isNull, isNotNull, desc, asc, like, or, inArray, count, gte, lte, ne, sql } from 'drizzle-orm';
 import {
-  eq, and, isNull, isNotNull, desc, asc, like, or, inArray,
-  count, gte, lte, ne, sql
-} from 'drizzle-orm';
-import {
-  getDb, files, fileTags, shares, userStars, storageBuckets,
-  telegramFileRefs, fileNotes, fileVersions, auditLogs
+  getDb,
+  files,
+  fileTags,
+  shares,
+  userStars,
+  storageBuckets,
+  telegramFileRefs,
+  fileNotes,
+  fileVersions,
+  auditLogs,
 } from '../../db';
 import { searchAndFetchFiles, buildFileTextForVector } from '../vectorIndex';
 import { getFileContent } from '../utils';
@@ -54,6 +59,7 @@ import { tgDownloadChunked, isChunkedFileId } from '../telegramChunked';
 import { decryptSecret } from '../s3client';
 import type { Env } from '../../types/env';
 import { logger } from '@osshelf/shared';
+import { getAiConfigString, getAiConfigNumber } from './aiConfigService';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 公共类型
@@ -105,7 +111,6 @@ export interface ToolResultBase {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
-
   // ── 1. search_files ──────────────────────────────────────────────────────
   {
     type: 'function',
@@ -260,7 +265,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'get_file_detail',
-      description: '获取单个文件或文件夹的完整元数据：AI摘要、标签列表、分享信息、权限、版本数量、备注数量。用于用户追问某文件详情时。',
+      description:
+        '获取单个文件或文件夹的完整元数据：AI摘要、标签列表、分享信息、权限、版本数量、备注数量。用于用户追问某文件详情时。',
       parameters: {
         type: 'object',
         properties: {
@@ -353,7 +359,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         type: 'object',
         properties: {
           limit: { type: 'number', description: '数量，默认 15' },
-          sortBy: { type: 'string', enum: ['uploaded', 'modified'], description: '按上传时间或修改时间，默认 uploaded' },
+          sortBy: {
+            type: 'string',
+            enum: ['uploaded', 'modified'],
+            description: '按上传时间或修改时间，默认 uploaded',
+          },
           mimeTypePrefix: { type: 'string', description: '类型过滤，如 "image/"' },
         },
         required: [],
@@ -456,23 +466,23 @@ export class AgentToolExecutor {
     logger.info('AgentTool', `Execute: ${toolName}`, { args, userId: this.userId });
 
     const dispatch: Record<string, () => Promise<unknown>> = {
-      search_files:      () => this.searchFiles(args),
-      filter_files:      () => this.filterFiles(args),
-      search_by_tag:     () => this.searchByTag(args),
+      search_files: () => this.searchFiles(args),
+      filter_files: () => this.filterFiles(args),
+      search_by_tag: () => this.searchByTag(args),
       search_duplicates: () => this.searchDuplicates(args),
-      read_file_text:    () => this.readFileText(args),
-      analyze_image:     () => this.analyzeImage(args),
-      get_file_detail:   () => this.getFileDetail(args),
+      read_file_text: () => this.readFileText(args),
+      analyze_image: () => this.analyzeImage(args),
+      get_file_detail: () => this.getFileDetail(args),
       get_file_versions: () => this.getFileVersions(args),
-      get_file_notes:    () => this.getFileNotes(args),
-      list_folder:       () => this.listFolder(args),
-      get_folder_tree:   () => this.getFolderTree(args),
-      list_recent:       () => this.listRecent(args),
-      list_starred:      () => this.listStarred(args),
-      list_shares:       () => this.listShares(args),
+      get_file_notes: () => this.getFileNotes(args),
+      list_folder: () => this.listFolder(args),
+      get_folder_tree: () => this.getFolderTree(args),
+      list_recent: () => this.listRecent(args),
+      list_starred: () => this.listStarred(args),
+      list_shares: () => this.listShares(args),
       get_storage_stats: () => this.getStorageStats(),
-      get_activity_stats:() => this.getActivityStats(args),
-      compare_files:     () => this.compareFiles(args),
+      get_activity_stats: () => this.getActivityStats(args),
+      compare_files: () => this.compareFiles(args),
     };
 
     const fn = dispatch[toolName];
@@ -511,12 +521,14 @@ export class AgentToolExecutor {
       const conditions: any[] = [
         eq(files.userId, this.userId),
         isNull(files.deletedAt),
-        or(...kws.flatMap((w) => [
-          like(files.name, `%${w}%`),
-          like(files.description, `%${w}%`),
-          like(files.aiSummary, `%${w}%`),
-          like(files.aiTags, `%${w}%`),
-        ])),
+        or(
+          ...kws.flatMap((w) => [
+            like(files.name, `%${w}%`),
+            like(files.description, `%${w}%`),
+            like(files.aiSummary, `%${w}%`),
+            like(files.aiTags, `%${w}%`),
+          ])
+        ),
       ];
       if (mimeTypePrefix) conditions.push(like(files.mimeType, `${mimeTypePrefix}%`));
       if (folderId) conditions.push(eq(files.parentId, folderId));
@@ -530,10 +542,7 @@ export class AgentToolExecutor {
         .all();
 
       const existing = new Set(results.map((r) => r.id));
-      results = [
-        ...results,
-        ...kwRows.filter((f) => !existing.has(f.id)).map(toAgentFile),
-      ].slice(0, limit);
+      results = [...results, ...kwRows.filter((f) => !existing.has(f.id)).map(toAgentFile)].slice(0, limit);
     }
 
     const imageCount = results.filter((f) => f.mimeType?.startsWith('image/')).length;
@@ -558,11 +567,7 @@ export class AgentToolExecutor {
     const limit = Math.min((args.limit as number) || 20, 100);
     const sortBy = (args.sortBy as string) || 'newest';
 
-    const conditions: any[] = [
-      eq(files.userId, this.userId),
-      isNull(files.deletedAt),
-      eq(files.isFolder, false),
-    ];
+    const conditions: any[] = [eq(files.userId, this.userId), isNull(files.deletedAt), eq(files.isFolder, false)];
 
     if (args.mimeTypePrefix) conditions.push(like(files.mimeType, `${args.mimeTypePrefix}%`));
     if (args.hasAiSummary === true) conditions.push(isNotNull(files.aiSummary));
@@ -635,11 +640,13 @@ export class AgentToolExecutor {
       const rows = await db
         .select()
         .from(files)
-        .where(and(
-          eq(files.userId, this.userId),
-          isNull(files.deletedAt),
-          inArray(files.id, [...intersection].slice(0, limit))
-        ))
+        .where(
+          and(
+            eq(files.userId, this.userId),
+            isNull(files.deletedAt),
+            inArray(files.id, [...intersection].slice(0, limit))
+          )
+        )
         .all();
 
       return { tags, matchMode, total: rows.length, files: rows.map(toAgentFile) };
@@ -650,11 +657,13 @@ export class AgentToolExecutor {
       .select({ file: files, tag: fileTags })
       .from(fileTags)
       .innerJoin(files, eq(fileTags.fileId, files.id))
-      .where(and(
-        eq(fileTags.userId, this.userId),
-        or(...tags.map((tag) => like(fileTags.name, `%${tag}%`))),
-        isNull(files.deletedAt),
-      ))
+      .where(
+        and(
+          eq(fileTags.userId, this.userId),
+          or(...tags.map((tag) => like(fileTags.name, `%${tag}%`))),
+          isNull(files.deletedAt)
+        )
+      )
       .orderBy(desc(files.updatedAt))
       .limit(limit)
       .all();
@@ -709,11 +718,7 @@ export class AgentToolExecutor {
     const allDuplicates = await db
       .select()
       .from(files)
-      .where(and(
-        eq(files.userId, this.userId),
-        isNull(files.deletedAt),
-        inArray(files.hash, hashes)
-      ))
+      .where(and(eq(files.userId, this.userId), isNull(files.deletedAt), inArray(files.hash, hashes)))
       .all();
 
     // 按 hash 分组
@@ -753,15 +758,17 @@ export class AgentToolExecutor {
 
     if (!file) return { error: `文件不存在或无权访问: ${fileId}` };
 
-    if (file.mimeType?.startsWith('image/') || file.mimeType?.startsWith('video/') || file.mimeType?.startsWith('audio/')) {
+    if (
+      file.mimeType?.startsWith('image/') ||
+      file.mimeType?.startsWith('video/') ||
+      file.mimeType?.startsWith('audio/')
+    ) {
       return {
         fileId,
         fileName: file.name,
         mimeType: file.mimeType,
         error: '该文件类型无文本内容',
-        _next_actions: file.mimeType.startsWith('image/')
-          ? ['请使用 analyze_image 工具来理解图片内容。']
-          : [],
+        _next_actions: file.mimeType.startsWith('image/') ? ['请使用 analyze_image 工具来理解图片内容。'] : [],
       };
     }
 
@@ -812,9 +819,8 @@ export class AgentToolExecutor {
         title: s.title,
         preview: s.content.slice(0, 100) + (s.content.length > 100 ? '...' : ''),
       })),
-      _next_actions: totalChunks > 1
-        ? ['若需阅读具体内容，传入 sectionIndex 参数（0 到 ' + (totalChunks - 1) + '）再次调用。']
-        : [],
+      _next_actions:
+        totalChunks > 1 ? ['若需阅读具体内容，传入 sectionIndex 参数（0 到 ' + (totalChunks - 1) + '）再次调用。'] : [],
     };
   }
 
@@ -822,8 +828,9 @@ export class AgentToolExecutor {
 
   private async analyzeImage(args: Record<string, unknown>) {
     const fileId = args.fileId as string;
-    const question = (args.question as string)
-      || '请详细描述这张图片的内容，包括：人物（外貌、性别、大概年龄、表情、穿着）、背景场景、主要物体、整体风格和色调。';
+    const question =
+      (args.question as string) ||
+      '请详细描述这张图片的内容，包括：人物（外貌、性别、大概年龄、表情、穿着）、背景场景、主要物体、整体风格和色调。';
 
     const db = getDb(this.env.DB);
     const file = await db
@@ -880,18 +887,23 @@ export class AgentToolExecutor {
 
     try {
       const imageBytes = new Uint8Array(buffer);
-      const result = await (this.env.AI as any).run('@cf/llava-hf/llava-1.5-7b-hf', {
+      const visionModelId = await getAiConfigString(
+        this.env,
+        'ai.default_model.vision',
+        '@cf/llava-hf/llava-1.5-7b-hf'
+      );
+      const visionMaxTokens = await getAiConfigNumber(this.env, 'ai.vision.max_tokens', 600);
+
+      const result = await (this.env.AI as any).run(visionModelId, {
         image: Array.from(imageBytes),
         prompt: question,
-        max_tokens: 600,
+        max_tokens: visionMaxTokens,
       });
 
       const description: string =
         typeof result === 'string'
           ? result
-          : (result as any)?.description
-          ?? (result as any)?.response
-          ?? JSON.stringify(result);
+          : ((result as any)?.description ?? (result as any)?.response ?? JSON.stringify(result));
 
       return {
         fileId,
@@ -940,7 +952,8 @@ export class AgentToolExecutor {
     const [tags, shareList, noteCountRes] = await Promise.all([
       db.select().from(fileTags).where(eq(fileTags.fileId, fileId)).all(),
       db.select().from(shares).where(eq(shares.fileId, fileId)).all(),
-      db.select({ cnt: count(fileNotes.id) })
+      db
+        .select({ cnt: count(fileNotes.id) })
         .from(fileNotes)
         .where(and(eq(fileNotes.fileId, fileId), isNull(fileNotes.deletedAt)))
         .get(),
@@ -957,9 +970,7 @@ export class AgentToolExecutor {
     }
 
     const now = Date.now();
-    const activeShares = shareList.filter(
-      (s) => !s.expiresAt || new Date(s.expiresAt).getTime() > now
-    );
+    const activeShares = shareList.filter((s) => !s.expiresAt || new Date(s.expiresAt).getTime() > now);
 
     return {
       ...toAgentFile(file),
@@ -1059,15 +1070,19 @@ export class AgentToolExecutor {
     const rows = await db
       .select()
       .from(files)
-      .where(and(
-        eq(files.userId, this.userId),
-        isNull(files.deletedAt),
-        folderId ? eq(files.parentId, folderId) : isNull(files.parentId)
-      ))
+      .where(
+        and(
+          eq(files.userId, this.userId),
+          isNull(files.deletedAt),
+          folderId ? eq(files.parentId, folderId) : isNull(files.parentId)
+        )
+      )
       .orderBy(
-        sortBy === 'newest' ? desc(files.createdAt) :
-        sortBy === 'largest' ? desc(files.size) :
-        sql`${files.isFolder} DESC, ${files.name} ASC`
+        sortBy === 'newest'
+          ? desc(files.createdAt)
+          : sortBy === 'largest'
+            ? desc(files.size)
+            : sql`${files.isFolder} DESC, ${files.name} ASC`
       )
       .limit(limit)
       .all();
@@ -1103,11 +1118,13 @@ export class AgentToolExecutor {
 
     // 获取所有文件夹和文件数
     const [allFolders, fileCounts] = await Promise.all([
-      db.select({ id: files.id, name: files.name, parentId: files.parentId })
+      db
+        .select({ id: files.id, name: files.name, parentId: files.parentId })
         .from(files)
         .where(and(eq(files.userId, this.userId), isNull(files.deletedAt), eq(files.isFolder, true)))
         .all(),
-      db.select({ parentId: files.parentId, cnt: count(files.id) })
+      db
+        .select({ parentId: files.parentId, cnt: count(files.id) })
         .from(files)
         .where(and(eq(files.userId, this.userId), isNull(files.deletedAt), eq(files.isFolder, false)))
         .groupBy(files.parentId)
@@ -1151,11 +1168,7 @@ export class AgentToolExecutor {
     const mimeTypePrefix = args.mimeTypePrefix as string | undefined;
     const db = getDb(this.env.DB);
 
-    const conditions: any[] = [
-      eq(files.userId, this.userId),
-      isNull(files.deletedAt),
-      eq(files.isFolder, false),
-    ];
+    const conditions: any[] = [eq(files.userId, this.userId), isNull(files.deletedAt), eq(files.isFolder, false)];
     if (mimeTypePrefix) conditions.push(like(files.mimeType, `${mimeTypePrefix}%`));
 
     const rows = await db
@@ -1233,14 +1246,20 @@ export class AgentToolExecutor {
     const db = getDb(this.env.DB);
 
     const [allFiles, buckets] = await Promise.all([
-      db.select({
-        id: files.id, name: files.name, mimeType: files.mimeType,
-        size: files.size, createdAt: files.createdAt, bucketId: files.bucketId,
-      })
+      db
+        .select({
+          id: files.id,
+          name: files.name,
+          mimeType: files.mimeType,
+          size: files.size,
+          createdAt: files.createdAt,
+          bucketId: files.bucketId,
+        })
         .from(files)
         .where(and(eq(files.userId, this.userId), isNull(files.deletedAt), eq(files.isFolder, false)))
         .all(),
-      db.select({ id: storageBuckets.id, name: storageBuckets.name, provider: storageBuckets.provider })
+      db
+        .select({ id: storageBuckets.id, name: storageBuckets.name, provider: storageBuckets.provider })
         .from(storageBuckets)
         .where(and(eq(storageBuckets.userId, this.userId), eq(storageBuckets.isActive, true)))
         .all(),
@@ -1262,7 +1281,8 @@ export class AgentToolExecutor {
       const bid = f.bucketId || '__default__';
       const bucket = buckets.find((b) => b.id === bid);
       const cur = bucketMap.get(bid) || {
-        count: 0, size: 0,
+        count: 0,
+        size: 0,
         name: bucket?.name || '默认存储',
         provider: bucket?.provider || 'r2',
       };
@@ -1289,8 +1309,12 @@ export class AgentToolExecutor {
       byType: [...typeMap.entries()]
         .map(([type, d]) => ({ type, count: d.count, size: formatBytes(d.size) }))
         .sort((a, b) => b.count - a.count),
-      byBucket: [...bucketMap.entries()]
-        .map(([, d]) => ({ name: d.name, provider: d.provider, count: d.count, size: formatBytes(d.size) })),
+      byBucket: [...bucketMap.entries()].map(([, d]) => ({
+        name: d.name,
+        provider: d.provider,
+        count: d.count,
+        size: formatBytes(d.size),
+      })),
       top5Largest,
       recentUploads: [...allFiles]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -1310,12 +1334,14 @@ export class AgentToolExecutor {
     const rows = await db
       .select({ createdAt: files.createdAt, size: files.size })
       .from(files)
-      .where(and(
-        eq(files.userId, this.userId),
-        isNull(files.deletedAt),
-        eq(files.isFolder, false),
-        gte(files.createdAt, since),
-      ))
+      .where(
+        and(
+          eq(files.userId, this.userId),
+          isNull(files.deletedAt),
+          eq(files.isFolder, false),
+          gte(files.createdAt, since)
+        )
+      )
       .all();
 
     // 按天汇总
@@ -1351,8 +1377,16 @@ export class AgentToolExecutor {
     const db = getDb(this.env.DB);
 
     const [fileA, fileB] = await Promise.all([
-      db.select().from(files).where(and(eq(files.id, fileIdA), eq(files.userId, this.userId))).get(),
-      db.select().from(files).where(and(eq(files.id, fileIdB), eq(files.userId, this.userId))).get(),
+      db
+        .select()
+        .from(files)
+        .where(and(eq(files.id, fileIdA), eq(files.userId, this.userId)))
+        .get(),
+      db
+        .select()
+        .from(files)
+        .where(and(eq(files.id, fileIdB), eq(files.userId, this.userId)))
+        .get(),
     ]);
 
     if (!fileA) return { error: `文件 A 不存在: ${fileIdA}` };
@@ -1365,15 +1399,21 @@ export class AgentToolExecutor {
 
     return {
       fileA: {
-        id: fileA.id, name: fileA.name, size: formatBytes(fileA.size),
-        mimeType: fileA.mimeType, updatedAt: fileA.updatedAt,
+        id: fileA.id,
+        name: fileA.name,
+        size: formatBytes(fileA.size),
+        mimeType: fileA.mimeType,
+        updatedAt: fileA.updatedAt,
         aiSummary: fileA.aiSummary || null,
         hasContent: !!textA && textA.length > 30,
         contentLength: textA?.length || 0,
       },
       fileB: {
-        id: fileB.id, name: fileB.name, size: formatBytes(fileB.size),
-        mimeType: fileB.mimeType, updatedAt: fileB.updatedAt,
+        id: fileB.id,
+        name: fileB.name,
+        size: formatBytes(fileB.size),
+        mimeType: fileB.mimeType,
+        updatedAt: fileB.updatedAt,
         aiSummary: fileB.aiSummary || null,
         hasContent: !!textB && textB.length > 30,
         contentLength: textB?.length || 0,
@@ -1401,18 +1441,10 @@ export async function fetchFileBuffer(
 
   try {
     const db = getDb(env.DB);
-    const tgRef = await db
-      .select()
-      .from(telegramFileRefs)
-      .where(eq(telegramFileRefs.fileId, file.id))
-      .get();
+    const tgRef = await db.select().from(telegramFileRefs).where(eq(telegramFileRefs.fileId, file.id)).get();
 
     if (tgRef) {
-      const bucket = await db
-        .select()
-        .from(storageBuckets)
-        .where(eq(storageBuckets.id, file.bucketId))
-        .get();
+      const bucket = await db.select().from(storageBuckets).where(eq(storageBuckets.id, file.bucketId)).get();
       if (!bucket) return null;
 
       const encKey = env.JWT_SECRET;

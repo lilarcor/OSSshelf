@@ -64,7 +64,11 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
       const data = (await response.json()) as {
         id: string;
         choices: Array<{
-          message: { content: string | null; role: string; tool_calls?: Array<{id: string; type: string; function: {name: string; arguments: string}}> };
+          message: {
+            content: string | null;
+            role: string;
+            tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }>;
+          };
           finish_reason: string;
         }>;
         usage?: {
@@ -75,7 +79,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
       };
 
       const choice = data.choices[0];
-      const toolCalls = choice?.message?.tool_calls?.map(tc => ({
+      const toolCalls = choice?.message?.tool_calls?.map((tc) => ({
         id: tc.id,
         name: tc.function.name,
         arguments: tc.function.arguments,
@@ -93,7 +97,11 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
               totalTokens: data.usage.total_tokens,
             }
           : undefined,
-        finishReason: (choice?.finish_reason === 'tool_calls' ? 'tool_calls' : choice?.finish_reason) as 'stop' | 'length' | 'content_filter' | 'tool_calls',
+        finishReason: (choice?.finish_reason === 'tool_calls' ? 'tool_calls' : choice?.finish_reason) as
+          | 'stop'
+          | 'length'
+          | 'content_filter'
+          | 'tool_calls',
         toolCalls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
       };
     } catch (error) {
@@ -323,20 +331,24 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
     }
   }
 
-  private formatMessageContent(content: string | ChatContentPart[]): string | Array<{type: string; text?: string; image_url?: {url: string; detail?: string}}> {
+  private formatMessageContent(
+    content: string | ChatContentPart[]
+  ): string | Array<{ type: string; text?: string; image_url?: { url: string; detail?: string } }> {
     if (typeof content === 'string') {
       return content;
     }
 
-    return content.map((part) => {
-      if (part.type === 'text') {
-        return { type: 'text', text: part.text };
-      }
-      if (part.type === 'image_url' && part.image_url) {
-        return { type: 'image_url', image_url: part.image_url };
-      }
-      return null;
-    }).filter(Boolean) as Array<{type: string; text?: string; image_url?: {url: string; detail?: string}}>;
+    return content
+      .map((part) => {
+        if (part.type === 'text') {
+          return { type: 'text', text: part.text };
+        }
+        if (part.type === 'image_url' && part.image_url) {
+          return { type: 'image_url', image_url: part.image_url };
+        }
+        return null;
+      })
+      .filter(Boolean) as Array<{ type: string; text?: string; image_url?: { url: string; detail?: string } }>;
   }
 
   static getPopularModels(): Array<{

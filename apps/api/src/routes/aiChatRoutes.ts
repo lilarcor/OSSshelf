@@ -13,7 +13,12 @@ import { Hono } from 'hono';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
 import { getDb, aiChatSessions, aiChatMessages, files } from '../db';
 import { authMiddleware } from '../middleware/auth';
-import { checkTokenQuota, tokenQuotaExceededResponse, recordTokenUsage, getTokenUsageStats } from '../lib/ai/tokenQuota';
+import {
+  checkTokenQuota,
+  tokenQuotaExceededResponse,
+  recordTokenUsage,
+  getTokenUsageStats,
+} from '../lib/ai/tokenQuota';
 import { ERROR_CODES } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
 import { z } from 'zod';
@@ -43,7 +48,12 @@ app.get('/sessions', async (c) => {
     const msgCounts = await db
       .select({ sessionId: aiChatMessages.sessionId, cnt: count(aiChatMessages.id) })
       .from(aiChatMessages)
-      .where(sql`${aiChatMessages.sessionId} IN (${sql.join(sessions.map(s => sql`${s.id}`), sql`, `)})`)
+      .where(
+        sql`${aiChatMessages.sessionId} IN (${sql.join(
+          sessions.map((s) => sql`${s.id}`),
+          sql`, `
+        )})`
+      )
       .groupBy(aiChatMessages.sessionId)
       .all();
 
@@ -90,10 +100,7 @@ app.post('/sessions', async (c) => {
     return c.json({ success: true, data: newSession });
   } catch (error) {
     logger.error('AI Chat', 'Failed to create session', { userId }, error);
-    return c.json(
-      { success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '创建会话失败' } },
-      500
-    );
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '创建会话失败' } }, 500);
   }
 });
 
@@ -138,10 +145,7 @@ app.put('/sessions/:sessionId', async (c) => {
   const { title } = body as { title?: string };
 
   if (!title) {
-    return c.json(
-      { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '标题不能为空' } },
-      400
-    );
+    return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '标题不能为空' } }, 400);
   }
 
   const db = getDb(c.env.DB);
@@ -164,10 +168,7 @@ app.put('/sessions/:sessionId', async (c) => {
 
     return c.json({ success: true, data: { id: sessionId, title } });
   } catch (error) {
-    return c.json(
-      { success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '更新会话失败' } },
-      500
-    );
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '更新会话失败' } }, 500);
   }
 });
 
@@ -191,10 +192,7 @@ app.delete('/sessions/:sessionId', async (c) => {
 
     return c.json({ success: true, data: { message: '会话已删除' } });
   } catch (error) {
-    return c.json(
-      { success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '删除会话失败' } },
-      500
-    );
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '删除会话失败' } }, 500);
   }
 });
 
@@ -277,12 +275,12 @@ async function handleNormalChat(
             });
             const generatedTitle = titleResponse.content.trim().slice(0, 20);
             if (generatedTitle && generatedTitle !== query.slice(0, 20)) {
-              await db.update(aiChatSessions)
+              await db
+                .update(aiChatSessions)
                 .set({ title: generatedTitle })
                 .where(eq(aiChatSessions.id, actualSessionId));
             }
-          } catch {
-          }
+          } catch {}
         })()
       );
     } else {
@@ -424,12 +422,12 @@ async function handleStreamChat(
             });
             const generatedTitle = titleResponse.content.trim().slice(0, 20);
             if (generatedTitle && generatedTitle !== query.slice(0, 20)) {
-              await db.update(aiChatSessions)
+              await db
+                .update(aiChatSessions)
                 .set({ title: generatedTitle })
                 .where(eq(aiChatSessions.id, actualSessionId));
             }
-          } catch {
-          }
+          } catch {}
         })()
       );
     } else {
@@ -468,7 +466,9 @@ async function handleStreamChat(
     let finalUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | undefined;
     let resolveStream!: () => void;
     let doneEmitted = false;
-    const streamDone = new Promise<void>((r) => { resolveStream = r; });
+    const streamDone = new Promise<void>((r) => {
+      resolveStream = r;
+    });
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -484,7 +484,9 @@ async function handleStreamChat(
           if (doneEmitted) return;
           doneEmitted = true;
           enqueue(data);
-          try { controller.close(); } catch {}
+          try {
+            controller.close();
+          } catch {}
           resolveStream();
         };
 
@@ -537,7 +539,9 @@ async function handleStreamChat(
         } catch (error) {
           logger.error('AI Agent', 'Stream failed', { userId }, error);
           enqueue({ done: true, error: 'AI 响应出错', sessionId: actualSessionId, sources: [] });
-          try { controller.close(); } catch {}
+          try {
+            controller.close();
+          } catch {}
           resolveStream();
         }
       },

@@ -7,7 +7,10 @@ export * from './types';
 export { ModelGateway } from './modelGateway';
 export { RagEngine } from './ragEngine';
 export { WorkersAiAdapter } from './adapters/workersAiAdapter';
-export { OpenAiCompatibleAdapter, OpenAiCompatibleAdapter as OpenAICompatibleAdapter } from './adapters/openAiCompatibleAdapter';
+export {
+  OpenAiCompatibleAdapter,
+  OpenAiCompatibleAdapter as OpenAICompatibleAdapter,
+} from './adapters/openAiCompatibleAdapter';
 export {
   canGenerateSummary,
   isImageFile,

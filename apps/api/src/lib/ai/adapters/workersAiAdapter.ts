@@ -178,9 +178,8 @@ export class WorkersAiAdapter implements IModelAdapter {
 
   private getModelConfig(request: ChatCompletionRequest): { modelId: string; maxTokens: number; temperature: number } {
     const userModelId = this.modelConfig?.modelId;
-    const effectiveModelId = (userModelId && userModelId.startsWith('@cf/'))
-      ? userModelId
-      : '@cf/meta/llama-3.1-8b-instruct';
+    const effectiveModelId =
+      userModelId && userModelId.startsWith('@cf/') ? userModelId : '@cf/meta/llama-3.1-8b-instruct';
 
     return {
       modelId: effectiveModelId,
@@ -201,7 +200,8 @@ export class WorkersAiAdapter implements IModelAdapter {
         id: '__custom__',
         name: '自定义模型 (输入任意 @cf/ 模型 ID)',
         capabilities: ['chat', 'vision'],
-        description: '手动输入任意 Cloudflare Workers AI 模型 ID，如 @cf/deepseek/deepseek-r1、@cf/black-forest-labs/flux-2-klein-4b 等。支持所有 Workers AI 目录中的模型。',
+        description:
+          '手动输入任意 Cloudflare Workers AI 模型 ID，如 @cf/deepseek/deepseek-r1、@cf/black-forest-labs/flux-2-klein-4b 等。支持所有 Workers AI 目录中的模型。',
       },
 
       // ========== 大语言模型（高参数） ==========

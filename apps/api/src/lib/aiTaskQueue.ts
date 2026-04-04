@@ -32,21 +32,14 @@ export interface TaskProgress {
 
 // ─── 读取任务 ──────────────────────────────────────────────────────────────
 
-export async function getTaskRecord(
-  env: Env,
-  taskId: string
-): Promise<TaskProgress | null> {
+export async function getTaskRecord(env: Env, taskId: string): Promise<TaskProgress | null> {
   const db = getDb(env.DB);
   const row = await db.select().from(aiTasks).where(eq(aiTasks.id, taskId)).get();
   if (!row) return null;
   return row as TaskProgress;
 }
 
-export async function getLatestTaskByUserType(
-  env: Env,
-  userId: string,
-  type: string
-): Promise<TaskProgress | null> {
+export async function getLatestTaskByUserType(env: Env, userId: string, type: string): Promise<TaskProgress | null> {
   const db = getDb(env.DB);
   const normalizedType = type === 'summary' ? 'summarize' : type;
   const row = await db
@@ -90,11 +83,7 @@ export async function createTaskRecord(
 
 // ─── 取消任务 ──────────────────────────────────────────────────────────────
 
-export async function cancelTask(
-  env: Env,
-  userId: string,
-  type: string
-): Promise<TaskProgress | null> {
+export async function cancelTask(env: Env, userId: string, type: string): Promise<TaskProgress | null> {
   const db = getDb(env.DB);
   const normalizedType = type === 'summary' ? 'summarize' : type;
   const now = new Date().toISOString();
@@ -102,13 +91,7 @@ export async function cancelTask(
   const existing = await db
     .select()
     .from(aiTasks)
-    .where(
-      and(
-        eq(aiTasks.userId, userId),
-        eq(aiTasks.type, normalizedType),
-        eq(aiTasks.status, 'running')
-      )
-    )
+    .where(and(eq(aiTasks.userId, userId), eq(aiTasks.type, normalizedType), eq(aiTasks.status, 'running')))
     .orderBy(sql`${aiTasks.startedAt} DESC`)
     .limit(1)
     .get();
@@ -128,18 +111,14 @@ export async function cancelTask(
 async function incrementProcessed(env: Env, taskId: string): Promise<void> {
   const db = getDb(env.DB);
   const now = new Date().toISOString();
-  await db.run(
-    sql`UPDATE ai_tasks SET processed = processed + 1, updated_at = ${now} WHERE id = ${taskId}`
-  );
+  await db.run(sql`UPDATE ai_tasks SET processed = processed + 1, updated_at = ${now} WHERE id = ${taskId}`);
   await checkAndCompleteTask(env, taskId);
 }
 
 async function incrementFailed(env: Env, taskId: string): Promise<void> {
   const db = getDb(env.DB);
   const now = new Date().toISOString();
-  await db.run(
-    sql`UPDATE ai_tasks SET failed = failed + 1, updated_at = ${now} WHERE id = ${taskId}`
-  );
+  await db.run(sql`UPDATE ai_tasks SET failed = failed + 1, updated_at = ${now} WHERE id = ${taskId}`);
   await checkAndCompleteTask(env, taskId);
 }
 

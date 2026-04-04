@@ -21,9 +21,9 @@ const MAX_TEXT_LENGTH = 4096;
 
 // 分块配置: 滑动窗口策略
 const CHUNK_CONFIG = {
-  chunkSize: 1000,     // 约 512 token (中文约 2 字符/token)
-  overlap: 128,         // 约 64 token 重叠，保持上下文连续性
-  maxChunks: 20,        // 单文件最多 20 块，控制存储成本
+  chunkSize: 1000, // 约 512 token (中文约 2 字符/token)
+  overlap: 128, // 约 64 token 重叠，保持上下文连续性
+  maxChunks: 20, // 单文件最多 20 块，控制存储成本
 } as const;
 
 // 向量 ID 前缀: 用于区分单块和多块模式
@@ -198,9 +198,9 @@ export async function searchSimilarFiles(
   }
 
   try {
-      // 搜索时增加 topK 以应对同一文件多个 chunk 的情况
-      // Cloudflare Vectorize 限制：returnMetadata='all' 时 topK 最大 50
-      const effectiveLimit = Math.min(limit * 3, 50);
+    // 搜索时增加 topK 以应对同一文件多个 chunk 的情况
+    // Cloudflare Vectorize 限制：returnMetadata='all' 时 topK 最大 50
+    const effectiveLimit = Math.min(limit * 3, 50);
 
     const result = await (env.AI as any).run(EMBEDDING_MODEL, {
       text: [query.slice(0, MAX_TEXT_LENGTH)],
@@ -316,12 +316,7 @@ function reciprocalRankFusion(
 /**
  * 关键词搜索（SQL LIKE）— 作为语义搜索的补充
  */
-async function keywordSearch(
-  env: Env,
-  query: string,
-  userId: string,
-  limit: number
-): Promise<VectorSearchResult[]> {
+async function keywordSearch(env: Env, query: string, userId: string, limit: number): Promise<VectorSearchResult[]> {
   const db = getDb(env.DB);
 
   try {

@@ -39,15 +39,25 @@ import {
   Tags,
   Type,
   Layers,
+  Sliders,
+  RotateCcw,
+  Save,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ModelCard } from '@/components/ai';
-import { aiApi, type AiModel, type AiProvider, type AiWorkersAiModel, type AiOpenAiModel } from '@/services/api';
+import {
+  aiApi,
+  type AiModel,
+  type AiProvider,
+  type AiWorkersAiModel,
+  type AiOpenAiModel,
+  type AiSystemConfigItem,
+} from '@/services/api';
 import type { AIIndexTask, AISummarizeTask, AITagsTask, AIIndexStats } from '@/services/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/utils';
 
-type TabType = 'models' | 'providers' | 'index' | 'tasks' | 'vectors';
+type TabType = 'models' | 'providers' | 'index' | 'tasks' | 'vectors' | 'advanced';
 
 export function AISettings() {
   const navigate = useNavigate();
@@ -82,6 +92,10 @@ export function AISettings() {
   const [vectorPage, setVectorPage] = useState(1);
   const [deletingVectorId, setDeletingVectorId] = useState<string | null>(null);
 
+  // 系统配置状态
+  const [editingConfigKey, setEditingConfigKey] = useState<string | null>(null);
+  const [configEditValue, setConfigEditValue] = useState<string>('');
+
   // 查询模型列表
   const { data: models = [], isLoading: modelsLoading } = useQuery({
     queryKey: ['ai-models'],
@@ -101,6 +115,17 @@ export function AISettings() {
     queryKey: ['ai-providers'],
     queryFn: () => aiApi.config.getProviders().then((r) => r.data.data),
     staleTime: 300000,
+  });
+
+  // 查询系统配置
+  const {
+    data: systemConfigs = [],
+    isLoading: configLoading,
+    refetch: refetchSystemConfig,
+  } = useQuery({
+    queryKey: ['ai-system-config'],
+    queryFn: () => aiApi.config.getSystemConfig().then((r) => r.data.data ?? []),
+    staleTime: 30000,
   });
 
   // 模型操作 mutations
@@ -195,7 +220,7 @@ export function AISettings() {
   });
 
   // 功能模型配置
-  const { data: featureConfigData, isLoading: configLoading } = useQuery({
+  const { data: featureConfigData } = useQuery({
     queryKey: ['ai-feature-config'],
     queryFn: () => aiApi.config.getFeatureConfig().then((r) => r.data.data),
     staleTime: 30000,
@@ -212,6 +237,22 @@ export function AISettings() {
       aiApi.config.saveFeatureConfig(data as Parameters<typeof aiApi.config.saveFeatureConfig>[0]),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-feature-config'] });
+    },
+  });
+
+  // 系统配置操作 mutations
+  const updateSystemConfigMutation = useMutation({
+    mutationFn: ({ key, value }: { key: string; value: unknown }) => aiApi.config.updateSystemConfig(key, value),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-system-config'] });
+      setEditingConfigKey(null);
+    },
+  });
+
+  const resetSystemConfigMutation = useMutation({
+    mutationFn: (key: string) => aiApi.config.resetSystemConfig(key),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-system-config'] });
     },
   });
 
@@ -365,6 +406,18 @@ export function AISettings() {
     }
   };
 
+  const handleSaveConfig = (config: AiSystemConfigItem) => {
+    let value: string | number | boolean = configEditValue;
+
+    if (config.valueType === 'number') {
+      value = Number(configEditValue);
+    } else if (config.valueType === 'boolean') {
+      value = configEditValue === 'true';
+    }
+
+    updateSystemConfigMutation.mutate({ key: config.key, value });
+  };
+
   // 渲染任务进度条
   const renderTaskProgress = (
     taskData: AIIndexTask | AISummarizeTask | AITagsTask | null,
@@ -467,6 +520,7 @@ export function AISettings() {
     { id: 'index', label: '索引与处理', icon: Database },
     { id: 'vectors', label: '向量库', icon: Layers },
     { id: 'tasks', label: '任务中心', icon: BarChart3 },
+    { id: 'advanced', label: '高级配置', icon: Sliders },
   ];
 
   return (
@@ -641,75 +695,79 @@ export function AISettings() {
               </div>
               <p className="text-sm text-muted-foreground mb-4">Cloudflare 内置的 AI 服务，无需配置 API 密钥即可使用</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {providersData.workersAiModels.filter((m) => m.id !== '__custom__').map((m) => {
-                  const isAdded = models.some((model) => model.provider === 'workers_ai' && model.modelId === m.id);
-                  const isActive = status?.activeModel?.modelId === m.id;
-                  const isPending = quickActivateMutation.isPending;
+                {providersData.workersAiModels
+                  .filter((m) => m.id !== '__custom__')
+                  .map((m) => {
+                    const isAdded = models.some((model) => model.provider === 'workers_ai' && model.modelId === m.id);
+                    const isActive = status?.activeModel?.modelId === m.id;
+                    const isPending = quickActivateMutation.isPending;
 
-                  return (
-                    <div
-                      key={m.id}
-                      className={cn(
-                        'p-3 sm:p-4 border rounded-lg transition-colors relative',
-                        isActive ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
-                      )}
-                    >
-                      {isActive && (
-                        <div className="absolute top-2 right-2">
-                          <CheckCircle className="h-5 w-5 text-primary" />
+                    return (
+                      <div
+                        key={m.id}
+                        className={cn(
+                          'p-3 sm:p-4 border rounded-lg transition-colors relative',
+                          isActive ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
+                        )}
+                      >
+                        {isActive && (
+                          <div className="absolute top-2 right-2">
+                            <CheckCircle className="h-5 w-5 text-primary" />
+                          </div>
+                        )}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0 pr-6">
+                            <h3 className="font-medium text-sm sm:text-base truncate">{m.name}</h3>
+                            <p className="text-xs text-muted-foreground mt-1 font-mono break-all">{m.id}</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground mt-2 line-clamp-2">
+                              {m.description}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-1 flex-shrink-0">
+                            {m.capabilities.map((cap) => (
+                              <span
+                                key={cap}
+                                className="px-2 py-0.5 bg-accent text-accent-foreground text-xs rounded-full"
+                              >
+                                {cap}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      )}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0 pr-6">
-                          <h3 className="font-medium text-sm sm:text-base truncate">{m.name}</h3>
-                          <p className="text-xs text-muted-foreground mt-1 font-mono break-all">{m.id}</p>
-                          <p className="text-xs sm:text-sm text-muted-foreground mt-2 line-clamp-2">{m.description}</p>
-                        </div>
-                        <div className="flex flex-wrap gap-1 flex-shrink-0">
-                          {m.capabilities.map((cap) => (
-                            <span
-                              key={cap}
-                              className="px-2 py-0.5 bg-accent text-accent-foreground text-xs rounded-full"
-                            >
-                              {cap}
-                            </span>
-                          ))}
+                        <div className="mt-3 pt-3 border-t">
+                          <Button
+                            size="sm"
+                            variant={isActive ? 'default' : 'outline'}
+                            className="w-full"
+                            disabled={isPending}
+                            onClick={() => quickActivateMutation.mutate(m.id)}
+                          >
+                            {isPending ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                处理中...
+                              </>
+                            ) : isActive ? (
+                              <>
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                当前使用中
+                              </>
+                            ) : isAdded ? (
+                              <>
+                                <Play className="h-3 w-3 mr-1" />
+                                切换到此模型
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-3 w-3 mr-1" />
+                                快速启用
+                              </>
+                            )}
+                          </Button>
                         </div>
                       </div>
-                      <div className="mt-3 pt-3 border-t">
-                        <Button
-                          size="sm"
-                          variant={isActive ? 'default' : 'outline'}
-                          className="w-full"
-                          disabled={isPending}
-                          onClick={() => quickActivateMutation.mutate(m.id)}
-                        >
-                          {isPending ? (
-                            <>
-                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                              处理中...
-                            </>
-                          ) : isActive ? (
-                            <>
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              当前使用中
-                            </>
-                          ) : isAdded ? (
-                            <>
-                              <Play className="h-3 w-3 mr-1" />
-                              切换到此模型
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="h-3 w-3 mr-1" />
-                              快速启用
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             </section>
 
@@ -1260,6 +1318,195 @@ export function AISettings() {
             )}
           </div>
         )}
+
+        {/* ========== 高级配置标签页 ========== */}
+        {activeTab === 'advanced' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold">AI 系统配置</h2>
+                <p className="text-sm text-muted-foreground mt-1">调整AI功能的核心参数和默认模型</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => refetchSystemConfig()} disabled={configLoading}>
+                {configLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                刷新
+              </Button>
+            </div>
+
+            {configLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : systemConfigs.length === 0 ? (
+              <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                <Sliders className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-base sm:text-lg font-medium mb-2">暂无配置项</h3>
+                <p className="text-sm text-muted-foreground">系统配置尚未初始化</p>
+              </div>
+            ) : (
+              <>
+                {/* 按分类分组显示配置 */}
+                {['model', 'parameter', 'limit', 'retry', 'prompt', 'feature'].map((category) => {
+                  const categoryConfigs = systemConfigs.filter((c) => c.category === category);
+                  if (categoryConfigs.length === 0) return null;
+
+                  const categoryLabels: Record<string, string> = {
+                    model: '🤖 默认模型',
+                    parameter: '⚙️ 模型参数',
+                    limit: '📏 内容限制',
+                    retry: '🔄 重试策略',
+                    prompt: '💬 提示词模板',
+                    feature: '✨ 功能开关',
+                  };
+
+                  return (
+                    <section key={category} className="border rounded-lg p-4 sm:p-6 space-y-4">
+                      <h3 className="font-medium text-base sm:text-lg flex items-center gap-2">
+                        {categoryLabels[category] || category}
+                        <span className="text-xs text-muted-foreground font-normal">({categoryConfigs.length} 项)</span>
+                      </h3>
+
+                      <div className="space-y-3">
+                        {categoryConfigs.map((config) => {
+                          const isEditing = editingConfigKey === config.key;
+                          const currentValue =
+                            config.valueType === 'string'
+                              ? (config.stringValue ?? '')
+                              : config.valueType === 'number'
+                                ? String(config.numberValue ?? '')
+                                : config.valueType === 'boolean'
+                                  ? String(config.booleanValue)
+                                  : (config.jsonValue ?? '');
+
+                          const renderInput = () => {
+                            if (config.valueType === 'boolean') {
+                              return (
+                                <button
+                                  onClick={() => {
+                                    if (!config.isEditable) return;
+                                    updateSystemConfigMutation.mutate({
+                                      key: config.key,
+                                      value: !config.booleanValue,
+                                    });
+                                  }}
+                                  disabled={!config.isEditable || updateSystemConfigMutation.isPending}
+                                  className={cn(
+                                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0',
+                                    config.booleanValue ? 'bg-primary' : 'bg-muted'
+                                  )}
+                                >
+                                  <span
+                                    className={cn(
+                                      'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                                      config.booleanValue ? 'translate-x-6' : 'translate-x-1'
+                                    )}
+                                  />
+                                </button>
+                              );
+                            }
+
+                            if (isEditing) {
+                              return (
+                                <div className="flex gap-2">
+                                  <input
+                                    type={config.valueType === 'number' ? 'number' : 'text'}
+                                    value={configEditValue}
+                                    onChange={(e) => setConfigEditValue(e.target.value)}
+                                    className="flex-1 px-3 py-1.5 border rounded bg-background text-sm font-mono"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleSaveConfig(config);
+                                      if (e.key === 'Escape') setEditingConfigKey(null);
+                                    }}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleSaveConfig(config)}
+                                    disabled={updateSystemConfigMutation.isPending}
+                                  >
+                                    <Save className="h-3 w-3" />
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={() => setEditingConfigKey(null)}>
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="flex items-center gap-2">
+                                <code className="px-2.5 py-1.5 bg-muted rounded text-sm font-mono flex-1 min-w-0 truncate">
+                                  {currentValue || '(空)'}
+                                </code>
+                                {config.isEditable && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      setEditingConfigKey(config.key);
+                                      setConfigEditValue(currentValue);
+                                    }}
+                                  >
+                                    编辑
+                                  </Button>
+                                )}
+                              </div>
+                            );
+                          };
+
+                          return (
+                            <div
+                              key={config.key}
+                              className={cn('p-3 rounded-lg border space-y-2', !config.isEditable && 'opacity-75')}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-sm">{config.label}</span>
+                                    {!config.isEditable && (
+                                      <span className="px-1.5 py-0.5 bg-muted text-xs rounded text-muted-foreground">
+                                        系统只读
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mt-0.5">{config.description}</p>
+                                  <p className="text-[10px] text-muted-foreground mt-1 font-mono">Key: {config.key}</p>
+                                </div>
+
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  {renderInput()}
+                                  {config.defaultValue !== currentValue && config.isEditable && !isEditing && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => resetSystemConfigMutation.mutate(config.key)}
+                                      disabled={resetSystemConfigMutation.isPending}
+                                      title="重置为默认值"
+                                    >
+                                      <RotateCcw className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  );
+                })}
+
+                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg text-xs text-muted-foreground">
+                  💡 提示：修改配置后立即生效。如遇问题可点击重置按钮恢复默认值。
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 添加/编辑模型弹窗 */}
@@ -1506,8 +1753,9 @@ function ModelFormModal({
                         className="text-primary hover:underline"
                       >
                         Workers AI 模型目录
-                      </a>
-                      {' '}查看所有可用模型。免费额度：Workers Paid 计划每日约 10,000 neurons 免费，超出按 $0.0001/neuron 计费。
+                      </a>{' '}
+                      查看所有可用模型。免费额度：Workers Paid 计划每日约 10,000 neurons 免费，超出按 $0.0001/neuron
+                      计费。
                     </p>
                   </div>
                 )}
@@ -1538,9 +1786,7 @@ function ModelFormModal({
                             })
                           }
                           className={`px-2 py-1 text-xs border rounded transition-colors ${
-                            formData.modelId === m.id
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'hover:bg-accent'
+                            formData.modelId === m.id ? 'border-primary bg-primary/10 text-primary' : 'hover:bg-accent'
                           }`}
                           title={m.description}
                         >
@@ -1627,8 +1873,7 @@ function ModelFormModal({
 
             <div>
               <label className="block text-sm font-medium mb-2">
-                模型能力 *
-                <span className="text-xs text-muted-foreground ml-1">（决定该模型可用于哪些功能）</span>
+                模型能力 *<span className="text-xs text-muted-foreground ml-1">（决定该模型可用于哪些功能）</span>
               </label>
               <div className="flex flex-wrap gap-2">
                 {[

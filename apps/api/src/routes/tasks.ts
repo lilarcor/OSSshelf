@@ -38,11 +38,7 @@ import {
 } from '../lib/s3client';
 import { resolveBucketConfig, updateBucketStats, checkBucketQuota } from '../lib/bucketResolver';
 import { checkFolderMimeTypeRestriction } from '../lib/folderPolicy';
-import {
-  tgUploadFile,
-  TG_MAX_CHUNKED_FILE_SIZE,
-  type TelegramBotConfig,
-} from '../lib/telegramClient';
+import { tgUploadFile, TG_MAX_CHUNKED_FILE_SIZE, type TelegramBotConfig } from '../lib/telegramClient';
 import { TG_CHUNK_SIZE, TG_CHUNK_THRESHOLD } from '../lib/telegramChunked';
 import { decryptSecret, s3Delete } from '../lib/s3client';
 import { getUserOrFail, encodeFilename } from '../lib/utils';

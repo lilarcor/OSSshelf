@@ -82,7 +82,10 @@ app.post('/cron/trash-cleanup', async (c) => {
     )
     .returning({ id: files.id });
 
-  logger.info('CRON', `回收站清理完成: ${deletedCount} 文件, ${(freedBytes / 1024 / 1024).toFixed(2)} MB, ${expiredDirectLinks.length} 链接过期`);
+  logger.info(
+    'CRON',
+    `回收站清理完成: ${deletedCount} 文件, ${(freedBytes / 1024 / 1024).toFixed(2)} MB, ${expiredDirectLinks.length} 链接过期`
+  );
 
   return c.json({
     success: true,
@@ -169,7 +172,10 @@ app.post('/cron/version-cleanup', async (c) => {
   try {
     const result = await cleanExpiredVersions(db, c.env);
 
-    logger.info('CRON', `版本清理完成: ${result.prunedCount} 版本, ${result.freedBytes} bytes, ${result.errors.length} 错误`);
+    logger.info(
+      'CRON',
+      `版本清理完成: ${result.prunedCount} 版本, ${result.freedBytes} bytes, ${result.errors.length} 错误`
+    );
 
     return c.json({
       success: true,

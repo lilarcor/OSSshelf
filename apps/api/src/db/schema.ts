@@ -713,3 +713,31 @@ export const aiTasks = sqliteTable(
 );
 
 export type AiTask = typeof aiTasks.$inferSelect;
+
+export const aiConfig = sqliteTable(
+  'ai_config',
+  {
+    id: text('id').primaryKey(),
+    key: text('key').notNull().unique(),
+    category: text('category').notNull(),
+    label: text('label').notNull(),
+    description: text('description'),
+    valueType: text('value_type').notNull().default('string'),
+    stringValue: text('string_value'),
+    numberValue: real('number_value'),
+    booleanValue: integer('boolean_value', { mode: 'boolean' }).default(false),
+    jsonValue: text('json_value'),
+    defaultValue: text('default_value').notNull(),
+    isSystem: integer('is_system', { mode: 'boolean' }).notNull().default(true),
+    isEditable: integer('is_editable', { mode: 'boolean' }).notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    updatedAt: text('updated_at').notNull().default('CURRENT_TIMESTAMP'),
+  },
+  (table) => ({
+    categoryIdx: index('idx_ai_config_category').on(table.category),
+    keyIdx: index('idx_ai_config_key').on(table.key),
+  })
+);
+
+export type AiConfig = typeof aiConfig.$inferSelect;
