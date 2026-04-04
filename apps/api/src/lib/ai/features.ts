@@ -528,7 +528,21 @@ function parseImageTags(result: unknown): string[] {
 }
 
 export async function autoProcessFile(env: Env, fileId: string, userId?: string): Promise<void> {
-  if (!env.AI) {
+  await enqueueAutoProcessFile(env, fileId, userId);
+}
+
+/**
+ * 将文件上传后的自动AI处理任务入队（推荐方式）
+ * 根据文件类型自动判断需要执行的任务：
+ * - 图片文件：tags（标签生成）+ summary（图片描述）
+ * - 可编辑文本文件：summary（摘要生成）
+ * - 所有已处理文件：index（向量索引，需 VECTORIZE 配置）
+ *
+ * 优先使用 Queue 异步执行（独立 Worker、自动重试、不受请求 CPU 时间限制），
+ * 无队列配置时降级为同步直接执行。
+ */
+export async function enqueueAutoProcessFile(env: Env, fileId: string, userId?: string): Promise<void> {
+  if (!isAIConfigured(env)) {
     return;
   }
 
@@ -540,24 +554,71 @@ export async function autoProcessFile(env: Env, fileId: string, userId?: string)
   }
 
   const effectiveUserId = userId || file.userId || 'default';
+  const taskId = crypto.randomUUID();
+
+  const taskTypes: Array<'index' | 'summary' | 'tags'> = [];
+
+  if (isImageFile(file.mimeType)) {
+    taskTypes.push('tags');
+  }
+
+  if (canGenerateSummary(file.mimeType, file.name)) {
+    taskTypes.push('summary');
+  }
+
+  if (env.VECTORIZE && taskTypes.length > 0) {
+    taskTypes.push('index');
+  }
+
+  if (taskTypes.length === 0) {
+    return;
+  }
+
+  if (env.AI_TASKS_QUEUE) {
+    try {
+      const messages = taskTypes.map((type) => ({
+        body: {
+          type,
+          fileId,
+          userId: effectiveUserId,
+          taskId,
+        } as import('../../types/env').AiTaskMessage,
+      }));
+
+      await env.AI_TASKS_QUEUE.sendBatch(messages);
+      logger.info('AI', '文件AI处理任务已入队', { fileId, taskTypes, userId: effectiveUserId });
+      return;
+    } catch (error) {
+      logger.warn('AI', '队列发送失败，降级为同步处理', { fileId }, error);
+    }
+  }
+
+  await autoProcessFileDirect(env, file, effectiveUserId);
+}
+
+async function autoProcessFileDirect(
+  env: Env,
+  file: typeof files.$inferSelect,
+  userId: string
+): Promise<void> {
   const tasks: Promise<void>[] = [];
 
   if (isImageFile(file.mimeType)) {
     tasks.push(
-      generateImageTags(env, fileId, undefined, effectiveUserId)
+      generateImageTags(env, file.id, undefined, userId)
         .then(() => {})
         .catch((error) => {
-          logAiError('自动图片标签', fileId, error);
+          logAiError('自动图片标签', file.id, error);
         })
     );
   }
 
   if (canGenerateSummary(file.mimeType, file.name)) {
     tasks.push(
-      generateFileSummary(env, fileId, undefined, effectiveUserId)
+      generateFileSummary(env, file.id, undefined, userId)
         .then(() => {})
         .catch((error) => {
-          logAiError('自动摘要', fileId, error);
+          logAiError('自动摘要', file.id, error);
         })
     );
   }
@@ -567,12 +628,12 @@ export async function autoProcessFile(env: Env, fileId: string, userId?: string)
 
     if (env.VECTORIZE) {
       try {
-        const text = await buildFileTextForVector(env, fileId);
+        const text = await buildFileTextForVector(env, file.id);
         if (text && text.trim().length > 0) {
-          await indexFileVector(env, fileId, text);
+          await indexFileVector(env, file.id, text);
         }
       } catch (error) {
-        logAiError('自动向量索引', fileId, error);
+        logAiError('自动向量索引', file.id, error);
       }
     }
   }

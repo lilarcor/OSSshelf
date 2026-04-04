@@ -17,6 +17,7 @@ export {
   suggestFileName,
   suggestFileNameFromContent,
   autoProcessFile,
+  enqueueAutoProcessFile,
 } from './features';
 export type { SummaryResult, ImageTagResult, RenameSuggestion } from './features';
 export { AgentEngine, AGENT_SYSTEM_PROMPT, extractFileRefs } from './agentEngine';
