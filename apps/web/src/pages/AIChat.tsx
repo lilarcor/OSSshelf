@@ -110,12 +110,12 @@ function parseFileRefs(text: string, onFileClick: (id: string, isFolder: boolean
       parts.push(text.slice(lastIndex, match.index));
     }
     const isFolder = match[1] === 'FOLDER';
-    const id = match[2] ?? '';
-    const name = match[3] ?? '';
+    const id = match[2];
+    const name = match[3];
     parts.push(
       <button
         key={`${id}-${match.index}`}
-        onClick={() => id && onFileClick(id, isFolder)}
+        onClick={() => onFileClick(id, isFolder)}
         className="inline-flex items-center gap-1.5 px-2 py-0.5 mx-0.5 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-xs font-medium transition-all group"
       >
         {isFolder
@@ -165,15 +165,15 @@ function ToolCallCard({ tc }: { tc: ToolCallEvent }) {
         </span>
         <span className="text-slate-600 dark:text-slate-400 font-medium">{meta.label}</span>
         {tc.status === 'running' && <span className="text-amber-500 animate-pulse ml-1">进行中…</span>}
-        {tc.status === 'done' && !!tc.result && (
+        {tc.status === 'done' && tc.result && (
           <span className="text-slate-400 ml-1">
-            {((tc.result as Record<string, unknown>).total !== undefined) ? `${(tc.result as Record<string, unknown>).total} 项结果` : '完成'}
+            {(tc.result as any).total !== undefined ? `${(tc.result as any).total} 项结果` : '完成'}
           </span>
         )}
         <span className="ml-auto text-slate-400">{expanded ? '▲' : '▼'}</span>
       </button>
 
-      {expanded && !!tc.result && (
+      {expanded && tc.result && (
         <div className="px-3 pb-3 pt-1 border-t border-slate-200 dark:border-slate-700">
           <pre className="text-[10px] text-slate-500 dark:text-slate-400 overflow-auto max-h-40 whitespace-pre-wrap">
             {JSON.stringify(tc.result, null, 2)}
@@ -282,9 +282,11 @@ export function AIChat() {
 
   const handleFileClick = useCallback((fileId: string, isFolder: boolean) => {
     if (isFolder) {
-      navigate(`/files?folder=${fileId}`);
+      // Uses /files/:folderId route — navigates directly into that folder
+      navigate(`/files/${fileId}`);
     } else {
-      navigate(`/files?highlight=${fileId}`);
+      // Opens file preview via query param — Files.tsx useEffect picks this up
+      navigate(`/files?preview=${fileId}`);
     }
   }, [navigate]);
 
@@ -451,7 +453,7 @@ export function AIChat() {
   const lastAssistantIdx = messages.reduce((last, m, i) => m.role === 'assistant' ? i : last, -1);
 
   return (
-    <div className="h-[calc(100vh-4rem)] lg:h-screen flex bg-slate-50 dark:bg-slate-950 overflow-hidden">
+    <div className="flex bg-slate-50 dark:bg-slate-950 overflow-hidden h-[calc(100vh-4rem)] lg:h-screen">
 
       {/* Mobile overlay */}
       {showSidebar && (
@@ -467,7 +469,7 @@ export function AIChat() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
+        <div className="flex-1 overflow-y-auto min-h-0 p-1.5 space-y-0.5">
           {sessions.length === 0
             ? <p className="text-xs text-slate-400 text-center py-10">暂无对话记录</p>
             : sessions.map((session: any) => (
@@ -500,7 +502,7 @@ export function AIChat() {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
         {/* Header */}
         <header className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
           <div className="flex items-center gap-2.5">
@@ -525,7 +527,7 @@ export function AIChat() {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
             {messages.length === 0 && !isLoading && (
               <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">

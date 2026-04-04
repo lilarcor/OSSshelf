@@ -11,7 +11,7 @@
  * - 移动端触摸手势
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useFileStore, type ViewMode } from '@/stores/files';
@@ -259,6 +259,48 @@ export default function Files() {
 
   const imageFiles = displayFiles.filter((f) => f.mimeType?.startsWith('image/'));
   const hasImages = imageFiles.length > 0;
+
+  // ── AI Chat deep-link: ?preview=<fileId> opens preview directly ──────────
+  useEffect(() => {
+    const previewId = searchParams.get('preview') || searchParams.get('highlight');
+    if (!previewId) return;
+
+    // Try current directory listing first (instant)
+    const local = files.find((f) => f.id === previewId);
+    if (local) {
+      setPreviewFile(local);
+      const next = new URLSearchParams(searchParams);
+      next.delete('preview');
+      next.delete('highlight');
+      setSearchParams(next, { replace: true });
+      return;
+    }
+
+    // File not in current listing — fetch it directly
+    // Only run once files have loaded (avoids double-fetch during mount)
+    if (files.length === 0 && !searchParams.get('preview') && !searchParams.get('highlight')) return;
+
+    filesApi.get(previewId).then((res) => {
+      const file = res.data.data;
+      if (!file) return;
+      if (file.isFolder) {
+        navigate(`/files/${file.id}`, { replace: true });
+      } else {
+        setPreviewFile(file);
+        const next = new URLSearchParams(searchParams);
+        next.delete('preview');
+        next.delete('highlight');
+        setSearchParams(next, { replace: true });
+      }
+    }).catch(() => {
+      // File not found or no permission — silently ignore
+      const next = new URLSearchParams(searchParams);
+      next.delete('preview');
+      next.delete('highlight');
+      setSearchParams(next, { replace: true });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const fileMutations = useFileMutations();
   const {
