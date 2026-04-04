@@ -16,6 +16,7 @@ import type {
   StreamChunk,
   EmbeddingRequest,
   EmbeddingResponse,
+  ChatContentPart,
 } from '../types';
 import { logger } from '@osshelf/shared';
 
@@ -32,16 +33,21 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
     this.validateConnection();
 
     try {
+      const body: Record<string, unknown> = {
+        model: this.config.modelId,
+        messages: request.messages.map((msg) => ({
+          role: msg.role,
+          content: this.formatMessageContent(msg.content),
+        })),
+        max_tokens: request.maxTokens || this.config.maxTokens,
+        temperature: request.temperature ?? this.config.temperature,
+        stream: false,
+      };
+
       const response = await fetch(`${this.config.apiEndpoint}/chat/completions`, {
         method: 'POST',
         headers: this.getHeaders(),
-        body: JSON.stringify({
-          model: this.config.modelId,
-          messages: request.messages,
-          max_tokens: request.maxTokens || this.config.maxTokens,
-          temperature: request.temperature ?? this.config.temperature,
-          stream: false,
-        }),
+        body: JSON.stringify(body),
         signal,
       });
 
@@ -248,6 +254,22 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
     if (!this.config.apiEndpoint) {
       throw new Error('API endpoint not configured');
     }
+  }
+
+  private formatMessageContent(content: string | ChatContentPart[]): string | Array<{type: string; text?: string; image_url?: {url: string; detail?: string}}> {
+    if (typeof content === 'string') {
+      return content;
+    }
+
+    return content.map((part) => {
+      if (part.type === 'text') {
+        return { type: 'text', text: part.text };
+      }
+      if (part.type === 'image_url' && part.image_url) {
+        return { type: 'image_url', image_url: part.image_url };
+      }
+      return null;
+    }).filter(Boolean) as Array<{type: string; text?: string; image_url?: {url: string; detail?: string}}>;
   }
 
   static getPopularModels(): Array<{

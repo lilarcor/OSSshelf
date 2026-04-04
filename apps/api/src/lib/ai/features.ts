@@ -141,6 +141,9 @@ async function callChatModel(
 
 /**
  * 调用图片理解模型（支持 vision 能力）
+ * 支持两种模式：
+ * - Workers AI 原生模型：通过 env.AI.run() 调用
+ * - OpenAI 兼容多模态模型：通过 ModelGateway chatCompletion 调用
  */
 async function callVisionModel(
   env: Env,
@@ -154,22 +157,50 @@ async function callVisionModel(
   const customModelId = featureConfig.imageCaption;
 
   try {
-    if (customModelId && env.AI) {
-      // 使用用户配置的自定义 vision 模型
-      const response = await (env.AI as any).run(customModelId, {
-        image: imageData,
-        prompt,
-        max_tokens: 300,
-      });
+    if (customModelId) {
+      const customModel = await gateway.getModelById(customModelId, userId);
 
-      return (
-        (response as { description?: string; response?: string }).description?.trim() ||
-        (response as { response?: string }).response?.trim() ||
-        ''
-      );
+      if (customModel && customModel.provider === 'openai_compatible') {
+        if (!customModel.capabilities.includes('vision')) {
+          logger.warn('AI', 'Custom model does not support vision, falling back to default', {
+            modelId: customModelId,
+            capabilities: customModel.capabilities,
+          });
+        } else {
+          const base64Image = uint8ArrayToBase64(imageData);
+          const response = await gateway.chatCompletion(
+            userId,
+            {
+              messages: [
+                {
+                  role: 'user',
+                  content: [
+                    { type: 'text', text: prompt },
+                    { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
+                  ],
+                },
+              ],
+              maxTokens: 300,
+            },
+            customModelId
+          );
+          return response.content.trim() || '';
+        }
+      } else if (customModel && env.AI) {
+        const response = await (env.AI as any).run(customModelId, {
+          image: imageData,
+          prompt,
+          max_tokens: 300,
+        });
+
+        return (
+          (response as { description?: string; response?: string }).description?.trim() ||
+          (response as { response?: string }).response?.trim() ||
+          ''
+        );
+      }
     }
 
-    // 使用默认模型
     if (env.AI) {
       const response = await (env.AI as any).run(modelId, {
         image: imageData,
@@ -185,6 +216,11 @@ async function callVisionModel(
     logger.error('AI', 'Vision model call failed', { modelId }, error);
     throw error;
   }
+}
+
+function uint8ArrayToBase64(bytes: number[]): string {
+  const binaryString = String.fromCharCode(...bytes);
+  return btoa(binaryString);
 }
 
 /**

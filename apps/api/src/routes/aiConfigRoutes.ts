@@ -17,7 +17,7 @@ import { ERROR_CODES } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
 import { z } from 'zod';
 import { ModelGateway, WorkersAiAdapter, OpenAiCompatibleAdapter } from '../lib/ai';
-import type { ModelConfig } from '../lib/ai/types';
+import type { ModelConfig, ModelCapability } from '../lib/ai/types';
 import { logger } from '@osshelf/shared';
 import { encryptCredential, decryptCredential, getEncryptionKey, isAesGcmFormat } from '../lib/crypto';
 
@@ -207,14 +207,14 @@ app.put('/models/:modelId', async (c) => {
 
     if (data.name !== undefined) updateData.name = data.name;
     if (data.provider !== undefined) updateData.provider = data.provider;
-    if (data.modelId !== undefined) updateData.model_id = data.modelId;
-    if (data.apiEndpoint !== undefined) updateData.api_endpoint = data.apiEndpoint || null;
-    if (data.apiKey !== undefined) updateData.api_key_encrypted = apiKeyEncrypted;
-    if (data.isActive !== undefined) updateData.is_active = data.isActive ? 1 : 0;
+    if (data.modelId !== undefined) updateData.modelId = data.modelId;
+    if (data.apiEndpoint !== undefined) updateData.apiEndpoint = data.apiEndpoint || null;
+    if (data.apiKey !== undefined) updateData.apiKeyEncrypted = apiKeyEncrypted;
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
     if (data.capabilities !== undefined) updateData.capabilities = JSON.stringify(data.capabilities);
-    if (data.maxTokens !== undefined) updateData.max_tokens = data.maxTokens;
+    if (data.maxTokens !== undefined) updateData.maxTokens = data.maxTokens;
     if (data.temperature !== undefined) updateData.temperature = data.temperature;
-    if (data.systemPrompt !== undefined) updateData.system_prompt = data.systemPrompt || null;
+    if (data.systemPrompt !== undefined) updateData.systemPrompt = data.systemPrompt || null;
 
     await db.update(aiModels).set(updateData).where(eq(aiModels.id, modelId));
 
@@ -361,6 +361,60 @@ app.get('/feature-config', async (c) => {
   }
 });
 
+// 获取各功能可用的模型列表（带能力过滤）
+// 前端用此接口渲染下拉选项，避免用户选到不支持的模型
+app.get('/feature-models', async (c) => {
+  const userId = c.get('userId')!;
+  const gateway = new ModelGateway(c.env);
+
+  try {
+    const allModels = await gateway.getAllModels(userId);
+
+    const featureModels = {
+      summary: allModels.filter((m) => m.capabilities.includes('chat')).map(formatModelForSelect),
+      imageCaption: allModels.filter((m) => m.capabilities.includes('vision')).map(formatModelForSelect),
+      imageTag: allModels.filter((m) => m.capabilities.includes('chat')).map(formatModelForSelect),
+      rename: allModels.filter((m) => m.capabilities.includes('chat')).map(formatModelForSelect),
+    };
+
+    return c.json({
+      success: true,
+      data: featureModels,
+    });
+  } catch (error) {
+    logger.error('AI Config', 'Failed to get feature models', { userId }, error);
+    return c.json(
+      { success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '获取可用模型失败' } },
+      500
+    );
+  }
+});
+
+function formatModelForSelect(m: ModelConfig) {
+  return {
+    id: m.id,
+    name: m.name,
+    provider: m.provider,
+    modelId: m.modelId,
+    capabilities: m.capabilities,
+    isActive: m.isActive,
+  };
+}
+
+// 各功能所需的模型能力映射
+const FEATURE_CAPABILITY_REQUIREMENTS: Record<string, ModelCapability[]> = {
+  summary: ['chat'],
+  imageCaption: ['vision'],
+  imageTag: ['chat'],
+  rename: ['chat'],
+};
+
+interface ModelValidationResult {
+  valid: boolean;
+  hasCapability: boolean;
+  error?: string;
+}
+
 // 保存功能模型配置
 app.put('/feature-config', async (c) => {
   const userId = c.get('userId')!;
@@ -372,28 +426,64 @@ app.put('/feature-config', async (c) => {
     rename?: string | null;
   };
 
-  // 验证：如果提供了 modelId，需要验证模型存在且属于该用户
   const gateway = new ModelGateway(c.env);
-  const validations = await Promise.all([
-    summary ? gateway.getModelById(summary, userId).then((m) => !!m) : Promise.resolve(true),
-    imageCaption ? gateway.getModelById(imageCaption, userId).then((m) => !!m) : Promise.resolve(true),
-    imageTag ? gateway.getModelById(imageTag, userId).then((m) => !!m) : Promise.resolve(true),
-    rename ? gateway.getModelById(rename, userId).then((m) => !!m) : Promise.resolve(true),
+
+  const validations = await Promise.all<ModelValidationResult>([
+    summary
+      ? gateway.getModelById(summary, userId).then((m): ModelValidationResult => ({
+          valid: !!m,
+          hasCapability: m ? (m.capabilities?.includes('chat') ?? false) : false,
+          error: !m ? '摘要模型不存在' : '该模型不支持 chat 能力',
+        }))
+      : Promise.resolve({ valid: true, hasCapability: true }),
+    imageCaption
+      ? gateway.getModelById(imageCaption, userId).then((m): ModelValidationResult => ({
+          valid: !!m,
+          hasCapability: m ? (m.capabilities?.includes('vision') ?? false) : false,
+          error: !m ? '图片描述模型不存在' : '该模型不支持 vision 能力（需要多模态模型如 GPT-4o）',
+        }))
+      : Promise.resolve({ valid: true, hasCapability: true }),
+    imageTag
+      ? gateway.getModelById(imageTag, userId).then((m): ModelValidationResult => ({
+          valid: !!m,
+          hasCapability: m ? (m.capabilities?.includes('chat') ?? false) : false,
+          error: !m ? '图片标签模型不存在' : '该模型不支持 chat 能力',
+        }))
+      : Promise.resolve({ valid: true, hasCapability: true }),
+    rename
+      ? gateway.getModelById(rename, userId).then((m): ModelValidationResult => ({
+          valid: !!m,
+          hasCapability: m ? (m.capabilities?.includes('chat') ?? false) : false,
+          error: !m ? '重命名模型不存在' : '该模型不支持 chat 能力',
+        }))
+      : Promise.resolve({ valid: true, hasCapability: true }),
   ]);
 
   const [validSummary, validImageCaption, validImageTag, validRename] = validations;
 
-  if (summary && !validSummary) {
-    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '摘要模型不存在' } }, 400);
+  if (summary && (!validSummary.valid || !validSummary.hasCapability)) {
+    return c.json(
+      { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: validSummary.error } },
+      400
+    );
   }
-  if (imageCaption && !validImageCaption) {
-    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '图片描述模型不存在或无 vision 能力' } }, 400);
+  if (imageCaption && (!validImageCaption.valid || !validImageCaption.hasCapability)) {
+    return c.json(
+      { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: validImageCaption.error } },
+      400
+    );
   }
-  if (imageTag && !validImageTag) {
-    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '图片标签模型不存在' } }, 400);
+  if (imageTag && (!validImageTag.valid || !validImageTag.hasCapability)) {
+    return c.json(
+      { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: validImageTag.error } },
+      400
+    );
   }
-  if (rename && !validRename) {
-    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '重命名模型不存在' } }, 400);
+  if (rename && (!validRename.valid || !validRename.hasCapability)) {
+    return c.json(
+      { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: validRename.error } },
+      400
+    );
   }
 
   const config = {
@@ -404,7 +494,7 @@ app.put('/feature-config', async (c) => {
   };
 
   try {
-    await c.env.KV.put(FEATURE_CONFIG_KEY(userId), JSON.stringify(config), { expirationTtl: 86400 * 30 }); // 30天过期
+    await c.env.KV.put(FEATURE_CONFIG_KEY(userId), JSON.stringify(config), { expirationTtl: 86400 * 30 });
 
     logger.info('AI Config', 'Feature model config saved', { userId, config });
 
@@ -414,10 +504,10 @@ app.put('/feature-config', async (c) => {
     });
   } catch (error) {
     logger.error('AI Config', 'Failed to save feature config', { userId }, error);
-    return c.json({
-      success: false,
-      error: { code: ERROR_CODES.INTERNAL_ERROR, message: '保存配置失败' },
-    }, 500);
+    return c.json(
+      { success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '保存配置失败' } },
+      500
+    );
   }
 });
 

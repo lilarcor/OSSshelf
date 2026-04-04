@@ -1075,31 +1075,6 @@ export const webhooksApi = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Global Permissions (全局权限管理)
-// ─────────────────────────────────────────────────────────────────────────────
-export interface GlobalPermission {
-  id: string;
-  subjectType: 'user' | 'group';
-  subjectId: string | null;
-  subjectName: string;
-  fileId: string;
-  fileName: string;
-  filePath: string;
-  isFolder: boolean;
-  permission: 'read' | 'write' | 'admin';
-  expiresAt: string | null;
-  createdAt: string;
-}
-
-export const globalPermissionsApi = {
-  getAll: () => api.get<ApiResponse<{ permissions: GlobalPermission[] }>>('/api/permissions/all'),
-  revokeById: (permissionId: string) =>
-    api.delete<ApiResponse<{ message: string }>>(`/api/permissions/${permissionId}`),
-  update: (permissionId: string, data: { permission: 'read' | 'write' | 'admin'; expiresAt?: string }) =>
-    api.patch<ApiResponse<{ message: string }>>(`/api/permissions/${permissionId}`, data),
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
 // AI Features (AI 功能)
 // ─────────────────────────────────────────────────────────────────────────────
 export interface AIStatus {

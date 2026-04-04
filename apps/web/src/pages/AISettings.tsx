@@ -1495,12 +1495,23 @@ function ModelFormModal({
                   />
                   {providersData?.openAiModels && (
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {providersData.openAiModels.slice(0, 6).map((m) => (
+                      {providersData.openAiModels.slice(0, 8).map((m) => (
                         <button
                           key={m.id}
                           type="button"
-                          onClick={() => setFormData({ ...formData, modelId: m.id })}
-                          className="px-2 py-1 text-xs border rounded hover:bg-accent transition-colors"
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              modelId: m.id,
+                              capabilities: m.capabilities.length > 0 ? [...m.capabilities] : ['chat'],
+                            })
+                          }
+                          className={`px-2 py-1 text-xs border rounded transition-colors ${
+                            formData.modelId === m.id
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'hover:bg-accent'
+                          }`}
+                          title={m.description}
                         >
                           {m.name}
                         </button>
@@ -1580,6 +1591,51 @@ function ModelFormModal({
                 rows={3}
                 placeholder="自定义系统提示词..."
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                模型能力 *
+                <span className="text-xs text-muted-foreground ml-1">（决定该模型可用于哪些功能）</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: 'chat', label: '💬 对话', desc: '文本对话、摘要生成' },
+                  { value: 'vision', label: '👁️ 视觉', desc: '图片理解（如 GPT-4o）' },
+                  { value: 'embedding', label: '📊 向量', desc: '文本向量化' },
+                  { value: 'function_calling', label: '⚡ 函数调用', desc: '工具调用能力' },
+                  { value: 'completion', label: '✏️ 补全', desc: '文本补全' },
+                ].map((cap) => (
+                  <label
+                    key={cap.value}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg cursor-pointer transition-colors text-sm ${
+                      formData.capabilities.includes(cap.value)
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.capabilities.includes(cap.value)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData({ ...formData, capabilities: [...formData.capabilities, cap.value] });
+                        } else {
+                          setFormData({
+                            ...formData,
+                            capabilities: formData.capabilities.filter((c) => c !== cap.value),
+                          });
+                        }
+                      }}
+                      className="rounded"
+                    />
+                    <span>{cap.label}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                💡 图片描述功能需要选择「视觉」能力的模型（如 GPT-4o、Claude 3）
+              </p>
             </div>
 
             {!model && (
