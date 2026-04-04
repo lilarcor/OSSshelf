@@ -24,9 +24,11 @@ export class WorkersAiAdapter implements IModelAdapter {
   readonly provider = 'workers_ai' as const;
   readonly modelName = 'Cloudflare Workers AI';
   private env: Env;
+  private modelConfig: ModelConfig | null;
 
-  constructor(env: Env) {
+  constructor(env: Env, modelConfig?: ModelConfig) {
     this.env = env;
+    this.modelConfig = modelConfig || null;
   }
 
   async chatCompletion(request: ChatCompletionRequest, signal?: AbortSignal): Promise<ChatCompletionResponse> {
@@ -161,18 +163,29 @@ export class WorkersAiAdapter implements IModelAdapter {
   }
 
   validateConfig(config: ModelConfig): { valid: boolean; error?: string } {
-    if (!config.modelId || !config.modelId.startsWith('@cf/')) {
+    if (!config.modelId) {
+      return { valid: false, error: 'Workers AI 模型 ID 不能为空' };
+    }
+    if (!config.modelId.startsWith('@cf/') && config.modelId !== '__custom__') {
       return { valid: false, error: 'Invalid Workers AI model ID. Must start with @cf/' };
+    }
+
+    if (config.capabilities?.includes('function_calling')) {
+      logger.warn('AI', 'Workers AI 不支持 native function calling，将使用 prompt-based fallback');
     }
     return { valid: true };
   }
 
   private getModelConfig(request: ChatCompletionRequest): { modelId: string; maxTokens: number; temperature: number } {
-    const defaultModel = '@cf/meta/llama-3.1-8b-instruct';
+    const userModelId = this.modelConfig?.modelId;
+    const effectiveModelId = (userModelId && userModelId.startsWith('@cf/'))
+      ? userModelId
+      : '@cf/meta/llama-3.1-8b-instruct';
+
     return {
-      modelId: defaultModel,
-      maxTokens: request.maxTokens || 4096,
-      temperature: request.temperature ?? 0.7,
+      modelId: effectiveModelId,
+      maxTokens: request.maxTokens || this.modelConfig?.maxTokens || 4096,
+      temperature: request.temperature ?? this.modelConfig?.temperature ?? 0.7,
     };
   }
 
@@ -183,6 +196,14 @@ export class WorkersAiAdapter implements IModelAdapter {
     description: string;
   }> {
     return [
+      // ========== 自定义模型 ==========
+      {
+        id: '__custom__',
+        name: '自定义模型 (输入任意 @cf/ 模型 ID)',
+        capabilities: ['chat', 'vision'],
+        description: '手动输入任意 Cloudflare Workers AI 模型 ID，如 @cf/deepseek/deepseek-r1、@cf/black-forest-labs/flux-2-klein-4b 等。支持所有 Workers AI 目录中的模型。',
+      },
+
       // ========== 大语言模型（高参数） ==========
       {
         id: '@cf/deepseek/deepseek-r1-distill-qwen-32b',

@@ -13,6 +13,7 @@ import { Hono } from 'hono';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
 import { getDb, aiChatSessions, aiChatMessages, files } from '../db';
 import { authMiddleware } from '../middleware/auth';
+import { checkTokenQuota, tokenQuotaExceededResponse, recordTokenUsage, getTokenUsageStats } from '../lib/ai/tokenQuota';
 import { ERROR_CODES } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
 import { z } from 'zod';
@@ -208,6 +209,12 @@ const chatSchema = z.object({
 
 app.post('/chat', async (c) => {
   const userId = c.get('userId')!;
+
+  const quotaResult = await checkTokenQuota(c.env, userId);
+  if (!quotaResult.allowed) {
+    return tokenQuotaExceededResponse(quotaResult);
+  }
+
   const body = await c.req.json();
   const result = chatSchema.safeParse(body);
 
@@ -253,6 +260,29 @@ async function handleNormalChat(
       };
       await db.insert(aiChatSessions).values(newSession);
       actualSessionId = newSession.id;
+
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            const gateway = new ModelGateway(c.env);
+            const titleResponse = await gateway.chatCompletion(userId, {
+              messages: [
+                { role: 'system', content: '用 8-12 个中文字概括用户对话的主题。只输出标题，不加标点和解释。' },
+                { role: 'user', content: query },
+              ],
+              maxTokens: 30,
+              temperature: 0.5,
+            });
+            const generatedTitle = titleResponse.content.trim().slice(0, 20);
+            if (generatedTitle && generatedTitle !== query.slice(0, 20)) {
+              await db.update(aiChatSessions)
+                .set({ title: generatedTitle })
+                .where(eq(aiChatSessions.id, actualSessionId));
+            }
+          } catch {
+          }
+        })()
+      );
     } else {
       await db
         .update(aiChatSessions)
@@ -410,6 +440,7 @@ async function handleStreamChat(
 
     let fullText = '';
     let finalSources: Array<{ id: string; name: string; mimeType: string | null; score: number }> = [];
+    let finalUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | undefined;
     let resolveStream!: () => void;
     const streamDone = new Promise<void>((r) => { resolveStream = r; });
 
@@ -433,7 +464,8 @@ async function handleStreamChat(
               if (chunk.done) {
                 if (chunk.type === 'done') {
                   finalSources = chunk.sources;
-                  enqueue({ done: true, sessionId: actualSessionId, sources: chunk.sources });
+                  finalUsage = chunk.usage;
+                  enqueue({ done: true, sessionId: actualSessionId, sources: chunk.sources, usage: chunk.usage });
                 } else {
                   // error chunk
                   enqueue({ done: true, error: (chunk as any).message, sessionId: actualSessionId, sources: [] });
@@ -489,17 +521,21 @@ async function handleStreamChat(
         try {
           if (!fullText.trim()) return;
           const latencyMs = Date.now() - startTime;
+          const tokenCount = finalUsage?.totalTokens || Math.ceil(fullText.length * 0.5);
           await db.insert(aiChatMessages).values({
             id: crypto.randomUUID(),
             sessionId: actualSessionId!,
             role: 'assistant',
             content: fullText,
             sources: JSON.stringify(finalSources),
-            tokenCount: Math.ceil(fullText.length * 0.5),
+            tokenCount,
             latencyMs,
             createdAt: new Date().toISOString(),
           });
-          logger.info('AI Agent', 'Message saved', { sessionId: actualSessionId, latencyMs });
+          logger.info('AI Agent', 'Message saved', { sessionId: actualSessionId, latencyMs, tokenCount });
+          recordTokenUsage(c.env, userId, tokenCount).catch((err) => {
+            logger.error('AI Agent', 'Failed to record token usage', { userId, tokenCount }, err);
+          });
         } catch (error) {
           logger.error('AI Agent', 'Failed to save message', { userId }, error);
         }
@@ -528,5 +564,11 @@ async function handleStreamChat(
     );
   }
 }
+
+app.get('/token-quota', async (c) => {
+  const userId = c.get('userId')!;
+  const stats = await getTokenUsageStats(c.env, userId);
+  return c.json({ success: true, data: stats });
+});
 
 export default app;

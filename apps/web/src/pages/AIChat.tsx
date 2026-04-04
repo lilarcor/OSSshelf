@@ -175,9 +175,33 @@ function ToolCallCard({ tc }: { tc: ToolCallEvent }) {
 
       {expanded && Boolean(tc.result) && (
         <div className="px-3 pb-3 pt-1 border-t border-slate-200 dark:border-slate-700">
-          <pre className="text-[10px] text-slate-500 dark:text-slate-400 overflow-auto max-h-40 whitespace-pre-wrap">
-            {JSON.stringify(tc.result, null, 2) as React.ReactNode}
-          </pre>
+          {(() => {
+            const result = tc.result as Record<string, unknown>;
+            const fileList = result.files as Array<{ id: string; name: string; mimeType?: string | null; size?: number }> | undefined;
+
+            if (fileList && Array.isArray(fileList) && fileList.length > 0) {
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {fileList.map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => window.open(`/files/${f.id}`, '_blank')}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-violet-300 dark:hover:border-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all text-left"
+                    >
+                      <File className="h-4 w-4 text-slate-400 shrink-0" />
+                      <span className="text-sm text-slate-700 dark:text-slate-300 truncate">{f.name}</span>
+                    </button>
+                  ))}
+                </div>
+              );
+            }
+
+            return (
+              <pre className="text-[10px] text-slate-500 dark:text-slate-400 overflow-auto max-h-40 whitespace-pre-wrap">
+                {JSON.stringify(tc.result, null, 2) as React.ReactNode}
+              </pre>
+            );
+          })()}
         </div>
       )}
     </div>
@@ -257,8 +281,11 @@ export function AIChat() {
 
   const abortRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const renameRef = useRef<HTMLInputElement>(null);
+  const scrollPositionsRef = useRef<Map<string, number>>(new Map());
+  const prevSessionIdRef = useRef<string | null>(null);
 
   const { data: sessions = [] } = useQuery({
     queryKey: ['ai-chat-sessions'],
@@ -266,7 +293,25 @@ export function AIChat() {
     staleTime: 30000,
   });
 
+  useEffect(() => {
+    if (prevSessionIdRef.current && prevSessionIdRef.current !== currentSessionId) {
+      const container = messagesContainerRef.current;
+      if (container) scrollPositionsRef.current.set(prevSessionIdRef.current, container.scrollTop);
+    }
+    prevSessionIdRef.current = currentSessionId;
+  }, [currentSessionId]);
+
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  useEffect(() => {
+    if (currentSessionId && messages.length > 0) {
+      const container = messagesContainerRef.current;
+      const saved = scrollPositionsRef.current.get(currentSessionId);
+      if (container && saved !== undefined && saved > 0) {
+        requestAnimationFrame(() => { container.scrollTop = saved; });
+      }
+    }
+  }, [messages, currentSessionId]);
   useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => {
     if (urlSessionId && urlSessionId !== currentSessionId) loadSession(urlSessionId);
@@ -531,7 +576,7 @@ export function AIChat() {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0">
           <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
             {messages.length === 0 && !isLoading && (
               <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">

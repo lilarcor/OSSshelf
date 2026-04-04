@@ -26,6 +26,35 @@ import type { ChatCompletionRequest } from './types';
 const SUMMARY_CONTENT_LIMIT = 8192;
 const RENAME_CONTENT_LIMIT = 4096;
 
+const SUMMARY_PROMPTS: Record<string, string> = {
+  default: '你是文件助手。请用简洁的中文（不超过3句话）概括文件主要内容。',
+  code: '你是代码分析助手。请概括以下代码的功能、主要类/函数/接口、核心逻辑。（不超过4句话）',
+  document: '你是文档分析助手。请概括文档的主题、关键论点和结论。（不超过3句话）',
+  markdown: '你是技术文档助手。请概括 Markdown 文档的结构、主要章节和核心内容。（不超过3句话）',
+  spreadsheet: '你是数据分析助手。请概括表格/数据文件的数据类型、关键字段和数据趋势。（不超过3句话）',
+};
+
+function getSummaryPrompt(mimeType: string | null, fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  const codeExts = ['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'go', 'rs', 'c', 'cpp', 'h', 'cs', 'rb', 'php', 'swift', 'kt', 'scala', 'r', 'sql', 'sh', 'bash', 'yaml', 'yml', 'json', 'xml', 'html', 'css', 'scss', 'vue', 'svelte'];
+  const docExts = ['pdf', 'doc', 'docx', 'rtf', 'odt'];
+  const sheetExts = ['csv', 'xls', 'xlsx', 'ods'];
+
+  if (codeExts.includes(ext) || mimeType?.startsWith('text/') || mimeType === 'application/json') {
+    return SUMMARY_PROMPTS.code;
+  }
+  if (docExts.includes(ext) || mimeType?.includes('document') || mimeType?.includes('pdf')) {
+    return SUMMARY_PROMPTS.document;
+  }
+  if (ext === 'md') {
+    return SUMMARY_PROMPTS.markdown;
+  }
+  if (sheetExts.includes(ext) || mimeType?.includes('sheet') || mimeType?.includes('excel')) {
+    return SUMMARY_PROMPTS.spreadsheet;
+  }
+  return SUMMARY_PROMPTS.default;
+}
+
 // 默认模型 ID（当用户未配置时使用）
 const DEFAULT_MODELS = {
   summary: '@cf/meta/llama-3.1-8b-instruct',
@@ -254,7 +283,7 @@ export async function generateFileSummary(
     throw new Error('File not found');
   }
 
-  const cacheKey = `ai:summary:${fileId}:${file.hash || file.updatedAt}`;
+  const cacheKey = `ai:summary:${fileId}:${file.hash || 'unknown'}`;
   const cached = await env.KV.get(cacheKey);
 
   if (cached) {
@@ -285,7 +314,7 @@ export async function generateFileSummary(
         messages: [
           {
             role: 'system',
-            content: '你是文件助手。请用简洁的中文（不超过3句话）概括文件内容。如果内容是代码，请说明代码的主要功能。',
+            content: getSummaryPrompt(file.mimeType, file.name),
           },
           {
             role: 'user',
@@ -344,7 +373,7 @@ export async function generateImageTags(
         userId || file.userId || 'default',
         DEFAULT_MODELS.imageCaption,
         Array.from(uint8Array),
-        'Describe this image in detail. If there is any text in the image, please transcribe it accurately. Respond in the same language as the text in the image, or in Chinese if no text is present.'
+        '请详细描述这张图片的内容，包括画面主体、颜色、构图等。如果有文字请准确转录。使用中文回答。'
       ),
       callClassificationModel(env, DEFAULT_MODELS.imageTag, Array.from(uint8Array)),
     ]);

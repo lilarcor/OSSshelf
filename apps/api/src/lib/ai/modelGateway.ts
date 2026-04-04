@@ -4,9 +4,9 @@
  *
  * 功能:
  * - 模型路由和选择
- * - 适配器工厂
+ * - 适配器工厂（带版本化缓存）
  * - 流式输出管理
- * - 错误处理和降级
+ * - 错误处理、重试（指数退避）、超时控制
  */
 
 import type { Env } from '../../types/env';
@@ -27,9 +27,13 @@ import { getDb, aiModels } from '../../db';
 import { eq, and } from 'drizzle-orm';
 import { decryptCredential, getEncryptionKey, isAesGcmFormat } from '../crypto';
 
+const MAX_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 500;
+const REQUEST_TIMEOUT_MS = 30_000;
+
 export class ModelGateway {
   private env: Env;
-  private adapterCache: Map<string, IModelAdapter> = new Map();
+  private adapterCache: Map<string, { adapter: IModelAdapter; version: string }> = new Map();
 
   constructor(env: Env) {
     this.env = env;
@@ -44,10 +48,7 @@ export class ModelGateway {
         .where(and(eq(aiModels.userId, userId), eq(aiModels.isActive, true)))
         .get();
 
-      if (!model) {
-        return null;
-      }
-
+      if (!model) return null;
       return await this.parseAndDecryptModelConfig(model);
     } catch (error) {
       logger.error('AI', 'Failed to get active model', { userId }, error);
@@ -64,10 +65,7 @@ export class ModelGateway {
         .where(and(eq(aiModels.id, modelId), eq(aiModels.userId, userId)))
         .get();
 
-      if (!model) {
-        return null;
-      }
-
+      if (!model) return null;
       return await this.parseAndDecryptModelConfig(model);
     } catch (error) {
       logger.error('AI', 'Failed to get model by ID', { modelId, userId }, error);
@@ -79,7 +77,6 @@ export class ModelGateway {
     try {
       const db = getDb(this.env.DB);
       const models = await db.select().from(aiModels).where(eq(aiModels.userId, userId)).all();
-
       return Promise.all(models.map((m) => this.parseAndDecryptModelConfig(m)));
     } catch (error) {
       logger.error('AI', 'Failed to get all models', { userId }, error);
@@ -88,17 +85,16 @@ export class ModelGateway {
   }
 
   getAdapter(modelConfig: ModelConfig): IModelAdapter {
-    const cacheKey = `${modelConfig.provider}:${modelConfig.id}`;
+    const cacheKey = this.buildCacheKey(modelConfig);
+    const cached = this.adapterCache.get(cacheKey);
 
-    if (this.adapterCache.has(cacheKey)) {
-      return this.adapterCache.get(cacheKey)!;
-    }
+    if (cached) return cached.adapter;
 
     let adapter: IModelAdapter;
 
     switch (modelConfig.provider) {
       case 'workers_ai':
-        adapter = new WorkersAiAdapter(this.env);
+        adapter = new WorkersAiAdapter(this.env, modelConfig);
         break;
       case 'openai_compatible':
         adapter = new OpenAiCompatibleAdapter(modelConfig);
@@ -112,7 +108,7 @@ export class ModelGateway {
       throw new Error(`Invalid model config: ${validation.error}`);
     }
 
-    this.adapterCache.set(cacheKey, adapter);
+    this.adapterCache.set(cacheKey, { adapter, version: cacheKey });
     return adapter;
   }
 
@@ -122,30 +118,9 @@ export class ModelGateway {
     modelId?: string,
     signal?: AbortSignal
   ): Promise<ChatCompletionResponse> {
-    let modelConfig = modelId
-      ? await this.getModelById(modelId, userId)
-      : await this.getActiveModel(userId);
-
-    if (!modelConfig) {
-      modelConfig = this.getDefaultWorkersAiModel();
-    }
-
-    const adapter = this.getAdapter(modelConfig);
-
-    if (modelConfig.systemPrompt && !request.messages.some((m) => m.role === 'system')) {
-      request.messages.unshift({
-        role: 'system',
-        content: modelConfig.systemPrompt,
-      });
-    }
-
-    return adapter.chatCompletion(
-      {
-        ...request,
-        maxTokens: request.maxTokens || modelConfig.maxTokens,
-        temperature: request.temperature ?? modelConfig.temperature,
-      },
-      signal
+    return this.callWithRetry(
+      () => this.chatCompletionInternal(userId, request, modelId, signal),
+      `chatCompletion(${modelId || 'active'})`
     );
   }
 
@@ -155,35 +130,107 @@ export class ModelGateway {
     onChunk: (chunk: StreamChunk) => void,
     options?: { modelId?: string; signal?: AbortSignal }
   ): Promise<void> {
-    let modelConfig = options?.modelId
-      ? await this.getModelById(options.modelId, userId)
-      : await this.getActiveModel(userId);
-
-    if (!modelConfig) {
-      modelConfig = this.getDefaultWorkersAiModel();
-    }
-
-    const adapter = this.getAdapter(modelConfig);
-
-    if (modelConfig.systemPrompt && !request.messages.some((m) => m.role === 'system')) {
-      request.messages.unshift({
-        role: 'system',
-        content: modelConfig.systemPrompt,
-      });
-    }
-
-    return adapter.chatCompletionStream(
-      {
-        ...request,
-        maxTokens: request.maxTokens || modelConfig.maxTokens,
-        temperature: request.temperature ?? modelConfig.temperature,
-      },
-      onChunk,
-      options?.signal
+    return this.callWithRetry(
+      () => this.chatCompletionStreamInternal(userId, request, onChunk, options),
+      `chatCompletionStream(${options?.modelId || 'active'})`
     );
   }
 
   async embedding(
+    userId: string,
+    request: EmbeddingRequest,
+    modelId?: string
+  ): Promise<EmbeddingResponse> {
+    return this.callWithRetry(
+      () => this.embeddingInternal(userId, request, modelId),
+      `embedding(${modelId || 'active'})`
+    );
+  }
+
+  clearCache(): void {
+    this.adapterCache.clear();
+  }
+
+  private async callWithRetry<T>(fn: () => Promise<T>, operation: string): Promise<T> {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+
+        const status = (error as any)?.status ?? (error as any)?.response?.status;
+        const isRetryable = !status || status >= 500 || status === 429;
+        const isAbort = (error as Error)?.name === 'AbortError';
+
+        if (!isRetryable || isAbort || attempt >= MAX_RETRIES - 1) {
+          throw error;
+        }
+
+        const delayMs = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+        logger.warn('AI', `Retrying ${operation}`, { attempt: attempt + 1, delayMs, status });
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+
+    throw lastError;
+  }
+
+  private async chatCompletionInternal(
+    userId: string,
+    request: ChatCompletionRequest,
+    modelId?: string,
+    signal?: AbortSignal
+  ): Promise<ChatCompletionResponse> {
+    const modelConfig = await this.resolveModelConfig(userId, modelId);
+    const adapter = this.getAdapter(modelConfig);
+    this.injectSystemPrompt(request, modelConfig);
+
+    const timeoutSignal = this.createTimeoutSignal(signal);
+
+    try {
+      return await adapter.chatCompletion(
+        {
+          ...request,
+          maxTokens: request.maxTokens || modelConfig.maxTokens,
+          temperature: request.temperature ?? modelConfig.temperature,
+        },
+        timeoutSignal.signal
+      );
+    } finally {
+      timeoutSignal.abort();
+    }
+  }
+
+  private async chatCompletionStreamInternal(
+    userId: string,
+    request: ChatCompletionRequest,
+    onChunk: (chunk: StreamChunk) => void,
+    options?: { modelId?: string; signal?: AbortSignal }
+  ): Promise<void> {
+    const modelConfig = await this.resolveModelConfig(userId, options?.modelId);
+    const adapter = this.getAdapter(modelConfig);
+    this.injectSystemPrompt(request, modelConfig);
+
+    const timeoutSignal = this.createTimeoutSignal(options?.signal);
+
+    try {
+      return await adapter.chatCompletionStream(
+        {
+          ...request,
+          maxTokens: request.maxTokens || modelConfig.maxTokens,
+          temperature: request.temperature ?? modelConfig.temperature,
+        },
+        onChunk,
+        timeoutSignal.signal
+      );
+    } finally {
+      timeoutSignal.abort();
+    }
+  }
+
+  private async embeddingInternal(
     userId: string,
     request: EmbeddingRequest,
     modelId?: string
@@ -205,8 +252,63 @@ export class ModelGateway {
     return adapter.embedding(request);
   }
 
-  clearCache(): void {
-    this.adapterCache.clear();
+  private async resolveModelConfig(userId: string, modelId?: string): Promise<ModelConfig> {
+    if (modelId) {
+      const config = await this.getModelById(modelId, userId);
+      if (config) return config;
+    }
+
+    const activeConfig = await this.getActiveModel(userId);
+    if (activeConfig) return activeConfig;
+
+    return this.getDefaultWorkersAiModel();
+  }
+
+  private injectSystemPrompt(request: ChatCompletionRequest, modelConfig: ModelConfig): void {
+    if (modelConfig.systemPrompt && !request.messages.some((m) => m.role === 'system')) {
+      request.messages.unshift({
+        role: 'system',
+        content: modelConfig.systemPrompt,
+      });
+    }
+  }
+
+  private createTimeoutSignal(externalSignal?: AbortSignal): AbortController {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    if (externalSignal) {
+      if (externalSignal.aborted) {
+        clearTimeout(timeoutId);
+        controller.abort();
+        return controller;
+      }
+
+      externalSignal.addEventListener('abort', () => {
+        clearTimeout(timeoutId);
+        controller.abort();
+      }, { once: true });
+    }
+
+    return controller;
+  }
+
+  private buildCacheKey(config: ModelConfig): string {
+    const versionPart = [
+      config.modelId,
+      config.apiEndpoint,
+      config.apiKeyEncrypted?.slice(0, 8),
+      config.updatedAt,
+    ].join('|');
+
+    let hash = 0;
+    for (let i = 0; i < versionPart.length; i++) {
+      const char = versionPart.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash |= 0;
+    }
+
+    return `${config.provider}:${config.id}:v${Math.abs(hash).toString(16).slice(0, 8)}`;
   }
 
   private getDefaultWorkersAiModel(): ModelConfig {
@@ -237,14 +339,14 @@ export class ModelGateway {
       {
         id: 'workers_ai',
         name: 'Cloudflare Workers AI',
-        description: 'Cloudflare内置的AI服务，无需配置API密钥，直接使用',
+        description: 'Cloudflare内置的AI服务，无需配置API密钥，直接使用。支持自定义模型ID。注意：不支持 Native Function Calling，工具调用走 Prompt-Based Fallback',
         requiresApiKey: false,
         requiresEndpoint: false,
       },
       {
         id: 'openai_compatible',
         name: 'OpenAI 兼容 API',
-        description: '支持所有OpenAI兼容的API（OpenAI、Azure、Ollama、本地模型等）',
+        description: '支持所有OpenAI兼容的API（OpenAI、Azure、Ollama、本地模型等），支持 Native Function Calling',
         requiresApiKey: true,
         requiresEndpoint: true,
       },
@@ -273,7 +375,7 @@ export class ModelGateway {
 
   private async parseAndDecryptModelConfig(raw: Record<string, unknown>): Promise<ModelConfig> {
     const config = this.parseModelConfig(raw);
-    
+
     if (config.apiKeyEncrypted && isAesGcmFormat(config.apiKeyEncrypted)) {
       try {
         const secret = getEncryptionKey(this.env);
@@ -282,7 +384,7 @@ export class ModelGateway {
         logger.error('AI', 'Failed to decrypt API key', { modelId: config.id }, error);
       }
     }
-    
+
     return config;
   }
 }

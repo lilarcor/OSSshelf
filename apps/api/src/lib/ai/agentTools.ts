@@ -15,7 +15,7 @@
 
 import { eq, and, isNull, desc, like, or, inArray, sql, count } from 'drizzle-orm';
 import { getDb, files, fileTags, shares, userStars, storageBuckets } from '../../db';
-import { searchAndFetchFiles } from '../vectorIndex';
+import { searchAndFetchFiles, buildFileTextForVector } from '../vectorIndex';
 import type { Env } from '../../types/env';
 import { logger } from '@osshelf/shared';
 
@@ -234,6 +234,28 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'get_file_content',
+      description:
+        '获取文件的内容摘要和分段信息。适用于"这个PDF里第几页说了什么"、"这个文件讲了什么"、"文件的主要内容是什么"等场景。返回AI摘要、内容分段和元数据。',
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: {
+            type: 'string',
+            description: '文件的ID',
+          },
+          section: {
+            type: 'string',
+            description: '可选，指定查看的部分，如 "前半部分"、"关于XX的章节"、"结尾"。不传则返回完整摘要。',
+          },
+        },
+        required: ['fileId'],
+      },
+    },
+  },
 ];
 
 // ────────────────────────────────────────────────────────────
@@ -266,6 +288,8 @@ export class AgentToolExecutor {
         return this.listRecent(args);
       case 'search_by_tag':
         return this.searchByTag(args);
+      case 'get_file_content':
+        return this.getFileContent(args);
       default:
         throw new Error(`Unknown tool: ${toolName}`);
     }
@@ -560,6 +584,69 @@ export class AgentToolExecutor {
       tagQuery: tagName,
       total: rows.length,
       files: rows.map((r) => ({ ...toAgentFile(r.file), matchedTag: r.tag.name })),
+    };
+  }
+
+  private async getFileContent(args: Record<string, unknown>) {
+    const fileId = args.fileId as string;
+    const section = args.section as string | undefined;
+    const db = getDb(this.env.DB);
+
+    const file = await db.select().from(files).where(and(eq(files.id, fileId), eq(files.userId, this.userId))).get();
+
+    if (!file) {
+      throw new Error(`文件不存在或无权访问: ${fileId}`);
+    }
+
+    const vectorText = await buildFileTextForVector(this.env, fileId);
+    const sections: Array<{ title: string; content: string }> = [];
+
+    if (vectorText && vectorText.length > 100) {
+      const chunkSize = 1500;
+      if (vectorText.length <= chunkSize) {
+        sections.push({ title: '完整内容', content: vectorText });
+      } else {
+        const totalChunks = Math.ceil(vectorText.length / chunkSize);
+        for (let i = 0; i < totalChunks; i++) {
+          const start = i * chunkSize;
+          const end = Math.min(start + chunkSize, vectorText.length);
+          sections.push({ title: `第 ${i + 1} 段（共 ${totalChunks} 段）`, content: vectorText.slice(start, end) });
+        }
+      }
+
+      if (section) {
+        const matchedSection = sections.find((s) => s.title.includes(section)) || sections[0];
+        return {
+          fileId,
+          fileName: file.name,
+          mimeType: file.mimeType,
+          aiSummary: file.aiSummary || '暂无AI摘要',
+          section: matchedSection?.title || '',
+          content: matchedSection?.content || '',
+          totalSections: sections.length,
+          hasMore: sections.length > 1,
+        };
+      }
+
+      return {
+        fileId,
+        fileName: file.name,
+        mimeType: file.mimeType,
+        aiSummary: file.aiSummary || '暂无AI摘要',
+        sections: sections.slice(0, 5),
+        totalSections: sections.length,
+        hasMore: sections.length > 5,
+      };
+    }
+
+    return {
+      fileId,
+      fileName: file.name,
+      mimeType: file.mimeType,
+      aiSummary: file.aiSummary || '暂无AI摘要',
+      sections: [],
+      totalSections: 0,
+      note: '该文件无文本内容可供读取（可能是二进制/图片文件）',
     };
   }
 }

@@ -44,6 +44,11 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         stream: false,
       };
 
+      if (request.tools && request.tools.length > 0) {
+        body.tools = request.tools;
+        body.tool_choice = request.toolChoice || 'auto';
+      }
+
       const response = await fetch(`${this.config.apiEndpoint}/chat/completions`, {
         method: 'POST',
         headers: this.getHeaders(),
@@ -59,7 +64,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
       const data = (await response.json()) as {
         id: string;
         choices: Array<{
-          message: { content: string; role: string };
+          message: { content: string | null; role: string; tool_calls?: Array<{id: string; type: string; function: {name: string; arguments: string}}> };
           finish_reason: string;
         }>;
         usage?: {
@@ -69,9 +74,16 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         };
       };
 
+      const choice = data.choices[0];
+      const toolCalls = choice?.message?.tool_calls?.map(tc => ({
+        id: tc.id,
+        name: tc.function.name,
+        arguments: tc.function.arguments,
+      }));
+
       return {
         id: data.id || crypto.randomUUID(),
-        content: data.choices[0]?.message?.content || '',
+        content: choice?.message?.content || '',
         role: 'assistant',
         model: this.config.modelId,
         usage: data.usage
@@ -81,7 +93,8 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
               totalTokens: data.usage.total_tokens,
             }
           : undefined,
-        finishReason: data.choices[0]?.finish_reason as 'stop' | 'length' | 'content_filter',
+        finishReason: (choice?.finish_reason === 'tool_calls' ? 'tool_calls' : choice?.finish_reason) as 'stop' | 'length' | 'content_filter' | 'tool_calls',
+        toolCalls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
       };
     } catch (error) {
       logger.error('AI', 'OpenAI compatible chat completion failed', {}, error);
@@ -97,19 +110,26 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
     this.validateConnection();
 
     try {
+      const streamBody: Record<string, unknown> = {
+        model: this.config.modelId,
+        messages: request.messages,
+        max_tokens: request.maxTokens || this.config.maxTokens,
+        temperature: request.temperature ?? this.config.temperature,
+        stream: true,
+      };
+
+      if (request.tools && request.tools.length > 0) {
+        streamBody.tools = request.tools;
+        streamBody.tool_choice = request.toolChoice || 'auto';
+      }
+
       const response = await fetch(`${this.config.apiEndpoint}/chat/completions`, {
         method: 'POST',
         headers: {
           ...this.getHeaders(),
           Accept: 'text/event-stream',
         },
-        body: JSON.stringify({
-          model: this.config.modelId,
-          messages: request.messages,
-          max_tokens: request.maxTokens || this.config.maxTokens,
-          temperature: request.temperature ?? this.config.temperature,
-          stream: true,
-        }),
+        body: JSON.stringify(streamBody),
         signal,
       });
 
@@ -125,6 +145,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
 
       const decoder = new TextDecoder();
       let buffer = '';
+      const toolCallMap = new Map<number, { id?: string; name?: string; arguments: string }>();
 
       while (true) {
         const { done, value } = await reader.read();
@@ -138,6 +159,21 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
           const trimmedLine = line.trim();
           if (!trimmedLine || trimmedLine === 'data: [DONE]') {
             if (trimmedLine === 'data: [DONE]') {
+              if (toolCallMap.size > 0) {
+                onChunk({
+                  id: crypto.randomUUID(),
+                  content: '',
+                  role: 'assistant',
+                  model: this.config.modelId,
+                  done: false,
+                  toolCalls: Array.from(toolCallMap.entries()).map(([index, tc]) => ({
+                    id: tc.id || '',
+                    name: tc.name,
+                    arguments: tc.arguments,
+                    index,
+                  })),
+                });
+              }
               onChunk({
                 id: crypto.randomUUID(),
                 content: '',
@@ -152,15 +188,29 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
           if (trimmedLine.startsWith('data: ')) {
             try {
               const data = JSON.parse(trimmedLine.slice(6));
-              const delta = data.choices?.[0]?.delta?.content;
-              if (delta) {
+              const delta = data.choices?.[0]?.delta;
+
+              if (delta?.content) {
                 onChunk({
                   id: data.id || crypto.randomUUID(),
-                  content: delta,
+                  content: delta.content,
                   role: 'assistant',
                   model: this.config.modelId,
                   done: false,
                 });
+              }
+
+              if (delta?.tool_calls) {
+                for (const tc of delta.tool_calls) {
+                  const idx = tc.index;
+                  if (!toolCallMap.has(idx)) {
+                    toolCallMap.set(idx, { arguments: '' });
+                  }
+                  const existing = toolCallMap.get(idx)!;
+                  if (tc.id) existing.id = tc.id;
+                  if (tc.function?.name) existing.name = tc.function.name;
+                  if (tc.function?.arguments) existing.arguments += tc.function.arguments;
+                }
               }
             } catch {
               continue;

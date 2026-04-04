@@ -641,7 +641,7 @@ export function AISettings() {
               </div>
               <p className="text-sm text-muted-foreground mb-4">Cloudflare 内置的 AI 服务，无需配置 API 密钥即可使用</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {providersData.workersAiModels.map((m) => {
+                {providersData.workersAiModels.filter((m) => m.id !== '__custom__').map((m) => {
                   const isAdded = models.some((model) => model.provider === 'workers_ai' && model.modelId === m.id);
                   const isActive = status?.activeModel?.modelId === m.id;
                   const isPending = quickActivateMutation.isPending;
@@ -1407,6 +1407,7 @@ function ModelFormModal({
     name: model?.name || '',
     provider: model?.provider || 'workers_ai',
     modelId: model?.modelId || '',
+    customModelId: undefined as string | undefined,
     apiEndpoint: model?.apiEndpoint || '',
     apiKey: '',
     capabilities: model?.capabilities || ['chat'],
@@ -1418,7 +1419,12 @@ function ModelFormModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    const submitData = { ...formData };
+    if (formData.modelId === '__custom__' && formData.customModelId) {
+      submitData.modelId = formData.customModelId;
+      submitData.name = formData.customModelId.split('/').pop() || formData.name;
+    }
+    onSubmit(submitData);
   };
 
   return (
@@ -1468,18 +1474,51 @@ function ModelFormModal({
               <div>
                 <label className="block text-sm font-medium mb-1">选择模型 *</label>
                 <select
-                  value={formData.modelId}
-                  onChange={(e) => setFormData({ ...formData, modelId: e.target.value })}
+                  value={formData.modelId === '__custom__' ? '__custom__' : (providersData.workersAiModels.find((m) => m.id === formData.modelId) ? formData.modelId : '')}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData({
+                      ...formData,
+                      modelId: val,
+                      customModelId: val === '__custom__' ? '' : undefined,
+                    });
+                  }}
                   className="w-full px-3 py-2 border rounded-lg bg-background text-sm"
                   required
                 >
                   <option value="">请选择一个 Workers AI 模型</option>
                   {providersData.workersAiModels.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.name} ({m.id})
+                      {m.name} {m.id !== '__custom__' ? `(${m.id})` : ''}
                     </option>
                   ))}
                 </select>
+
+                {formData.modelId === '__custom__' && (
+                  <div className="mt-2">
+                    <label className="block text-xs text-muted mb-1">自定义模型 ID（@cf/ 开头）</label>
+                    <input
+                      type="text"
+                      value={formData.customModelId || ''}
+                      onChange={(e) => setFormData({ ...formData, customModelId: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg bg-background font-mono text-sm"
+                      placeholder="@cf/deepseek/deepseek-r1 或 @cf/black-forest-labs/flux-2-klein-4b"
+                      required
+                    />
+                    <p className="mt-1 text-xs text-muted">
+                      可在{' '}
+                      <a
+                        href="https://developers.cloudflare.com/workers-ai/models/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        Workers AI 模型目录
+                      </a>
+                      {' '}查看所有可用模型。免费额度：Workers Paid 计划每日约 10,000 neurons 免费，超出按 $0.0001/neuron 计费。
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               <>

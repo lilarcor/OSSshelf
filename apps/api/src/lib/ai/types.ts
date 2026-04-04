@@ -52,6 +52,8 @@ export interface ChatCompletionRequest {
   stream?: boolean;
   stop?: string[];
   signal?: AbortSignal;
+  tools?: ToolDefinition[];
+  toolChoice?: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string };
 }
 
 export interface ChatCompletionResponse {
@@ -64,7 +66,12 @@ export interface ChatCompletionResponse {
     completionTokens: number;
     totalTokens: number;
   };
-  finishReason?: 'stop' | 'length' | 'content_filter';
+  finishReason?: 'stop' | 'length' | 'content_filter' | 'tool_calls';
+  toolCalls?: Array<{
+    id: string;
+    name: string;
+    arguments: string;
+  }>;
 }
 
 export interface StreamChunk {
@@ -77,6 +84,25 @@ export interface StreamChunk {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
+  };
+  toolCalls?: Array<{
+    id: string;
+    name?: string;
+    arguments?: string;
+    index: number;
+  }>;
+}
+
+export interface ToolDefinition {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: 'object';
+      properties: Record<string, unknown>;
+      required?: string[];
+    };
   };
 }
 
