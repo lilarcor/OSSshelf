@@ -103,6 +103,23 @@ export function AISettings() {
     staleTime: 30000,
   });
 
+  // 查询有vision能力的模型（用于图片相关配置）
+  const { data: visionModels = [] } = useQuery({
+    queryKey: ['ai-models', 'vision'],
+    queryFn: () => aiApi.config.getModels('vision').then((r) => r.data.data ?? []),
+    staleTime: 30000,
+  });
+
+  // 模型能力映射：配置key -> 需要的能力
+  const modelCapabilityMap: Record<string, 'chat' | 'vision'> = {
+    'ai.default_model.chat': 'chat',
+    'ai.default_model.vision': 'vision',
+    'ai.default_model.summary': 'chat',
+    'ai.default_model.image_caption': 'vision',
+    'ai.default_model.image_tag': 'vision',
+    'ai.default_model.rename': 'chat',
+  };
+
   // 查询AI状态
   const { data: status } = useQuery({
     queryKey: ['ai-config-status'],
@@ -1382,6 +1399,11 @@ export function AISettings() {
                                   ? String(config.booleanValue)
                                   : (config.jsonValue ?? '');
 
+                          const isModelConfig = config.key.startsWith('ai.default_model.');
+                          const requiredCapability = modelCapabilityMap[config.key];
+                          const availableModels = requiredCapability === 'vision' ? visionModels : models;
+                          const selectedModel = availableModels.find((m) => m.modelId === currentValue);
+
                           const renderInput = () => {
                             if (config.valueType === 'boolean') {
                               return (
@@ -1406,6 +1428,52 @@ export function AISettings() {
                                     )}
                                   />
                                 </button>
+                              );
+                            }
+
+                            if (isModelConfig) {
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={currentValue}
+                                    onChange={(e) => {
+                                      const newValue = e.target.value;
+                                      updateSystemConfigMutation.mutate({
+                                        key: config.key,
+                                        value: newValue,
+                                      });
+                                    }}
+                                    disabled={!config.isEditable || updateSystemConfigMutation.isPending}
+                                    className="flex-1 px-3 py-1.5 border rounded bg-background text-sm"
+                                  >
+                                    <option value={config.defaultValue}>
+                                      {config.defaultValue} (系统默认)
+                                    </option>
+                                    {availableModels
+                                      .filter((m) => m.modelId !== config.defaultValue)
+                                      .map((m) => (
+                                        <option key={m.id} value={m.modelId}>
+                                          {m.name} ({m.provider})
+                                        </option>
+                                      ))}
+                                  </select>
+                                  {currentValue !== config.defaultValue && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() =>
+                                        updateSystemConfigMutation.mutate({
+                                          key: config.key,
+                                          value: config.defaultValue,
+                                        })
+                                      }
+                                      disabled={updateSystemConfigMutation.isPending}
+                                      title="重置为默认值"
+                                    >
+                                      <RotateCcw className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
                               );
                             }
 

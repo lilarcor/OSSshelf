@@ -72,10 +72,16 @@ const updateModelSchema = z.object({
 
 app.get('/models', async (c) => {
   const userId = c.get('userId')!;
+  const capability = c.req.query('capability') as ModelCapability | undefined;
   const gateway = new ModelGateway(c.env);
   const models = await gateway.getAllModels(userId);
 
-  const modelsWithDecryptedKey = models.map((m) => ({
+  let filteredModels = models;
+  if (capability) {
+    filteredModels = models.filter((m) => m.capabilities.includes(capability));
+  }
+
+  const modelsWithDecryptedKey = filteredModels.map((m) => ({
     ...m,
     apiKeyEncrypted: m.apiKeyEncrypted ? '***' : undefined,
     hasApiKey: !!m.apiKeyEncrypted,

@@ -1299,7 +1299,8 @@ export const aiApi = {
 
   // 新增：AI配置管理
   config: {
-    getModels: () => api.get<ApiResponse<AiModel[]>>('/api/ai-config/models'),
+    getModels: (capability?: 'chat' | 'vision' | 'embedding') =>
+      api.get<ApiResponse<AiModel[]>>('/api/ai-config/models', { params: capability ? { capability } : {} }),
     getModel: (modelId: string) => api.get<ApiResponse<AiModel>>(`/api/ai-config/models/${modelId}`),
     createModel: (data: CreateAiModelParams) => api.post<ApiResponse<AiModel>>('/api/ai-config/models', data),
     updateModel: (modelId: string, data: Partial<CreateAiModelParams>) =>
