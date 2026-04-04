@@ -10,13 +10,14 @@
  */
 
 import { Hono } from 'hono';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql, count } from 'drizzle-orm';
 import { getDb, aiChatSessions, aiChatMessages, files } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { ERROR_CODES } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
 import { z } from 'zod';
 import { ModelGateway, RagEngine } from '../lib/ai';
+import { AgentEngine, type AgentChunk } from '../lib/ai/agentEngine';
 import type { StreamChunk } from '../lib/ai/types';
 import { logger } from '@osshelf/shared';
 
@@ -37,28 +38,20 @@ app.get('/sessions', async (c) => {
       .limit(50)
       .all();
 
-    const sessionWithCounts = await Promise.all(
-      sessions.map(async (session) => {
-        try {
-          const messages = await db
-            .select({ id: aiChatMessages.id })
-            .from(aiChatMessages)
-            .where(eq(aiChatMessages.sessionId, session.id))
-            .all();
+    // Single batch query for all message counts
+    const msgCounts = await db
+      .select({ sessionId: aiChatMessages.sessionId, cnt: count(aiChatMessages.id) })
+      .from(aiChatMessages)
+      .where(sql`${aiChatMessages.sessionId} IN (${sql.join(sessions.map(s => sql`${s.id}`), sql`, `)})`)
+      .groupBy(aiChatMessages.sessionId)
+      .all();
 
-          return {
-            ...session,
-            messageCount: messages.length,
-          };
-        } catch (msgError) {
-          logger.error('AI Chat', 'Failed to get message count', { sessionId: session.id }, msgError);
-          return {
-            ...session,
-            messageCount: 0,
-          };
-        }
-      })
-    );
+    const countMap = new Map(msgCounts.map((r) => [r.sessionId, r.cnt]));
+
+    const sessionWithCounts = sessions.map((session) => ({
+      ...session,
+      messageCount: countMap.get(session.id) ?? 0,
+    }));
 
     return c.json({
       success: true,
@@ -300,7 +293,7 @@ async function handleNormalChat(
     const response = await gateway.chatCompletion(
       userId,
       {
-        messages: [{ role: 'user', content: ragContext.assembledPrompt }],
+        messages: ragContext.messages,
       },
       modelId
     );
@@ -363,8 +356,8 @@ async function handleStreamChat(
   query: string,
   sessionId?: string,
   modelId?: string,
-  maxFiles?: number,
-  includeFileContent?: boolean
+  _maxFiles?: number,
+  _includeFileContent?: boolean
 ) {
   const startTime = Date.now();
   let actualSessionId = sessionId;
@@ -372,6 +365,7 @@ async function handleStreamChat(
   try {
     const db = getDb(c.env.DB);
 
+    // Ensure session exists
     if (!actualSessionId) {
       const newSession = {
         id: crypto.randomUUID(),
@@ -390,6 +384,7 @@ async function handleStreamChat(
         .where(eq(aiChatSessions.id, actualSessionId));
     }
 
+    // Save user message
     await db.insert(aiChatMessages).values({
       id: crypto.randomUUID(),
       sessionId: actualSessionId,
@@ -398,6 +393,7 @@ async function handleStreamChat(
       createdAt: new Date().toISOString(),
     });
 
+    // Load conversation history for context
     const existingMessages = await db
       .select()
       .from(aiChatMessages)
@@ -410,113 +406,102 @@ async function handleStreamChat(
       content: m.content,
     }));
 
-    const ragEngine = new RagEngine(c.env);
-    const ragContext = await ragEngine.buildContext({
-      query,
-      userId,
-      maxFiles,
-      includeFileContent,
-      conversationHistory,
-    });
+    const agentEngine = new AgentEngine(c.env);
 
-    const gateway = new ModelGateway(c.env);
-
-    let fullContent = '';
-    let errorMessage: string | null = null;
-    let resolveStreamPromise: () => void;
-    const streamCompletePromise = new Promise<void>((resolve) => {
-      resolveStreamPromise = resolve;
-    });
+    let fullText = '';
+    let finalSources: Array<{ id: string; name: string; mimeType: string | null; score: number }> = [];
+    let resolveStream!: () => void;
+    const streamDone = new Promise<void>((r) => { resolveStream = r; });
 
     const stream = new ReadableStream({
       async start(controller) {
+        const enqueue = (data: object) => {
+          try {
+            controller.enqueue(`data: ${JSON.stringify(data)}\n\n`);
+          } catch {
+            // controller already closed
+          }
+        };
+
         try {
-          await gateway.chatCompletionStream(
+          const result = await agentEngine.run(
             userId,
-            {
-              messages: [{ role: 'user', content: ragContext.assembledPrompt }],
-            },
-            (chunk: StreamChunk) => {
+            query,
+            conversationHistory,
+            modelId,
+            (chunk: AgentChunk) => {
               if (chunk.done) {
-                const sources = ragContext.relevantFiles.map((f) => ({
-                  id: f.id,
-                  name: f.name,
-                  mimeType: f.mimeType,
-                  score: f.similarityScore,
-                }));
-                controller.enqueue(
-                  `data: ${JSON.stringify({ done: true, sessionId: actualSessionId, sources })}\n\n`
-                );
+                if (chunk.type === 'done') {
+                  finalSources = chunk.sources;
+                  enqueue({ done: true, sessionId: actualSessionId, sources: chunk.sources });
+                } else {
+                  // error chunk
+                  enqueue({ done: true, error: (chunk as any).message, sessionId: actualSessionId, sources: [] });
+                }
                 controller.close();
-                resolveStreamPromise();
+                resolveStream();
               } else {
-                fullContent += chunk.content;
-                controller.enqueue(`data: ${JSON.stringify({ content: chunk.content, done: false })}\n\n`);
+                if (chunk.type === 'text') {
+                  fullText += chunk.content;
+                  enqueue({ content: chunk.content, done: false });
+                } else if (chunk.type === 'tool_start') {
+                  enqueue({
+                    toolStart: true,
+                    toolName: chunk.toolName,
+                    toolCallId: chunk.toolCallId,
+                    args: chunk.args,
+                    done: false,
+                  });
+                } else if (chunk.type === 'tool_result') {
+                  enqueue({
+                    toolResult: true,
+                    toolCallId: chunk.toolCallId,
+                    toolName: chunk.toolName,
+                    result: chunk.result,
+                    done: false,
+                  });
+                }
               }
             },
             c.req.raw.signal
           );
+
+          // If agent finished without emitting done (shouldn't happen but guard)
+          if (!controller.desiredSize !== undefined) {
+            finalSources = result.sources;
+            enqueue({ done: true, sessionId: actualSessionId, sources: result.sources });
+            try { controller.close(); } catch {}
+            resolveStream();
+          }
         } catch (error) {
-          errorMessage = error instanceof Error ? error.message : String(error);
-          logger.error('AI Chat', 'Stream chat failed', { userId }, error);
-          controller.error(error);
-          resolveStreamPromise();
+          logger.error('AI Agent', 'Stream failed', { userId }, error);
+          enqueue({ done: true, error: 'AI 响应出错', sessionId: actualSessionId, sources: [] });
+          try { controller.close(); } catch {}
+          resolveStream();
         }
       },
     });
 
+    // Save assistant message after stream completes
     c.executionCtx.waitUntil(
       (async () => {
-        await streamCompletePromise;
-        
+        await streamDone;
         try {
-          if (errorMessage) {
-            logger.warn('AI Chat', 'Skipping message save due to stream error', { 
-              userId, 
-              error: errorMessage
-            });
-            return;
-          }
-
-          if (!fullContent || fullContent.trim().length === 0) {
-            logger.warn('AI Chat', 'Skipping message save due to empty content', { 
-              userId, 
-              contentLength: fullContent.length 
-            });
-            return;
-          }
-
+          if (!fullText.trim()) return;
           const latencyMs = Date.now() - startTime;
-          const sourcesJson = JSON.stringify(
-            ragContext.relevantFiles.map((f) => ({
-              id: f.id,
-              name: f.name,
-              mimeType: f.mimeType,
-              score: f.similarityScore,
-            }))
-          );
-
-          const finalContent =
-            fullContent + ragEngine.formatSourcesForResponse(ragContext.relevantFiles);
-
           await db.insert(aiChatMessages).values({
             id: crypto.randomUUID(),
             sessionId: actualSessionId!,
             role: 'assistant',
-            content: finalContent,
-            sources: sourcesJson,
-            tokenCount: Math.ceil(finalContent.length * 0.5),
+            content: fullText,
+            sources: JSON.stringify(finalSources),
+            tokenCount: Math.ceil(fullText.length * 0.5),
             latencyMs,
             createdAt: new Date().toISOString(),
           });
-
-          logger.info('AI Chat', 'Assistant message saved successfully', { 
-            sessionId: actualSessionId, 
-            contentLength: finalContent.length,
-            latencyMs 
-          });
+          logger.info('AI Agent', 'Message saved', { sessionId: actualSessionId, latencyMs });
         } catch (error) {
-          logger.error('AI Chat', 'Failed to save assistant message', { userId, sessionId: actualSessionId }, error);
+          logger.error('AI Agent', 'Failed to save message', { userId }, error);
         }
       })()
     );
@@ -530,13 +515,13 @@ async function handleStreamChat(
       },
     });
   } catch (error) {
-    logger.error('AI Chat', 'Failed to start stream', { userId }, error);
+    logger.error('AI Chat', 'Failed to start agent stream', { userId }, error);
     return c.json(
       {
         success: false,
         error: {
           code: ERROR_CODES.INTERNAL_ERROR,
-          message: error instanceof Error ? error.message : '启动流式对话失败',
+          message: error instanceof Error ? error.message : '启动对话失败',
         },
       },
       500

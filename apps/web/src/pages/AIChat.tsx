@@ -1,35 +1,22 @@
 /**
- * AIChat.tsx
- * AI 智能对话页面 - 升级版
+ * AIChat.tsx - AI 文件管理智能体对话页面
  *
- * 功能:
- * - 流式输出 (SSE)
- * - 会话历史管理
- * - Markdown 渲染
- * - 文件来源引用
- * - 现代化 UI (参考 LobeChat)
+ * 新特性：
+ * - 工具调用过程实时显示（"正在搜索文件…"）
+ * - 工具结果渲染为可点击文件卡片
+ * - [FILE:id:name] / [FOLDER:id:name] 标记自动转为可点击元素
+ * - 点击文件跳转到文件管理页面并高亮该文件
+ * - 侧边栏默认展开（桌面端）+ session 重命名 + 重新生成
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  MessageSquare,
-  Send,
-  Loader2,
-  FileText,
-  Image,
-  File,
-  Sparkles,
-  Plus,
-  Trash2,
-  ExternalLink,
-  ChevronLeft,
-  Settings,
-  StopCircle,
-  Copy,
-  Check,
+  MessageSquare, Send, FileText, Image, File, Sparkles, FolderOpen,
+  Plus, Trash2, ExternalLink, PanelLeftClose, PanelLeftOpen,
+  Settings, StopCircle, Copy, Check, RefreshCw, Pencil, X,
+  Loader2, Search, BarChart3, Star, Share2, Clock, Tag,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
 import { aiApi, type AiChatMessage } from '@/services/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -38,19 +25,221 @@ import 'highlight.js/styles/github-dark.css';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDate } from '@/utils';
 
+// ────────────────────────────────────────────────────────────
+// Types
+// ────────────────────────────────────────────────────────────
+
+interface AgentFile {
+  id: string; name: string; path: string; isFolder: boolean;
+  mimeType: string | null; size: number; createdAt: string;
+}
+
+interface ToolCallEvent {
+  id: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  result?: unknown;
+  status: 'running' | 'done' | 'error';
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  sources?: Array<{
-    id: string;
-    name: string;
-    mimeType: string | null;
-    score: number;
-  }>;
+  sources?: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
+  toolCalls?: ToolCallEvent[];
   timestamp: Date;
   isLoading?: boolean;
 }
+
+// ────────────────────────────────────────────────────────────
+// Tool name → label + icon
+// ────────────────────────────────────────────────────────────
+
+const TOOL_META: Record<string, { label: string; icon: React.ReactNode }> = {
+  search_files:     { label: '搜索文件',     icon: <Search className="h-3 w-3" /> },
+  list_folder:      { label: '浏览文件夹',   icon: <FolderOpen className="h-3 w-3" /> },
+  get_file_detail:  { label: '获取文件详情', icon: <FileText className="h-3 w-3" /> },
+  get_storage_stats:{ label: '查询存储统计', icon: <BarChart3 className="h-3 w-3" /> },
+  list_starred:     { label: '查看收藏',     icon: <Star className="h-3 w-3" /> },
+  list_shares:      { label: '查看共享',     icon: <Share2 className="h-3 w-3" /> },
+  list_recent:      { label: '最近文件',     icon: <Clock className="h-3 w-3" /> },
+  search_by_tag:    { label: '标签搜索',     icon: <Tag className="h-3 w-3" /> },
+};
+
+// ────────────────────────────────────────────────────────────
+// SSE Chunk type (mirrors backend AgentChunk)
+// ────────────────────────────────────────────────────────────
+
+interface SseChunk {
+  content?: string;
+  done?: boolean;
+  sessionId?: string;
+  sources?: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
+  error?: string;
+  // Tool events
+  toolStart?: boolean;
+  toolResult?: boolean;
+  toolName?: string;
+  toolCallId?: string;
+  args?: Record<string, unknown>;
+  result?: unknown;
+}
+
+const SUGGESTED = [
+  '帮我找最近上传的文件',
+  '查看我的存储统计',
+  '有哪些带有"项目"标签的文件？',
+  '列出根目录的内容',
+  '我收藏了哪些文件？',
+  '查看我分享了哪些文件',
+];
+
+// ────────────────────────────────────────────────────────────
+// File ref parser: [FILE:id:name] → clickable element
+// ────────────────────────────────────────────────────────────
+
+function parseFileRefs(text: string, onFileClick: (id: string, isFolder: boolean) => void): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const regex = /\[(FILE|FOLDER):([^:]+):([^\]]+)\]/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text))) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    const isFolder = match[1] === 'FOLDER';
+    const id = match[2] ?? '';
+    const name = match[3] ?? '';
+    parts.push(
+      <button
+        key={`${id}-${match.index}`}
+        onClick={() => id && onFileClick(id, isFolder)}
+        className="inline-flex items-center gap-1.5 px-2 py-0.5 mx-0.5 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-xs font-medium transition-all group"
+      >
+        {isFolder
+          ? <FolderOpen className="h-3 w-3 text-amber-500" />
+          : <FileText className="h-3 w-3 text-violet-500" />
+        }
+        <span>{name}</span>
+        <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </button>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts;
+}
+
+// ────────────────────────────────────────────────────────────
+// Sub-components
+// ────────────────────────────────────────────────────────────
+
+function ToolCallCard({ tc }: { tc: ToolCallEvent }) {
+  const meta = TOOL_META[tc.toolName] || { label: tc.toolName, icon: <Sparkles className="h-3 w-3" /> };
+  const [expanded, setExpanded] = useState(false);
+
+  // Extract file list from result for preview
+  const resultFiles: AgentFile[] = (() => {
+    if (!tc.result || typeof tc.result !== 'object') return [];
+    const r = tc.result as any;
+    return (r.files || (r.file ? [r.file] : []) || []).slice(0, 6);
+  })();
+
+  return (
+    <div className="my-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 overflow-hidden text-xs">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="flex items-center gap-2 w-full px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors text-left"
+      >
+        <span className={`flex items-center justify-center h-5 w-5 rounded-full ${tc.status === 'running' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'}`}>
+          {tc.status === 'running'
+            ? <Loader2 className="h-3 w-3 animate-spin" />
+            : meta.icon
+          }
+        </span>
+        <span className="text-slate-600 dark:text-slate-400 font-medium">{meta.label}</span>
+        {tc.status === 'running' && <span className="text-amber-500 animate-pulse ml-1">进行中…</span>}
+        {tc.status === 'done' && !!tc.result && (
+          <span className="text-slate-400 ml-1">
+            {((tc.result as Record<string, unknown>).total !== undefined) ? `${(tc.result as Record<string, unknown>).total} 项结果` : '完成'}
+          </span>
+        )}
+        <span className="ml-auto text-slate-400">{expanded ? '▲' : '▼'}</span>
+      </button>
+
+      {expanded && !!tc.result && (
+        <div className="px-3 pb-3 pt-1 border-t border-slate-200 dark:border-slate-700">
+          <pre className="text-[10px] text-slate-500 dark:text-slate-400 overflow-auto max-h-40 whitespace-pre-wrap">
+            {JSON.stringify(tc.result, null, 2)}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FileChip({ file, onClick }: { file: AgentFile; onClick: () => void }) {
+  const getIcon = (mime: string | null) => {
+    if (file.isFolder) return <FolderOpen className="h-3.5 w-3.5 text-amber-500" />;
+    if (!mime) return <File className="h-3.5 w-3.5" />;
+    if (mime.startsWith('image/')) return <Image className="h-3.5 w-3.5 text-blue-500" />;
+    if (mime.includes('pdf')) return <FileText className="h-3.5 w-3.5 text-red-500" />;
+    if (mime.startsWith('text/') || mime.includes('document')) return <FileText className="h-3.5 w-3.5 text-slate-500" />;
+    return <File className="h-3.5 w-3.5 text-slate-400" />;
+  };
+
+  const formatSize = (bytes: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)}KB`;
+    return `${(bytes / 1024 ** 2).toFixed(1)}MB`;
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-violet-300 dark:hover:border-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all text-left group w-full sm:w-auto min-w-0"
+    >
+      {getIcon(file.mimeType)}
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate max-w-[160px]">{file.name}</p>
+        {file.size > 0 && <p className="text-[10px] text-slate-400">{formatSize(file.size)}</p>}
+      </div>
+      <ExternalLink className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+    </button>
+  );
+}
+
+// Renders assistant message content with [FILE:...] refs converted to buttons
+function AssistantContent({ content, onFileClick }: { content: string; onFileClick: (id: string, isFolder: boolean) => void }) {
+  // Split on file/folder refs and render mixed React content
+  const hasRefs = /\[(FILE|FOLDER):[^\]]+\]/.test(content);
+
+  if (!hasRefs) {
+    return (
+      <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-headings:mt-3 prose-pre:bg-slate-950 prose-code:text-violet-600 dark:prose-code:text-violet-400">
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{content}</ReactMarkdown>
+      </div>
+    );
+  }
+
+  // Has refs — render inline
+  return (
+    <div className="text-sm leading-relaxed whitespace-pre-wrap">
+      {parseFileRefs(content, onFileClick)}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Main component
+// ────────────────────────────────────────────────────────────
 
 export function AIChat() {
   const navigate = useNavigate();
@@ -61,450 +250,415 @@ export function AIChat() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(urlSessionId || null);
-  const [showSidebar, setShowSidebar] = useState(false);
-  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const [showSidebar, setShowSidebar] = useState(() => window.innerWidth >= 1024);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
+  const abortRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const renameRef = useRef<HTMLInputElement>(null);
 
   const { data: sessions = [] } = useQuery({
     queryKey: ['ai-chat-sessions'],
-    queryFn: () => aiApi.chatSession.getSessions().then((r) => r.data.data ?? []),
+    queryFn: () => aiApi.chatSession.getSessions().then(r => r.data.data ?? []),
     staleTime: 30000,
   });
 
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    if (urlSessionId && urlSessionId !== currentSessionId) {
-      loadSession(urlSessionId);
-    }
+    if (urlSessionId && urlSessionId !== currentSessionId) loadSession(urlSessionId);
   }, [urlSessionId]);
+  useEffect(() => {
+    if (renamingId) { renameRef.current?.focus(); renameRef.current?.select(); }
+  }, [renamingId]);
+
+  const autoResize = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+  };
+
+  const handleFileClick = useCallback((fileId: string, isFolder: boolean) => {
+    if (isFolder) {
+      navigate(`/files?folder=${fileId}`);
+    } else {
+      navigate(`/files?highlight=${fileId}`);
+    }
+  }, [navigate]);
 
   const loadSession = async (sessionId: string) => {
     try {
       setIsLoading(true);
-      const response = await aiApi.chatSession.getSession(sessionId);
-      if (response.data.success && response.data.data) {
-        const sessionData = response.data.data;
+      const res = await aiApi.chatSession.getSession(sessionId);
+      if (res.data.success && res.data.data) {
         setCurrentSessionId(sessionId);
-        setMessages(
-          sessionData.messages.map((msg: AiChatMessage) => ({
-            id: msg.id,
-            role: msg.role as 'user' | 'assistant',
-            content: msg.content,
-            sources: msg.sources,
-            timestamp: new Date(msg.createdAt),
-          }))
-        );
+        setMessages(res.data.data.messages.map((m: AiChatMessage) => ({
+          id: m.id, role: m.role as 'user' | 'assistant', content: m.content,
+          sources: m.sources, timestamp: new Date(m.createdAt),
+        })));
       }
-    } catch (error) {
-      console.error('Failed to load session:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setIsLoading(false); }
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const sendMessage = useCallback(async (query: string, regenerateFromId?: string) => {
+    if (!query.trim() || isLoading) return;
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: input.trim(),
-      timestamp: new Date(),
-    };
+    if (regenerateFromId) {
+      setMessages(prev => {
+        const idx = prev.findIndex(m => m.id === regenerateFromId);
+        return idx >= 0 ? prev.slice(0, idx) : prev;
+      });
+    } else {
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(), role: 'user', content: query, timestamp: new Date(),
+      }]);
+      setInput('');
+      if (inputRef.current) inputRef.current.style.height = 'auto';
+    }
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
     setIsLoading(true);
+    const assistantId = crypto.randomUUID();
+    const toolCallsMap = new Map<string, ToolCallEvent>();
 
-    const assistantMessageId = crypto.randomUUID();
-    const assistantMessage: Message = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '',
-      timestamp: new Date(),
-      isLoading: true,
-    };
+    setMessages(prev => [...prev, {
+      id: assistantId, role: 'assistant', content: '', toolCalls: [], timestamp: new Date(), isLoading: true,
+    }]);
 
-    setMessages((prev) => [...prev, assistantMessage]);
-
-    abortControllerRef.current = new AbortController();
+    abortRef.current = new AbortController();
 
     try {
-      let fullContent = '';
-      let sources: Message['sources'] = [];
-
-      await aiApi.chatSession.chatStream(input.trim(), {
+      await aiApi.chatSession.chatStream(query, {
         sessionId: currentSessionId || undefined,
-        maxFiles: 5,
+        maxFiles: 8,
         includeFileContent: false,
-        onChunk: (chunk) => {
-          if (chunk.content) {
-            fullContent += chunk.content;
-            setMessages((prev) => prev.map((m) => (m.id === assistantMessageId ? { ...m, content: fullContent } : m)));
+        onChunk: (raw: SseChunk) => {
+          // Tool start event
+          if (raw.toolStart && raw.toolCallId && raw.toolName) {
+            const tc: ToolCallEvent = {
+              id: raw.toolCallId,
+              toolName: raw.toolName,
+              args: raw.args || {},
+              status: 'running',
+            };
+            toolCallsMap.set(raw.toolCallId, tc);
+            setMessages(prev => prev.map(m =>
+              m.id === assistantId
+                ? { ...m, toolCalls: [...(m.toolCalls || []), tc] }
+                : m
+            ));
+            return;
           }
-          if (chunk.done) {
-            if (chunk.sessionId) {
-              setCurrentSessionId(chunk.sessionId);
-              if (!urlSessionId) {
-                navigate(`/ai-chat/${chunk.sessionId}`, { replace: true });
-              }
-              queryClient.invalidateQueries({ queryKey: ['ai-chat-sessions'] });
+
+          // Tool result event
+          if (raw.toolResult && raw.toolCallId) {
+            const existing = toolCallsMap.get(raw.toolCallId);
+            if (existing) {
+              existing.result = raw.result;
+              existing.status = 'done';
             }
-            if (chunk.sources) {
-              sources = chunk.sources;
+            setMessages(prev => prev.map(m =>
+              m.id === assistantId
+                ? {
+                    ...m,
+                    toolCalls: (m.toolCalls || []).map(tc =>
+                      tc.id === raw.toolCallId ? { ...tc, result: raw.result, status: 'done' as const } : tc
+                    ),
+                  }
+                : m
+            ));
+            return;
+          }
+
+          // Text content
+          if (raw.content) {
+            setMessages(prev => prev.map(m =>
+              m.id === assistantId ? { ...m, content: (m.content || '') + raw.content! } : m
+            ));
+          }
+
+          // Done
+          if (raw.done) {
+            setMessages(prev => prev.map(m =>
+              m.id === assistantId
+                ? { ...m, isLoading: false, sources: raw.sources || [] }
+                : m
+            ));
+            if (raw.sessionId) {
+              setCurrentSessionId(raw.sessionId);
+              if (!urlSessionId) navigate(`/ai-chat/${raw.sessionId}`, { replace: true });
+              queryClient.invalidateQueries({ queryKey: ['ai-chat-sessions'] });
             }
           }
         },
-        signal: abortControllerRef.current.signal,
+        signal: abortRef.current.signal,
       });
-
-      setMessages((prev) =>
-        prev.map((m) => (m.id === assistantMessageId ? { ...m, content: fullContent, isLoading: false, sources } : m))
-      );
-    } catch (error) {
-      if ((error as Error).name !== 'AbortError') {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMessageId
-              ? {
-                  ...m,
-                  content: '抱歉，我遇到了一些问题，无法回答您的问题。请稍后再试。',
-                  isLoading: false,
-                }
-              : m
-          )
-        );
+    } catch (e) {
+      const name = (e as Error).name;
+      if (name !== 'AbortError') {
+        setMessages(prev => prev.map(m =>
+          m.id === assistantId ? { ...m, content: '抱歉，遇到了问题，请稍后再试。', isLoading: false } : m
+        ));
+      } else {
+        setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, isLoading: false } : m));
       }
     } finally {
       setIsLoading(false);
-      abortControllerRef.current = null;
+      abortRef.current = null;
     }
+  }, [isLoading, currentSessionId, urlSessionId, navigate, queryClient]);
+
+  const handleRegenerate = (msgId: string) => {
+    const idx = messages.findIndex(m => m.id === msgId);
+    if (idx <= 0) return;
+    const userMsg = messages[idx - 1];
+    if (userMsg?.role !== 'user') return;
+    sendMessage(userMsg.content, msgId);
   };
 
-  const handleStop = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      setIsLoading(false);
-    }
+  const handleNewChat = () => { setMessages([]); setCurrentSessionId(null); navigate('/ai-chat'); };
+
+  const handleSelectSession = (id: string) => {
+    if (id === currentSessionId) return;
+    navigate(`/ai-chat/${id}`);
+    if (window.innerWidth < 1024) setShowSidebar(false);
   };
 
-  const handleNewChat = () => {
-    setMessages([]);
-    setCurrentSessionId(null);
-    navigate('/ai-chat');
-  };
-
-  const handleSelectSession = (sessionId: string) => {
-    navigate(`/ai-chat/${sessionId}`);
-  };
-
-  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
+  const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    try {
-      await aiApi.chatSession.deleteSession(sessionId);
+    await aiApi.chatSession.deleteSession(id);
+    queryClient.invalidateQueries({ queryKey: ['ai-chat-sessions'] });
+    if (currentSessionId === id) handleNewChat();
+  };
+
+  const handleConfirmRename = async (id: string) => {
+    const v = renameValue.trim();
+    if (v) {
+      await aiApi.chatSession.updateSession(id, { title: v });
       queryClient.invalidateQueries({ queryKey: ['ai-chat-sessions'] });
-      if (currentSessionId === sessionId) {
-        handleNewChat();
-      }
-    } catch (error) {
-      console.error('Failed to delete session:', error);
     }
+    setRenamingId(null);
   };
 
-  const handleCopyMessage = async (messageId: string, content: string) => {
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopiedMessageId(messageId);
-      setTimeout(() => setCopiedMessageId(null), 2000);
-    } catch (error) {
-      console.error('Failed to copy:', error);
-    }
+  const handleCopy = async (id: string, content: string) => {
+    await navigator.clipboard.writeText(content);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const handleFileClick = (fileId: string) => {
-    window.open(`/files?highlight=${fileId}`, '_blank');
-  };
-
-  const getFileIcon = (mimeType: string | null) => {
-    if (!mimeType) return <File className="h-4 w-4" />;
-    if (mimeType.startsWith('image/')) return <Image className="h-4 w-4" />;
-    if (mimeType.startsWith('text/') || mimeType.includes('json') || mimeType.includes('xml')) {
-      return <FileText className="h-4 w-4" />;
-    }
-    return <File className="h-4 w-4" />;
-  };
-
-  const suggestedQuestions = [
-    '帮我找一下最近上传的文档',
-    '有哪些关于项目的文件？',
-    "搜索包含'设计'的图片",
-    '帮我整理一下技术文档',
-    '分析一下我的文件存储情况',
-  ];
+  const lastAssistantIdx = messages.reduce((last, m, i) => m.role === 'assistant' ? i : last, -1);
 
   return (
-    <div className="h-[calc(100vh-4rem)] lg:h-[calc(100vh)] flex bg-gradient-to-br from-slate-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-purple-950 relative">
-      {/* 侧边栏 - 会话列表（桌面端默认显示，移动端抽屉式） */}
-      {showSidebar && (
-        <>
-          {/* 移动端遮罩 */}
-          <div
-            className="lg:hidden fixed inset-0 z-20 bg-black/50"
-            onClick={() => setShowSidebar(false)}
-          />
-          <div className="w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 flex flex-col lg:relative lg:z-auto fixed inset-y-0 left-0 z-30 lg:static shadow-xl lg:shadow-none">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-            <Button onClick={handleNewChat} className="w-full gap-2" variant="outline">
-              <Plus className="h-4 w-4" />
-              新建对话
-            </Button>
-          </div>
+    <div className="h-[calc(100vh-4rem)] lg:h-screen flex bg-slate-50 dark:bg-slate-950 overflow-hidden">
 
-          <div className="flex-1 overflow-y-auto p-2">
-            {sessions.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">暂无对话记录</p>
-            ) : (
-              sessions.map((session) => (
-                <button
-                  key={session.id}
-                  onClick={() => handleSelectSession(session.id)}
-                  className={`w-full text-left p-3 rounded-lg mb-1 transition-colors group ${
-                    session.id === currentSessionId
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-accent text-foreground'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium truncate flex-1">{session.title}</span>
-                    <button
-                      onClick={(e) => handleDeleteSession(e, session.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                  <p
-                    className={`text-xs mt-1 ${session.id === currentSessionId ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}
-                  >
-                    {formatDate(session.updatedAt)}
-                  </p>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-        </>
+      {/* Mobile overlay */}
+      {showSidebar && (
+        <div className="lg:hidden fixed inset-0 z-20 bg-black/40 backdrop-blur-sm" onClick={() => setShowSidebar(false)} />
       )}
 
-      {/* 主聊天区域 */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* 顶部栏 */}
-        <div className="border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <Button variant="ghost" size="sm" onClick={() => setShowSidebar(!showSidebar)} className="mr-1 flex-shrink-0">
-                <ChevronLeft className={`h-4 w-4 transition-transform ${!showSidebar ? 'rotate-180' : ''}`} />
-              </Button>
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="p-1.5 sm:p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex-shrink-0">
-                  <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-                </div>
-                <div className="min-w-0 hidden sm:block">
-                  <h1 className="text-base sm:text-lg font-semibold">AI 智能助手</h1>
-                  <p className="text-xs text-muted-foreground">基于您的文件进行智能问答</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-              {isLoading && (
-                <Button variant="outline" size="sm" onClick={handleStop} className="hidden sm:flex">
-                  <StopCircle className="h-4 w-4 mr-2" />
-                  停止生成
-                </Button>
-              )}
-              <Button variant="ghost" size="icon" onClick={() => navigate('/ai-settings')} className="h-8 w-8 sm:h-9 sm:w-9">
-                <Settings className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+      {/* Sidebar */}
+      <aside className={`flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 flex-shrink-0 ${showSidebar ? 'w-64' : 'w-0'} fixed inset-y-0 left-0 z-30 lg:relative lg:z-auto overflow-hidden`}>
+        <div className="flex items-center justify-between px-3 py-3 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
+          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">对话历史</span>
+          <button onClick={handleNewChat} className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-violet-600 transition-colors" title="新建对话">
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
 
-        {/* 消息列表 */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-3 sm:py-4">
-          <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
-            {messages.length === 0 && !isLoading && (
-              <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">
-                <div className="p-4 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl mb-6">
-                  <MessageSquare className="h-12 w-12 text-white" />
-                </div>
-                <h2 className="text-2xl font-bold mb-2">开始与 AI 对话</h2>
-                <p className="text-muted-foreground mb-8 max-w-md">
-                  基于您的文件进行智能问答，AI 会自动检索相关文件并生成答案
-                </p>
+        <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
+          {sessions.length === 0
+            ? <p className="text-xs text-slate-400 text-center py-10">暂无对话记录</p>
+            : sessions.map((session: any) => (
+              <div key={session.id} onClick={() => handleSelectSession(session.id)}
+                className={`relative group rounded-lg px-3 py-2 cursor-pointer transition-colors ${session.id === currentSessionId ? 'bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
+                {renamingId === session.id ? (
+                  <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                    <input ref={renameRef} value={renameValue} onChange={e => setRenameValue(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleConfirmRename(session.id); if (e.key === 'Escape') setRenamingId(null); }}
+                      className="flex-1 text-xs bg-white dark:bg-slate-700 border border-violet-300 dark:border-violet-600 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-violet-500" />
+                    <button onClick={() => handleConfirmRename(session.id)} className="p-1 rounded text-green-600 hover:bg-green-100"><Check className="h-3 w-3" /></button>
+                    <button onClick={() => setRenamingId(null)} className="p-1 rounded text-slate-400 hover:bg-slate-100"><X className="h-3 w-3" /></button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-start gap-1">
+                      <span className={`text-xs font-medium truncate flex-1 leading-snug ${session.id === currentSessionId ? 'text-violet-700 dark:text-violet-300' : 'text-slate-700 dark:text-slate-300'}`}>{session.title}</span>
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        <button onClick={e => { e.stopPropagation(); setRenamingId(session.id); setRenameValue(session.title); }} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400" title="重命名"><Pencil className="h-2.5 w-2.5" /></button>
+                        <button onClick={e => handleDeleteSession(e, session.id)} className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500" title="删除"><Trash2 className="h-2.5 w-2.5" /></button>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{formatDate(session.updatedAt)}</p>
+                  </>
+                )}
+              </div>
+            ))
+          }
+        </div>
+      </aside>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-lg">
-                  {suggestedQuestions.map((question, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setInput(question)}
-                      className="p-4 text-left border rounded-lg hover:bg-accent transition-colors text-sm group"
-                    >
-                      <Sparkles className="h-4 w-4 mb-2 text-purple-500 group-hover:scale-110 transition-transform" />
-                      {question}
+      {/* Main */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <button onClick={() => setShowSidebar(v => !v)}
+              className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              {showSidebar ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm">
+                <Sparkles className="h-3.5 w-3.5 text-white" />
+              </div>
+              <div>
+                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">文件管理助手</span>
+                <span className="hidden md:inline text-xs text-slate-400 ml-2">· 可直接查询您的文件</span>
+              </div>
+            </div>
+          </div>
+          <button onClick={() => navigate('/ai-settings')}
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <Settings className="h-4 w-4" />
+          </button>
+        </header>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
+            {messages.length === 0 && !isLoading && (
+              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-4 shadow-lg shadow-violet-500/20">
+                  <MessageSquare className="h-7 w-7 text-white" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1.5">文件管理智能助手</h2>
+                <p className="text-sm text-slate-400 mb-2 max-w-sm">可以搜索文件、查看统计、浏览文件夹，结果可直接点击跳转</p>
+                <div className="flex flex-wrap gap-1.5 justify-center mb-6 max-w-sm">
+                  {['搜索', '统计', '浏览', '收藏', '共享', '标签'].map(t => (
+                    <span key={t} className="px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-xs border border-violet-200 dark:border-violet-700">{t}</span>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
+                  {SUGGESTED.map((q, i) => (
+                    <button key={i} onClick={() => setInput(q)}
+                      className="text-left p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-violet-300 dark:hover:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all text-xs text-slate-600 dark:text-slate-400 group">
+                      <Sparkles className="h-3 w-3 text-violet-500 mb-1.5 group-hover:scale-110 transition-transform" />
+                      {q}
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {messages.map((message) => (
-              <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-[85%] ${
-                    message.role === 'user'
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl rounded-br-md'
-                      : 'bg-white dark:bg-slate-800 border rounded-2xl rounded-bl-md shadow-sm'
-                  } px-5 py-4`}
-                >
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="flex items-center gap-2">
-                      {message.role === 'assistant' && (
-                        <div className="p-1 bg-gradient-to-br from-purple-500 to-pink-500 rounded">
-                          <Sparkles className="h-3 w-3 text-white" />
-                        </div>
-                      )}
-                      <span
-                        className={`text-xs font-medium ${message.role === 'user' ? 'text-white/80' : 'text-muted-foreground'}`}
-                      >
-                        {message.role === 'user' ? '你' : 'AI 助手'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      {message.role === 'assistant' && message.content && !message.isLoading && (
-                        <button
-                          onClick={() => handleCopyMessage(message.id, message.content)}
-                          className="p-1 hover:bg-accent rounded transition-colors"
-                          title="复制内容"
-                        >
-                          {copiedMessageId === message.id ? (
-                            <Check className="h-3 w-3 text-green-500" />
-                          ) : (
-                            <Copy className="h-3 w-3 text-muted-foreground" />
-                          )}
-                        </button>
-                      )}
-                    </div>
+            {messages.map((msg, index) => (
+              <div key={msg.id} className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                {msg.role === 'assistant' && (
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                    <Sparkles className="h-3 w-3 text-white" />
                   </div>
+                )}
 
-                  <div
-                    className={`prose prose-sm max-w-none ${message.role === 'user' ? 'prose-invert' : ''} dark:prose-invert`}
-                  >
-                    {message.role === 'assistant' && message.content ? (
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-                        {message.content}
-                      </ReactMarkdown>
-                    ) : (
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
-                    )}
-
-                    {message.isLoading && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
-                        <span className="text-sm text-muted-foreground">正在思考...</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {message.sources && message.sources.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
-                      <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                        <FileText className="h-3 w-3" />
-                        参考文件：
-                      </p>
-                      <div className="space-y-1">
-                        {message.sources.map((source, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => handleFileClick(source.id)}
-                            className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-left"
-                          >
-                            <div className="text-muted-foreground">{getFileIcon(source.mimeType)}</div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{source.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                相关度: {(source.score * 100).toFixed(0)}%
-                              </p>
-                            </div>
-                            <ExternalLink className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                          </button>
-                        ))}
-                      </div>
+                <div className="max-w-[85%] min-w-0">
+                  {/* Tool calls (above bubble, assistant only) */}
+                  {msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0 && (
+                    <div className="mb-2 space-y-1">
+                      {msg.toolCalls.map(tc => <ToolCallCard key={tc.id} tc={tc} />)}
                     </div>
                   )}
 
-                  <div
-                    className={`text-xs mt-2 ${message.role === 'user' ? 'text-white/70' : 'text-muted-foreground'}`}
-                  >
-                    {formatDate(message.timestamp.toISOString())}
+                  {/* Message bubble */}
+                  <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    msg.role === 'user'
+                      ? 'bg-gradient-to-br from-violet-600 to-purple-600 text-white rounded-tr-sm shadow-md shadow-violet-500/15'
+                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-tl-sm shadow-sm'
+                  }`}>
+                    {msg.role === 'assistant' && msg.content ? (
+                      <AssistantContent content={msg.content} onFileClick={handleFileClick} />
+                    ) : (
+                      <span className="whitespace-pre-wrap">{msg.content}</span>
+                    )}
+
+                    {msg.isLoading && !msg.content && (
+                      <div className="flex items-center gap-1.5">
+                        {[0, 150, 300].map(d => (
+                          <span key={d} className="h-1.5 w-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                        ))}
+                        <span className="text-xs text-slate-400 ml-1">
+                          {msg.toolCalls && msg.toolCalls.some(t => t.status === 'running') ? '正在查询…' : '正在思考…'}
+                        </span>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Source chips */}
+                  {msg.sources && msg.sources.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {msg.sources.map((src, i) => (
+                        <button key={i} onClick={() => handleFileClick(src.id, false)}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800/80 hover:bg-violet-50 dark:hover:bg-violet-900/30 border border-slate-200 dark:border-slate-700 hover:border-violet-300 transition-all text-[11px] text-slate-500 hover:text-violet-700 dark:hover:text-violet-300 group" title={src.name}>
+                          <FileText className="h-3 w-3 text-slate-400 group-hover:text-violet-500" />
+                          <span className="max-w-[100px] truncate">{src.name}</span>
+                          <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Action row */}
+                  {!msg.isLoading && (
+                    <div className={`flex items-center gap-1 mt-1 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                      <span className="text-[10px] text-slate-400">{formatDate(msg.timestamp.toISOString())}</span>
+                      {msg.role === 'assistant' && msg.content && (
+                        <button onClick={() => handleCopy(msg.id, msg.content)}
+                          className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition-colors" title="复制">
+                          {copiedId === msg.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                        </button>
+                      )}
+                      {msg.role === 'assistant' && index === lastAssistantIdx && !isLoading && (
+                        <button onClick={() => handleRegenerate(msg.id)}
+                          className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-violet-600 transition-colors" title="重新生成">
+                          <RefreshCw className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
+
+                {msg.role === 'user' && (
+                  <div className="h-7 w-7 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 mt-0.5 text-[11px] font-bold text-slate-600 dark:text-slate-300">你</div>
+                )}
               </div>
             ))}
-
             <div ref={messagesEndRef} />
           </div>
         </div>
 
-        {/* 输入框区域 */}
-        <div className="border-t bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm px-6 py-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex gap-3">
-              <div className="flex-1 relative">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="输入您的问题，AI 会基于您的文件进行回答..."
-                  className="w-full resize-none rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  rows={1}
-                  style={{
-                    minHeight: '48px',
-                    maxHeight: '120px',
-                  }}
-                  disabled={isLoading}
-                />
+        {/* Input */}
+        <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-end gap-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 focus-within:border-violet-400 dark:focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-400/20 transition-all px-3 py-2">
+              <textarea ref={inputRef} value={input}
+                onChange={e => { setInput(e.target.value); autoResize(e.target); }}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
+                placeholder="问我任何关于你的文件的问题… (Enter 发送)"
+                className="flex-1 resize-none bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none min-h-[36px] max-h-40 py-0.5"
+                rows={1} disabled={isLoading} />
+              <div className="flex items-center pb-0.5 flex-shrink-0">
+                {isLoading ? (
+                  <button onClick={() => abortRef.current?.abort()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 text-xs font-medium transition-colors border border-red-200 dark:border-red-800">
+                    <StopCircle className="h-3.5 w-3.5" /><span className="hidden sm:inline">停止</span>
+                  </button>
+                ) : (
+                  <button onClick={() => sendMessage(input)} disabled={!input.trim()}
+                    className="h-8 w-8 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white disabled:text-slate-400 flex items-center justify-center transition-colors shadow-sm">
+                    <Send className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
-              <Button
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl px-6"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              AI 会自动检索您的文件并生成答案 · 按 Enter 发送，Shift+Enter 换行 · 支持流式输出
-            </p>
+            {input.length > 0 && <p className="text-[10px] text-slate-400 mt-1 text-right">{input.length} 字</p>}
           </div>
         </div>
       </div>

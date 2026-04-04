@@ -28,7 +28,10 @@ export interface FileContext {
 export interface RagContext {
   query: string;
   relevantFiles: FileContext[];
+  /** @deprecated Use messages instead. Kept for non-stream fallback. */
   assembledPrompt: string;
+  /** Structured messages ready to be passed directly to the LLM */
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
   totalTokens: number;
   timestamp: string;
 }
@@ -207,31 +210,21 @@ export class RagEngine {
         );
 
         if (relevantFiles.length === 0) {
-          const db = getDb(this.env.DB);
-          const fallbackFiles = await db
-            .select()
-            .from(files)
-            .where(and(eq(files.userId, request.userId), isNull(files.deletedAt), eq(files.isFolder, false)))
-            .orderBy(desc(files.updatedAt))
-            .limit(5)
-            .all();
-
-          relevantFiles = fallbackFiles.map((f) => ({
-            id: f.id,
-            name: f.name,
-            mimeType: f.mimeType,
-            similarityScore: 0.1,
-            summary: f.aiSummary || undefined,
-            description: f.description || undefined,
-          }));
+          // No relevant files found — let the empty context handler deal with it
+          // Don't inject random files with score=0.1 as they mislead the LLM
         }
       }
 
       if (relevantFiles.length === 0 && !statsContext) {
+        const emptyPrompt = this.buildEmptyResponsePrompt(request.query);
         return {
           query: request.query,
           relevantFiles: [],
-          assembledPrompt: this.buildEmptyResponsePrompt(request.query),
+          assembledPrompt: emptyPrompt,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPTS.default + '\n\n注意：当前未找到与此问题相关的文件。如果这是一个关于文件管理的通用问题，你可以根据你的知识回答；如果是特定文件内容的询问，请告知用户需要先上传或索引相关文件。' },
+            { role: 'user', content: request.query },
+          ],
           totalTokens: 0,
           timestamp: new Date().toISOString(),
         };
@@ -243,22 +236,36 @@ export class RagEngine {
         request.maxContextLength || DEFAULT_MAX_CONTEXT_LENGTH
       );
 
-      const conversationContext = this.formatConversationHistory(request.conversationHistory || []);
+      const fullContextText = statsContext ? `${statsContext}\n\n${contextText}` : contextText;
+      const statsGuidance = statsContext
+        ? `\n重要提示：用户询问的是文件统计信息，请优先根据上方的"用户文件统计信息"部分回答，那里包含了准确的文件总数、类型分布等统计数据。不要根据下方列出的示例文件数量来回答统计问题。`
+        : '';
 
-      const assembledPrompt = this.assembleFinalPrompt({
-        systemPrompt: SYSTEM_PROMPTS.default,
-        userQuery: request.query,
-        contextText: statsContext ? `${statsContext}\n\n${contextText}` : contextText,
-        conversationContext,
-        hasStatsContext: !!statsContext,
-      });
+      const systemContent = `${SYSTEM_PROMPTS.default}\n\n== 相关文件信息 ==\n${fullContextText}\n== 文件信息结束 ==${statsGuidance}\n\n请根据以上文件信息回答用户的问题。`;
 
+      // Build structured messages: system → history → current user query
+      const structuredMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+        { role: 'system', content: systemContent },
+      ];
+
+      // Inject conversation history as real message turns (skip last user msg which is the current query)
+      const history = request.conversationHistory || [];
+      const historyWithoutCurrent = history.slice(0, -1); // last entry is the current user msg already
+      for (const msg of historyWithoutCurrent.slice(-10)) { // last 10 turns max
+        structuredMessages.push({ role: msg.role as 'user' | 'assistant', content: msg.content });
+      }
+
+      // Current user query
+      structuredMessages.push({ role: 'user', content: request.query });
+
+      // Keep assembledPrompt for backward compat (non-structured callers)
+      const assembledPrompt = `${systemContent}\n\n用户问题：${request.query}`;
       const totalTokens = Math.ceil(assembledPrompt.length * ESTIMATED_TOKENS_PER_CHAR);
 
       logger.info('RAG', 'Context built', {
         query: request.query.slice(0, 50),
         fileCount: relevantFiles.length,
-        contextLength: contextText.length,
+        contextLength: fullContextText.length,
         totalTimeMs: Date.now() - startTime,
         isFileListQuery: isFileList,
       });
@@ -267,6 +274,7 @@ export class RagEngine {
         query: request.query,
         relevantFiles,
         assembledPrompt,
+        messages: structuredMessages,
         totalTokens,
         timestamp: new Date().toISOString(),
       };
