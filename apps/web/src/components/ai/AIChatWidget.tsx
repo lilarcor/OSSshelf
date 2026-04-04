@@ -49,6 +49,7 @@ interface SseChunk {
   sessionId?: string;
   sources?: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
   error?: string;
+  usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
   toolStart?: boolean;
   toolResult?: boolean;
   toolName?: string;
@@ -61,6 +62,7 @@ const TOOL_META: Record<string, { label: string; icon: React.ReactNode }> = {
   search_files:     { label: '搜索文件',     icon: <Search className="h-3 w-3" /> },
   list_folder:      { label: '浏览文件夹',   icon: <FolderOpen className="h-3 w-3" /> },
   get_file_detail:  { label: '获取文件详情', icon: <FileText className="h-3 w-3" /> },
+  get_file_content: { label: '读取文件内容', icon: <FileText className="h-3 w-3" /> },
   get_storage_stats:{ label: '查询存储统计', icon: <BarChart3 className="h-3 w-3" /> },
   list_starred:     { label: '查看收藏',     icon: <Star className="h-3 w-3" /> },
   list_shares:      { label: '查看共享',     icon: <Share2 className="h-3 w-3" /> },

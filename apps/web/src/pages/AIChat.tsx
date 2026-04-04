@@ -56,10 +56,17 @@ interface Message {
 // Tool name → label + icon
 // ────────────────────────────────────────────────────────────
 
+function formatTokenCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
 const TOOL_META: Record<string, { label: string; icon: React.ReactNode }> = {
   search_files:     { label: '搜索文件',     icon: <Search className="h-3 w-3" /> },
   list_folder:      { label: '浏览文件夹',   icon: <FolderOpen className="h-3 w-3" /> },
   get_file_detail:  { label: '获取文件详情', icon: <FileText className="h-3 w-3" /> },
+  get_file_content: { label: '读取文件内容', icon: <FileText className="h-3 w-3" /> },
   get_storage_stats:{ label: '查询存储统计', icon: <BarChart3 className="h-3 w-3" /> },
   list_starred:     { label: '查看收藏',     icon: <Star className="h-3 w-3" /> },
   list_shares:      { label: '查看共享',     icon: <Share2 className="h-3 w-3" /> },
@@ -77,6 +84,7 @@ interface SseChunk {
   sessionId?: string;
   sources?: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
   error?: string;
+  usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
   // Tool events
   toolStart?: boolean;
   toolResult?: boolean;
@@ -278,6 +286,7 @@ export function AIChat() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [tokenUsage, setTokenUsage] = useState<{ used: number; remaining: number; quota: number } | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -319,6 +328,13 @@ export function AIChat() {
   useEffect(() => {
     if (renamingId) { renameRef.current?.focus(); renameRef.current?.select(); }
   }, [renamingId]);
+
+  useEffect(() => {
+    fetch('/api/ai-chat/token-quota', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => d.data && setTokenUsage(d.data.today))
+      .catch(() => {});
+  }, []);
 
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = 'auto';
@@ -433,6 +449,16 @@ export function AIChat() {
                 ? { ...m, isLoading: false, sources: raw.sources || [] }
                 : m
             ));
+            if (raw.usage) {
+              const u = raw.usage as { totalTokens: number };
+              if (u.totalTokens) {
+                setTokenUsage(prev => ({
+                  used: (prev?.used ?? 0) + u.totalTokens,
+                  remaining: Math.max(0, (prev?.remaining ?? 100_000) - u.totalTokens),
+                  quota: prev?.quota ?? 100_000,
+                }));
+              }
+            }
             if (raw.sessionId) {
               setCurrentSessionId(raw.sessionId);
               if (!urlSessionId) navigate(`/ai-chat/${raw.sessionId}`, { replace: true });
@@ -710,6 +736,12 @@ export function AIChat() {
               </div>
             </div>
             {input.length > 0 && <p className="text-[10px] text-slate-400 mt-1 text-right">{input.length} 字</p>}
+            {tokenUsage && (
+              <p className="text-[10px] text-slate-400 mt-0.5 text-center">
+                今日 Token: <span className={tokenUsage.remaining < 10000 ? 'text-orange-500' : ''}>{formatTokenCount(tokenUsage.used)}</span> / {formatTokenCount(tokenUsage.quota)}
+                {tokenUsage.remaining < 10000 && <span className="ml-1 text-orange-500">（剩余 {formatTokenCount(tokenUsage.remaining)}）</span>}
+              </p>
+            )}
           </div>
         </div>
       </div>

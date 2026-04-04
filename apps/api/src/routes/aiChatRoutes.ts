@@ -228,7 +228,7 @@ app.post('/chat', async (c) => {
   const { query, sessionId, modelId, maxFiles, includeFileContent, stream } = result.data;
 
   if (stream) {
-    return handleStreamChat(c, userId, query, sessionId, modelId, maxFiles, includeFileContent);
+    return handleStreamChat(c, userId, query, sessionId, modelId);
   }
 
   return handleNormalChat(c, userId, query, sessionId, modelId, maxFiles, includeFileContent);
@@ -385,9 +385,7 @@ async function handleStreamChat(
   userId: string,
   query: string,
   sessionId?: string,
-  modelId?: string,
-  _maxFiles?: number,
-  _includeFileContent?: boolean
+  modelId?: string
 ) {
   const startTime = Date.now();
   let actualSessionId = sessionId;
@@ -407,6 +405,30 @@ async function handleStreamChat(
       };
       await db.insert(aiChatSessions).values(newSession);
       actualSessionId = newSession.id;
+
+      // 异步生成 LLM 标题（与 handleNormalChat 保持一致）
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            const gateway = new ModelGateway(c.env);
+            const titleResponse = await gateway.chatCompletion(userId, {
+              messages: [
+                { role: 'system', content: '用 8-12 个中文字概括用户对话的主题。只输出标题，不加标点和解释。' },
+                { role: 'user', content: query },
+              ],
+              maxTokens: 30,
+              temperature: 0.5,
+            });
+            const generatedTitle = titleResponse.content.trim().slice(0, 20);
+            if (generatedTitle && generatedTitle !== query.slice(0, 20)) {
+              await db.update(aiChatSessions)
+                .set({ title: generatedTitle })
+                .where(eq(aiChatSessions.id, actualSessionId));
+            }
+          } catch {
+          }
+        })()
+      );
     } else {
       await db
         .update(aiChatSessions)
@@ -442,6 +464,7 @@ async function handleStreamChat(
     let finalSources: Array<{ id: string; name: string; mimeType: string | null; score: number }> = [];
     let finalUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | undefined;
     let resolveStream!: () => void;
+    let doneEmitted = false;
     const streamDone = new Promise<void>((r) => { resolveStream = r; });
 
     const stream = new ReadableStream({
@@ -452,6 +475,14 @@ async function handleStreamChat(
           } catch {
             // controller already closed
           }
+        };
+
+        const emitDone = (data: object) => {
+          if (doneEmitted) return;
+          doneEmitted = true;
+          enqueue(data);
+          try { controller.close(); } catch {}
+          resolveStream();
         };
 
         try {
@@ -465,13 +496,10 @@ async function handleStreamChat(
                 if (chunk.type === 'done') {
                   finalSources = chunk.sources;
                   finalUsage = chunk.usage;
-                  enqueue({ done: true, sessionId: actualSessionId, sources: chunk.sources, usage: chunk.usage });
+                  emitDone({ done: true, sessionId: actualSessionId, sources: chunk.sources, usage: chunk.usage });
                 } else {
-                  // error chunk
-                  enqueue({ done: true, error: (chunk as any).message, sessionId: actualSessionId, sources: [] });
+                  emitDone({ done: true, error: (chunk as any).message, sessionId: actualSessionId, sources: [] });
                 }
-                controller.close();
-                resolveStream();
               } else {
                 if (chunk.type === 'text') {
                   fullText += chunk.content;
@@ -498,12 +526,10 @@ async function handleStreamChat(
             c.req.raw.signal
           );
 
-          // If agent finished without emitting done (shouldn't happen but guard)
-          if (!controller.desiredSize !== undefined) {
+          // Guard: agent finished without emitting done
+          if (!doneEmitted) {
             finalSources = result.sources;
-            enqueue({ done: true, sessionId: actualSessionId, sources: result.sources });
-            try { controller.close(); } catch {}
-            resolveStream();
+            emitDone({ done: true, sessionId: actualSessionId, sources: result.sources });
           }
         } catch (error) {
           logger.error('AI Agent', 'Stream failed', { userId }, error);
