@@ -1589,15 +1589,16 @@ function ModelFormModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">最大 Token</label>
+                <label className="block text-sm font-medium mb-1">最大 Token (K)</label>
                 <input
                   type="number"
-                  value={formData.maxTokens}
-                  onChange={(e) => setFormData({ ...formData, maxTokens: parseInt(e.target.value) || 4096 })}
+                  value={Math.round(formData.maxTokens / 1000)}
+                  onChange={(e) => setFormData({ ...formData, maxTokens: (parseInt(e.target.value) || 4) * 1000 })}
                   className="w-full px-3 py-2 border rounded-lg bg-background text-sm"
                   min={1}
-                  max={128000}
+                  max={128}
                 />
+                <p className="text-xs text-muted-foreground mt-1">输入值单位为 K，如 4 表示 4K tokens</p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">温度 (0-2)</label>

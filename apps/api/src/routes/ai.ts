@@ -184,8 +184,11 @@ app.get('/index/status', async (c) => {
     return c.json({
       success: true,
       data: {
+        id: '',
         status: 'idle',
-        message: '没有正在运行的索引任务',
+        total: 0,
+        processed: 0,
+        failed: 0,
       },
     });
   }
@@ -307,8 +310,11 @@ app.get('/summarize/task', async (c) => {
     return c.json({
       success: true,
       data: {
+        id: '',
         status: 'idle',
-        message: '没有正在运行的摘要生成任务',
+        total: 0,
+        processed: 0,
+        failed: 0,
       },
     });
   }
@@ -450,8 +456,11 @@ app.get('/tags/task', async (c) => {
     return c.json({
       success: true,
       data: {
+        id: '',
         status: 'idle',
-        message: '没有正在运行的标签生成任务',
+        total: 0,
+        processed: 0,
+        failed: 0,
       },
     });
   }
