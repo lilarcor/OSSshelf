@@ -115,7 +115,7 @@ function parseFileRefs(text: string, onFileClick: (id: string, isFolder: boolean
     parts.push(
       <button
         key={`${id}-${match.index}`}
-        onClick={() => onFileClick(id, isFolder)}
+        onClick={() => onFileClick(id!, isFolder)}
         className="inline-flex items-center gap-1.5 px-2 py-0.5 mx-0.5 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-xs font-medium transition-all group"
       >
         {isFolder
@@ -165,18 +165,18 @@ function ToolCallCard({ tc }: { tc: ToolCallEvent }) {
         </span>
         <span className="text-slate-600 dark:text-slate-400 font-medium">{meta.label}</span>
         {tc.status === 'running' && <span className="text-amber-500 animate-pulse ml-1">进行中…</span>}
-        {tc.status === 'done' && tc.result && (
+        {tc.status === 'done' && Boolean(tc.result) && (
           <span className="text-slate-400 ml-1">
-            {(tc.result as any).total !== undefined ? `${(tc.result as any).total} 项结果` : '完成'}
+            {(tc.result as Record<string, unknown>).total !== undefined ? `${(tc.result as Record<string, unknown>).total} 项结果` : '完成'}
           </span>
         )}
         <span className="ml-auto text-slate-400">{expanded ? '▲' : '▼'}</span>
       </button>
 
-      {expanded && tc.result && (
+      {expanded && Boolean(tc.result) && (
         <div className="px-3 pb-3 pt-1 border-t border-slate-200 dark:border-slate-700">
           <pre className="text-[10px] text-slate-500 dark:text-slate-400 overflow-auto max-h-40 whitespace-pre-wrap">
-            {JSON.stringify(tc.result, null, 2)}
+            {JSON.stringify(tc.result, null, 2) as React.ReactNode}
           </pre>
         </div>
       )}
