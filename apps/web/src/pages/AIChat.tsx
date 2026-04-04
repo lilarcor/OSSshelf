@@ -453,7 +453,7 @@ export function AIChat() {
   const lastAssistantIdx = messages.reduce((last, m, i) => m.role === 'assistant' ? i : last, -1);
 
   return (
-    <div className="flex bg-slate-50 dark:bg-slate-950 overflow-hidden h-[calc(100vh-4rem)] lg:h-screen">
+    <div className="flex bg-slate-50 dark:bg-slate-950 overflow-hidden absolute inset-0 z-10 lg:h-screen">
 
       {/* Mobile overlay */}
       {showSidebar && (
