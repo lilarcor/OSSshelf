@@ -108,8 +108,16 @@ app.post('/models', async (c) => {
   const result = createModelSchema.safeParse(body);
 
   if (!result.success) {
+    const firstError = result.error.errors[0];
+    const fieldPath = firstError.path.join('.') || 'unknown';
     return c.json(
-      { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: result.error.errors[0].message } },
+      {
+        success: false,
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: `${fieldPath}: ${firstError.message}`,
+        },
+      },
       400
     );
   }
@@ -172,8 +180,16 @@ app.put('/models/:modelId', async (c) => {
   const result = updateModelSchema.safeParse(body);
 
   if (!result.success) {
+    const firstError = result.error.errors[0];
+    const fieldPath = firstError.path.join('.') || 'unknown';
     return c.json(
-      { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: result.error.errors[0].message } },
+      {
+        success: false,
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: `${fieldPath}: ${firstError.message}`,
+        },
+      },
       400
     );
   }

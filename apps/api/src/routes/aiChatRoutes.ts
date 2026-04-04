@@ -209,8 +209,9 @@ const chatSchema = z.object({
 
 app.post('/chat', async (c) => {
   const userId = c.get('userId')!;
+  const userRole = c.get('user')?.role;
 
-  const quotaResult = await checkTokenQuota(c.env, userId);
+  const quotaResult = await checkTokenQuota(c.env, userId, userRole);
   if (!quotaResult.allowed) {
     return tokenQuotaExceededResponse(quotaResult);
   }
@@ -228,10 +229,10 @@ app.post('/chat', async (c) => {
   const { query, sessionId, modelId, maxFiles, includeFileContent, stream } = result.data;
 
   if (stream) {
-    return handleStreamChat(c, userId, query, sessionId, modelId);
+    return handleStreamChat(c, userId, query, sessionId, modelId, userRole);
   }
 
-  return handleNormalChat(c, userId, query, sessionId, modelId, maxFiles, includeFileContent);
+  return handleNormalChat(c, userId, query, sessionId, modelId, maxFiles, includeFileContent, userRole);
 });
 
 async function handleNormalChat(
@@ -241,7 +242,8 @@ async function handleNormalChat(
   sessionId?: string,
   modelId?: string,
   maxFiles?: number,
-  includeFileContent?: boolean
+  includeFileContent?: boolean,
+  userRole?: string
 ) {
   const startTime = Date.now();
   let actualSessionId = sessionId;
@@ -385,7 +387,8 @@ async function handleStreamChat(
   userId: string,
   query: string,
   sessionId?: string,
-  modelId?: string
+  modelId?: string,
+  userRole?: string
 ) {
   const startTime = Date.now();
   let actualSessionId = sessionId;
@@ -559,7 +562,7 @@ async function handleStreamChat(
             createdAt: new Date().toISOString(),
           });
           logger.info('AI Agent', 'Message saved', { sessionId: actualSessionId, latencyMs, tokenCount });
-          recordTokenUsage(c.env, userId, tokenCount).catch((err) => {
+          recordTokenUsage(c.env, userId, tokenCount, userRole).catch((err) => {
             logger.error('AI Agent', 'Failed to record token usage', { userId, tokenCount }, err);
           });
         } catch (error) {
@@ -593,7 +596,8 @@ async function handleStreamChat(
 
 app.get('/token-quota', async (c) => {
   const userId = c.get('userId')!;
-  const stats = await getTokenUsageStats(c.env, userId);
+  const userRole = c.get('user')?.role;
+  const stats = await getTokenUsageStats(c.env, userId, userRole);
   return c.json({ success: true, data: stats });
 });
 

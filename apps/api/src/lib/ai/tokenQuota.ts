@@ -7,12 +7,14 @@
  * - 每次对话请求前检查剩余配额
  * - 对话完成后记录实际用量
  * - 配额每日自动重置（KV expirationTtl）
+ * - 管理员不受配额限制
  */
 
 import type { Env } from '../../types/env';
 import { logger } from '@osshelf/shared';
 
 const DAILY_TOKEN_QUOTA = 100_000;
+const ADMIN_QUOTA = 10_000_000;
 const QUOTA_KV_PREFIX = 'tokenquota:';
 
 export interface TokenQuotaResult {
@@ -21,26 +23,29 @@ export interface TokenQuotaResult {
   remaining: number;
   quota: number;
   resetsAt?: string;
+  isAdmin?: boolean;
 }
 
-export async function checkTokenQuota(env: Env, userId: string): Promise<TokenQuotaResult> {
+export async function checkTokenQuota(env: Env, userId: string, userRole?: string): Promise<TokenQuotaResult> {
+  const isAdmin = userRole === 'admin';
   const today = getTodayKey();
   const key = `${QUOTA_KV_PREFIX}${userId}:${today}`;
 
   try {
     const raw = await env.KV.get(key, 'json') as { used: number; quota: number } | null;
+    const used = raw?.used || 0;
 
-    if (raw === null) {
+    if (isAdmin) {
       return {
         allowed: true,
-        usedToday: 0,
-        remaining: DAILY_TOKEN_QUOTA,
-        quota: DAILY_TOKEN_QUOTA,
+        usedToday: used,
+        remaining: ADMIN_QUOTA,
+        quota: ADMIN_QUOTA,
+        isAdmin: true,
       };
     }
 
-    const used = raw.used || 0;
-    const quota = raw.quota || DAILY_TOKEN_QUOTA;
+    const quota = raw?.quota || DAILY_TOKEN_QUOTA;
 
     return {
       allowed: used < quota,
@@ -50,16 +55,23 @@ export async function checkTokenQuota(env: Env, userId: string): Promise<TokenQu
     };
   } catch (error) {
     logger.error('TokenQuota', 'KV read failed, allowing request', { userId }, error);
-    return { allowed: true, usedToday: 0, remaining: DAILY_TOKEN_QUOTA, quota: DAILY_TOKEN_QUOTA };
+    return {
+      allowed: true,
+      usedToday: 0,
+      remaining: isAdmin ? ADMIN_QUOTA : DAILY_TOKEN_QUOTA,
+      quota: isAdmin ? ADMIN_QUOTA : DAILY_TOKEN_QUOTA,
+      isAdmin,
+    };
   }
 }
 
-export async function recordTokenUsage(env: Env, userId: string, tokens: number): Promise<void> {
+export async function recordTokenUsage(env: Env, userId: string, tokens: number, userRole?: string): Promise<void> {
   if (tokens <= 0) return;
 
   const today = getTodayKey();
   const key = `${QUOTA_KV_PREFIX}${userId}:${today}`;
   const ttlSeconds = secondsUntilMidnight();
+  const isAdmin = userRole === 'admin';
 
   try {
     const raw = await env.KV.get(key, 'json') as { used: number; quota: number } | null;
@@ -68,7 +80,7 @@ export async function recordTokenUsage(env: Env, userId: string, tokens: number)
 
     await env.KV.put(
       key,
-      JSON.stringify({ used: newUsed, quota: DAILY_TOKEN_QUOTA }),
+      JSON.stringify({ used: newUsed, quota: isAdmin ? ADMIN_QUOTA : DAILY_TOKEN_QUOTA }),
       { expirationTtl: ttlSeconds }
     );
   } catch (error) {
@@ -101,15 +113,16 @@ export function tokenQuotaExceededResponse(result: TokenQuotaResult): Response {
   );
 }
 
-export async function getTokenUsageStats(env: Env, userId: string): Promise<{
-  today: { used: number; quota: number; remaining: number };
+export async function getTokenUsageStats(env: Env, userId: string, userRole?: string): Promise<{
+  today: { used: number; quota: number; remaining: number; isAdmin?: boolean };
 }> {
-  const todayResult = await checkTokenQuota(env, userId);
+  const todayResult = await checkTokenQuota(env, userId, userRole);
   return {
     today: {
       used: todayResult.usedToday,
       quota: todayResult.quota,
       remaining: todayResult.remaining,
+      isAdmin: todayResult.isAdmin,
     },
   };
 }

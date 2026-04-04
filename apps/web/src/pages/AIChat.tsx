@@ -358,7 +358,7 @@ export function AIChat() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [tokenUsage, setTokenUsage] = useState<{ used: number; remaining: number; quota: number } | null>(null);
+  const [tokenUsage, setTokenUsage] = useState<{ used: number; remaining: number; quota: number; isAdmin?: boolean } | null>(null);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -660,9 +660,9 @@ export function AIChat() {
         {/* Header */}
         <header className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <button onClick={() => navigate('/files')}
+            <button onClick={() => navigate(-1)}
               className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="返回文件管理"
+              title="返回上一页"
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
@@ -678,17 +678,12 @@ export function AIChat() {
           </div>
           <div className="flex items-center gap-2">
             {tokenUsage && (
-              <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium ${tokenUsage.remaining < 10000 ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'}`}>
+              <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium ${tokenUsage.isAdmin ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-800' : tokenUsage.remaining < 10000 ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'}`}>
                 <Sparkles className="h-3 w-3" />
-                {formatTokenCount(tokenUsage.used)} / {formatTokenCount(tokenUsage.quota)}
-                {tokenUsage.remaining < 10000 && <span className="ml-0.5">⚠️</span>}
+                {tokenUsage.isAdmin ? `${formatTokenCount(tokenUsage.used)} (∞)` : `${formatTokenCount(tokenUsage.used)} / ${formatTokenCount(tokenUsage.quota)}`}
+                {!tokenUsage.isAdmin && tokenUsage.remaining < 10000 && <span className="ml-0.5">⚠️</span>}
               </div>
             )}
-            <button onClick={() => navigate(-1)} title="返回上一页"
-              className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </button>
             <button onClick={() => navigate('/ai-settings')}
               className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title="AI 设置"

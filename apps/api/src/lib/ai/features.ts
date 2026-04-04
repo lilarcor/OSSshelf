@@ -59,7 +59,7 @@ function getSummaryPrompt(mimeType: string | null, fileName: string): string {
 const DEFAULT_MODELS = {
   summary: '@cf/meta/llama-3.1-8b-instruct',
   imageCaption: '@cf/llava-hf/llava-1.5-7b-hf',
-  imageTag: '@cf/microsoft/resnet-50',
+  imageTag: '@cf/llava-hf/llava-1.5-7b-hf',
   rename: '@cf/meta/llama-3.1-8b-instruct',
 } as const;
 
@@ -253,7 +253,8 @@ function uint8ArrayToBase64(bytes: number[]): string {
 }
 
 /**
- * 调用图片分类模型（生成标签）
+ * 调用图片分类模型（生成标签）- 已废弃，保留兼容
+ * @deprecated 使用 callVisionModelForTags 代替
  */
 async function callClassificationModel(env: Env, modelId: string, imageData: number[]): Promise<unknown> {
   if (!env.AI) {
@@ -263,6 +264,107 @@ async function callClassificationModel(env: Env, modelId: string, imageData: num
   return await (env.AI as any).run(modelId, {
     image: imageData,
   });
+}
+
+const IMAGE_TAG_PROMPT = `请分析这张图片，生成5-8个描述性标签。
+
+要求：
+1. 标签应该描述图片的主要内容、物体、场景、颜色、风格等
+2. 每个标签2-6个字，使用中文
+3. 只输出标签，用逗号分隔，不要其他任何内容
+4. 示例格式：风景,山脉,日落,自然,户外,宁静`;
+
+/**
+ * 调用视觉模型生成图片标签
+ * 支持自定义 vision 模型（OpenAI 兼容或 Workers AI）
+ */
+async function callVisionModelForTags(
+  env: Env,
+  userId: string,
+  defaultModelId: string,
+  imageData: number[]
+): Promise<string[]> {
+  const gateway = new ModelGateway(env);
+  const featureConfig = await getFeatureModelConfig(env, userId);
+  const customModelId = featureConfig.imageTag;
+
+  try {
+    if (customModelId) {
+      const customModel = await gateway.getModelById(customModelId, userId);
+
+      if (customModel && customModel.provider === 'openai_compatible') {
+        if (!customModel.capabilities.includes('vision')) {
+          logger.warn('AI', 'Custom model does not support vision for tags, falling back to default', {
+            modelId: customModelId,
+            capabilities: customModel.capabilities,
+          });
+        } else {
+          const base64Image = uint8ArrayToBase64(imageData);
+          const response = await gateway.chatCompletion(
+            userId,
+            {
+              messages: [
+                {
+                  role: 'user',
+                  content: [
+                    { type: 'text', text: IMAGE_TAG_PROMPT },
+                    { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
+                  ],
+                },
+              ],
+              maxTokens: 100,
+            },
+            customModelId
+          );
+          return parseTagsFromText(response.content);
+        }
+      } else if (customModel && env.AI) {
+        const response = await (env.AI as any).run(customModelId, {
+          image: imageData,
+          prompt: IMAGE_TAG_PROMPT,
+          max_tokens: 100,
+        });
+
+        const text =
+          (response as { description?: string; response?: string }).description?.trim() ||
+          (response as { response?: string }).response?.trim() ||
+          '';
+        return parseTagsFromText(text);
+      }
+    }
+
+    if (env.AI) {
+      const response = await (env.AI as any).run(defaultModelId, {
+        image: imageData,
+        prompt: IMAGE_TAG_PROMPT,
+        max_tokens: 100,
+      });
+
+      const text = (response as { description?: string }).description?.trim() || '';
+      return parseTagsFromText(text);
+    }
+
+    throw new Error('AI service not available');
+  } catch (error) {
+    logger.error('AI', 'Vision model for tags call failed', { defaultModelId }, error);
+    throw error;
+  }
+}
+
+/**
+ * 从文本中解析标签
+ */
+function parseTagsFromText(text: string): string[] {
+  if (!text) return [];
+
+  const tags = text
+    .split(/[,，、\n]/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2 && t.length <= 10)
+    .filter((t) => !/^\d+$/.test(t))
+    .filter((t) => !/^(标签|tag|tags)$/i.test(t));
+
+  return [...new Set(tags)].slice(0, 8);
 }
 
 export async function generateFileSummary(
@@ -365,17 +467,23 @@ export async function generateImageTags(
   }
 
   const uint8Array = new Uint8Array(imageData);
+  const effectiveUserId = userId || file.userId || 'default';
 
   try {
     const [captionResult, tagResult] = await Promise.allSettled([
       callVisionModel(
         env,
-        userId || file.userId || 'default',
+        effectiveUserId,
         DEFAULT_MODELS.imageCaption,
         Array.from(uint8Array),
         '请详细描述这张图片的内容，包括画面主体、颜色、构图等。如果有文字请准确转录。使用中文回答。'
       ),
-      callClassificationModel(env, DEFAULT_MODELS.imageTag, Array.from(uint8Array)),
+      callVisionModelForTags(
+        env,
+        effectiveUserId,
+        DEFAULT_MODELS.imageTag,
+        Array.from(uint8Array)
+      ),
     ]);
 
     let caption = '';
@@ -385,7 +493,7 @@ export async function generateImageTags(
 
     let tags: string[] = [];
     if (tagResult.status === 'fulfilled') {
-      tags = parseImageTags(tagResult.value);
+      tags = tagResult.value;
     }
 
     const now = new Date().toISOString();

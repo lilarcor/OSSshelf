@@ -812,8 +812,8 @@ export function AISettings() {
                           label: '图片标签',
                           icon: <Tags className="h-4 w-4" />,
                           desc: '识别图片内容标签',
-                          capability: 'classify',
-                          defaultModel: '@cf/microsoft/resnet-50',
+                          capability: 'vision',
+                          defaultModel: '@cf/llava-hf/llava-1.5-7b-hf',
                         },
                         {
                           key: 'rename' as const,
@@ -839,11 +839,7 @@ export function AISettings() {
                             <option value="__default__">使用默认模型</option>
                             <optgroup label="已添加的自定义模型">
                               {models
-                                .filter((m) =>
-                                  item.capability === 'classify'
-                                    ? m.provider === 'workers_ai'
-                                    : m.capabilities?.includes(item.capability) || m.capabilities?.includes('chat')
-                                )
+                                .filter((m) => m.capabilities?.includes(item.capability))
                                 .map((m) => (
                                   <option key={m.id} value={m.id}>
                                     {m.name}
@@ -852,13 +848,7 @@ export function AISettings() {
                                 ))}
                             </optgroup>
                             {providersData?.workersAiModels
-                              .filter((m) =>
-                                item.capability === 'vision'
-                                  ? m.capabilities.includes('vision')
-                                  : item.capability === 'classify'
-                                    ? false
-                                    : m.capabilities.includes('chat')
-                              )
+                              .filter((m) => m.capabilities.includes(item.capability))
                               .map((m) => (
                                 <option key={`wa-${m.id}`} value={m.id}>
                                   Workers AI: {m.name}
@@ -870,7 +860,7 @@ export function AISettings() {
                     </div>
 
                     <div className="mt-3 p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground">
-                      💡 提示：图片描述需要支持 vision 能力的模型（如 LLaVA）；图片标签仅限 Workers AI 分类模型
+                      💡 提示：图片描述和图片标签都需要支持 vision 能力的模型（如 LLaVA、GPT-4 Vision 等）
                     </div>
                   </div>
                 </section>
@@ -1474,12 +1464,14 @@ function ModelFormModal({
               <div>
                 <label className="block text-sm font-medium mb-1">选择模型 *</label>
                 <select
-                  value={formData.modelId === '__custom__' ? '__custom__' : (providersData.workersAiModels.find((m) => m.id === formData.modelId) ? formData.modelId : '')}
+                  value={formData.modelId || ''}
                   onChange={(e) => {
                     const val = e.target.value;
+                    const selectedModel = providersData.workersAiModels.find((m) => m.id === val);
                     setFormData({
                       ...formData,
                       modelId: val,
+                      name: formData.name || selectedModel?.name || formData.name,
                       customModelId: val === '__custom__' ? '' : undefined,
                     });
                   }}
