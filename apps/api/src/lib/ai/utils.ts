@@ -13,14 +13,16 @@ import { tgDownloadChunked, isChunkedFileId } from '../telegramChunked';
  * @returns Base64 编码字符串
  */
 export function uint8ArrayToBase64(bytes: Uint8Array | number[]): string {
-  const chunkSize = 8192;
-  let result = '';
-
   const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const chunkSize = 8192 * 3;
+  let result = '';
 
   for (let i = 0; i < arr.length; i += chunkSize) {
     const chunk = arr.subarray(i, i + chunkSize);
-    const binaryString = String.fromCharCode.apply(null, Array.from(chunk));
+    let binaryString = '';
+    for (let j = 0; j < chunk.length; j++) {
+      binaryString += String.fromCharCode(chunk[j]);
+    }
     result += btoa(binaryString);
   }
 
@@ -138,11 +140,12 @@ export function buildVisionMessageContent(
   const vendor = detectModelVendor(modelId);
 
   if (vendor === 'zhipu') {
-    // 智谱所有视觉模型：使用纯 base64（不带 data URI 前缀），text 在前，image 在后
-    // 参考：https://docs.bigmodel.cn/cn/guide/models/free/glm-4.6v-flash
+    // 智谱官方云 API：使用 data URI 格式
+    // 参考：https://docs.bigmodel.cn/cn/guide/start/quick-start
+    const imageUrl = `data:${mimeType};base64,${base64Image}`;
     return [
       { type: 'text', text: textPrompt },
-      { type: 'image_url', image_url: { url: base64Image } },
+      { type: 'image_url', image_url: { url: imageUrl } },
     ];
   }
 
