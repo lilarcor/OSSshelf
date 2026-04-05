@@ -336,9 +336,8 @@ async function callWorkersAiVision(
   if (!env.AI) {
     throw new Error('AI service not available');
   }
-  const uint8Array = new Uint8Array(imageData);
   const response = await (env.AI as any).run(modelId, {
-    image: uint8Array,
+    image: imageData,
     prompt,
     max_tokens: 300,
   });
@@ -422,9 +421,8 @@ async function callWorkersAiVisionForTags(env: Env, modelId: string, imageData: 
   if (!env.AI) {
     throw new Error('AI service not available');
   }
-  const uint8Array = new Uint8Array(imageData);
   const response = await (env.AI as any).run(modelId, {
-    image: uint8Array,
+    image: imageData,
     prompt: IMAGE_TAG_PROMPT,
     max_tokens: 100,
   });
