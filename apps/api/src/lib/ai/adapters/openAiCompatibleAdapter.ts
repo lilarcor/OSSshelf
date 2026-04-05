@@ -98,6 +98,13 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         };
       };
 
+      logger.info('AI', '[DEBUG] API response', {
+        id: data.id,
+        choicesCount: data.choices?.length,
+        firstChoiceFinishReason: data.choices?.[0]?.finish_reason,
+        firstChoiceContentLength: data.choices?.[0]?.message?.content?.length,
+      });
+
       const choice = data.choices[0];
       const toolCalls = choice?.message?.tool_calls?.map((tc) => ({
         id: tc.id,
