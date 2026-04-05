@@ -421,4 +421,22 @@ export class ModelGateway {
 
     return config;
   }
+
+  /**
+   * 解析模型调用请求：优先使用用户配置的自定义模型，否则回退到 Workers AI 默认模型
+   * @param userId 用户ID
+   * @param modelId 模型标识（可能是数据库记录ID或Workers AI模型ID）
+   * @returns 解析结果：包含类型和完整配置
+   */
+  async resolveModelForCall(
+    userId: string,
+    modelId: string
+  ): Promise<{ type: 'custom'; config: ModelConfig } | { type: 'workers_ai'; modelId: string }> {
+    const customModel = await this.getModelById(modelId, userId);
+
+    if (customModel) {
+      return { type: 'custom', config: customModel };
+    }
+    return { type: 'workers_ai', modelId };
+  }
 }

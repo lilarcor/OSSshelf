@@ -47,22 +47,17 @@ import {
   shares,
   userStars,
   storageBuckets,
-  telegramFileRefs,
   fileNotes,
   fileVersions,
   auditLogs,
 } from '../../db';
 import { searchAndFetchFiles, buildFileTextForVector } from '../vectorIndex';
-import { getFileContent } from '../utils';
-import { tgDownloadFile } from '../telegramClient';
-import { tgDownloadChunked, isChunkedFileId } from '../telegramChunked';
-import { decryptSecret } from '../s3client';
-import { getEncryptionKey } from '../crypto';
 import type { Env } from '../../types/env';
 import { logger } from '@osshelf/shared';
 import { getAiConfigString, getAiConfigNumber } from './aiConfigService';
 import { ModelGateway } from './modelGateway';
 import type { ModelConfig } from './types';
+import { uint8ArrayToBase64, formatBytes, fetchFileBuffer, getMimeTypeCategory } from './utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 公共类型
@@ -514,8 +509,8 @@ export class AgentToolExecutor {
         .filter((f) => !mimeTypePrefix || (f.mimeType ?? '').startsWith(mimeTypePrefix))
         .filter((f) => !folderId || f.parentId === folderId)
         .map(toAgentFile);
-    } catch {
-      /* vector unavailable, continue */
+    } catch (error) {
+      logger.warn('AgentTool', 'Vector search failed, falling back to FTS', { query }, error);
     }
 
     // 2) FTS fallback（覆盖 name / description / aiSummary / aiTags）
@@ -879,7 +874,8 @@ export class AgentToolExecutor {
       );
       const visionMaxTokens = await getAiConfigNumber(this.env, 'ai.vision.max_tokens', 600);
 
-      const resolved = await resolveModelForCall(this.env, this.userId, visionModelId);
+      const modelGateway = new ModelGateway(this.env);
+      const resolved = await modelGateway.resolveModelForCall(this.userId, visionModelId);
 
       let description: string;
 
@@ -1328,7 +1324,7 @@ export class AgentToolExecutor {
     // 按 MIME 类型分组
     const typeMap = new Map<string, { count: number; size: number }>();
     for (const f of allFiles) {
-      const cat = mimeCategory(f.mimeType);
+      const cat = getMimeTypeCategory(f.mimeType);
       const cur = typeMap.get(cat) || { count: 0, size: 0 };
       typeMap.set(cat, { count: cur.count + 1, size: cur.size + (f.size || 0) });
     }
@@ -1488,75 +1484,9 @@ export class AgentToolExecutor {
 // 共享工具函数（被 agentEngine.ts 导出复用）
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * 统一文件内容获取：透明支持 S3/R2 和 Telegram 双存储
- */
-export async function fetchFileBuffer(
-  env: Env,
-  file: { id: string; bucketId: string | null; r2Key: string | null }
-): Promise<ArrayBuffer | null> {
-  if (!file.bucketId || !file.r2Key) return null;
-
-  try {
-    const db = getDb(env.DB);
-    const tgRef = await db.select().from(telegramFileRefs).where(eq(telegramFileRefs.fileId, file.id)).get();
-
-    if (tgRef) {
-      const bucket = await db.select().from(storageBuckets).where(eq(storageBuckets.id, file.bucketId)).get();
-      if (!bucket || bucket.provider !== 'telegram') return null;
-
-      const encKey = getEncryptionKey(env);
-      const botToken = await decryptSecret(bucket.accessKeyId, encKey);
-      const tgConfig = {
-        botToken,
-        chatId: bucket.bucketName,
-        apiBase: bucket.endpoint || undefined,
-      };
-
-      let stream: ReadableStream<Uint8Array> | null = null;
-      if (isChunkedFileId(tgRef.tgFileId)) {
-        stream = await tgDownloadChunked(tgConfig, tgRef.tgFileId, db);
-      } else {
-        const resp = await tgDownloadFile(tgConfig, tgRef.tgFileId);
-        stream = resp.body;
-      }
-      if (!stream) return null;
-      return new Response(stream).arrayBuffer();
-    }
-
-    return await getFileContent(env, file.bucketId, file.r2Key);
-  } catch (error) {
-    logger.error('AgentTool', 'fetchFileBuffer failed', { fileId: file.id }, error);
-    return null;
-  }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 辅助函数
 // ─────────────────────────────────────────────────────────────────────────────
-
-async function resolveModelForCall(
-  env: Env,
-  userId: string,
-  modelId: string
-): Promise<{ type: 'custom'; config: ModelConfig } | { type: 'workers_ai'; modelId: string }> {
-  const gateway = new ModelGateway(env);
-  const customModel = await gateway.getModelById(modelId, userId);
-  if (customModel) {
-    return { type: 'custom', config: customModel };
-  }
-  return { type: 'workers_ai', modelId };
-}
-
-function uint8ArrayToBase64(bytes: Uint8Array): string {
-  const chunkSize = 8192;
-  let binaryString = '';
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.slice(i, i + chunkSize);
-    binaryString += String.fromCharCode(...chunk);
-  }
-  return btoa(binaryString);
-}
 
 function toAgentFile(f: Record<string, unknown>): AgentFile {
   return {
@@ -1591,26 +1521,4 @@ function isTextFile(mimeType: string | null | undefined): boolean {
     mimeType.includes('spreadsheet') ||
     mimeType.includes('presentation')
   );
-}
-
-function mimeCategory(mime: string | null | undefined): string {
-  if (!mime) return '其他';
-  if (mime.startsWith('image/')) return '图片';
-  if (mime.startsWith('video/')) return '视频';
-  if (mime.startsWith('audio/')) return '音频';
-  if (mime.includes('pdf')) return 'PDF';
-  if (mime.includes('word') || mime.includes('document')) return 'Word文档';
-  if (mime.includes('excel') || mime.includes('spreadsheet')) return '表格';
-  if (mime.includes('powerpoint') || mime.includes('presentation')) return '演示文稿';
-  if (mime.startsWith('text/')) return '文本';
-  if (mime.includes('zip') || mime.includes('rar') || mime.includes('tar')) return '压缩包';
-  if (mime.includes('json') || mime.includes('xml')) return '数据文件';
-  return '其他';
-}
-
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
 }

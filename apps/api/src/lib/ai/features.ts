@@ -28,6 +28,7 @@ import { tgDownloadFile, type TelegramBotConfig } from '../telegramClient';
 import { tgDownloadChunked, isChunkedFileId } from '../telegramChunked';
 import { decryptSecret } from '../s3client';
 import { initializeAiConfig, getAiConfigString, getAiConfigNumber, getAiConfigBoolean } from './aiConfigService';
+import { uint8ArrayToBase64, fetchFileBuffer } from './utils';
 
 const DEFAULT_SUMMARY_CONTENT_LIMIT = 8192;
 const DEFAULT_RENAME_CONTENT_LIMIT = 4096;
@@ -181,21 +182,7 @@ export function isImageFile(mimeType: string | null): boolean {
 }
 
 export function isAIConfigured(env: Env): boolean {
-  return true;
-}
-
-async function resolveModelForCall(
-  env: Env,
-  userId: string,
-  modelId: string
-): Promise<{ type: 'custom'; config: ModelConfig } | { type: 'workers_ai'; modelId: string }> {
-  const gateway = new ModelGateway(env);
-  const customModel = await gateway.getModelById(modelId, userId);
-
-  if (customModel) {
-    return { type: 'custom', config: customModel };
-  }
-  return { type: 'workers_ai', modelId };
+  return !!(env.AI || env.VECTORIZE);
 }
 
 /**
@@ -234,7 +221,7 @@ async function callChatModel(
   const customModelId = featureConfig[featureType];
   const effectiveModelId = customModelId || defaultModels[featureType] || defaultModels.summary;
 
-  const resolved = await resolveModelForCall(env, userId, effectiveModelId);
+  const resolved = await gateway.resolveModelForCall(userId, effectiveModelId);
 
   try {
     if (resolved.type === 'custom') {
@@ -288,7 +275,8 @@ async function callVisionModel(
   const featureConfig = await getFeatureModelConfig(env, userId);
   const effectiveModelId = featureConfig.imageCaption || defaultModelId;
 
-  const resolved = await resolveModelForCall(env, userId, effectiveModelId);
+  const visionGateway = new ModelGateway(env);
+  const resolved = await visionGateway.resolveModelForCall(userId, effectiveModelId);
 
   try {
     if (resolved.type === 'custom') {
@@ -357,30 +345,6 @@ async function callWorkersAiVision(
   return (response as { description?: string }).description?.trim() || '';
 }
 
-function uint8ArrayToBase64(bytes: number[]): string {
-  const chunkSize = 8192;
-  let binaryString = '';
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.slice(i, i + chunkSize);
-    binaryString += String.fromCharCode(...chunk);
-  }
-  return btoa(binaryString);
-}
-
-/**
- * 调用图片分类模型（生成标签）- 已废弃，保留兼容
- * @deprecated 使用 callVisionModelForTags 代替
- */
-async function callClassificationModel(env: Env, modelId: string, imageData: number[]): Promise<unknown> {
-  if (!env.AI) {
-    throw new Error('AI service not configured');
-  }
-
-  return await (env.AI as any).run(modelId, {
-    image: imageData,
-  });
-}
-
 const IMAGE_TAG_PROMPT = `请分析这张图片，生成5-8个描述性标签。
 
 要求：
@@ -403,7 +367,7 @@ async function callVisionModelForTags(
   const featureConfig = await getFeatureModelConfig(env, userId);
   const effectiveModelId = featureConfig.imageTag || defaultModelId;
 
-  const resolved = await resolveModelForCall(env, userId, effectiveModelId);
+  const resolved = await gateway.resolveModelForCall(userId, effectiveModelId);
 
   try {
     if (resolved.type === 'custom') {
@@ -577,7 +541,7 @@ export async function generateImageTags(
 
   let imageData = imageBuffer;
   if (!imageData) {
-    imageData = (await fetchFileContentAsBuffer(env, file)) ?? undefined;
+    imageData = (await fetchFileBuffer(env, file)) ?? undefined;
   }
 
   if (!imageData) {
@@ -771,7 +735,7 @@ async function extractTextFromFile(env: Env, file: typeof files.$inferSelect, li
   }
 
   try {
-    const content = await fetchFileContentAsBuffer(env, file);
+    const content = await fetchFileBuffer(env, file);
     if (!content) return '';
 
     const decoder = new TextDecoder('utf-8');
@@ -783,55 +747,13 @@ async function extractTextFromFile(env: Env, file: typeof files.$inferSelect, li
   }
 }
 
-async function resolveTgConfig(env: Env, bucketId: string): Promise<TelegramBotConfig | null> {
+export async function resolveTgConfig(env: Env, bucketId: string): Promise<TelegramBotConfig | null> {
   const db = getDb(env.DB);
   const bucket = await db.select().from(storageBuckets).where(eq(storageBuckets.id, bucketId)).get();
   if (!bucket || bucket.provider !== 'telegram') return null;
   const encKey = getEncryptionKey(env);
   const botToken = await decryptSecret(bucket.accessKeyId, encKey);
   return { botToken, chatId: bucket.bucketName, apiBase: bucket.endpoint || undefined };
-}
-
-async function fetchFileContentAsBuffer(env: Env, file: typeof files.$inferSelect): Promise<ArrayBuffer | null> {
-  if (!file.bucketId || !file.r2Key) {
-    return null;
-  }
-
-  try {
-    const db = getDb(env.DB);
-
-    // 检查是否是 Telegram 存储
-    const tgRef = await db.select().from(telegramFileRefs).where(eq(telegramFileRefs.fileId, file.id)).get();
-
-    if (tgRef) {
-      const tgConfig = await resolveTgConfig(env, file.bucketId);
-      if (!tgConfig) {
-        logger.error('AI', 'Telegram 存储桶配置解析失败', { fileId: file.id, bucketId: file.bucketId });
-        return null;
-      }
-
-      let stream: ReadableStream<Uint8Array> | null = null;
-      if (isChunkedFileId(tgRef.tgFileId)) {
-        stream = await tgDownloadChunked(tgConfig, tgRef.tgFileId, db);
-      } else {
-        const resp = await tgDownloadFile(tgConfig, tgRef.tgFileId);
-        stream = resp.body;
-      }
-
-      if (!stream) {
-        logger.error('AI', 'Telegram 文件流为空', { fileId: file.id, tgFileId: tgRef.tgFileId });
-        return null;
-      }
-
-      return new Response(stream).arrayBuffer();
-    }
-
-    // 普通 S3/R2 存储
-    return await getFileContent(env, file.bucketId, file.r2Key);
-  } catch (error) {
-    logger.error('AI', '获取文件内容失败', { fileId: file.id, r2Key: file.r2Key }, error);
-    return null;
-  }
 }
 
 function parseImageTags(result: unknown): string[] {

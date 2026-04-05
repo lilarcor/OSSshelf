@@ -14,6 +14,7 @@ import { searchAndFetchFiles, buildFileTextForVector } from '../vectorIndex';
 import { getDb, files } from '../../db';
 import { eq, and, isNull, desc, sql } from 'drizzle-orm';
 import { logger } from '@osshelf/shared';
+import { getMimeTypeCategory } from './utils';
 
 export interface FileContext {
   id: string;
@@ -126,7 +127,7 @@ export class RagEngine {
 
     const typeMap = new Map<string, { count: number; size: number }>();
     for (const file of allFiles) {
-      const type = this.getFileTypeCategory(file.mimeType);
+      const type = getMimeTypeCategory(file.mimeType);
       const existing = typeMap.get(type) || { count: 0, size: 0 };
       typeMap.set(type, {
         count: existing.count + 1,
@@ -149,21 +150,6 @@ export class RagEngine {
       }));
 
     return { totalFiles, totalSize, byType, recentFiles };
-  }
-
-  private getFileTypeCategory(mimeType: string | null): string {
-    if (!mimeType) return '其他';
-    if (mimeType.startsWith('image/')) return '图片';
-    if (mimeType.startsWith('video/')) return '视频';
-    if (mimeType.startsWith('audio/')) return '音频';
-    if (mimeType.includes('pdf')) return 'PDF';
-    if (mimeType.includes('word') || mimeType.includes('document')) return '文档';
-    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return '表格';
-    if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return '演示文稿';
-    if (mimeType.startsWith('text/')) return '文本';
-    if (mimeType.includes('json') || mimeType.includes('xml')) return '数据文件';
-    if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('tar')) return '压缩包';
-    return '其他';
   }
 
   private formatFileSize(bytes: number): string {
