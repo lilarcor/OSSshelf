@@ -1367,17 +1367,20 @@ export function AISettings() {
             ) : (
               <>
                 {/* 按分类分组显示配置 */}
-                {['model', 'parameter', 'limit', 'retry', 'prompt', 'feature'].map((category) => {
+                {['model', 'parameter', 'agent', 'tool', 'feature', 'rag', 'limit', 'retry', 'prompt'].map((category) => {
                   const categoryConfigs = systemConfigs.filter((c) => c.category === category);
                   if (categoryConfigs.length === 0) return null;
 
                   const categoryLabels: Record<string, string> = {
                     model: '🤖 默认模型',
                     parameter: '⚙️ 模型参数',
+                    agent: '🤖 Agent 配置',
+                    tool: '🔧 工具配置',
+                    feature: '✨ 功能配置',
+                    rag: '📚 RAG 配置',
                     limit: '📏 内容限制',
                     retry: '🔄 重试策略',
                     prompt: '💬 提示词模板',
-                    feature: '✨ 功能开关',
                   };
 
                   return (

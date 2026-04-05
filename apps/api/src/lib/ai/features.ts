@@ -482,7 +482,7 @@ export async function generateFileSummary(
   }
 
   const truncatedContent = textContent.slice(0, contentLimits.summary);
-  const summaryMaxTokens = await getAiConfigNumber(env, 'ai.summary.max_tokens', 200);
+  const summaryMaxTokens = await getAiConfigNumber(env, 'ai.summary.max_tokens', 2048);
 
   try {
     const summary = await callChatModel(
