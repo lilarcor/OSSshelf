@@ -69,7 +69,6 @@ interface SseChunk {
   sessionId?: string;
   sources?: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
   error?: string;
-  usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
   toolStart?: boolean;
   toolResult?: boolean;
   toolName?: string;

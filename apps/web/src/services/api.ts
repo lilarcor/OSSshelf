@@ -1389,7 +1389,6 @@ export const aiApi = {
           sessionId?: string;
           sources?: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
           error?: string;
-          usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
           toolStart?: boolean;
           toolResult?: boolean;
           toolName?: string;
@@ -1450,13 +1449,6 @@ export const aiApi = {
         }
       }
     },
-    getTokenQuota: () =>
-      api.get<
-        ApiResponse<{
-          today: { used: number; quota: number; remaining: number; isAdmin?: boolean };
-          history: Array<{ date: string; tokensUsed: number; quota: number }>;
-        }>
-      >('/api/ai-chat/token-quota'),
   },
 };
 
@@ -1572,7 +1564,6 @@ export interface AiChatMessage {
     mimeType: string | null;
     score: number;
   }>;
-  tokenCount?: number;
   modelUsed?: string;
   latencyMs?: number;
   createdAt: string;

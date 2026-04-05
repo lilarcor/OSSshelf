@@ -45,6 +45,8 @@ export interface ModelConfig {
   updatedAt: string;
 }
 
+export type AiFeatureType = 'image_caption' | 'image_tag' | 'image_analysis' | 'chat' | 'file_summary' | 'summary' | 'rename';
+
 export interface ChatCompletionRequest {
   messages: ChatMessage[];
   maxTokens?: number;
@@ -55,6 +57,7 @@ export interface ChatCompletionRequest {
   tools?: ToolDefinition[];
   toolChoice?: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string };
   extraBody?: Record<string, unknown>;
+  featureType?: AiFeatureType;
 }
 
 export interface ChatCompletionResponse {
@@ -62,11 +65,6 @@ export interface ChatCompletionResponse {
   content: string;
   role: 'assistant';
   model: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
   finishReason?: 'stop' | 'length' | 'content_filter' | 'tool_calls';
   toolCalls?: Array<{
     id: string;
@@ -82,11 +80,6 @@ export interface StreamChunk {
   model: string;
   done: boolean;
   reasoningContent?: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
   toolCalls?: Array<{
     id: string;
     name?: string;
@@ -115,10 +108,6 @@ export interface EmbeddingRequest {
 export interface EmbeddingResponse {
   embeddings: number[][];
   model: string;
-  usage?: {
-    promptTokens: number;
-    totalTokens: number;
-  };
 }
 
 export interface IModelAdapter {

@@ -592,37 +592,6 @@ export const userStars = sqliteTable(
   })
 );
 
-export const aiTokenUsage = sqliteTable(
-  'ai_token_usage',
-  {
-    id: text('id').primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    date: text('date').notNull(),
-    tokensUsed: integer('tokens_used').notNull().default(0),
-    quota: integer('quota').notNull().default(100000),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
-    updatedAt: text('updated_at').notNull().default('CURRENT_TIMESTAMP'),
-  },
-  (table) => ({
-    userIdx: index('idx_ai_token_usage_user').on(table.userId),
-    dateIdx: index('idx_ai_token_usage_date').on(table.date),
-    uniqueIdx: uniqueIndex('idx_ai_token_usage_unique').on(table.userId, table.date),
-  })
-);
-
-export type File = typeof files.$inferSelect;
-export type FileVersion = typeof fileVersions.$inferSelect;
-export type FileNote = typeof fileNotes.$inferSelect;
-export type ApiKey = typeof apiKeys.$inferSelect;
-export type UserGroup = typeof userGroups.$inferSelect;
-export type GroupMember = typeof groupMembers.$inferSelect;
-export type FilePermission = typeof filePermissions.$inferSelect;
-export type Notification = typeof notifications.$inferSelect;
-export type EmailToken = typeof emailTokens.$inferSelect;
-export type AiTokenUsage = typeof aiTokenUsage.$inferSelect;
-
 export const aiModels = sqliteTable(
   'ai_models',
   {
@@ -677,7 +646,6 @@ export const aiChatMessages = sqliteTable(
     role: text('role').notNull(),
     content: text('content').notNull(),
     sources: text('sources'),
-    tokenCount: integer('token_count'),
     modelUsed: text('model_used'),
     latencyMs: integer('latency_ms'),
     createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
@@ -741,3 +709,4 @@ export const aiConfig = sqliteTable(
 );
 
 export type AiConfig = typeof aiConfig.$inferSelect;
+export type File = typeof files.$inferSelect;

@@ -53,22 +53,6 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         Object.assign(body, request.extraBody);
       }
 
-      // DEBUG: log the first message content structure (truncate base64 for readability)
-      const debugBody = JSON.parse(JSON.stringify(body));
-      if (Array.isArray(debugBody.messages)) {
-        debugBody.messages = debugBody.messages.map((m: any) => ({
-          ...m,
-          content: Array.isArray(m.content)
-            ? m.content.map((p: any) =>
-                p.type === 'image_url'
-                  ? { type: p.type, image_url: { url: (p.image_url?.url || '').slice(0, 80) + '...[truncated]' } }
-                  : p
-              )
-            : m.content,
-        }));
-      }
-      logger.info('AI', '[DEBUG] vision request payload', { model: this.config.modelId, messages: JSON.stringify(debugBody.messages) });
-
       const response = await fetch(`${this.config.apiEndpoint}/chat/completions`, {
         method: 'POST',
         headers: this.getHeaders(),
@@ -92,23 +76,9 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
           };
           finish_reason: string;
         }>;
-        usage?: {
-          prompt_tokens: number;
-          completion_tokens: number;
-          total_tokens: number;
-        };
       };
 
-      logger.info('AI', '[DEBUG] API response', {
-        id: data.id,
-        choicesCount: data.choices?.length,
-        firstChoiceFinishReason: data.choices?.[0]?.finish_reason,
-        firstChoiceContentLength: data.choices?.[0]?.message?.content?.length,
-        firstChoiceReasoningLength: data.choices?.[0]?.message?.reasoning_content?.length,
-      });
-
       const choice = data.choices[0];
-      // 智谱思考模式：优先使用 reasoning_content，否则使用 content
       const responseContent = choice?.message?.reasoning_content || choice?.message?.content || '';
       const toolCalls = choice?.message?.tool_calls?.map((tc) => ({
         id: tc.id,
@@ -121,13 +91,6 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         content: responseContent,
         role: 'assistant',
         model: this.config.modelId,
-        usage: data.usage
-          ? {
-              promptTokens: data.usage.prompt_tokens,
-              completionTokens: data.usage.completion_tokens,
-              totalTokens: data.usage.total_tokens,
-            }
-          : undefined,
         finishReason: (choice?.finish_reason === 'tool_calls' ? 'tool_calls' : choice?.finish_reason) as
           | 'stop'
           | 'length'
@@ -149,8 +112,6 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
     this.validateConnection();
 
     try {
-      // stream_options 仅在支持的模型上启用（不支持时部分 API 会报错）
-      const supportsStreamOptions = !this.config.configJson?.disableStreamOptions;
       const streamBody: Record<string, unknown> = {
         model: this.config.modelId,
         messages: request.messages.map((msg) => ({
@@ -160,7 +121,6 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         max_tokens: request.maxTokens || this.config.maxTokens,
         temperature: request.temperature ?? this.config.temperature,
         stream: true,
-        ...(supportsStreamOptions ? { stream_options: { include_usage: true } } : {}),
       };
 
       if (request.tools && request.tools.length > 0) {
@@ -241,22 +201,6 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
               const data = JSON.parse(trimmedLine.slice(6));
               const choice = data.choices?.[0];
               const delta = choice?.delta;
-
-              // 解析 usage（stream_options.include_usage=true 时，最后一个 chunk 含此字段）
-              if (data.usage) {
-                onChunk({
-                  id: data.id || crypto.randomUUID(),
-                  content: '',
-                  role: 'assistant',
-                  model: this.config.modelId,
-                  done: false,
-                  usage: {
-                    promptTokens: data.usage.prompt_tokens,
-                    completionTokens: data.usage.completion_tokens,
-                    totalTokens: data.usage.total_tokens,
-                  },
-                });
-              }
 
               if (delta?.content) {
                 onChunk({
@@ -344,21 +288,11 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
       const data = (await response.json()) as {
         data: Array<{ embedding: number[] }>;
         model: string;
-        usage?: {
-          prompt_tokens: number;
-          total_tokens: number;
-        };
       };
 
       return {
         embeddings: data.data.map((item) => item.embedding),
         model: data.model,
-        usage: data.usage
-          ? {
-              promptTokens: data.usage.prompt_tokens,
-              totalTokens: data.usage.total_tokens,
-            }
-          : undefined,
       };
     } catch (error) {
       logger.error('AI', 'OpenAI compatible embedding failed', {}, error);

@@ -214,7 +214,7 @@ export class ModelGateway {
     const adapter = this.getAdapter(modelConfig);
     this.injectSystemPrompt(request, modelConfig);
 
-    const thinkingConfig = buildThinkingConfig(modelConfig.modelId);
+    const thinkingConfig = buildThinkingConfig(modelConfig.modelId, request.featureType);
     if (thinkingConfig && !request.extraBody) {
       request.extraBody = thinkingConfig;
     } else if (thinkingConfig && request.extraBody) {
@@ -247,7 +247,7 @@ export class ModelGateway {
     const adapter = this.getAdapter(modelConfig);
     this.injectSystemPrompt(request, modelConfig);
 
-    const thinkingConfig = buildThinkingConfig(modelConfig.modelId);
+    const thinkingConfig = buildThinkingConfig(modelConfig.modelId, request.featureType);
     if (thinkingConfig && !request.extraBody) {
       request.extraBody = thinkingConfig;
     } else if (thinkingConfig && request.extraBody) {

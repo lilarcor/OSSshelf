@@ -6,6 +6,40 @@ import { getFileContent } from '../utils';
 import { resolveTgConfig } from './features';
 import { tgDownloadFile } from '../telegramClient';
 import { tgDownloadChunked, isChunkedFileId } from '../telegramChunked';
+import type { AiFeatureType } from './types';
+
+export function buildThinkingConfig(modelId: string, featureType: AiFeatureType = 'chat'): Record<string, unknown> | undefined {
+  const vendor = detectModelVendor(modelId);
+  const id = modelId.toLowerCase();
+  
+  const shouldEnableThinking = (feature: AiFeatureType): boolean => {
+    switch (feature) {
+      case 'chat':
+        return true;
+      case 'image_caption':
+      case 'image_tag':
+      case 'image_analysis':
+      case 'file_summary':
+        return false;
+      default:
+        return false;
+    }
+  };
+
+  const enableThinking = shouldEnableThinking(featureType);
+  
+  if (vendor === 'zhipu') {
+    if (id.includes('glm-4.5') || id.includes('glm-4.6') || id.includes('glm-4.7') || id.includes('glm-5')) {
+      return { thinking: { type: enableThinking ? 'enabled' : 'disabled' } };
+    }
+  }
+  
+  if (vendor === 'deepseek' && id.includes('r1')) {
+    return undefined;
+  }
+  
+  return undefined;
+}
 
 /**
  * 将字节数组转换为 Base64 字符串（分块处理避免栈溢出）
@@ -132,37 +166,14 @@ export function detectModelVendor(modelId: string): ModelVendor {
 }
 
 export function buildVisionMessageContent(
-  modelId: string,
   base64Image: string,
   mimeType: string,
-  textPrompt: string,
-  imageUrl?: string
+  textPrompt: string
 ): VisionMessageContent {
-  const vendor = detectModelVendor(modelId);
-
-  const finalImageUrl = imageUrl || `data:${mimeType};base64,${base64Image}`;
   return [
     { type: 'text', text: textPrompt },
-    { type: 'image_url', image_url: { url: finalImageUrl } },
+    { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } },
   ];
-}
-
-export function buildThinkingConfig(modelId: string): Record<string, unknown> | undefined {
-  const vendor = detectModelVendor(modelId);
-  const id = modelId.toLowerCase();
-  
-  // 智谱模型：禁用思考模式以减少 token 消耗和响应时间
-  if (vendor === 'zhipu') {
-    if (id.includes('glm-4.5') || id.includes('glm-4.6') || id.includes('glm-4.7') || id.includes('glm-5')) {
-      return { thinking: { type: 'disabled' } };
-    }
-  }
-  
-  if (vendor === 'deepseek' && id.includes('r1')) {
-    return undefined;
-  }
-  
-  return undefined;
 }
 
 export function supportsReasoningContent(modelId: string): boolean {

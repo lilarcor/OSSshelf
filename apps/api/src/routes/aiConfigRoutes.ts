@@ -635,7 +635,6 @@ app.post('/test', async (c) => {
         response: response.content,
         model: response.model,
         latencyMs,
-        usage: response.usage,
         timestamp: new Date().toISOString(),
       },
     });

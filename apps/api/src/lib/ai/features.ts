@@ -28,7 +28,8 @@ import { tgDownloadFile, type TelegramBotConfig } from '../telegramClient';
 import { tgDownloadChunked, isChunkedFileId } from '../telegramChunked';
 import { decryptSecret } from '../s3client';
 import { initializeAiConfig, getAiConfigString, getAiConfigNumber, getAiConfigBoolean } from './aiConfigService';
-import { uint8ArrayToBase64, fetchFileBuffer, buildVisionMessageContent, detectModelVendor } from './utils';
+import { uint8ArrayToBase64, fetchFileBuffer, buildVisionMessageContent } from './utils';
+import type { AiFeatureType } from './types';
 
 const DEFAULT_SUMMARY_CONTENT_LIMIT = 8192;
 const DEFAULT_RENAME_CONTENT_LIMIT = 4096;
@@ -162,15 +163,26 @@ export interface RenameSuggestion {
   suggestions: string[];
 }
 
-// 功能类型定义
-export type AiFeatureType = 'summary' | 'imageCaption' | 'imageTag' | 'rename';
-
 // 功能级模型配置接口
 export interface FeatureModelConfig {
-  summary?: string; // 文件摘要模型 ID
-  imageCaption?: string; // 图片描述模型 ID
-  imageTag?: string; // 图片标签模型 ID
-  rename?: string; // 智能重命名模型 ID
+  summary?: string;
+  imageCaption?: string;
+  imageTag?: string;
+  rename?: string;
+}
+
+// AiFeatureType 到 FeatureModelConfig 键名的映射
+function mapFeatureTypeToConfigKey(featureType: string): keyof FeatureModelConfig {
+  const mapping: Record<string, keyof FeatureModelConfig> = {
+    file_summary: 'summary',
+    summary: 'summary',
+    image_caption: 'imageCaption',
+    image_tag: 'imageTag',
+    image_analysis: 'imageCaption',
+    chat: 'summary',
+    rename: 'rename',
+  };
+  return mapping[featureType] || 'summary';
 }
 
 export function canGenerateSummary(mimeType: string | null, fileName: string): boolean {
@@ -218,14 +230,15 @@ async function callChatModel(
   const gateway = new ModelGateway(env);
   const defaultModels = await getDefaultModels(env);
   const featureConfig = await getFeatureModelConfig(env, userId);
-  const customModelId = featureConfig[featureType];
-  const effectiveModelId = customModelId || defaultModels[featureType] || defaultModels.summary;
+  const configKey = mapFeatureTypeToConfigKey(featureType);
+  const customModelId = featureConfig[configKey];
+  const effectiveModelId = customModelId || defaultModels[configKey] || defaultModels.summary;
 
   const resolved = await gateway.resolveModelForCall(userId, effectiveModelId);
 
   try {
     if (resolved.type === 'custom') {
-      const response = await gateway.chatCompletion(userId, request, effectiveModelId, signal);
+      const response = await gateway.chatCompletion(userId, { ...request, featureType }, effectiveModelId, signal);
       return response.content;
     }
 
@@ -270,8 +283,7 @@ async function callVisionModel(
   defaultModelId: string,
   imageData: number[],
   prompt: string,
-  mimeType: string = 'image/jpeg',
-  imageUrl?: string
+  mimeType: string = 'image/jpeg'
 ): Promise<string> {
   const gateway = new ModelGateway(env);
   const featureConfig = await getFeatureModelConfig(env, userId);
@@ -291,22 +303,18 @@ async function callVisionModel(
           });
           return await callWorkersAiVision(env, defaultModelId, imageData, prompt);
         }
-        // 只有智谱模型使用 URL 方式，其他模型使用 base64
-        const vendor = detectModelVendor(customModel.modelId);
-        const useUrl = vendor === 'zhipu' && imageUrl;
-        const base64Image = useUrl ? '' : uint8ArrayToBase64(imageData);
-        // 智谱模型需要更多 token
-        const maxTokens = vendor === 'zhipu' ? 1024 : 300;
+        const base64Image = uint8ArrayToBase64(imageData);
         const response = await gateway.chatCompletion(
           userId,
           {
             messages: [
               {
                 role: 'user',
-                content: buildVisionMessageContent(customModel.modelId, base64Image, mimeType, prompt, useUrl ? imageUrl : undefined),
+                content: buildVisionMessageContent(base64Image, mimeType, prompt),
               },
             ],
-            maxTokens,
+            maxTokens: 2048,
+            featureType: 'image_caption',
           },
           effectiveModelId
         );
@@ -316,7 +324,7 @@ async function callVisionModel(
         const response = await (env.AI as any).run(effectiveModelId, {
           image: uint8Array,
           prompt,
-          max_tokens: 300,
+          max_tokens: 2048,
         });
         return (
           (response as { description?: string; response?: string }).description?.trim() ||
@@ -367,8 +375,7 @@ async function callVisionModelForTags(
   userId: string,
   defaultModelId: string,
   imageData: number[],
-  mimeType: string = 'image/jpeg',
-  imageUrl?: string
+  mimeType: string = 'image/jpeg'
 ): Promise<string[]> {
   const gateway = new ModelGateway(env);
   const featureConfig = await getFeatureModelConfig(env, userId);
@@ -387,22 +394,18 @@ async function callVisionModelForTags(
           });
           return await callWorkersAiVisionForTags(env, defaultModelId, imageData);
         }
-        // 只有智谱模型使用 URL 方式，其他模型使用 base64
-        const vendor = detectModelVendor(customModel.modelId);
-        const useUrl = vendor === 'zhipu' && imageUrl;
-        const base64Image = useUrl ? '' : uint8ArrayToBase64(imageData);
-        // 智谱模型需要更多 token
-        const maxTokens = vendor === 'zhipu' ? 512 : 100;
+        const base64Image = uint8ArrayToBase64(imageData);
         const response = await gateway.chatCompletion(
           userId,
           {
             messages: [
               {
                 role: 'user',
-                content: buildVisionMessageContent(customModel.modelId, base64Image, mimeType, IMAGE_TAG_PROMPT, useUrl ? imageUrl : undefined),
+                content: buildVisionMessageContent(base64Image, mimeType, IMAGE_TAG_PROMPT),
               },
             ],
-            maxTokens,
+            maxTokens: 1024,
+            featureType: 'image_tag',
           },
           effectiveModelId
         );
@@ -412,7 +415,7 @@ async function callVisionModelForTags(
         const response = await (env.AI as any).run(effectiveModelId, {
           image: uint8Array,
           prompt: IMAGE_TAG_PROMPT,
-          max_tokens: 100,
+          max_tokens: 1024,
         });
         const text =
           (response as { description?: string; response?: string }).description?.trim() ||
@@ -563,10 +566,6 @@ export async function generateImageTags(
   const defaultModels = await getDefaultModels(env);
   const actualMimeType = file.mimeType || 'image/jpeg';
 
-  const imageUrl = file.directLinkToken
-    ? `${env.PUBLIC_URL || 'https://ossapi.wort.uk'}/api/direct/${file.directLinkToken}`
-    : undefined;
-
   try {
     const [captionResult, tagResult] = await Promise.allSettled([
       callVisionModel(
@@ -575,26 +574,19 @@ export async function generateImageTags(
         defaultModels.imageCaption,
         Array.from(uint8Array),
         '请详细描述这张图片的内容，包括画面主体、颜色、构图等。如果有文字请准确转录。使用中文回答。',
-        actualMimeType,
-        imageUrl
+        actualMimeType
       ),
-      callVisionModelForTags(env, effectiveUserId, defaultModels.imageTag, Array.from(uint8Array), actualMimeType, imageUrl),
+      callVisionModelForTags(env, effectiveUserId, defaultModels.imageTag, Array.from(uint8Array), actualMimeType),
     ]);
 
     let caption = '';
     if (captionResult.status === 'fulfilled') {
       caption = captionResult.value;
-      logger.info('AI', 'Caption result', { caption: caption.slice(0, 100) });
-    } else {
-      logger.error('AI', 'Caption failed', { reason: captionResult.reason?.message || String(captionResult.reason) });
     }
 
     let tags: string[] = [];
     if (tagResult.status === 'fulfilled') {
       tags = tagResult.value;
-      logger.info('AI', 'Tag result', { tags });
-    } else {
-      logger.error('AI', 'Tag failed', { reason: tagResult.reason?.message || String(tagResult.reason) });
     }
 
     const now = new Date().toISOString();

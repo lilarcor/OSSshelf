@@ -89,12 +89,6 @@ interface Message {
 // Tool name → label + icon
 // ────────────────────────────────────────────────────────────
 
-function formatTokenCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
-
 const TOOL_META: Record<string, { label: string; icon: React.ReactNode }> = {
   search_files: { label: '搜索文件', icon: <Search className="h-3 w-3" /> },
   filter_files: { label: '筛选文件', icon: <Filter className="h-3 w-3" /> },
@@ -486,14 +480,6 @@ export function AIChat() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [tokenUsage, setTokenUsage] = useState<{
-    used: number;
-    remaining: number;
-    quota: number;
-    isAdmin?: boolean;
-  } | null>(null);
-  const [tokenHistory, setTokenHistory] = useState<Array<{ date: string; tokensUsed: number; quota: number }>>([]);
-  const [showTokenHistory, setShowTokenHistory] = useState(false);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -545,18 +531,6 @@ export function AIChat() {
       renameRef.current?.select();
     }
   }, [renamingId]);
-
-  useEffect(() => {
-    aiApi.chatSession
-      .getTokenQuota()
-      .then((res) => {
-        if (res.data.success && res.data.data) {
-          setTokenUsage(res.data.data.today);
-          setTokenHistory(res.data.data.history);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = 'auto';
@@ -724,16 +698,6 @@ export function AIChat() {
               setMessages((prev) =>
                 prev.map((m) => (m.id === assistantId ? { ...m, isLoading: false, sources: raw.sources || [] } : m))
               );
-              if (raw.usage) {
-                const u = raw.usage as { totalTokens: number };
-                if (u.totalTokens) {
-                  setTokenUsage((prev) => ({
-                    used: (prev?.used ?? 0) + u.totalTokens,
-                    remaining: Math.max(0, (prev?.remaining ?? 100_000) - u.totalTokens),
-                    quota: prev?.quota ?? 100_000,
-                  }));
-                }
-              }
               if (raw.sessionId) {
                 setCurrentSessionId(raw.sessionId);
                 if (!urlSessionId) navigate(`/ai-chat/${raw.sessionId}`, { replace: true });
@@ -929,18 +893,6 @@ export function AIChat() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {tokenUsage && (
-              <button
-                onClick={() => setShowTokenHistory(true)}
-                className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium cursor-pointer hover:opacity-80 transition-opacity ${tokenUsage.isAdmin ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-800' : tokenUsage.remaining < 10000 ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800' : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'}`}
-              >
-                <Sparkles className="h-3 w-3" />
-                {tokenUsage.isAdmin
-                  ? `${formatTokenCount(tokenUsage.used)} (∞)`
-                  : `${formatTokenCount(tokenUsage.used)} / ${formatTokenCount(tokenUsage.quota)}`}
-                {!tokenUsage.isAdmin && tokenUsage.remaining < 10000 && <span className="ml-0.5">⚠️</span>}
-              </button>
-            )}
             <button
               onClick={() => navigate('/ai-settings')}
               className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -950,48 +902,6 @@ export function AIChat() {
             </button>
           </div>
         </header>
-
-        {showTokenHistory && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={() => setShowTokenHistory(false)} />
-            <div className="relative bg-background border rounded-lg shadow-lg w-full max-w-md max-h-[80vh] overflow-hidden">
-              <div className="flex items-center justify-between p-4 border-b">
-                <h3 className="font-semibold">Token 使用记录</h3>
-                <button onClick={() => setShowTokenHistory(false)} className="p-1 hover:bg-muted rounded">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="p-4 overflow-y-auto max-h-[60vh]">
-                {tokenHistory.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8">暂无使用记录</div>
-                ) : (
-                  <div className="space-y-2">
-                    {tokenHistory.map((record) => (
-                      <div key={record.date} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
-                        <span className="text-sm">{record.date}</span>
-                        <div className="text-sm">
-                          <span className="font-medium">{formatTokenCount(record.tokensUsed)}</span>
-                          <span className="text-muted-foreground"> / {formatTokenCount(record.quota)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {tokenUsage && (
-                <div className="p-4 border-t bg-muted/30">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">今日已用</span>
-                    <span className="font-medium">
-                      {formatTokenCount(tokenUsage.used)} /{' '}
-                      {tokenUsage.isAdmin ? '∞' : formatTokenCount(tokenUsage.quota)}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Messages */}
         <div ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0">

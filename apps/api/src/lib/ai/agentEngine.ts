@@ -57,7 +57,7 @@ export type AgentChunk =
   | { type: 'reasoning'; content: string; done: false }
   | { type: 'tool_start'; toolName: string; toolCallId: string; args: Record<string, unknown>; done: false }
   | { type: 'tool_result'; toolCallId: string; toolName: string; result: unknown; done: false }
-  | { type: 'done'; sessionId: string; sources: AgentSource[]; usage?: TokenUsage; done: true }
+  | { type: 'done'; sessionId: string; sources: AgentSource[]; done: true }
   | { type: 'error'; message: string; done: true };
 
 export interface AgentSource {
@@ -65,12 +65,6 @@ export interface AgentSource {
   name: string;
   mimeType: string | null;
   score: number;
-}
-
-export interface TokenUsage {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -234,7 +228,7 @@ export class AgentEngine {
     modelId: string | undefined,
     onChunk: (chunk: AgentChunk) => void,
     signal?: AbortSignal
-  ): Promise<{ fullText: string; sources: AgentSource[]; usage?: TokenUsage }> {
+  ): Promise<{ fullText: string; sources: AgentSource[] }> {
     this.executor.userId = userId;
 
     const caps = await this.getModelCapabilities(modelId, userId);
@@ -260,7 +254,7 @@ export class AgentEngine {
     caps: { nativeToolCalling: boolean; vision: boolean },
     onChunk: (chunk: AgentChunk) => void,
     signal?: AbortSignal
-  ): Promise<{ fullText: string; sources: AgentSource[]; usage?: TokenUsage }> {
+  ): Promise<{ fullText: string; sources: AgentSource[] }> {
     const messages: Array<{ role: string; content?: string; toolCalls?: any[]; toolCallId?: string }> = [
       { role: 'system', content: AGENT_SYSTEM_PROMPT },
       ...this.buildHistory(conversationHistory, query),
@@ -269,7 +263,6 @@ export class AgentEngine {
 
     let fullText = '';
     const sources: AgentSource[] = [];
-    const totalUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
     // 循环防护状态
     const callSignatures = new Set<string>();
@@ -286,7 +279,6 @@ export class AgentEngine {
       // 用 index → entry 的 Map 聚合流式 tool call delta，与适配器逻辑保持一致
       const collectedMap = new Map<number, { id: string; name: string; arguments: string }>();
       let streamContent = '';
-      let streamUsage: TokenUsage | undefined;
 
       try {
         await this.gateway.chatCompletionStream(
@@ -299,8 +291,6 @@ export class AgentEngine {
             toolChoice: 'auto',
           },
           (chunk: StreamChunk) => {
-            if (chunk.usage) streamUsage = chunk.usage;
-
             if (chunk.toolCalls?.length) {
               hasToolCalls = true;
               for (const tc of chunk.toolCalls) {
@@ -333,8 +323,6 @@ export class AgentEngine {
           },
           { modelId, signal: combinedSignal }
         );
-
-        if (streamUsage) accumUsage(totalUsage, streamUsage);
       } catch (err) {
         if (isExpectedAbort(err, hasToolCalls)) {
           /* ok */
@@ -438,7 +426,7 @@ export class AgentEngine {
       }
     }
 
-    return { fullText, sources, usage: totalUsage };
+    return { fullText, sources };
   }
 
   // ── Prompt-Based Fallback ──────────────────────────────────────────────────
@@ -450,7 +438,7 @@ export class AgentEngine {
     modelId: string | undefined,
     onChunk: (chunk: AgentChunk) => void,
     signal?: AbortSignal
-  ): Promise<{ fullText: string; sources: AgentSource[]; usage?: TokenUsage }> {
+  ): Promise<{ fullText: string; sources: AgentSource[] }> {
     const messages: Array<{ role: string; content: string }> = [
       { role: 'system', content: PROMPT_BASED_SYSTEM_PROMPT },
       ...this.buildHistory(conversationHistory, query),
@@ -824,12 +812,6 @@ function safeForwardPoint(buffer: string): number {
   if (pos === -1) return buffer.length;
   const after = buffer.slice(pos + 3).trimStart();
   return (after.startsWith('tool_call') || after.startsWith('tool\n') || after.startsWith('tool ')) ? pos : buffer.length;
-}
-
-function accumUsage(target: TokenUsage, src: TokenUsage): void {
-  target.promptTokens += src.promptTokens;
-  target.completionTokens += src.completionTokens;
-  target.totalTokens += src.totalTokens;
 }
 
 function isAbortError(err: unknown): boolean {

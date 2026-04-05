@@ -13,12 +13,6 @@ import { Hono } from 'hono';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
 import { getDb, aiChatSessions, aiChatMessages, files } from '../db';
 import { authMiddleware } from '../middleware/auth';
-import {
-  checkTokenQuota,
-  tokenQuotaExceededResponse,
-  recordTokenUsage,
-  getTokenUsageStats,
-} from '../lib/ai/tokenQuota';
 import { ERROR_CODES } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
 import { z } from 'zod';
@@ -207,12 +201,6 @@ const chatSchema = z.object({
 
 app.post('/chat', async (c) => {
   const userId = c.get('userId')!;
-  const userRole = c.get('user')?.role;
-
-  const quotaResult = await checkTokenQuota(c.env, userId, userRole);
-  if (!quotaResult.allowed) {
-    return tokenQuotaExceededResponse(quotaResult);
-  }
 
   const body = await c.req.json();
   const result = chatSchema.safeParse(body);
@@ -227,10 +215,10 @@ app.post('/chat', async (c) => {
   const { query, sessionId, modelId, maxFiles, includeFileContent, stream } = result.data;
 
   if (stream) {
-    return handleStreamChat(c, userId, query, sessionId, modelId, userRole);
+    return handleStreamChat(c, userId, query, sessionId, modelId);
   }
 
-  return handleNormalChat(c, userId, query, sessionId, modelId, maxFiles, includeFileContent, userRole);
+  return handleNormalChat(c, userId, query, sessionId, modelId, maxFiles, includeFileContent);
 });
 
 async function handleNormalChat(
@@ -240,8 +228,7 @@ async function handleNormalChat(
   sessionId?: string,
   modelId?: string,
   maxFiles?: number,
-  includeFileContent?: boolean,
-  userRole?: string
+  includeFileContent?: boolean
 ) {
   const startTime = Date.now();
   let actualSessionId = sessionId;
@@ -344,21 +331,10 @@ async function handleNormalChat(
       role: 'assistant',
       content: response.content + ragEngine.formatSourcesForResponse(ragContext.relevantFiles),
       sources: sourcesJson,
-      tokenCount: response.usage?.totalTokens || 0,
       modelUsed: response.model,
       latencyMs,
       createdAt: new Date().toISOString(),
     });
-
-    // 记录 token 用量（与流式模式保持一致）
-    const tokenCount = response.usage?.totalTokens || 0;
-    if (tokenCount > 0) {
-      c.executionCtx.waitUntil(
-        recordTokenUsage(c.env, userId, tokenCount, userRole).catch((err) => {
-          logger.error('AI Chat', 'Failed to record token usage', { userId, tokenCount }, err);
-        })
-      );
-    }
 
     return c.json({
       success: true,
@@ -371,7 +347,6 @@ async function handleNormalChat(
           score: f.similarityScore,
         })),
         sessionId: actualSessionId,
-        usage: response.usage,
         latencyMs,
       },
     });
@@ -395,8 +370,7 @@ async function handleStreamChat(
   userId: string,
   query: string,
   sessionId?: string,
-  modelId?: string,
-  userRole?: string
+  modelId?: string
 ) {
   const startTime = Date.now();
   let actualSessionId = sessionId;
@@ -473,7 +447,6 @@ async function handleStreamChat(
 
     let fullText = '';
     let finalSources: Array<{ id: string; name: string; mimeType: string | null; score: number }> = [];
-    let finalUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | undefined;
     let resolveStream!: () => void;
     let doneEmitted = false;
     const streamDone = new Promise<void>((r) => {
@@ -510,8 +483,7 @@ async function handleStreamChat(
               if (chunk.done) {
                 if (chunk.type === 'done') {
                   finalSources = chunk.sources;
-                  finalUsage = chunk.usage;
-                  emitDone({ done: true, sessionId: actualSessionId, sources: chunk.sources, usage: chunk.usage });
+                  emitDone({ done: true, sessionId: actualSessionId, sources: chunk.sources });
                 } else {
                   emitDone({ done: true, error: (chunk as any).message, sessionId: actualSessionId, sources: [] });
                 }
@@ -566,21 +538,16 @@ async function handleStreamChat(
         try {
           if (!fullText.trim()) return;
           const latencyMs = Date.now() - startTime;
-          const tokenCount = finalUsage?.totalTokens || Math.ceil(fullText.length * 0.5);
           await db.insert(aiChatMessages).values({
             id: crypto.randomUUID(),
             sessionId: actualSessionId!,
             role: 'assistant',
             content: fullText,
             sources: JSON.stringify(finalSources),
-            tokenCount,
             latencyMs,
             createdAt: new Date().toISOString(),
           });
-          logger.info('AI Agent', 'Message saved', { sessionId: actualSessionId, latencyMs, tokenCount });
-          recordTokenUsage(c.env, userId, tokenCount, userRole).catch((err) => {
-            logger.error('AI Agent', 'Failed to record token usage', { userId, tokenCount }, err);
-          });
+          logger.info('AI Agent', 'Message saved', { sessionId: actualSessionId, latencyMs });
         } catch (error) {
           logger.error('AI Agent', 'Failed to save message', { userId }, error);
         }
@@ -609,12 +576,5 @@ async function handleStreamChat(
     );
   }
 }
-
-app.get('/token-quota', async (c) => {
-  const userId = c.get('userId')!;
-  const userRole = c.get('user')?.role;
-  const stats = await getTokenUsageStats(c.env, userId, userRole);
-  return c.json({ success: true, data: stats });
-});
 
 export default app;

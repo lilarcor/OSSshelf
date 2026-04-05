@@ -60,11 +60,6 @@ export class WorkersAiAdapter implements IModelAdapter {
         content: (response as { response?: string }).response || '',
         role: 'assistant',
         model: modelConfig.modelId,
-        usage: {
-          promptTokens: 0,
-          completionTokens: 0,
-          totalTokens: 0,
-        },
       };
     } catch (error) {
       logger.error('AI', 'Workers AI chat completion failed', {}, error);

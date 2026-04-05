@@ -58,7 +58,7 @@ import { logger } from '@osshelf/shared';
 import { getAiConfigString, getAiConfigNumber } from './aiConfigService';
 import { ModelGateway } from './modelGateway';
 import type { ModelConfig } from './types';
-import { uint8ArrayToBase64, formatBytes, fetchFileBuffer, getMimeTypeCategory, buildVisionMessageContent, detectModelVendor } from './utils';
+import { uint8ArrayToBase64, formatBytes, fetchFileBuffer, getMimeTypeCategory, buildVisionMessageContent } from './utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 配置常量
@@ -930,25 +930,18 @@ export class AgentToolExecutor {
             };
           }
           const gateway = new ModelGateway(this.env);
-          // 只有智谱模型使用 URL 方式，其他模型使用 base64
-          const vendor = detectModelVendor(customModel.modelId);
-          const imageUrl = file.directLinkToken
-            ? `${this.env.PUBLIC_URL || 'https://ossapi.wort.uk'}/api/direct/${file.directLinkToken}`
-            : undefined;
-          const useUrl = vendor === 'zhipu' && imageUrl;
-          const base64Image = useUrl ? '' : uint8ArrayToBase64(imageBytes);
-          // 智谱模型需要更多 token
-          const maxTokens = vendor === 'zhipu' ? Math.max(visionMaxTokens, 1024) : visionMaxTokens;
+          const base64Image = uint8ArrayToBase64(imageBytes);
           const response = await gateway.chatCompletion(
             this.userId,
             {
               messages: [
                 {
                   role: 'user',
-                  content: buildVisionMessageContent(customModel.modelId, base64Image, actualMimeType, question, useUrl ? imageUrl : undefined),
+                  content: buildVisionMessageContent(base64Image, actualMimeType, question),
                 },
               ],
-              maxTokens,
+              maxTokens: 2048,
+              featureType: 'image_analysis',
             },
             visionModelId
           );
@@ -957,7 +950,7 @@ export class AgentToolExecutor {
           const result = await (this.env.AI as any).run(visionModelId, {
             image: Array.from(imageBytes),
             prompt: question,
-            max_tokens: visionMaxTokens,
+            max_tokens: 2048,
           });
           description =
             (result as any)?.description?.trim() ||
