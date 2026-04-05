@@ -47,29 +47,22 @@ async function getContentLimits(env: Env): Promise<{ summary: number; rename: nu
 const SUMMARY_PROMPTS: Record<string, string> = {
   default: '你是文件助手。请用简洁的中文（不超过3句话）概括文件主要内容。',
   code: '你是代码分析助手。请概括以下代码的功能、主要类/函数/接口、核心逻辑。（不超过4句话）',
-  document: '你是文档分析助手。请概括文档的主题、关键论点和结论。（不超过3句话）',
   markdown: '你是技术文档助手。请概括 Markdown 文档的结构、主要章节和核心内容。（不超过3句话）',
-  spreadsheet: '你是数据分析助手。请概括表格/数据文件的数据类型、关键字段和数据趋势。（不超过3句话）',
+  data: '你是数据分析助手。请概括数据/配置文件的结构、关键字段和主要内容。（不超过3句话）',
 };
 
 async function getSummaryPromptFromConfig(env: Env): Promise<Record<string, string>> {
   try {
     const defaultPrompt = await getAiConfigString(env, 'ai.summary.prompt.default', SUMMARY_PROMPTS.default);
     const codePrompt = await getAiConfigString(env, 'ai.summary.prompt.code', SUMMARY_PROMPTS.code);
-    const documentPrompt = await getAiConfigString(env, 'ai.summary.prompt.document', SUMMARY_PROMPTS.document);
     const markdownPrompt = await getAiConfigString(env, 'ai.summary.prompt.markdown', SUMMARY_PROMPTS.markdown);
-    const spreadsheetPrompt = await getAiConfigString(
-      env,
-      'ai.summary.prompt.spreadsheet',
-      SUMMARY_PROMPTS.spreadsheet
-    );
+    const dataPrompt = await getAiConfigString(env, 'ai.summary.prompt.data', SUMMARY_PROMPTS.data);
 
     return {
       default: defaultPrompt,
       code: codePrompt,
-      document: documentPrompt,
       markdown: markdownPrompt,
-      spreadsheet: spreadsheetPrompt,
+      data: dataPrompt,
     };
   } catch (error) {
     logger.warn('AI', 'Failed to load prompts from config, using defaults');
@@ -79,53 +72,36 @@ async function getSummaryPromptFromConfig(env: Env): Promise<Record<string, stri
 
 function getSummaryPrompt(mimeType: string | null, fileName: string): string {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  
   const codeExts = [
-    'js',
-    'ts',
-    'jsx',
-    'tsx',
-    'py',
-    'java',
-    'go',
-    'rs',
-    'c',
-    'cpp',
-    'h',
-    'cs',
-    'rb',
-    'php',
-    'swift',
-    'kt',
-    'scala',
-    'r',
-    'sql',
-    'sh',
-    'bash',
-    'yaml',
-    'yml',
-    'json',
-    'xml',
-    'html',
-    'css',
-    'scss',
-    'vue',
-    'svelte',
+    'js', 'jsx', 'ts', 'tsx', 'py', 'java', 'go', 'rs', 'c', 'cpp', 'h', 'hpp',
+    'cs', 'rb', 'php', 'swift', 'kt', 'scala', 'r', 'sql', 'sh', 'bash',
+    'html', 'htm', 'css', 'scss', 'less', 'vue', 'svelte',
   ];
-  const docExts = ['pdf', 'doc', 'docx', 'rtf', 'odt'];
-  const sheetExts = ['csv', 'xls', 'xlsx', 'ods'];
+  
+  const dataExts = ['json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'env'];
 
-  if (codeExts.includes(ext) || mimeType?.startsWith('text/') || mimeType === 'application/json') {
-    return SUMMARY_PROMPTS.code;
-  }
-  if (docExts.includes(ext) || mimeType?.includes('document') || mimeType?.includes('pdf')) {
-    return SUMMARY_PROMPTS.document;
-  }
-  if (ext === 'md') {
+  if (ext === 'md' || ext === 'markdown') {
     return SUMMARY_PROMPTS.markdown;
   }
-  if (sheetExts.includes(ext) || mimeType?.includes('sheet') || mimeType?.includes('excel')) {
-    return SUMMARY_PROMPTS.spreadsheet;
+  
+  if (codeExts.includes(ext)) {
+    return SUMMARY_PROMPTS.code;
   }
+  
+  if (dataExts.includes(ext)) {
+    return SUMMARY_PROMPTS.data;
+  }
+  
+  if (mimeType === 'application/json' || mimeType === 'application/xml' ||
+      mimeType === 'application/javascript' || mimeType?.includes('yaml')) {
+    return SUMMARY_PROMPTS.data;
+  }
+  
+  if (mimeType?.startsWith('text/') && mimeType !== 'text/plain') {
+    return SUMMARY_PROMPTS.code;
+  }
+
   return SUMMARY_PROMPTS.default;
 }
 
