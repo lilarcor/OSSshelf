@@ -143,10 +143,10 @@ export function buildVisionMessageContent(
     // 判断：包含 'flash' 或 'glm-4v'（旧版 4V 系列）→ 纯 base64；否则 data URI
     const usePlainBase64 = id.includes('flash') || (id.includes('glm-4v') && !id.includes('glm-4.6v'));
     const imageUrl = usePlainBase64 ? base64Image : `data:${mimeType};base64,${base64Image}`;
-    // 智谱所有视觉模型：image 在前，text 在后
+    // 智谱所有视觉模型：text 在前，image 在后（参考智谱官方文档）
     return [
-      { type: 'image_url', image_url: { url: imageUrl } },
       { type: 'text', text: textPrompt },
+      { type: 'image_url', image_url: { url: imageUrl } },
     ];
   }
 
