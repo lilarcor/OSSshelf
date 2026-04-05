@@ -30,7 +30,7 @@ import { getAiConfigString, getAiConfigNumber, initializeAiConfig } from './aiCo
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 500;
-const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 
 export class ModelGateway {
   private env: Env;

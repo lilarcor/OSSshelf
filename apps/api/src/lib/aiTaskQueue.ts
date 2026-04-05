@@ -171,6 +171,20 @@ async function handleSummaryTask(env: Env, message: AiTaskMessage): Promise<{ su
   try {
     await generateFileSummary(env, fileId, undefined, userId);
     await incrementProcessed(env, taskId);
+
+    // 上传自动处理：summary 完成后触发向量索引（确保 aiSummary 已写入）
+    if (message.triggerIndexOnComplete && env.VECTORIZE) {
+      try {
+        const text = await buildFileTextForVector(env, fileId);
+        if (text && text.trim().length > 0) {
+          await indexFileVector(env, fileId, text);
+          logger.info('AI_QUEUE', 'Auto index after summary', { fileId });
+        }
+      } catch (indexErr) {
+        logger.error('AI_QUEUE', 'Auto index after summary failed', { fileId }, indexErr);
+      }
+    }
+
     return { success: true };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -186,6 +200,20 @@ async function handleTagsTask(env: Env, message: AiTaskMessage): Promise<{ succe
   try {
     await generateImageTags(env, fileId, undefined, userId);
     await incrementProcessed(env, taskId);
+
+    // 上传自动处理：tags 完成后触发向量索引（确保 aiSummary/caption 已写入）
+    if (message.triggerIndexOnComplete && env.VECTORIZE) {
+      try {
+        const text = await buildFileTextForVector(env, fileId);
+        if (text && text.trim().length > 0) {
+          await indexFileVector(env, fileId, text);
+          logger.info('AI_QUEUE', 'Auto index after tags', { fileId });
+        }
+      } catch (indexErr) {
+        logger.error('AI_QUEUE', 'Auto index after tags failed', { fileId }, indexErr);
+      }
+    }
+
     return { success: true };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);

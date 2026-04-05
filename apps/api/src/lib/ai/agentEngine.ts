@@ -157,8 +157,15 @@ export const AGENT_SYSTEM_PROMPT = `你是 OSSshelf 的智能文件管家，拥�
 ## 五、输出规范
 
 - **语言**：中文（除非用户用其他语言）
-- **引用文件**：使用 \`[FILE:id:filename]\` 格式，每个文件单独一行
-- **图片筛选结果**：列出符合条件的图片，并附上 analyze_image 返回的视觉描述摘要
+
+- **引用文件（重要）**：回复中提到任何具体文件时，必须用以下格式内联引用，系统自动渲染为可点击链接：
+  - 文件：`[FILE:文件的id字段:文件的name字段]`
+  - 文件夹：`[FOLDER:文件夹id:文件夹name]`
+  - **id 和 name 必须原样取自工具返回结果中文件对象的 id 和 name 字段，不得编造**
+  - 示例：工具返回 {"id":"abc-123","name":"季度报告.pdf",...} → 输出 [FILE:abc-123:季度报告.pdf]
+  - 每个文件单独一行列出
+
+- **图片筛选结果**：列出符合条件的图片（同上引用格式），并附上 analyze_image 返回的视觉描述摘要
 - **无结果时**：说明搜索了哪些词/条件，建议用户可以怎么上传或标记文件
 - **长列表**：超过 10 个结果时，先展示最相关的 5-8 个，告知用户"共找到 N 个，以下是最相关的"
 
@@ -275,7 +282,8 @@ export class AgentEngine {
       const combinedSignal = signal ? AbortSignal.any([signal, abortCtrl.signal]) : abortCtrl.signal;
 
       let hasToolCalls = false;
-      const collected: Array<{ id: string; name: string; arguments: string }> = [];
+      // 用 index → entry 的 Map 聚合流式 tool call delta，与适配器逻辑保持一致
+      const collectedMap = new Map<number, { id: string; name: string; arguments: string }>();
       let streamContent = '';
       let streamUsage: TokenUsage | undefined;
 
@@ -295,10 +303,19 @@ export class AgentEngine {
             if (chunk.toolCalls?.length) {
               hasToolCalls = true;
               for (const tc of chunk.toolCalls) {
-                const ex = collected.find((c) => c.id === tc.id);
+                const idx = tc.index ?? 0;
+                const ex = collectedMap.get(idx);
                 if (ex) {
+                  if (tc.id && !ex.id) ex.id = tc.id;
+                  if (tc.name && !ex.name) ex.name = tc.name;
                   if (tc.arguments) ex.arguments += tc.arguments;
-                } else collected.push({ id: tc.id || randomId(), name: tc.name || '', arguments: tc.arguments || '' });
+                } else {
+                  collectedMap.set(idx, {
+                    id: tc.id || randomId(),
+                    name: tc.name || '',
+                    arguments: tc.arguments || '',
+                  });
+                }
               }
               return;
             }
@@ -318,10 +335,14 @@ export class AgentEngine {
           /* ok */
         } else if (!isAbortError(err)) {
           logger.error('AgentEngine', 'LLM stream error (native)', {}, err);
-          onChunk({ type: 'error', message: 'AI 模型调用失败，请检查模型配置', done: true });
-          return { fullText, sources, usage: totalUsage };
+          // native 模式失败时自动 fallback 到 prompt-based，而不是直接报错
+          logger.warn('AgentEngine', 'Native tool calling failed, falling back to prompt-based');
+          return this.runPromptBased(userId, query, conversationHistory, modelId, onChunk, signal);
         }
       }
+
+      // 过滤掉 name 为空的残缺工具调用（流式解析不完整时的防御）
+      const collected = Array.from(collectedMap.values()).filter((tc) => tc.name);
 
       if (!hasToolCalls) {
         messages.push({ role: 'assistant', content: streamContent });
@@ -589,7 +610,7 @@ export class AgentEngine {
 
     const resultData = result as any;
     const fileList: any[] = resultData?.files || [];
-    const imageFiles = fileList.filter((f) => f.mimeType?.startsWith('image/')).slice(0, 8);
+    const imageFiles = fileList.filter((f) => f.mimeType?.startsWith('image/')).slice(0, 5);
 
     if (imageFiles.length === 0) return { callsUsed: 0, hadNewData: false };
 
@@ -606,25 +627,43 @@ export class AgentEngine {
     let hadNewData = false;
     const chainResults: Array<{ fileId: string; fileName: string; result: unknown }> = [];
 
+    // 收集需要分析的图片（去重后并行执行）
+    const pendingImages: Array<{ imgFile: any; chainId: string; chainArgs: { fileId: string } }> = [];
     for (const imgFile of imageFiles) {
       const chainSig = callSig('analyze_image', { fileId: imgFile.id });
       if (callSignatures.has(chainSig)) continue;
       callSignatures.add(chainSig);
       callsUsed++;
-
       const chainId = randomId();
       const chainArgs = { fileId: imgFile.id };
-
       onChunk({ type: 'tool_start', toolName: 'analyze_image', toolCallId: chainId, args: chainArgs, done: false });
+      pendingImages.push({ imgFile, chainId, chainArgs });
+    }
 
-      let chainResult: unknown;
-      try {
-        chainResult = await this.executor.execute('analyze_image', chainArgs);
-        hadNewData = mergeSourcesFromResult(chainResult, sources) || hadNewData;
-      } catch (err) {
-        chainResult = { error: err instanceof Error ? err.message : '视觉分析失败' };
-      }
+    if (pendingImages.length === 0) return { callsUsed: 0, hadNewData: false };
 
+    // 并行执行，单张图片最多 25 秒（避免单张卡死整个链）
+    const SINGLE_IMAGE_TIMEOUT_MS = 25_000;
+    const parallelResults = await Promise.all(
+      pendingImages.map(async ({ imgFile, chainId, chainArgs }) => {
+        let chainResult: unknown;
+        try {
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('analyze_image timeout')), SINGLE_IMAGE_TIMEOUT_MS)
+          );
+          chainResult = await Promise.race([
+            this.executor.execute('analyze_image', chainArgs),
+            timeoutPromise,
+          ]);
+        } catch (err) {
+          chainResult = { error: err instanceof Error ? err.message : '视觉分析失败' };
+        }
+        return { imgFile, chainId, chainResult };
+      })
+    );
+
+    for (const { imgFile, chainId, chainResult } of parallelResults) {
+      hadNewData = mergeSourcesFromResult(chainResult, sources) || hadNewData;
       chainResults.push({ fileId: imgFile.id, fileName: imgFile.name, result: chainResult });
 
       onChunk({

@@ -16,6 +16,8 @@ export interface AiTaskMessage {
   userId: string;
   taskId: string;
   retryCount?: number;
+  /** tags/summary 完成后是否自动触发向量索引（上传自动处理时使用） */
+  triggerIndexOnComplete?: boolean;
 }
 
 export interface Env {

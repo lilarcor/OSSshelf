@@ -21,6 +21,7 @@ import { getFileContent } from '../utils';
 import { getEncryptionKey } from '../crypto';
 import { isEditableFile, logger, logAiError } from '@osshelf/shared';
 import { indexFileVector, buildFileTextForVector } from '../vectorIndex';
+import { createTaskRecord } from '../aiTaskQueue';
 import { ModelGateway } from './modelGateway';
 import type { ChatCompletionRequest, ModelConfig } from './types';
 import { tgDownloadFile, type TelegramBotConfig } from '../telegramClient';
@@ -910,17 +911,29 @@ export async function enqueueAutoProcessFile(env: Env, fileId: string, userId?: 
 
   if (env.AI_TASKS_QUEUE) {
     try {
-      const messages = taskTypes.map((type) => ({
+      // 先创建 task 记录（processAiTaskMessage 会先查此记录，不存在则跳过）
+      // index 不单独入队 —— 由 tags/summary 各自完成后在 aiTaskQueue 里触发
+      const contentTaskTypes = taskTypes.filter((t) => t !== 'index') as Array<'summary' | 'tags'>;
+      if (contentTaskTypes.length === 0) return;
+
+      // 创建一个 task 记录，total = contentTaskTypes.length
+      // index 在所有内容任务完成后由队列处理器自动触发
+      const task = await createTaskRecord(env, contentTaskTypes[0], effectiveUserId, contentTaskTypes.length);
+      const taskId = task.id;
+
+      const messages = contentTaskTypes.map((type) => ({
         body: {
           type,
           fileId,
           userId: effectiveUserId,
           taskId,
+          // 标记需要在完成后触发 index
+          triggerIndexOnComplete: env.VECTORIZE ? true : false,
         } as import('../../types/env').AiTaskMessage,
       }));
 
       await env.AI_TASKS_QUEUE.sendBatch(messages);
-      logger.info('AI', '文件AI处理任务已入队', { fileId, taskTypes, userId: effectiveUserId });
+      logger.info('AI', '文件AI处理任务已入队', { fileId, taskTypes: contentTaskTypes, userId: effectiveUserId });
       return;
     } catch (error) {
       logger.warn('AI', '队列发送失败，降级为同步处理', { fileId }, error);

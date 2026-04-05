@@ -350,6 +350,16 @@ async function handleNormalChat(
       createdAt: new Date().toISOString(),
     });
 
+    // 记录 token 用量（与流式模式保持一致）
+    const tokenCount = response.usage?.totalTokens || 0;
+    if (tokenCount > 0) {
+      c.executionCtx.waitUntil(
+        recordTokenUsage(c.env, userId, tokenCount, userRole).catch((err) => {
+          logger.error('AI Chat', 'Failed to record token usage', { userId, tokenCount }, err);
+        })
+      );
+    }
+
     return c.json({
       success: true,
       data: {

@@ -118,13 +118,15 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
     this.validateConnection();
 
     try {
+      // stream_options 仅在支持的模型上启用（不支持时部分 API 会报错）
+      const supportsStreamOptions = !this.config.configJson?.disableStreamOptions;
       const streamBody: Record<string, unknown> = {
         model: this.config.modelId,
         messages: request.messages,
         max_tokens: request.maxTokens || this.config.maxTokens,
         temperature: request.temperature ?? this.config.temperature,
         stream: true,
-        stream_options: { include_usage: true },
+        ...(supportsStreamOptions ? { stream_options: { include_usage: true } } : {}),
       };
 
       if (request.tools && request.tools.length > 0) {
@@ -168,6 +170,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
           const trimmedLine = line.trim();
           if (!trimmedLine || trimmedLine === 'data: [DONE]') {
             if (trimmedLine === 'data: [DONE]') {
+              // 如果 finish_reason=tool_calls 已经 emit 并 clear 了，这里 size=0，跳过
               if (toolCallMap.size > 0) {
                 onChunk({
                   id: crypto.randomUUID(),
@@ -176,12 +179,13 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
                   model: this.config.modelId,
                   done: false,
                   toolCalls: Array.from(toolCallMap.entries()).map(([index, tc]) => ({
-                    id: tc.id || '',
-                    name: tc.name,
+                    id: tc.id || `tc_idx_${index}`,
+                    name: tc.name || '',
                     arguments: tc.arguments,
                     index,
                   })),
                 });
+                toolCallMap.clear();
               }
               onChunk({
                 id: crypto.randomUUID(),
@@ -197,7 +201,8 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
           if (trimmedLine.startsWith('data: ')) {
             try {
               const data = JSON.parse(trimmedLine.slice(6));
-              const delta = data.choices?.[0]?.delta;
+              const choice = data.choices?.[0];
+              const delta = choice?.delta;
 
               // 解析 usage（stream_options.include_usage=true 时，最后一个 chunk 含此字段）
               if (data.usage) {
@@ -227,7 +232,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
 
               if (delta?.tool_calls) {
                 for (const tc of delta.tool_calls) {
-                  const idx = tc.index;
+                  const idx = tc.index ?? 0;
                   if (!toolCallMap.has(idx)) {
                     toolCallMap.set(idx, { arguments: '' });
                   }
@@ -236,6 +241,24 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
                   if (tc.function?.name) existing.name = tc.function.name;
                   if (tc.function?.arguments) existing.arguments += tc.function.arguments;
                 }
+              }
+
+              // finish_reason=tool_calls 时立即 emit（部分模型不发 [DONE] 或发送顺序不同）
+              if (choice?.finish_reason === 'tool_calls' && toolCallMap.size > 0) {
+                onChunk({
+                  id: data.id || crypto.randomUUID(),
+                  content: '',
+                  role: 'assistant',
+                  model: this.config.modelId,
+                  done: false,
+                  toolCalls: Array.from(toolCallMap.entries()).map(([index, tc]) => ({
+                    id: tc.id || `tc_idx_${index}`,
+                    name: tc.name || '',
+                    arguments: tc.arguments,
+                    index,
+                  })),
+                });
+                toolCallMap.clear();
               }
             } catch {
               continue;
