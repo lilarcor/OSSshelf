@@ -161,7 +161,7 @@ export const fileTags = sqliteTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     color: text('color').default('#6366f1'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     fileIdx: index('idx_file_tags_file').on(table.fileId),
@@ -179,8 +179,8 @@ export const userGroups = sqliteTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     description: text('description'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
-    updatedAt: text('updated_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
   },
   (table) => ({
     ownerIdx: index('idx_user_groups_owner').on(table.ownerId),
@@ -199,7 +199,7 @@ export const groupMembers = sqliteTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     role: text('role').notNull().default('member'),
     addedBy: text('added_by').references(() => users.id),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     userIdx: index('idx_group_members_user').on(table.userId),
@@ -226,8 +226,8 @@ export const filePermissions = sqliteTable(
     inheritToChildren: integer('inherit_to_children', { mode: 'boolean' }).notNull().default(true),
     scope: text('scope').notNull().default('explicit'),
     sourcePermissionId: text('source_permission_id'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
-    updatedAt: text('updated_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
   },
   (table) => ({
     fileIdx: index('idx_file_permissions_file').on(table.fileId),
@@ -253,7 +253,7 @@ export const auditLogs = sqliteTable(
     userAgent: text('user_agent'),
     status: text('status').default('success'),
     errorMessage: text('error_message'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     userIdx: index('idx_audit_logs_user').on(table.userId, table.createdAt),
@@ -271,7 +271,7 @@ export const loginAttempts = sqliteTable(
     ipAddress: text('ip_address').notNull(),
     success: integer('success', { mode: 'boolean' }).notNull().default(false),
     userAgent: text('user_agent'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     emailIdx: index('idx_login_attempts_email').on(table.email, table.createdAt),
@@ -291,8 +291,8 @@ export const userDevices = sqliteTable(
     deviceType: text('device_type'),
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
-    lastActive: text('last_active').notNull().default('CURRENT_TIMESTAMP'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    lastActive: text('last_active').notNull(),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     userIdx: index('idx_user_devices_user').on(table.userId),
@@ -319,8 +319,8 @@ export const uploadTasks = sqliteTable(
     status: text('status').default('pending'),
     progress: integer('progress').default(0),
     errorMessage: text('error_message'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
-    updatedAt: text('updated_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
     expiresAt: text('expires_at').notNull(),
   },
   (table) => ({
@@ -344,8 +344,8 @@ export const downloadTasks = sqliteTable(
     status: text('status').default('pending'),
     progress: integer('progress').default(0),
     errorMessage: text('error_message'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
-    updatedAt: text('updated_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
     completedAt: text('completed_at'),
   },
   (table) => ({
@@ -363,7 +363,7 @@ export const telegramFileRefs = sqliteTable(
     tgFileId: text('tg_file_id').notNull(),
     tgFileSize: integer('tg_file_size'),
     bucketId: text('bucket_id').notNull(),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     r2KeyIdx: index('idx_tg_refs_r2key').on(table.r2Key),
@@ -381,7 +381,7 @@ export const telegramFileChunks = sqliteTable(
     tgFileId: text('tg_file_id').notNull(),
     chunkSize: integer('chunk_size').notNull(),
     bucketId: text('bucket_id').notNull(),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     groupIdx: index('idx_tg_chunks_group').on(table.groupId, table.chunkIndex),
@@ -398,7 +398,7 @@ export const searchHistory = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     query: text('query').notNull(),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     userCreatedIdx: index('idx_search_history_user').on(table.userId, table.createdAt),
@@ -420,7 +420,7 @@ export const fileVersions = sqliteTable(
     refCount: integer('ref_count').default(1).notNull(),
     changeSummary: text('change_summary'),
     createdBy: text('created_by').references(() => users.id),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     fileCreatedIdx: index('idx_file_versions_file').on(table.fileId, table.createdAt),
@@ -444,8 +444,8 @@ export const fileNotes = sqliteTable(
     isPinned: integer('is_pinned', { mode: 'boolean' }).notNull().default(false),
     version: integer('version').notNull().default(1),
     parentId: text('parent_id'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
-    updatedAt: text('updated_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
     deletedAt: text('deleted_at'),
   },
   (table) => ({
@@ -465,7 +465,7 @@ export const fileNoteHistory = sqliteTable(
     content: text('content').notNull(),
     version: integer('version').notNull(),
     editedBy: text('edited_by').references(() => users.id),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     noteVersionIdx: index('idx_file_note_history_note').on(table.noteId, table.version),
@@ -483,7 +483,7 @@ export const noteMentions = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     isRead: integer('is_read', { mode: 'boolean' }).notNull().default(false),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     userIdx: index('idx_note_mentions_user').on(table.userId, table.isRead),
@@ -505,7 +505,7 @@ export const apiKeys = sqliteTable(
     lastUsedAt: text('last_used_at'),
     expiresAt: text('expires_at'),
     isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     userIdx: index('idx_api_keys_user').on(table.userId, table.isActive),
@@ -526,7 +526,7 @@ export const webhooks = sqliteTable(
     events: text('events').notNull(),
     isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
     lastStatus: integer('last_status'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     userIdx: index('idx_webhooks_user').on(table.userId, table.isActive),
@@ -545,7 +545,7 @@ export const notifications = sqliteTable(
     body: text('body'),
     data: text('data'),
     isRead: integer('is_read', { mode: 'boolean' }).notNull().default(false),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     userIdx: index('idx_notifications_user').on(table.userId, table.isRead, table.createdAt),
@@ -565,7 +565,7 @@ export const emailTokens = sqliteTable(
     code: text('code').notNull(),
     expiresAt: text('expires_at').notNull(),
     usedAt: text('used_at'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     userIdx: index('idx_email_tokens_user').on(table.userId, table.type),
@@ -583,7 +583,7 @@ export const userStars = sqliteTable(
     fileId: text('file_id')
       .notNull()
       .references(() => files.id, { onDelete: 'cascade' }),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     uniqueIdx: uniqueIndex('idx_user_stars_unique').on(table.userId, table.fileId),
@@ -610,8 +610,8 @@ export const aiModels = sqliteTable(
     temperature: real('temperature').default(0.7),
     systemPrompt: text('system_prompt'),
     configJson: text('config_json').default('{}'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
-    updatedAt: text('updated_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
   },
   (table) => ({
     userActiveIdx: index('idx_ai_models_user_active').on(table.userId, table.isActive),
@@ -628,8 +628,8 @@ export const aiChatSessions = sqliteTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     title: text('title').notNull().default('新对话'),
     modelId: text('model_id'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
-    updatedAt: text('updated_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
   },
   (table) => ({
     userUpdatedIdx: index('idx_chat_sessions_user_updated').on(table.userId, table.updatedAt),
@@ -648,7 +648,7 @@ export const aiChatMessages = sqliteTable(
     sources: text('sources'),
     modelUsed: text('model_used'),
     latencyMs: integer('latency_ms'),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
   },
   (table) => ({
     sessionCreatedIdx: index('idx_chat_messages_session_created').on(table.sessionId, table.createdAt),
@@ -699,8 +699,8 @@ export const aiConfig = sqliteTable(
     isSystem: integer('is_system', { mode: 'boolean' }).notNull().default(true),
     isEditable: integer('is_editable', { mode: 'boolean' }).notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
-    createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),
-    updatedAt: text('updated_at').notNull().default('CURRENT_TIMESTAMP'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
   },
   (table) => ({
     categoryIdx: index('idx_ai_config_category').on(table.category),

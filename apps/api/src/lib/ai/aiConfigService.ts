@@ -441,6 +441,7 @@ export async function initializeAiConfig(env: Env): Promise<void> {
   ];
 
   for (const config of defaultConfigs) {
+    const now = new Date().toISOString();
     await db.insert(aiConfig).values({
       id: crypto.randomUUID(),
       ...config,
@@ -448,6 +449,8 @@ export async function initializeAiConfig(env: Env): Promise<void> {
       numberValue: config.valueType === 'number' ? parseFloat(config.defaultValue) : null,
       booleanValue: config.valueType === 'boolean' ? config.defaultValue === 'true' : false,
       jsonValue: config.valueType === 'json' ? config.defaultValue : null,
+      createdAt: now,
+      updatedAt: now,
     });
   }
 
