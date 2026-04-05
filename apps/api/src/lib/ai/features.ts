@@ -482,6 +482,7 @@ export async function generateFileSummary(
   }
 
   const truncatedContent = textContent.slice(0, contentLimits.summary);
+  const summaryMaxTokens = await getAiConfigNumber(env, 'ai.summary.max_tokens', 200);
 
   try {
     const summary = await callChatModel(
@@ -499,7 +500,7 @@ export async function generateFileSummary(
             content: truncatedContent,
           },
         ],
-        maxTokens: 200,
+        maxTokens: summaryMaxTokens,
       },
       signal
     );
@@ -632,6 +633,8 @@ export async function suggestFileName(
     contextForAI = hints;
   }
 
+  const renameMaxTokens = await getAiConfigNumber(env, 'ai.rename.max_tokens', 150);
+
   try {
     const responseText = await callChatModel(env, userId || file.userId || 'default', 'rename', {
       messages: [
@@ -650,7 +653,7 @@ export async function suggestFileName(
           content: `原文件名：${file.name}\n${contextForAI}`,
         },
       ],
-      maxTokens: 150,
+      maxTokens: renameMaxTokens,
     });
 
     const suggestions = responseText
@@ -687,6 +690,7 @@ export async function suggestFileNameFromContent(
 
   const contentLimits = await getContentLimits(env);
   const ext = extension || '';
+  const renameMaxTokens = await getAiConfigNumber(env, 'ai.rename.max_tokens', 150);
 
   try {
     const responseText = await callChatModel(env, userId || 'default', 'rename', {
@@ -706,7 +710,7 @@ export async function suggestFileNameFromContent(
           content: `文件类型：${mimeType || '未知'}\n文件内容（前${contentLimits.rename}字）：\n${content.slice(0, contentLimits.rename)}`,
         },
       ],
-      maxTokens: 150,
+      maxTokens: renameMaxTokens,
     });
 
     const suggestions = responseText

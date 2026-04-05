@@ -903,7 +903,7 @@ export class AgentToolExecutor {
       'ai.default_model.vision',
       '@cf/llava-hf/llava-1.5-7b-hf'
     );
-    const visionMaxTokens = await getAiConfigNumber(this.env, 'ai.vision.max_tokens', 600);
+    const visionMaxTokens = await getAiConfigNumber(this.env, 'ai.vision.max_tokens', 2048);
 
     try {
       const modelGateway = new ModelGateway(this.env);
