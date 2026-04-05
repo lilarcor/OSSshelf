@@ -295,6 +295,8 @@ async function callVisionModel(
         const vendor = detectModelVendor(customModel.modelId);
         const useUrl = vendor === 'zhipu' && imageUrl;
         const base64Image = useUrl ? '' : uint8ArrayToBase64(imageData);
+        // 智谱模型需要更多 token
+        const maxTokens = vendor === 'zhipu' ? 1024 : 300;
         const response = await gateway.chatCompletion(
           userId,
           {
@@ -304,7 +306,7 @@ async function callVisionModel(
                 content: buildVisionMessageContent(customModel.modelId, base64Image, mimeType, prompt, useUrl ? imageUrl : undefined),
               },
             ],
-            maxTokens: 300,
+            maxTokens,
           },
           effectiveModelId
         );
@@ -389,6 +391,8 @@ async function callVisionModelForTags(
         const vendor = detectModelVendor(customModel.modelId);
         const useUrl = vendor === 'zhipu' && imageUrl;
         const base64Image = useUrl ? '' : uint8ArrayToBase64(imageData);
+        // 智谱模型需要更多 token
+        const maxTokens = vendor === 'zhipu' ? 512 : 100;
         const response = await gateway.chatCompletion(
           userId,
           {
@@ -398,7 +402,7 @@ async function callVisionModelForTags(
                 content: buildVisionMessageContent(customModel.modelId, base64Image, mimeType, IMAGE_TAG_PROMPT, useUrl ? imageUrl : undefined),
               },
             ],
-            maxTokens: 100,
+            maxTokens,
           },
           effectiveModelId
         );

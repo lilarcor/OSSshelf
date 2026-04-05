@@ -44,6 +44,12 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         stream: false,
       };
 
+      // 智谱模型：禁用思考模式以减少 token 消耗
+      const modelIdLower = this.config.modelId.toLowerCase();
+      if (modelIdLower.includes('glm-4') || modelIdLower.includes('glm-5')) {
+        body.thinking = { type: 'disabled' };
+      }
+
       if (request.tools && request.tools.length > 0) {
         body.tools = request.tools;
         body.tool_choice = request.toolChoice || 'auto';
@@ -86,6 +92,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         choices: Array<{
           message: {
             content: string | null;
+            reasoning_content?: string | null;
             role: string;
             tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }>;
           };
@@ -103,9 +110,12 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         choicesCount: data.choices?.length,
         firstChoiceFinishReason: data.choices?.[0]?.finish_reason,
         firstChoiceContentLength: data.choices?.[0]?.message?.content?.length,
+        firstChoiceReasoningLength: data.choices?.[0]?.message?.reasoning_content?.length,
       });
 
       const choice = data.choices[0];
+      // 智谱思考模式：优先使用 reasoning_content，否则使用 content
+      const responseContent = choice?.message?.reasoning_content || choice?.message?.content || '';
       const toolCalls = choice?.message?.tool_calls?.map((tc) => ({
         id: tc.id,
         name: tc.function.name,
@@ -114,7 +124,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
 
       return {
         id: data.id || crypto.randomUUID(),
-        content: choice?.message?.content || '',
+        content: responseContent,
         role: 'assistant',
         model: this.config.modelId,
         usage: data.usage
@@ -158,6 +168,12 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         stream: true,
         ...(supportsStreamOptions ? { stream_options: { include_usage: true } } : {}),
       };
+
+      // 智谱模型：禁用思考模式以减少 token 消耗
+      const modelIdLower = this.config.modelId.toLowerCase();
+      if (modelIdLower.includes('glm-4') || modelIdLower.includes('glm-5')) {
+        streamBody.thinking = { type: 'disabled' };
+      }
 
       if (request.tools && request.tools.length > 0) {
         streamBody.tools = request.tools;
