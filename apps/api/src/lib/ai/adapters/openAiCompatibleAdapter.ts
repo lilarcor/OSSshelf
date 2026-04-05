@@ -230,6 +230,17 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
                 });
               }
 
+              if (delta?.reasoning_content) {
+                onChunk({
+                  id: data.id || crypto.randomUUID(),
+                  content: '',
+                  role: 'assistant',
+                  model: this.config.modelId,
+                  done: false,
+                  reasoningContent: delta.reasoning_content,
+                });
+              }
+
               if (delta?.tool_calls) {
                 for (const tc of delta.tool_calls) {
                   const idx = tc.index ?? 0;

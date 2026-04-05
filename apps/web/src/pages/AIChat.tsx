@@ -78,6 +78,7 @@ interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  reasoning?: string;
   sources?: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
   toolCalls?: ToolCallEvent[];
   timestamp: Date;
@@ -125,6 +126,7 @@ interface SseChunk {
   sources?: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
   error?: string;
   usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
+  reasoning?: boolean;
   // Tool events
   toolStart?: boolean;
   toolResult?: boolean;
@@ -409,6 +411,36 @@ function FileChip({ file, onClick }: { file: AgentFile; onClick: () => void }) {
   );
 }
 
+function ReasoningSection({ content }: { content: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!content.trim()) return null;
+
+  return (
+    <div className="mb-2 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-2 w-full px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700/30 transition-colors text-left"
+      >
+        <span className="flex items-center justify-center h-5 w-5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-600 flex-shrink-0">
+          <Sparkles className="h-3 w-3" />
+        </span>
+        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">思考过程</span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 text-slate-400 transition-transform ml-auto ${expanded ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {expanded && (
+        <div className="px-3 pb-2.5 pt-0 border-t border-slate-100 dark:border-slate-700/50">
+          <div className="text-xs text-slate-500 dark:text-slate-400 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+            {content}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Renders assistant message content with [FILE:...] refs converted to buttons
 function AssistantContent({
   content,
@@ -660,6 +692,14 @@ export function AIChat() {
                       }
                     : m
                 )
+              );
+              return;
+            }
+
+            // Reasoning content (思考过程)
+            if (raw.reasoning && raw.content) {
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantId ? { ...m, reasoning: (m.reasoning || '') + raw.content! } : m))
               );
               return;
             }
@@ -999,6 +1039,9 @@ export function AIChat() {
                 )}
 
                 <div className="max-w-[85%] min-w-0">
+                  {/* Reasoning section (思考过程) */}
+                  {msg.role === 'assistant' && msg.reasoning && <ReasoningSection content={msg.reasoning} />}
+
                   {/* Tool calls (above bubble, assistant only) */}
                   {msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0 && (
                     <div className="mb-2 space-y-1">

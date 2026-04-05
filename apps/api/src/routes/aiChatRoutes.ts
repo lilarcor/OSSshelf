@@ -519,6 +519,8 @@ async function handleStreamChat(
                 if (chunk.type === 'text') {
                   fullText += chunk.content;
                   enqueue({ content: chunk.content, done: false });
+                } else if (chunk.type === 'reasoning') {
+                  enqueue({ reasoning: true, content: chunk.content, done: false });
                 } else if (chunk.type === 'tool_start') {
                   enqueue({
                     toolStart: true,

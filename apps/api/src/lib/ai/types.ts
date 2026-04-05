@@ -80,6 +80,7 @@ export interface StreamChunk {
   role: 'assistant';
   model: string;
   done: boolean;
+  reasoningContent?: string;
   usage?: {
     promptTokens: number;
     completionTokens: number;

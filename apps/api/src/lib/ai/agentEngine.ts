@@ -54,6 +54,7 @@ const INJECTION_GUARD = `
 
 export type AgentChunk =
   | { type: 'text'; content: string; done: false }
+  | { type: 'reasoning'; content: string; done: false }
   | { type: 'tool_start'; toolName: string; toolCallId: string; args: Record<string, unknown>; done: false }
   | { type: 'tool_result'; toolCallId: string; toolName: string; result: unknown; done: false }
   | { type: 'done'; sessionId: string; sources: AgentSource[]; usage?: TokenUsage; done: true }
@@ -318,6 +319,10 @@ export class AgentEngine {
                 }
               }
               return;
+            }
+
+            if (chunk.reasoningContent) {
+              onChunk({ type: 'reasoning', content: chunk.reasoningContent, done: false });
             }
 
             if (chunk.content && !hasToolCalls) {

@@ -35,6 +35,7 @@ import {
   Tag,
   PanelRightClose,
   ChevronDown,
+  Filter,
 } from 'lucide-react';
 import { aiApi, type AiChatMessage } from '@/services/api';
 import ReactMarkdown from 'react-markdown';
@@ -79,14 +80,22 @@ interface SseChunk {
 
 const TOOL_META: Record<string, { label: string; icon: React.ReactNode }> = {
   search_files: { label: '搜索文件', icon: <Search className="h-3 w-3" /> },
-  list_folder: { label: '浏览文件夹', icon: <FolderOpen className="h-3 w-3" /> },
+  filter_files: { label: '筛选文件', icon: <Filter className="h-3 w-3" /> },
+  search_by_tag: { label: '标签搜索', icon: <Tag className="h-3 w-3" /> },
+  search_duplicates: { label: '查找重复文件', icon: <Copy className="h-3 w-3" /> },
+  read_file_text: { label: '读取文件内容', icon: <FileText className="h-3 w-3" /> },
+  analyze_image: { label: '分析图片', icon: <FileText className="h-3 w-3" /> },
   get_file_detail: { label: '获取文件详情', icon: <FileText className="h-3 w-3" /> },
-  get_file_content: { label: '读取文件内容', icon: <FileText className="h-3 w-3" /> },
-  get_storage_stats: { label: '查询存储统计', icon: <BarChart3 className="h-3 w-3" /> },
+  get_file_versions: { label: '查看版本历史', icon: <Clock className="h-3 w-3" /> },
+  get_file_notes: { label: '查看备注', icon: <FileText className="h-3 w-3" /> },
+  list_folder: { label: '浏览文件夹', icon: <FolderOpen className="h-3 w-3" /> },
+  get_folder_tree: { label: '查看目录树', icon: <FolderOpen className="h-3 w-3" /> },
+  list_recent: { label: '最近文件', icon: <Clock className="h-3 w-3" /> },
   list_starred: { label: '查看收藏', icon: <Star className="h-3 w-3" /> },
   list_shares: { label: '查看共享', icon: <Share2 className="h-3 w-3" /> },
-  list_recent: { label: '最近文件', icon: <Clock className="h-3 w-3" /> },
-  search_by_tag: { label: '标签搜索', icon: <Tag className="h-3 w-3" /> },
+  get_storage_stats: { label: '查询存储统计', icon: <BarChart3 className="h-3 w-3" /> },
+  get_activity_stats: { label: '查看活动统计', icon: <BarChart3 className="h-3 w-3" /> },
+  compare_files: { label: '对比文件', icon: <FileText className="h-3 w-3" /> },
 };
 
 const SUGGESTED = ['帮我找最近上传的文件', '查看我的存储统计', '有哪些带有"项目"标签的文件？'];
@@ -369,6 +378,14 @@ export function AIChatWidget() {
               setMessages((prev) =>
                 prev.map((m) => (m.id === assistantId ? { ...m, content: (m.content || '') + raw.content! } : m))
               );
+            }
+
+            // Error from SSE stream
+            if (raw.error && !raw.done) {
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantId ? { ...m, content: (m.content || '') + `\n\n❌ 错误: ${raw.error}`, isLoading: false } : m))
+              );
+              return;
             }
 
             if (raw.done) {
