@@ -14,19 +14,7 @@ import { tgDownloadChunked, isChunkedFileId } from '../telegramChunked';
  */
 export function uint8ArrayToBase64(bytes: Uint8Array | number[]): string {
   const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  const chunkSize = 8192 * 3;
-  let result = '';
-
-  for (let i = 0; i < arr.length; i += chunkSize) {
-    const chunk = arr.subarray(i, i + chunkSize);
-    let binaryString = '';
-    for (let j = 0; j < chunk.length; j++) {
-      binaryString += String.fromCharCode(chunk[j]);
-    }
-    result += btoa(binaryString);
-  }
-
-  return result;
+  return Buffer.from(arr).toString('base64');
 }
 
 /**
