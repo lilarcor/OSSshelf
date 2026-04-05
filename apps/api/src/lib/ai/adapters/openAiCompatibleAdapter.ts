@@ -44,12 +44,6 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         stream: false,
       };
 
-      // 智谱模型：禁用思考模式以减少 token 消耗
-      const modelIdLower = this.config.modelId.toLowerCase();
-      if (modelIdLower.includes('glm-4') || modelIdLower.includes('glm-5')) {
-        body.thinking = { type: 'disabled' };
-      }
-
       if (request.tools && request.tools.length > 0) {
         body.tools = request.tools;
         body.tool_choice = request.toolChoice || 'auto';
@@ -168,12 +162,6 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         stream: true,
         ...(supportsStreamOptions ? { stream_options: { include_usage: true } } : {}),
       };
-
-      // 智谱模型：禁用思考模式以减少 token 消耗
-      const modelIdLower = this.config.modelId.toLowerCase();
-      if (modelIdLower.includes('glm-4') || modelIdLower.includes('glm-5')) {
-        streamBody.thinking = { type: 'disabled' };
-      }
 
       if (request.tools && request.tools.length > 0) {
         streamBody.tools = request.tools;

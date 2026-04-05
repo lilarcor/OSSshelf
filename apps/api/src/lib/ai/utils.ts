@@ -151,9 +151,10 @@ export function buildThinkingConfig(modelId: string): Record<string, unknown> | 
   const vendor = detectModelVendor(modelId);
   const id = modelId.toLowerCase();
   
+  // 智谱模型：禁用思考模式以减少 token 消耗和响应时间
   if (vendor === 'zhipu') {
     if (id.includes('glm-4.5') || id.includes('glm-4.6') || id.includes('glm-4.7') || id.includes('glm-5')) {
-      return { thinking: { type: 'enabled' } };
+      return { thinking: { type: 'disabled' } };
     }
   }
   
