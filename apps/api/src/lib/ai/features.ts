@@ -580,11 +580,17 @@ export async function generateImageTags(
     let caption = '';
     if (captionResult.status === 'fulfilled') {
       caption = captionResult.value;
+      logger.info('AI', 'Caption result', { caption: caption.slice(0, 100) });
+    } else {
+      logger.error('AI', 'Caption failed', { reason: captionResult.reason?.message || String(captionResult.reason) });
     }
 
     let tags: string[] = [];
     if (tagResult.status === 'fulfilled') {
       tags = tagResult.value;
+      logger.info('AI', 'Tag result', { tags });
+    } else {
+      logger.error('AI', 'Tag failed', { reason: tagResult.reason?.message || String(tagResult.reason) });
     }
 
     const now = new Date().toISOString();
