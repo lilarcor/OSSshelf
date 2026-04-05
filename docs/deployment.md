@@ -1175,7 +1175,46 @@ curl "https://api.telegram.org/bot<TOKEN>/getMe"
 2. 确认 `VITE_API_URL` 环境变量正确
 3. 检查浏览器控制台错误
 
-#### 9. 版本控制功能不可用（v3.3.0）
+#### 9. 直链打开失败跳转首页
+
+**原因**: 直链URL指向了前端域名而不是后端API域名，请求被 Cloudflare Pages 的 SPA fallback 捕获并重定向到首页。
+
+**解决方案**:
+
+**方案一：配置 PUBLIC_URL（推荐）**
+
+在后端配置 `PUBLIC_URL` 环境变量，指向后端API的域名：
+
+```bash
+# GitHub Secrets 中添加
+PUBLIC_URL=https://your-api.workers.dev
+```
+
+或在 `wrangler.toml` 中配置：
+
+```toml
+[vars]
+PUBLIC_URL = "https://your-api.workers.dev"
+```
+
+**方案二：使用同一域名**
+
+如果前端和后端使用同一域名（通过 Cloudflare Pages Functions 或 Service Bindings），项目已内置 `_routes.json` 配置文件，自动排除以下路径不被 SPA fallback 处理：
+
+- `/api/*` - API 接口
+- `/dav/*` - WebDAV 服务
+- `/cron/*` - 定时任务
+- `/health` - 健康检查
+
+**验证直链配置**:
+
+```bash
+# 测试直链是否正常工作
+curl -I https://your-api.workers.dev/api/direct/<token>
+# 应返回 200 或文件内容，而非 HTML 页面
+```
+
+#### 10. 版本控制功能不可用（v3.3.0）
 
 **排查步骤**:
 

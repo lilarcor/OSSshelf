@@ -428,10 +428,16 @@ const FEATURE_CAPABILITY_REQUIREMENTS: Record<string, ModelCapability[]> = {
   rename: ['chat'],
 };
 
-interface ModelValidationResult {
-  valid: boolean;
-  hasCapability: boolean;
-  error?: string;
+function validateWorkersAiModel(modelId: string, requiredCapability: ModelCapability): { valid: boolean; error?: string } {
+  const workersAiModels = WorkersAiAdapter.getAvailableModels();
+  const model = workersAiModels.find((m) => m.id === modelId);
+  if (!model) {
+    return { valid: false, error: 'Workers AI 模型不存在' };
+  }
+  if (!model.capabilities.includes(requiredCapability)) {
+    return { valid: false, error: `该模型不支持 ${requiredCapability} 能力` };
+  }
+  return { valid: true };
 }
 
 // 保存功能模型配置
@@ -447,61 +453,81 @@ app.put('/feature-config', async (c) => {
 
   const gateway = new ModelGateway(c.env);
 
-  const validations = await Promise.all<ModelValidationResult>([
-    summary
-      ? gateway.getModelById(summary, userId).then(
-          (m): ModelValidationResult => ({
-            valid: !!m,
-            hasCapability: m ? (m.capabilities?.includes('chat') ?? false) : false,
-            error: !m ? '摘要模型不存在' : '该模型不支持 chat 能力',
-          })
-        )
-      : Promise.resolve({ valid: true, hasCapability: true }),
-    imageCaption
-      ? gateway.getModelById(imageCaption, userId).then(
-          (m): ModelValidationResult => ({
-            valid: !!m,
-            hasCapability: m ? (m.capabilities?.includes('vision') ?? false) : false,
-            error: !m ? '图片描述模型不存在' : '该模型不支持 vision 能力（需要多模态模型如 GPT-4o）',
-          })
-        )
-      : Promise.resolve({ valid: true, hasCapability: true }),
-    imageTag
-      ? gateway.getModelById(imageTag, userId).then(
-          (m): ModelValidationResult => ({
-            valid: !!m,
-            hasCapability: m ? (m.capabilities?.includes('chat') ?? false) : false,
-            error: !m ? '图片标签模型不存在' : '该模型不支持 chat 能力',
-          })
-        )
-      : Promise.resolve({ valid: true, hasCapability: true }),
-    rename
-      ? gateway.getModelById(rename, userId).then(
-          (m): ModelValidationResult => ({
-            valid: !!m,
-            hasCapability: m ? (m.capabilities?.includes('chat') ?? false) : false,
-            error: !m ? '重命名模型不存在' : '该模型不支持 chat 能力',
-          })
-        )
-      : Promise.resolve({ valid: true, hasCapability: true }),
-  ]);
+  if (summary) {
+    if (summary.startsWith('@cf/')) {
+      const result = validateWorkersAiModel(summary, 'chat');
+      if (!result.valid) {
+        return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: result.error } }, 400);
+      }
+    } else {
+      const m = await gateway.getModelById(summary, userId);
+      if (!m) {
+        return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '摘要模型不存在' } }, 400);
+      }
+      if (!m.capabilities?.includes('chat')) {
+        return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '该模型不支持 chat 能力' } }, 400);
+      }
+    }
+  }
 
-  const [validSummary, validImageCaption, validImageTag, validRename] = validations;
+  if (imageCaption) {
+    if (imageCaption.startsWith('@cf/')) {
+      const result = validateWorkersAiModel(imageCaption, 'vision');
+      if (!result.valid) {
+        return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: result.error } }, 400);
+      }
+    } else {
+      const m = await gateway.getModelById(imageCaption, userId);
+      if (!m) {
+        return c.json(
+          { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '图片描述模型不存在' } },
+          400
+        );
+      }
+      if (!m.capabilities?.includes('vision')) {
+        return c.json(
+          {
+            success: false,
+            error: { code: ERROR_CODES.VALIDATION_ERROR, message: '该模型不支持 vision 能力（需要多模态模型如 GPT-4o）' },
+          },
+          400
+        );
+      }
+    }
+  }
 
-  if (summary && (!validSummary.valid || !validSummary.hasCapability)) {
-    return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: validSummary.error } }, 400);
+  if (imageTag) {
+    if (imageTag.startsWith('@cf/')) {
+      const result = validateWorkersAiModel(imageTag, 'vision');
+      if (!result.valid) {
+        return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: result.error } }, 400);
+      }
+    } else {
+      const m = await gateway.getModelById(imageTag, userId);
+      if (!m) {
+        return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '图片标签模型不存在' } }, 400);
+      }
+      if (!m.capabilities?.includes('chat')) {
+        return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '该模型不支持 chat 能力' } }, 400);
+      }
+    }
   }
-  if (imageCaption && (!validImageCaption.valid || !validImageCaption.hasCapability)) {
-    return c.json(
-      { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: validImageCaption.error } },
-      400
-    );
-  }
-  if (imageTag && (!validImageTag.valid || !validImageTag.hasCapability)) {
-    return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: validImageTag.error } }, 400);
-  }
-  if (rename && (!validRename.valid || !validRename.hasCapability)) {
-    return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: validRename.error } }, 400);
+
+  if (rename) {
+    if (rename.startsWith('@cf/')) {
+      const result = validateWorkersAiModel(rename, 'chat');
+      if (!result.valid) {
+        return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: result.error } }, 400);
+      }
+    } else {
+      const m = await gateway.getModelById(rename, userId);
+      if (!m) {
+        return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '重命名模型不存在' } }, 400);
+      }
+      if (!m.capabilities?.includes('chat')) {
+        return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '该模型不支持 chat 能力' } }, 400);
+      }
+    }
   }
 
   const config = {

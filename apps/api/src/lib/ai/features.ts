@@ -306,8 +306,9 @@ async function callVisionModel(
         );
         return response.content.trim() || '';
       } else if (env.AI) {
+        const uint8Array = new Uint8Array(imageData);
         const response = await (env.AI as any).run(effectiveModelId, {
-          image: imageData,
+          image: uint8Array,
           prompt,
           max_tokens: 300,
         });
@@ -335,8 +336,9 @@ async function callWorkersAiVision(
   if (!env.AI) {
     throw new Error('AI service not available');
   }
+  const uint8Array = new Uint8Array(imageData);
   const response = await (env.AI as any).run(modelId, {
-    image: imageData,
+    image: uint8Array,
     prompt,
     max_tokens: 300,
   });
@@ -395,8 +397,9 @@ async function callVisionModelForTags(
         );
         return parseTagsFromText(response.content);
       } else if (env.AI) {
+        const uint8Array = new Uint8Array(imageData);
         const response = await (env.AI as any).run(effectiveModelId, {
-          image: imageData,
+          image: uint8Array,
           prompt: IMAGE_TAG_PROMPT,
           max_tokens: 100,
         });
@@ -419,8 +422,9 @@ async function callWorkersAiVisionForTags(env: Env, modelId: string, imageData: 
   if (!env.AI) {
     throw new Error('AI service not available');
   }
+  const uint8Array = new Uint8Array(imageData);
   const response = await (env.AI as any).run(modelId, {
-    image: imageData,
+    image: uint8Array,
     prompt: IMAGE_TAG_PROMPT,
     max_tokens: 100,
   });

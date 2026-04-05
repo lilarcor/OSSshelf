@@ -359,6 +359,116 @@ app.get('/tags/task', async (c) => {
   return c.json({ success: true, data: task });
 });
 
+const processSelectedSchema = z.object({
+  fileIds: z.array(z.string().min(1)).min(1).max(100),
+  types: z.array(z.enum(['summary', 'tags'])).min(1),
+});
+
+app.post('/process-selected', async (c) => {
+  const userId = c.get('userId')!;
+
+  if (!c.env.AI_TASKS_QUEUE) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ERROR_CODES.INTERNAL_ERROR,
+          message: 'AI 任务队列未配置，请联系管理员',
+        },
+      },
+      503
+    );
+  }
+
+  const body = await c.req.json();
+  const result = processSelectedSchema.safeParse(body);
+  if (!result.success) {
+    return c.json(
+      { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: result.error.errors[0].message } },
+      400
+    );
+  }
+
+  const { fileIds, types } = result.data;
+  const db = getDb(c.env.DB);
+
+  const validFiles = await db
+    .select()
+    .from(files)
+    .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false)))
+    .all();
+
+  const validIds = new Set(validFiles.map((f) => f.id));
+  const filteredFiles = validFiles.filter((f) => validIds.has(f.id) && fileIds.includes(f.id));
+
+  if (filteredFiles.length === 0) {
+    return c.json({
+      success: true,
+      data: {
+        message: '没有需要处理的文件',
+        task: { status: 'completed', total: 0, processed: 0, failed: 0 },
+      },
+    });
+  }
+
+  const summaryFiles = types.includes('summary')
+    ? filteredFiles.filter((f) => canGenerateSummary(f.mimeType, f.name))
+    : [];
+
+  const tagFiles = types.includes('tags')
+    ? filteredFiles.filter((f) => f.mimeType?.startsWith('image/'))
+    : [];
+
+  const totalTasks = summaryFiles.length + tagFiles.length;
+
+  if (totalTasks === 0) {
+    return c.json({
+      success: true,
+      data: {
+        message: '选中的文件没有可处理的内容',
+        task: { status: 'completed', total: 0, processed: 0, failed: 0 },
+      },
+    });
+  }
+
+  const task = await createTaskRecord(c.env, 'summary', userId, totalTasks);
+
+  try {
+    if (summaryFiles.length > 0) {
+      await enqueueAiTasks(
+        c.env,
+        'summary',
+        summaryFiles.map((f) => f.id),
+        userId,
+        task.id
+      );
+    }
+
+    if (tagFiles.length > 0) {
+      await enqueueAiTasks(
+        c.env,
+        'tags',
+        tagFiles.map((f) => f.id),
+        userId,
+        task.id
+      );
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        message: `已提交 ${totalTasks} 个AI处理任务（摘要: ${summaryFiles.length}，标签: ${tagFiles.length}）`,
+        task,
+        summaryCount: summaryFiles.length,
+        tagsCount: tagFiles.length,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '启动任务失败';
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message } }, 500);
+  }
+});
+
 // 具体路径路由必须在 :fileId 参数路由之前
 app.get('/index/stats', async (c) => {
   const userId = c.get('userId')!;

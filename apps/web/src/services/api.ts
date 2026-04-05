@@ -1275,6 +1275,16 @@ export const aiApi = {
 
   getTagsTask: () => api.get<ApiResponse<AITagsTask>>('/api/ai/tags/task'),
 
+  processSelected: (params: { fileIds: string[]; types: ('summary' | 'tags')[] }) =>
+    api.post<
+      ApiResponse<{
+        message: string;
+        task: AIIndexTask;
+        summaryCount: number;
+        tagsCount: number;
+      }>
+    >('/api/ai/process-selected', params),
+
   getIndexStats: () => api.get<ApiResponse<AIIndexStats>>('/api/ai/index/stats'),
 
   getVectors: (params?: { page?: number; pageSize?: number; search?: string }) =>

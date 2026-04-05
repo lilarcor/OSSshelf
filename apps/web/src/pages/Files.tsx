@@ -17,7 +17,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useFileStore, type ViewMode } from '@/stores/files';
 import type { AdvancedSearchCondition } from '@/types/files';
 import { useAuthStore } from '@/stores/auth';
-import { filesApi, bucketsApi, permissionsApi, shareApi, searchApi, type StorageBucket } from '@/services/api';
+import { filesApi, bucketsApi, permissionsApi, shareApi, searchApi, type StorageBucket, aiApi } from '@/services/api';
 import { getPresignedDownloadUrl, presignUpload } from '@/services/presignUpload';
 import { useFileKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useFolderUpload } from '@/hooks/useFolderUpload';
@@ -54,6 +54,7 @@ import {
   Sparkles,
   Star,
   Download,
+  Wand2,
 } from 'lucide-react';
 import type { FileItem } from '@osshelf/shared';
 import { cn, decodeFileName } from '@/utils';
@@ -1152,6 +1153,55 @@ export default function Files() {
           <Button variant="outline" size="sm" onClick={clearSelection}>
             <X className="h-3.5 w-3.5 mr-1" />
             取消
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const selectedItems = selectedFileItems;
+              const hasEditable = selectedItems.some((f) => {
+                const ext = f.name.split('.').pop()?.toLowerCase() || '';
+                const codeExts = ['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'go', 'rs', 'c', 'cpp', 'h', 'cs', 'rb', 'php', 'swift', 'kt', 'scala', 'r', 'sql', 'sh', 'bash', 'yaml', 'yml', 'json', 'xml', 'html', 'css', 'scss', 'vue', 'svelte', 'md', 'txt', 'log', 'csv'];
+                const docExts = ['pdf', 'doc', 'docx', 'rtf', 'odt'];
+                const sheetExts = ['xls', 'xlsx', 'ods'];
+                const isEditable = f.mimeType?.startsWith('text/') || f.mimeType === 'application/json' || codeExts.includes(ext) || docExts.includes(ext) || sheetExts.includes(ext) || ext === 'md';
+                return isEditable;
+              });
+              const hasImages = selectedItems.some((f) => f.mimeType?.startsWith('image/'));
+
+              if (!hasEditable && !hasImages) {
+                toast({
+                  title: '无可处理文件',
+                  description: '选中的文件中没有可生成摘要或标签的文件',
+                  variant: 'destructive',
+                });
+                return;
+              }
+
+              const types: ('summary' | 'tags')[] = [];
+              if (hasEditable) types.push('summary');
+              if (hasImages) types.push('tags');
+
+              try {
+                const res = await aiApi.processSelected({ fileIds: selectedFiles, types });
+                if (res.data.success && res.data.data) {
+                  toast({
+                    title: 'AI处理任务已提交',
+                    description: res.data.data.message,
+                  });
+                  clearSelection();
+                }
+              } catch (e: any) {
+                toast({
+                  title: '提交失败',
+                  description: e?.response?.data?.error?.message || e?.message,
+                  variant: 'destructive',
+                });
+              }
+            }}
+          >
+            <Wand2 className="h-3.5 w-3.5 mr-1" />
+            AI处理
           </Button>
           <Button
             variant="outline"
