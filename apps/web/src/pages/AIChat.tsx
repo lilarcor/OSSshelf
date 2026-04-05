@@ -39,6 +39,7 @@ import {
   Tag,
   Download,
   ChevronDown,
+  Filter,
 } from 'lucide-react';
 import { aiApi, filesApi, type AiChatMessage } from '@/services/api';
 import ReactMarkdown from 'react-markdown';
@@ -95,14 +96,22 @@ function formatTokenCount(n: number): string {
 
 const TOOL_META: Record<string, { label: string; icon: React.ReactNode }> = {
   search_files: { label: '搜索文件', icon: <Search className="h-3 w-3" /> },
-  list_folder: { label: '浏览文件夹', icon: <FolderOpen className="h-3 w-3" /> },
+  filter_files: { label: '筛选文件', icon: <Filter className="h-3 w-3" /> },
+  search_by_tag: { label: '标签搜索', icon: <Tag className="h-3 w-3" /> },
+  search_duplicates: { label: '查找重复文件', icon: <Copy className="h-3 w-3" /> },
+  read_file_text: { label: '读取文件内容', icon: <FileText className="h-3 w-3" /> },
+  analyze_image: { label: '分析图片', icon: <Image className="h-3 w-3" /> },
   get_file_detail: { label: '获取文件详情', icon: <FileText className="h-3 w-3" /> },
-  get_file_content: { label: '读取文件内容', icon: <FileText className="h-3 w-3" /> },
-  get_storage_stats: { label: '查询存储统计', icon: <BarChart3 className="h-3 w-3" /> },
+  get_file_versions: { label: '查看版本历史', icon: <Clock className="h-3 w-3" /> },
+  get_file_notes: { label: '查看备注', icon: <FileText className="h-3 w-3" /> },
+  list_folder: { label: '浏览文件夹', icon: <FolderOpen className="h-3 w-3" /> },
+  get_folder_tree: { label: '查看目录树', icon: <FolderOpen className="h-3 w-3" /> },
+  list_recent: { label: '最近文件', icon: <Clock className="h-3 w-3" /> },
   list_starred: { label: '查看收藏', icon: <Star className="h-3 w-3" /> },
   list_shares: { label: '查看共享', icon: <Share2 className="h-3 w-3" /> },
-  list_recent: { label: '最近文件', icon: <Clock className="h-3 w-3" /> },
-  search_by_tag: { label: '标签搜索', icon: <Tag className="h-3 w-3" /> },
+  get_storage_stats: { label: '查询存储统计', icon: <BarChart3 className="h-3 w-3" /> },
+  get_activity_stats: { label: '查看活动统计', icon: <BarChart3 className="h-3 w-3" /> },
+  compare_files: { label: '对比文件', icon: <FileText className="h-3 w-3" /> },
 };
 
 // ────────────────────────────────────────────────────────────
@@ -190,21 +199,65 @@ function ToolCallCard({ tc, onFileClick }: { tc: ToolCallEvent; onFileClick: (id
   const resultFiles: AgentFile[] = (() => {
     if (!tc.result || typeof tc.result !== 'object') return [];
     const r = tc.result as Record<string, unknown>;
-    const files = r.files as Array<{ id: string; name: string; mimeType?: string | null }> | undefined;
-    return (files || []).slice(0, 6).map((f) => ({
-      id: f.id,
-      name: f.name,
-      path: '',
-      isFolder: false,
-      size: 0,
-      createdAt: '',
-      mimeType: f.mimeType ?? null,
-      parentId: null,
-      aiSummary: null,
-      aiTags: null,
-      isStarred: false,
-      description: null,
-    }));
+
+    // 处理 files 数组格式（搜索类工具）
+    const filesArray = r.files as Array<{ id: string; name: string; mimeType?: string | null }> | undefined;
+    if (filesArray?.length) {
+      return filesArray.slice(0, 6).map((f) => ({
+        id: f.id,
+        name: f.name,
+        path: '',
+        isFolder: false,
+        size: 0,
+        createdAt: '',
+        mimeType: f.mimeType ?? null,
+        parentId: null,
+        aiSummary: null,
+        aiTags: null,
+        isStarred: false,
+        description: null,
+      }));
+    }
+
+    // 处理单文件对象格式（get_file_detail 等）
+    if (r.id && r.name && typeof r.id === 'string' && typeof r.name === 'string') {
+      return [{
+        id: r.id as string,
+        name: r.name as string,
+        path: (r.path as string) || '',
+        isFolder: (r.isFolder as boolean) || false,
+        size: (r.size as number) || 0,
+        createdAt: (r.createdAt as string) || '',
+        mimeType: (r.mimeType as string | null) ?? null,
+        parentId: null,
+        aiSummary: null,
+        aiTags: null,
+        isStarred: false,
+        description: null,
+      }];
+    }
+
+    // 处理 compare_files 的 fileA/fileB
+    const fileA = r.fileA as { id: string; name: string; mimeType?: string | null } | undefined;
+    const fileB = r.fileB as { id: string; name: string; mimeType?: string | null } | undefined;
+    if (fileA?.id && fileB?.id) {
+      return [fileA, fileB].map((f) => ({
+        id: f.id,
+        name: f.name,
+        path: '',
+        isFolder: false,
+        size: 0,
+        createdAt: '',
+        mimeType: f.mimeType ?? null,
+        parentId: null,
+        aiSummary: null,
+        aiTags: null,
+        isStarred: false,
+        description: null,
+      }));
+    }
+
+    return [];
   })();
 
   const argsSummary = tc.args
@@ -616,6 +669,14 @@ export function AIChat() {
               setMessages((prev) =>
                 prev.map((m) => (m.id === assistantId ? { ...m, content: (m.content || '') + raw.content! } : m))
               );
+            }
+
+            // Error from SSE stream
+            if (raw.error && !raw.done) {
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantId ? { ...m, content: (m.content || '') + `\n\n❌ 错误: ${raw.error}`, isLoading: false } : m))
+              );
+              return;
             }
 
             // Done

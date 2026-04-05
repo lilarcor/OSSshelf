@@ -423,11 +423,7 @@ export class AgentEngine {
         }
       }
 
-      // 空转检测：只有这一轮所有工具都返回 error 才算空转
-      const allErrors = collected.length > 0 && collected.every((tc) => {
-        // 无法在此处拿到每个 result，用 roundNewData 兜底
-        return false;
-      });
+      // 空转检测：没有工具调用也没有文本输出，真正的空转
       if (!roundNewData && collected.length === 0) {
         // 没有工具调用也没有文本输出，真正的空转
         idleRounds++;

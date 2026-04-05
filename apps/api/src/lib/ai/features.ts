@@ -269,7 +269,8 @@ async function callVisionModel(
   userId: string,
   defaultModelId: string,
   imageData: number[],
-  prompt: string
+  prompt: string,
+  mimeType: string = 'image/jpeg'
 ): Promise<string> {
   const gateway = new ModelGateway(env);
   const featureConfig = await getFeatureModelConfig(env, userId);
@@ -297,8 +298,8 @@ async function callVisionModel(
               {
                 role: 'user',
                 content: [
+                  { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } },
                   { type: 'text', text: prompt },
-                  { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
                 ],
               },
             ],
@@ -361,7 +362,8 @@ async function callVisionModelForTags(
   env: Env,
   userId: string,
   defaultModelId: string,
-  imageData: number[]
+  imageData: number[],
+  mimeType: string = 'image/jpeg'
 ): Promise<string[]> {
   const gateway = new ModelGateway(env);
   const featureConfig = await getFeatureModelConfig(env, userId);
@@ -388,8 +390,8 @@ async function callVisionModelForTags(
               {
                 role: 'user',
                 content: [
+                  { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } },
                   { type: 'text', text: IMAGE_TAG_PROMPT },
-                  { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
                 ],
               },
             ],
@@ -551,6 +553,7 @@ export async function generateImageTags(
   const uint8Array = new Uint8Array(imageData);
   const effectiveUserId = userId || file.userId || 'default';
   const defaultModels = await getDefaultModels(env);
+  const actualMimeType = file.mimeType || 'image/jpeg';
 
   try {
     const [captionResult, tagResult] = await Promise.allSettled([
@@ -559,9 +562,10 @@ export async function generateImageTags(
         effectiveUserId,
         defaultModels.imageCaption,
         Array.from(uint8Array),
-        '请详细描述这张图片的内容，包括画面主体、颜色、构图等。如果有文字请准确转录。使用中文回答。'
+        '请详细描述这张图片的内容，包括画面主体、颜色、构图等。如果有文字请准确转录。使用中文回答。',
+        actualMimeType
       ),
-      callVisionModelForTags(env, effectiveUserId, defaultModels.imageTag, Array.from(uint8Array)),
+      callVisionModelForTags(env, effectiveUserId, defaultModels.imageTag, Array.from(uint8Array), actualMimeType),
     ]);
 
     let caption = '';

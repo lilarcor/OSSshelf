@@ -40,6 +40,7 @@
  */
 
 import { eq, and, isNull, isNotNull, desc, asc, like, or, inArray, count, gte, lte, ne, sql } from 'drizzle-orm';
+import type { InferSelectModel } from 'drizzle-orm';
 import {
   getDb,
   files,
@@ -58,6 +59,12 @@ import { getAiConfigString, getAiConfigNumber } from './aiConfigService';
 import { ModelGateway } from './modelGateway';
 import type { ModelConfig } from './types';
 import { uint8ArrayToBase64, formatBytes, fetchFileBuffer, getMimeTypeCategory } from './utils';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 配置常量
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 公共类型
@@ -224,7 +231,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件 ID' },
+          fileId: { type: 'string', description: '文件的 UUID（如 "bf7b4a5e-5872-4edb-a150-a9a1330c58a9"），必须是工具返回的 id 字段' },
           sectionIndex: { type: 'number', description: '要读取的段落序号（0开始），不传则返回所有段落摘要' },
         },
         required: ['fileId'],
@@ -247,7 +254,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '图片文件 ID' },
+          fileId: {
+            type: 'string',
+            description: '图片文件的 UUID（如 "bf7b4a5e-5872-4edb-a150-a9a1330c58a9"），必须是工具返回的 id 字段，不是文件名',
+          },
           question: {
             type: 'string',
             description: '对图片提问。默认："详细描述图片内容，包括人物（外貌/性别/年龄/表情）、场景、风格、颜色"',
@@ -268,7 +278,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件或文件夹 ID' },
+          fileId: { type: 'string', description: '文件或文件夹的 UUID，必须是工具返回的 id 字段' },
         },
         required: ['fileId'],
       },
@@ -284,7 +294,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件 ID' },
+          fileId: { type: 'string', description: '文件的 UUID，必须是工具返回的 id 字段' },
           limit: { type: 'number', description: '版本数量，默认全部' },
         },
         required: ['fileId'],
@@ -301,7 +311,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件 ID' },
+          fileId: { type: 'string', description: '文件的 UUID，必须是工具返回的 id 字段' },
         },
         required: ['fileId'],
       },
@@ -441,8 +451,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       parameters: {
         type: 'object',
         properties: {
-          fileIdA: { type: 'string', description: '第一个文件 ID' },
-          fileIdB: { type: 'string', description: '第二个文件 ID' },
+          fileIdA: { type: 'string', description: '第一个文件的 UUID，必须是工具返回的 id 字段' },
+          fileIdB: { type: 'string', description: '第二个文件的 UUID，必须是工具返回的 id 字段' },
         },
         required: ['fileIdA', 'fileIdB'],
       },
@@ -848,6 +858,23 @@ export class AgentToolExecutor {
       };
     }
 
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      return {
+        fileId,
+        fileName: file.name,
+        mimeType: file.mimeType,
+        size: formatBytes(file.size),
+        visualDescription: null,
+        error: `图片过大（${formatBytes(file.size)}），超过 5MB 限制`,
+        existingMetadata: {
+          aiTags: file.aiTags || null,
+          aiSummary: file.aiSummary || null,
+          description: file.description || null,
+        },
+        note: '请使用较小的图片，或使用已有元数据作为参考。',
+      };
+    }
+
     const buffer = await fetchFileBuffer(this.env, file);
     if (!buffer) {
       return {
@@ -865,15 +892,16 @@ export class AgentToolExecutor {
       };
     }
 
-    try {
-      const imageBytes = new Uint8Array(buffer);
-      const visionModelId = await getAiConfigString(
-        this.env,
-        'ai.default_model.vision',
-        '@cf/llava-hf/llava-1.5-7b-hf'
-      );
-      const visionMaxTokens = await getAiConfigNumber(this.env, 'ai.vision.max_tokens', 600);
+    const imageBytes = new Uint8Array(buffer);
+    const actualMimeType = file.mimeType || 'image/jpeg';
+    const visionModelId = await getAiConfigString(
+      this.env,
+      'ai.default_model.vision',
+      '@cf/llava-hf/llava-1.5-7b-hf'
+    );
+    const visionMaxTokens = await getAiConfigNumber(this.env, 'ai.vision.max_tokens', 600);
 
+    try {
       const modelGateway = new ModelGateway(this.env);
       const resolved = await modelGateway.resolveModelForCall(this.userId, visionModelId);
 
@@ -910,8 +938,8 @@ export class AgentToolExecutor {
                 {
                   role: 'user',
                   content: [
+                    { type: 'image_url', image_url: { url: `data:${actualMimeType};base64,${base64Image}` } },
                     { type: 'text', text: question },
-                    { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
                   ],
                 },
               ],
@@ -972,13 +1000,14 @@ export class AgentToolExecutor {
         },
       };
     } catch (error) {
-      logger.error('AgentTool', 'Vision model failed', { fileId }, error);
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      logger.error('AgentTool', 'Vision model failed', { fileId, error: errorMessage }, error);
       return {
         fileId,
         fileName: file.name,
         mimeType: file.mimeType,
         visualDescription: null,
-        error: '视觉模型调用失败',
+        error: `视觉模型调用失败: ${errorMessage}`,
         existingMetadata: {
           aiTags: file.aiTags || null,
           aiSummary: file.aiSummary || null,
@@ -1488,24 +1517,26 @@ export class AgentToolExecutor {
 // 辅助函数
 // ─────────────────────────────────────────────────────────────────────────────
 
-function toAgentFile(f: Record<string, unknown>): AgentFile {
+type FileRecord = InferSelectModel<typeof files>;
+
+function toAgentFile(f: FileRecord): AgentFile {
   return {
-    id: f.id as string,
-    name: f.name as string,
-    path: f.path as string,
-    isFolder: Boolean(f.isFolder),
-    mimeType: (f.mimeType as string) || null,
-    size: (f.size as number) || 0,
-    sizeFormatted: formatBytes((f.size as number) || 0),
-    createdAt: f.createdAt as string,
-    updatedAt: f.updatedAt as string,
-    parentId: (f.parentId as string) || null,
-    aiSummary: (f.aiSummary as string) || null,
-    aiTags: (f.aiTags as string) || null,
-    description: (f.description as string) || null,
-    isStarred: Boolean(f.isStarred),
-    currentVersion: (f.currentVersion as number) || null,
-    vectorIndexedAt: (f.vectorIndexedAt as string) || null,
+    id: f.id,
+    name: f.name,
+    path: f.path,
+    isFolder: f.isFolder,
+    mimeType: f.mimeType,
+    size: f.size,
+    sizeFormatted: formatBytes(f.size),
+    createdAt: f.createdAt,
+    updatedAt: f.updatedAt,
+    parentId: f.parentId,
+    aiSummary: f.aiSummary,
+    aiTags: f.aiTags,
+    description: f.description,
+    isStarred: f.isStarred ?? false,
+    currentVersion: f.currentVersion ?? null,
+    vectorIndexedAt: f.vectorIndexedAt,
   };
 }
 

@@ -1374,10 +1374,18 @@ export const aiApi = {
         maxFiles?: number;
         includeFileContent?: boolean;
         onChunk: (chunk: {
-          content: string;
-          done: boolean;
+          content?: string;
+          done?: boolean;
           sessionId?: string;
           sources?: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
+          error?: string;
+          usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
+          toolStart?: boolean;
+          toolResult?: boolean;
+          toolName?: string;
+          toolCallId?: string;
+          args?: Record<string, unknown>;
+          result?: unknown;
         }) => void;
         onError?: (error: Error) => void;
         signal?: AbortSignal;
