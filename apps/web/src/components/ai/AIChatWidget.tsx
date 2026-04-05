@@ -167,7 +167,7 @@ function AssistantContent({
   content: string;
   onFileClick: (id: string, isFolder: boolean) => void;
 }) {
-  const cleanedContent = content.replace(/```tool_call\s*[\s\S]*?```/g, '').trim();
+  const cleanedContent = content.replace(/```tool(?:_call)?\s*[\s\S]*?```/g, '').trim();
   const hasRefs = /\[(FILE|FOLDER):[^\]]+\]/.test(cleanedContent);
 
   if (!hasRefs) {
