@@ -135,8 +135,14 @@ export function buildVisionMessageContent(
   mimeType: string,
   textPrompt: string
 ): VisionMessageContent {
-  const imageUrl = `data:${mimeType};base64,${base64Image}`;
-  
+  const vendor = detectModelVendor(modelId);
+
+  // 智谱 GLM-4V 系列：纯 base64，不带 data: 前缀（官方文档要求）
+  // 其他所有 OpenAI 兼容模型：标准 data URI 格式
+  const imageUrl = vendor === 'zhipu'
+    ? base64Image
+    : `data:${mimeType};base64,${base64Image}`;
+
   return [
     { type: 'text', text: textPrompt },
     { type: 'image_url', image_url: { url: imageUrl } },

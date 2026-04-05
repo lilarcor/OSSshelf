@@ -126,7 +126,10 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
       const supportsStreamOptions = !this.config.configJson?.disableStreamOptions;
       const streamBody: Record<string, unknown> = {
         model: this.config.modelId,
-        messages: request.messages,
+        messages: request.messages.map((msg) => ({
+          role: msg.role,
+          content: this.formatMessageContent(msg.content),
+        })),
         max_tokens: request.maxTokens || this.config.maxTokens,
         temperature: request.temperature ?? this.config.temperature,
         stream: true,
