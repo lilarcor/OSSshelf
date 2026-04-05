@@ -135,14 +135,7 @@ export function buildVisionMessageContent(
   mimeType: string,
   textPrompt: string
 ): VisionMessageContent {
-  const vendor = detectModelVendor(modelId);
-  let imageUrl: string;
-  
-  if (vendor === 'zhipu' && modelId.toLowerCase().includes('v')) {
-    imageUrl = base64Image;
-  } else {
-    imageUrl = `data:${mimeType};base64,${base64Image}`;
-  }
+  const imageUrl = `data:${mimeType};base64,${base64Image}`;
   
   return [
     { type: 'text', text: textPrompt },

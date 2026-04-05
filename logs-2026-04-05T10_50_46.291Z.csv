@@ -1,0 +1,849 @@
+source.level,source.message,dataset,timestamp,$workers.truncated,$workers.event.request.url,$workers.event.request.method,$workers.event.request.path,$workers.outcome,$workers.scriptName,$workers.eventType,$workers.executionModel,$workers.scriptVersion.id,$workers.requestId,$metadata.id,$metadata.requestId,$metadata.trigger,$metadata.service,$metadata.level,$metadata.error,$metadata.message,$metadata.account,$metadata.type,$metadata.fingerprint,$metadata.origin,$metadata.errorTemplate,$metadata.startTime,$metadata.endTime,$metadata.now
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:33.516Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM682C3CRBRTEGTH301D62,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,24e8bc10ea2d48f8246eddf11445eea4,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17977:15)
+    at async <DOMAIN> (<DOMAIN>:18958:14)
+    at async <DOMAIN> (<DOMAIN>:18930:16)
+    at async <*> (<DOMAIN>:19383:26)
+    at async <DOMAIN> (index <*>)
+    at async generateImageTags (<DOMAIN>:19513:40)
+    at async <DOMAIN>:30241:20
+    at async dispatch (<DOMAIN>:7755:17)
+    at async handleJwtAuth (<DOMAIN>:10203:5)
+    at async authMiddleware (<DOMAIN>:10165:12)",undefined,undefined,undefined
+error,"[2026-04-05T10:49:33.516Z] [ERROR] [AI] Vision model for tags call failed {""modelId"":""4964f595-9539-496a-8720-f8454f7fc937""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:33.516Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM682C3CRBRTEGTH301D61,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:33.516Z] [ERROR] [AI] Vision model for tags call failed {""modelId"":""4964f595-9539-496a-8720-f8454f7fc937""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:33.516Z] [ERROR] [AI] Vision model for tags call failed {""modelId"":""4964f595-9539-496a-8720-f8454f7fc937""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,d15b84a509cb85b0dda57b59bbed9346,fetch,"[<DATETIME>] [ERROR] [AI] Vision model for tags call failed {""modelId"":""<UUID>""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:33.516Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM682C3CRBRTEGTH301D60,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,24e8bc10ea2d48f8246eddf11445eea4,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17977:15)
+    at async <DOMAIN> (<DOMAIN>:18958:14)
+    at async <DOMAIN> (<DOMAIN>:18930:16)
+    at async <*> (<DOMAIN>:19383:26)
+    at async <DOMAIN> (index <*>)
+    at async generateImageTags (<DOMAIN>:19513:40)
+    at async <DOMAIN>:30241:20
+    at async dispatch (<DOMAIN>:7755:17)
+    at async handleJwtAuth (<DOMAIN>:10203:5)
+    at async authMiddleware (<DOMAIN>:10165:12)",undefined,undefined,undefined
+error,"[2026-04-05T10:49:33.516Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:33.516Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM682C3CRBRTEGTH301D5Z,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:33.516Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:33.516Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,a5dedf839cce685d8eb93d28ee2bc35b,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:33.516Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM682C3CRBRTEGTH301D5Y,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,6cf6c54650d6518014d08e62714779bc,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17977:15)
+    at async <DOMAIN> (<DOMAIN>:18958:14)
+    at async <DOMAIN> (<DOMAIN>:18930:16)
+    at async <*> (<DOMAIN>:19316:26)
+    at async <DOMAIN> (index <*>)
+    at async generateImageTags (<DOMAIN>:19513:40)
+    at async <DOMAIN>:30241:20
+    at async dispatch (<DOMAIN>:7755:17)
+    at async handleJwtAuth (<DOMAIN>:10203:5)
+    at async authMiddleware (<DOMAIN>:10165:12)",undefined,undefined,undefined
+error,"[2026-04-05T10:49:33.516Z] [ERROR] [AI] Vision model call failed {""modelId"":""4964f595-9539-496a-8720-f8454f7fc937""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:33.516Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM682C3CRBRTEGTH301D5X,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:33.516Z] [ERROR] [AI] Vision model call failed {""modelId"":""4964f595-9539-496a-8720-f8454f7fc937""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:33.516Z] [ERROR] [AI] Vision model call failed {""modelId"":""4964f595-9539-496a-8720-f8454f7fc937""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,2da78598500cc03304f008fae9c15ec8,fetch,"[<DATETIME>] [ERROR] [AI] Vision model call failed {""modelId"":""<UUID>""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:33.516Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM682C3CRBRTEGTH301D5W,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,6cf6c54650d6518014d08e62714779bc,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17977:15)
+    at async <DOMAIN> (<DOMAIN>:18958:14)
+    at async <DOMAIN> (<DOMAIN>:18930:16)
+    at async <*> (<DOMAIN>:19316:26)
+    at async <DOMAIN> (index <*>)
+    at async generateImageTags (<DOMAIN>:19513:40)
+    at async <DOMAIN>:30241:20
+    at async dispatch (<DOMAIN>:7755:17)
+    at async handleJwtAuth (<DOMAIN>:10203:5)
+    at async authMiddleware (<DOMAIN>:10165:12)",undefined,undefined,undefined
+error,"[2026-04-05T10:49:33.516Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:33.516Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM682C3CRBRTEGTH301D5V,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:33.516Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:33.516Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,a5dedf839cce685d8eb93d28ee2bc35b,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:31.932Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM66GWJMJXWP8BDA5H2YA8,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,24e8bc10ea2d48f8246eddf11445eea4,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17977:15)
+    at async <DOMAIN> (<DOMAIN>:18958:14)
+    at async <DOMAIN> (<DOMAIN>:18930:16)
+    at async <*> (<DOMAIN>:19383:26)
+    at async <DOMAIN> (index <*>)
+    at async generateImageTags (<DOMAIN>:19513:40)
+    at async <DOMAIN>:30241:20
+    at async dispatch (<DOMAIN>:7755:17)
+    at async handleJwtAuth (<DOMAIN>:10203:5)
+    at async authMiddleware (<DOMAIN>:10165:12)",undefined,undefined,undefined
+error,"[2026-04-05T10:49:31.932Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:31.932Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM66GWJMJXWP8BDA5H2YA7,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:31.932Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:31.932Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,a5dedf839cce685d8eb93d28ee2bc35b,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:31.899Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM66FVVNDZBNBSX75K52G4,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,6cf6c54650d6518014d08e62714779bc,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17977:15)
+    at async <DOMAIN> (<DOMAIN>:18958:14)
+    at async <DOMAIN> (<DOMAIN>:18930:16)
+    at async <*> (<DOMAIN>:19316:26)
+    at async <DOMAIN> (index <*>)
+    at async generateImageTags (<DOMAIN>:19513:40)
+    at async <DOMAIN>:30241:20
+    at async dispatch (<DOMAIN>:7755:17)
+    at async handleJwtAuth (<DOMAIN>:10203:5)
+    at async authMiddleware (<DOMAIN>:10165:12)",undefined,undefined,undefined
+error,"[2026-04-05T10:49:31.899Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:31.899Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM66FVVNDZBNBSX75K52G3,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:31.899Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:31.899Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,a5dedf839cce685d8eb93d28ee2bc35b,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:30.802Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM6622V7JYCEXQTDJKXRGW,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,24e8bc10ea2d48f8246eddf11445eea4,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17977:15)
+    at async <DOMAIN> (<DOMAIN>:18958:14)
+    at async <DOMAIN> (<DOMAIN>:18930:16)
+    at async <*> (<DOMAIN>:19383:26)
+    at async <DOMAIN> (index <*>)
+    at async generateImageTags (<DOMAIN>:19513:40)
+    at async <DOMAIN>:30241:20
+    at async dispatch (<DOMAIN>:7755:17)
+    at async handleJwtAuth (<DOMAIN>:10203:5)
+    at async authMiddleware (<DOMAIN>:10165:12)",undefined,undefined,undefined
+error,"[2026-04-05T10:49:30.802Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:30.802Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM6622V7JYCEXQTDJKXRGV,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:30.802Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:30.802Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,a5dedf839cce685d8eb93d28ee2bc35b,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:30.798Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM6622V7JYCEXQTDJKXRGS,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,c5a75f7700ae54d9258eded97082370a,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17977:15)
+    at async <DOMAIN> (<DOMAIN>:18958:14)
+    at async <DOMAIN> (<DOMAIN>:18930:16)
+    at async callVisionModel (<DOMAIN>:19316:26)
+    at async <DOMAIN> (index 0)
+    at async generateImageTags (<DOMAIN>:19513:40)
+    at async <DOMAIN>:30241:20
+    at async dispatch (<DOMAIN>:7755:17)
+    at async handleJwtAuth (<DOMAIN>:10203:5)
+    at async authMiddleware (<DOMAIN>:10165:12)",undefined,undefined,undefined
+error,"[2026-04-05T10:49:30.798Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:30.798Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc85deccedd9,01KNEM6622V7JYCEXQTDJKXRGR,9e77fc85deccedd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:30.798Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:30.798Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,a5dedf839cce685d8eb93d28ee2bc35b,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:25.324Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM602C5JQBSECHWK28B24W,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,533aa15aa9584d10ba2b6e935c750f30,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:49:25.324Z] [ERROR] [AI] Vision model for tags call failed {""modelId"":""4964f595-9539-496a-8720-f8454f7fc937""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:25.324Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM602C5JQBSECHWK28B24V,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:25.324Z] [ERROR] [AI] Vision model for tags call failed {""modelId"":""4964f595-9539-496a-8720-f8454f7fc937""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:25.324Z] [ERROR] [AI] Vision model for tags call failed {""modelId"":""4964f595-9539-496a-8720-f8454f7fc937""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,973dd039c34d56cdada0757d5aa2fee4,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:25.324Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM602C5JQBSECHWK28B24T,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,533aa15aa9584d10ba2b6e935c750f30,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:49:25.324Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:25.324Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM602C5JQBSECHWK28B24S,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:25.324Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:25.324Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,519c0cb1a92c9837c34b64a0df9dab70,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:25.324Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM602C5JQBSECHWK28B24R,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,5cd1d548d8b4b456406fc19074ddba65,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:49:25.324Z] [ERROR] [AI] Vision model call failed {""modelId"":""4964f595-9539-496a-8720-f8454f7fc937""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:25.324Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM602C5JQBSECHWK28B24Q,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:25.324Z] [ERROR] [AI] Vision model call failed {""modelId"":""4964f595-9539-496a-8720-f8454f7fc937""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:25.324Z] [ERROR] [AI] Vision model call failed {""modelId"":""4964f595-9539-496a-8720-f8454f7fc937""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,13eb7019aa89dd2320a670d573528f9b,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:25.324Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM602C5JQBSECHWK28B24P,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,5cd1d548d8b4b456406fc19074ddba65,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:49:25.324Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:25.324Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM602C5JQBSECHWK28B24N,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:25.324Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:25.324Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,519c0cb1a92c9837c34b64a0df9dab70,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:23.752Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM5YH8X4FTEFMRVD6X69Q9,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,533aa15aa9584d10ba2b6e935c750f30,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:49:23.752Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:23.752Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM5YH8X4FTEFMRVD6X69Q8,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:23.752Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:23.752Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,04f4c2c673fe290dd0419373d7cbbcba,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:23.708Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM5YFWFAS8ED3RCDZHG9KS,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,5cd1d548d8b4b456406fc19074ddba65,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:49:23.708Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:23.708Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM5YFWFAS8ED3RCDZHG9KR,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:23.708Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:23.708Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,e9f1516b03a6dc0d37130a2257a909e5,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:22.615Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM5XDQG4B0Z8Q46Y7ZKRSM,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,533aa15aa9584d10ba2b6e935c750f30,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:49:22.615Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:22.615Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM5XDQG4B0Z8Q46Y7ZKRSK,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:22.615Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:22.615Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,404399d166959c39f08be12c33db6fcc,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:49:22.605Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM5XDDARW3P95Z6QRVSNSZ,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,5cd1d548d8b4b456406fc19074ddba65,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:49:22.605Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:49:22.605Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fc50bbf7edd9,01KNEM5XDDARW3P95Z6QRVSNSY,9e77fc50bbf7edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:49:22.605Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:49:22.605Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,86af1d1771771ae566bcbab53c93a17a,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:48:59.661Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM570D2E9SCN1Y7G1EMKVD,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,533aa15aa9584d10ba2b6e935c750f30,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:48:59.661Z] [ERROR] [AI] Vision model for tags call failed {""modelId"":""984a67a2-3649-469a-9600-6f15494f770e""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:48:59.661Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM570D2E9SCN1Y7G1EMKVC,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:48:59.661Z] [ERROR] [AI] Vision model for tags call failed {""modelId"":""984a67a2-3649-469a-9600-6f15494f770e""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:48:59.661Z] [ERROR] [AI] Vision model for tags call failed {""modelId"":""984a67a2-3649-469a-9600-6f15494f770e""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,e5f183a571db9a92b673d71a1c8a6928,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:48:59.661Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM570D2E9SCN1Y7G1EMKVB,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,533aa15aa9584d10ba2b6e935c750f30,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:48:59.661Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:48:59.661Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM570D2E9SCN1Y7G1EMKVA,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:48:59.661Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:48:59.661Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,d48afc81a971c227c5ae285fbe661fa0,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:48:59.650Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM57026BFCWNT0VQGDG7HA,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,5cd1d548d8b4b456406fc19074ddba65,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:48:59.650Z] [ERROR] [AI] Vision model call failed {""modelId"":""984a67a2-3649-469a-9600-6f15494f770e""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:48:59.650Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM57026BFCWNT0VQGDG7H9,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:48:59.650Z] [ERROR] [AI] Vision model call failed {""modelId"":""984a67a2-3649-469a-9600-6f15494f770e""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:48:59.650Z] [ERROR] [AI] Vision model call failed {""modelId"":""984a67a2-3649-469a-9600-6f15494f770e""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,54e2edc515fd7e4a6ee0efc69938063c,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:48:59.650Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM57026BFCWNT0VQGDG7H8,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,5cd1d548d8b4b456406fc19074ddba65,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:48:59.650Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:48:59.650Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM57026BFCWNT0VQGDG7H7,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:48:59.650Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:48:59.650Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,389872b1aed48364849a69d3171e580a,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:48:58.049Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM55E1P98ZPRG5V707D44K,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,533aa15aa9584d10ba2b6e935c750f30,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:48:58.049Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:48:58.049Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM55E1P98ZPRG5V707D44J,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:48:58.049Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:48:58.049Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,9bc2f80a1d6878c9206769ac6b6a2848,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:48:58.045Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM55DXY0KWT1CK9J1Z4P8E,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,5cd1d548d8b4b456406fc19074ddba65,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:48:58.045Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:48:58.045Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM55DXY0KWT1CK9J1Z4P8D,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:48:58.045Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:48:58.045Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,0d90938a19df61242c68b2f765a320b8,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:48:56.955Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM54BVEQVH73ZVNFT5VAP5,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModel (index.js:19316:26)
+    at async Promise.allSettled (index 0)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,5cd1d548d8b4b456406fc19074ddba65,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:48:56.955Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:48:56.955Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM54BVEQVH73ZVNFT5VAP4,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:48:56.955Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:48:56.955Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,c4a39d8cd2f982ecf317bb9f4b85c2e1,fetch,,undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",cloudflare-workers,2026-04-05T10:48:56.943Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM54BF130AMW8AJ0GYW83D,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17977:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18958:14)
+    at async ModelGateway.callWithRetry (index.js:18930:16)
+    at async callVisionModelForTags (index.js:19383:26)
+    at async Promise.allSettled (index 1)
+    at async generateImageTags (index.js:19513:40)
+    at async index.js:30241:20
+    at async dispatch (index.js:7755:17)
+    at async handleJwtAuth (index.js:10203:5)
+    at async authMiddleware (index.js:10165:12)",2f24288827c6b14fac807324df3a4ac2,cf-worker,533aa15aa9584d10ba2b6e935c750f30,fetch,,undefined,undefined,undefined
+error,"[2026-04-05T10:48:56.943Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T10:48:56.943Z,false,https://ossapi.wort.uk/api/ai/tags/REDACTED,POST,/api/ai/tags/REDACTED,ok,ossshelf-api,fetch,stateless,a7a35175-009f-4dd2-a0ab-fac24f8d09de,9e77fbad8e62edd9,01KNEM54BF130AMW8AJ0GYW83C,9e77fbad8e62edd9,POST /api/ai/tags/REDACTED,ossshelf-api,error,"[2026-04-05T10:48:56.943Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T10:48:56.943Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,f28ba499e375df2265b525431117457d,fetch,,undefined,undefined,undefined
