@@ -53,6 +53,22 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         Object.assign(body, request.extraBody);
       }
 
+      // DEBUG: log the first message content structure (truncate base64 for readability)
+      const debugBody = JSON.parse(JSON.stringify(body));
+      if (Array.isArray(debugBody.messages)) {
+        debugBody.messages = debugBody.messages.map((m: any) => ({
+          ...m,
+          content: Array.isArray(m.content)
+            ? m.content.map((p: any) =>
+                p.type === 'image_url'
+                  ? { type: p.type, image_url: { url: (p.image_url?.url || '').slice(0, 80) + '...[truncated]' } }
+                  : p
+              )
+            : m.content,
+        }));
+      }
+      logger.info('AI', '[DEBUG] vision request payload', { model: this.config.modelId, messages: JSON.stringify(debugBody.messages) });
+
       const response = await fetch(`${this.config.apiEndpoint}/chat/completions`, {
         method: 'POST',
         headers: this.getHeaders(),

@@ -135,20 +135,25 @@ export function buildVisionMessageContent(
   mimeType: string,
   textPrompt: string
 ): VisionMessageContent {
-  const imageUrl = `data:${mimeType};base64,${base64Image}`;
   const vendor = detectModelVendor(modelId);
 
-  // 智谱 GLM-4V 系列要求 image_url 在 text 之前，其他模型对顺序不敏感
   if (vendor === 'zhipu') {
+    const id = modelId.toLowerCase();
+    // glm-4.6v 旗舰版接受 data URI；glm-4v-flash / glm-4.6v-flash 等只接受纯 base64
+    // 判断：包含 'flash' 或 'glm-4v'（旧版 4V 系列）→ 纯 base64；否则 data URI
+    const usePlainBase64 = id.includes('flash') || (id.includes('glm-4v') && !id.includes('glm-4.6v'));
+    const imageUrl = usePlainBase64 ? base64Image : `data:${mimeType};base64,${base64Image}`;
+    // 智谱所有视觉模型：image 在前，text 在后
     return [
       { type: 'image_url', image_url: { url: imageUrl } },
       { type: 'text', text: textPrompt },
     ];
   }
 
+  // 其他所有 OpenAI 兼容模型：标准 data URI，text 在前
   return [
     { type: 'text', text: textPrompt },
-    { type: 'image_url', image_url: { url: imageUrl } },
+    { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } },
   ];
 }
 
