@@ -28,7 +28,7 @@ import { tgDownloadFile, type TelegramBotConfig } from '../telegramClient';
 import { tgDownloadChunked, isChunkedFileId } from '../telegramChunked';
 import { decryptSecret } from '../s3client';
 import { initializeAiConfig, getAiConfigString, getAiConfigNumber, getAiConfigBoolean } from './aiConfigService';
-import { uint8ArrayToBase64, fetchFileBuffer, buildVisionMessageContent } from './utils';
+import { uint8ArrayToBase64, fetchFileBuffer, buildVisionMessageContent, detectModelVendor } from './utils';
 
 const DEFAULT_SUMMARY_CONTENT_LIMIT = 8192;
 const DEFAULT_RENAME_CONTENT_LIMIT = 4096;
@@ -270,7 +270,8 @@ async function callVisionModel(
   defaultModelId: string,
   imageData: number[],
   prompt: string,
-  mimeType: string = 'image/jpeg'
+  mimeType: string = 'image/jpeg',
+  imageUrl?: string
 ): Promise<string> {
   const gateway = new ModelGateway(env);
   const featureConfig = await getFeatureModelConfig(env, userId);
@@ -290,14 +291,17 @@ async function callVisionModel(
           });
           return await callWorkersAiVision(env, defaultModelId, imageData, prompt);
         }
-        const base64Image = uint8ArrayToBase64(imageData);
+        // 只有智谱模型使用 URL 方式，其他模型使用 base64
+        const vendor = detectModelVendor(customModel.modelId);
+        const useUrl = vendor === 'zhipu' && imageUrl;
+        const base64Image = useUrl ? '' : uint8ArrayToBase64(imageData);
         const response = await gateway.chatCompletion(
           userId,
           {
             messages: [
               {
                 role: 'user',
-                content: buildVisionMessageContent(customModel.modelId, base64Image, mimeType, prompt),
+                content: buildVisionMessageContent(customModel.modelId, base64Image, mimeType, prompt, useUrl ? imageUrl : undefined),
               },
             ],
             maxTokens: 300,
@@ -361,7 +365,8 @@ async function callVisionModelForTags(
   userId: string,
   defaultModelId: string,
   imageData: number[],
-  mimeType: string = 'image/jpeg'
+  mimeType: string = 'image/jpeg',
+  imageUrl?: string
 ): Promise<string[]> {
   const gateway = new ModelGateway(env);
   const featureConfig = await getFeatureModelConfig(env, userId);
@@ -380,14 +385,17 @@ async function callVisionModelForTags(
           });
           return await callWorkersAiVisionForTags(env, defaultModelId, imageData);
         }
-        const base64Image = uint8ArrayToBase64(imageData);
+        // 只有智谱模型使用 URL 方式，其他模型使用 base64
+        const vendor = detectModelVendor(customModel.modelId);
+        const useUrl = vendor === 'zhipu' && imageUrl;
+        const base64Image = useUrl ? '' : uint8ArrayToBase64(imageData);
         const response = await gateway.chatCompletion(
           userId,
           {
             messages: [
               {
                 role: 'user',
-                content: buildVisionMessageContent(customModel.modelId, base64Image, mimeType, IMAGE_TAG_PROMPT),
+                content: buildVisionMessageContent(customModel.modelId, base64Image, mimeType, IMAGE_TAG_PROMPT, useUrl ? imageUrl : undefined),
               },
             ],
             maxTokens: 100,
@@ -551,6 +559,10 @@ export async function generateImageTags(
   const defaultModels = await getDefaultModels(env);
   const actualMimeType = file.mimeType || 'image/jpeg';
 
+  const imageUrl = file.directLinkToken
+    ? `${env.PUBLIC_URL || 'https://ossapi.wort.uk'}/api/direct/${file.directLinkToken}`
+    : undefined;
+
   try {
     const [captionResult, tagResult] = await Promise.allSettled([
       callVisionModel(
@@ -559,9 +571,10 @@ export async function generateImageTags(
         defaultModels.imageCaption,
         Array.from(uint8Array),
         '请详细描述这张图片的内容，包括画面主体、颜色、构图等。如果有文字请准确转录。使用中文回答。',
-        actualMimeType
+        actualMimeType,
+        imageUrl
       ),
-      callVisionModelForTags(env, effectiveUserId, defaultModels.imageTag, Array.from(uint8Array), actualMimeType),
+      callVisionModelForTags(env, effectiveUserId, defaultModels.imageTag, Array.from(uint8Array), actualMimeType, imageUrl),
     ]);
 
     let caption = '';

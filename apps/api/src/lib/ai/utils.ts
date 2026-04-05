@@ -14,7 +14,19 @@ import { tgDownloadChunked, isChunkedFileId } from '../telegramChunked';
  */
 export function uint8ArrayToBase64(bytes: Uint8Array | number[]): string {
   const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  return Buffer.from(arr).toString('base64');
+  const chunkSize = 24573; // 必须是 3 的倍数，确保 base64 编码对齐
+  let result = '';
+
+  for (let i = 0; i < arr.length; i += chunkSize) {
+    const chunk = arr.subarray(i, i + chunkSize);
+    let binary = '';
+    for (let j = 0; j < chunk.length; j++) {
+      binary += String.fromCharCode(chunk[j]);
+    }
+    result += btoa(binary);
+  }
+
+  return result;
 }
 
 /**
@@ -123,24 +135,15 @@ export function buildVisionMessageContent(
   modelId: string,
   base64Image: string,
   mimeType: string,
-  textPrompt: string
+  textPrompt: string,
+  imageUrl?: string
 ): VisionMessageContent {
   const vendor = detectModelVendor(modelId);
 
-  if (vendor === 'zhipu') {
-    // 智谱官方云 API：使用 data URI 格式
-    // 参考：https://docs.bigmodel.cn/cn/guide/start/quick-start
-    const imageUrl = `data:${mimeType};base64,${base64Image}`;
-    return [
-      { type: 'text', text: textPrompt },
-      { type: 'image_url', image_url: { url: imageUrl } },
-    ];
-  }
-
-  // 其他所有 OpenAI 兼容模型：标准 data URI，text 在前
+  const finalImageUrl = imageUrl || `data:${mimeType};base64,${base64Image}`;
   return [
     { type: 'text', text: textPrompt },
-    { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } },
+    { type: 'image_url', image_url: { url: finalImageUrl } },
   ];
 }
 
