@@ -54,6 +54,7 @@ export interface ChatCompletionRequest {
   signal?: AbortSignal;
   tools?: ToolDefinition[];
   toolChoice?: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string };
+  extraBody?: Record<string, unknown>;
 }
 
 export interface ChatCompletionResponse {

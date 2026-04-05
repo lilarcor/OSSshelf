@@ -27,6 +27,7 @@ import { getDb, aiModels } from '../../db';
 import { eq, and } from 'drizzle-orm';
 import { decryptCredential, getEncryptionKey, isAesGcmFormat } from '../crypto';
 import { getAiConfigString, getAiConfigNumber, initializeAiConfig } from './aiConfigService';
+import { buildThinkingConfig } from './utils';
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 500;
@@ -213,6 +214,13 @@ export class ModelGateway {
     const adapter = this.getAdapter(modelConfig);
     this.injectSystemPrompt(request, modelConfig);
 
+    const thinkingConfig = buildThinkingConfig(modelConfig.modelId);
+    if (thinkingConfig && !request.extraBody) {
+      request.extraBody = thinkingConfig;
+    } else if (thinkingConfig && request.extraBody) {
+      request.extraBody = { ...request.extraBody, ...thinkingConfig };
+    }
+
     const timeoutSignal = await this.createTimeoutSignal(signal);
 
     try {
@@ -238,6 +246,13 @@ export class ModelGateway {
     const modelConfig = await this.resolveModelConfig(userId, options?.modelId);
     const adapter = this.getAdapter(modelConfig);
     this.injectSystemPrompt(request, modelConfig);
+
+    const thinkingConfig = buildThinkingConfig(modelConfig.modelId);
+    if (thinkingConfig && !request.extraBody) {
+      request.extraBody = thinkingConfig;
+    } else if (thinkingConfig && request.extraBody) {
+      request.extraBody = { ...request.extraBody, ...thinkingConfig };
+    }
 
     const timeoutSignal = await this.createTimeoutSignal(options?.signal);
 

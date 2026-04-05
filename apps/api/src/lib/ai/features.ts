@@ -28,7 +28,7 @@ import { tgDownloadFile, type TelegramBotConfig } from '../telegramClient';
 import { tgDownloadChunked, isChunkedFileId } from '../telegramChunked';
 import { decryptSecret } from '../s3client';
 import { initializeAiConfig, getAiConfigString, getAiConfigNumber, getAiConfigBoolean } from './aiConfigService';
-import { uint8ArrayToBase64, fetchFileBuffer } from './utils';
+import { uint8ArrayToBase64, fetchFileBuffer, buildVisionMessageContent } from './utils';
 
 const DEFAULT_SUMMARY_CONTENT_LIMIT = 8192;
 const DEFAULT_RENAME_CONTENT_LIMIT = 4096;
@@ -297,10 +297,7 @@ async function callVisionModel(
             messages: [
               {
                 role: 'user',
-                content: [
-                  { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } },
-                  { type: 'text', text: prompt },
-                ],
+                content: buildVisionMessageContent(effectiveModelId, base64Image, mimeType, prompt),
               },
             ],
             maxTokens: 300,
@@ -389,10 +386,7 @@ async function callVisionModelForTags(
             messages: [
               {
                 role: 'user',
-                content: [
-                  { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } },
-                  { type: 'text', text: IMAGE_TAG_PROMPT },
-                ],
+                content: buildVisionMessageContent(effectiveModelId, base64Image, mimeType, IMAGE_TAG_PROMPT),
               },
             ],
             maxTokens: 100,

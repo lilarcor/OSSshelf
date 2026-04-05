@@ -1,0 +1,937 @@
+source.level,source.message,dataset,timestamp,$workers.truncated,$workers.event.request.url,$workers.event.request.method,$workers.event.request.path,$workers.outcome,$workers.scriptName,$workers.eventType,$workers.executionModel,$workers.scriptVersion.id,$workers.requestId,$metadata.id,$metadata.requestId,$metadata.trigger,$metadata.service,$metadata.level,$metadata.error,$metadata.message,$metadata.account,$metadata.type,$metadata.fingerprint,$metadata.origin,$metadata.messageTemplate,$metadata.startTime,$metadata.endTime,$metadata.now
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:04:20.852Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3ES,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:04:20.852Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""bf7b4a5e-5872-4edb-a150-a9a1330c58a9"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:04:20.852Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3ER,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:04:20.852Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""bf7b4a5e-5872-4edb-a150-a9a1330c58a9"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:04:20.852Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""bf7b4a5e-5872-4edb-a150-a9a1330c58a9"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,02620562e76e9dece48a64b07b88b561,fetch,"[<DATETIME>] [ERROR] [AgentTool] Vision model failed {""fileId"":""<UUID>"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:04:20.852Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3EQ,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:04:20.852Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:04:20.852Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3EP,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:04:20.852Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:04:20.852Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,db7ce244376f41606c593b0765408aab,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:04:17.084Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3EM,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:04:17.084Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:04:17.084Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3EK,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:04:17.084Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:04:17.084Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,08e0db16170f3b5c1e3a7a2d376ac31e,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:04:13.967Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3EH,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:04:13.967Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:04:13.967Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3EG,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:04:13.967Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:04:13.967Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,f1d87106c999bcb98d6b174a7be37bf3,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:04:01.466Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3EE,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:04:01.466Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""453973e2-5467-421c-be61-531803e826e8"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:04:01.466Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3ED,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:04:01.466Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""453973e2-5467-421c-be61-531803e826e8"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:04:01.466Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""453973e2-5467-421c-be61-531803e826e8"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,d809337652fd75412dd10929b3a502b3,fetch,"[<DATETIME>] [ERROR] [AgentTool] Vision model failed {""fileId"":""<UUID>"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:04:01.466Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3EC,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:04:01.466Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:04:01.466Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3EB,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:04:01.466Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:04:01.466Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,3076fd883976a20d3096c6a0f07e864e,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:03:57.547Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3E9,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:03:57.547Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:03:57.547Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3E8,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:03:57.547Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:03:57.547Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,b1015c73391e98fd529a26ea5b4ac867,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:03:54.414Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3E6,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:03:54.414Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:03:54.414Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3E5,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:03:54.414Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:03:54.414Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,b2b3b7fb1281274077564eda8ad14f03,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:03:45.588Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3E3,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:03:45.588Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""efa181ed-3a88-4af1-baa1-6305c7bea5c0"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:03:45.588Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3E2,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:03:45.588Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""efa181ed-3a88-4af1-baa1-6305c7bea5c0"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:03:45.588Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""efa181ed-3a88-4af1-baa1-6305c7bea5c0"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,88c71d9ee3d76ea16ffb9a0115f19e56,fetch,"[<DATETIME>] [ERROR] [AgentTool] Vision model failed {""fileId"":""<UUID>"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:03:45.588Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3E1,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:03:45.588Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:03:45.588Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3E0,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:03:45.588Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:03:45.588Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,368eba365772b1256da5bb4ec7da5ed3,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:03:38.911Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3DY,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:03:38.911Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:03:38.911Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3DX,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:03:38.911Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:03:38.911Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,73c1af468bee105ecd3001479955e689,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:03:33.534Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3DV,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:03:33.534Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:03:33.534Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3DT,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:03:33.534Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:03:33.534Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,45e6240672965e484b81a32f41ec0141,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:03:22.058Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3DR,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:03:22.058Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:03:22.058Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3DQ,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:03:22.058Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:03:22.058Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,23816ed123e92e7a46699366b054a198,fetch,"[<DATETIME>] [ERROR] [AgentTool] Vision model failed {""fileId"":""<UUID>"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""图片输入格式/解析错误\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:03:22.058Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3DP,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:03:22.058Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:03:22.058Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3DN,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:03:22.058Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:03:22.058Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,507a3180b2c4979c1657f57477f017cf,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:03:10.266Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3DK,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:03:10.266Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:03:10.266Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3DJ,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:03:10.266Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:03:10.266Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,a6c72897f1932106c6aba047b507a8be,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",cloudflare-workers,2026-04-05T09:03:00.525Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3DG,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18811:14)
+    at async ModelGateway.callWithRetry (index.js:18789:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31260:28)
+    at async AgentEngine.runNative (index.js:31958:20)
+    at async Object.start (index.js:33382:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,a59a48179b4e69d388589f2e7c9dfa37,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18811:14)
+    at async <DOMAIN> (<DOMAIN>:18789:16)
+    at async <DOMAIN> (<DOMAIN>:31260:28)
+    at async <DOMAIN> (<DOMAIN>:31958:20)
+    at async <DOMAIN> (<DOMAIN>:33382:26)",undefined,undefined,undefined
+error,"[2026-04-05T09:03:00.525Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",cloudflare-workers,2026-04-05T09:03:00.525Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,2f596f59-45a7-42b2-b4ad-81959dae1029,9e775fffc8a0d1ca,01KNEE5SGXBGMAYH65HQ8BJ3DF,9e775fffc8a0d1ca,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T09:03:00.525Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}","[2026-04-05T09:03:00.525Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,04cdf1ff88de0441cd0d02365563cb51,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""图片输入格式/解析错误""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:51.674Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8ET,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:51.674Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""7777bf18-997c-44e1-8f60-26cab97e1420"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:51.674Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8ES,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:51.674Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""7777bf18-997c-44e1-8f60-26cab97e1420"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:51.674Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""7777bf18-997c-44e1-8f60-26cab97e1420"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,6abca27b04f162b28b4ccd80320b2385,fetch,"[<DATETIME>] [ERROR] [AgentTool] Vision model failed {""fileId"":""<UUID>"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:51.674Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8ER,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:51.674Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:51.674Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8EQ,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:51.674Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:51.674Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,fa52a992ca02fae8cd3bde85691f3b91,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:50.162Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8EN,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:50.162Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:50.162Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8EM,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:50.162Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:50.162Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,282256c59d7a3b88375e67678cc7996c,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:49.163Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8EJ,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:49.163Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:49.163Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8EH,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:49.163Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:49.163Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,9a14f5f01dd004a8d794f646f09259f5,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:39.131Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8EF,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:39.131Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""bf7b4a5e-5872-4edb-a150-a9a1330c58a9"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:39.131Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8EE,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:39.131Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""bf7b4a5e-5872-4edb-a150-a9a1330c58a9"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:39.131Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""bf7b4a5e-5872-4edb-a150-a9a1330c58a9"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,bbd5f9f6e8e0981fe3e3443e1b67cd12,fetch,"[<DATETIME>] [ERROR] [AgentTool] Vision model failed {""fileId"":""<UUID>"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:39.131Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8ED,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:39.131Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:39.131Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8EC,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:39.131Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:39.131Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,11ce974f70c37d09a265b7d63cc46dd6,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:37.583Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8EA,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:37.583Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:37.583Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8E9,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:37.583Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:37.583Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,ebd5b01095f7a682d6b6c64cc55f3657,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:36.551Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8E7,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:36.551Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:36.551Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8E6,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:36.551Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:36.551Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,9b4c11c07fc7d862b73101bf6d750314,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:32.673Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8E4,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:32.673Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""453973e2-5467-421c-be61-531803e826e8"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:32.673Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8E3,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:32.673Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""453973e2-5467-421c-be61-531803e826e8"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:32.673Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""453973e2-5467-421c-be61-531803e826e8"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,188a6d05d88443fac40c2f0b2724cf0b,fetch,"[<DATETIME>] [ERROR] [AgentTool] Vision model failed {""fileId"":""<UUID>"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:32.673Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8E2,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:32.673Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:32.673Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8E1,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:32.673Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:32.673Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,87e74503a0c63f3e9c3252e7364c9584,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:31.134Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DZ,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:31.134Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:31.134Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DY,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:31.134Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:31.134Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,6c0907f93624f2adeaee8a89dd30409c,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:30.094Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DW,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:30.094Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:30.094Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DV,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:30.094Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:30.094Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,19146efdb9406db44d8cbe8bd511ee67,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:27.606Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DS,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:27.606Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""efa181ed-3a88-4af1-baa1-6305c7bea5c0"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:27.606Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DR,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:27.606Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""efa181ed-3a88-4af1-baa1-6305c7bea5c0"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:27.606Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""efa181ed-3a88-4af1-baa1-6305c7bea5c0"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,7ade993ab524271144ec79006547c3e3,fetch,"[<DATETIME>] [ERROR] [AgentTool] Vision model failed {""fileId"":""<UUID>"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:27.606Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DQ,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:27.606Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:27.606Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DP,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:27.606Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:27.606Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,653e98999e37f595bd0b8661df056c66,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:25.865Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DM,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:25.865Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:25.865Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DK,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:25.865Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:25.865Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,17ae90abf41514ae7223aff710dfb0ed,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:24.600Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DH,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:24.600Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:24.600Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DG,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:24.600Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:24.600Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,ae7bd277eadb4d4d6d52919b0194f6cd,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:20.158Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DE,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:20.158Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:20.158Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DD,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:20.158Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:20.158Z] [ERROR] [AgentTool] Vision model failed {""fileId"":""1c1bec2c-aad1-4d98-ad27-df6a8c153431"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,dadac271065da727227f6a30df67acc7,fetch,"[<DATETIME>] [ERROR] [AgentTool] Vision model failed {""fileId"":""<UUID>"",""error"":""OpenAI API error: 400 - {\""error\"":{\""code\"":\""1210\"",\""message\"":\""API 调用参数有误，请检查文档。\""}}""} Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:20.158Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DC,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:20.158Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:20.158Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8DB,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:20.158Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:20.158Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,81dc2fdcb41ad56a08bfbecfcf165e66,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:17.998Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8D9,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:17.998Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:17.998Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8D8,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:17.998Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:17.998Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,b7fea02109a79110d426c2f69483d305,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined
+error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",cloudflare-workers,2026-04-05T08:42:16.307Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8D6,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)","Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at OpenAiCompatibleAdapter.chatCompletion (index.js:17974:15)
+    at async ModelGateway.chatCompletionInternal (index.js:18801:14)
+    at async ModelGateway.callWithRetry (index.js:18779:16)
+    at async AgentToolExecutor.analyzeImage (index.js:31250:28)
+    at async AgentEngine.runNative (index.js:31945:20)
+    at async Object.start (index.js:33369:26)",2f24288827c6b14fac807324df3a4ac2,cf-worker,44171b93140d096f045006f3817aa2dd,fetch,"Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}
+    at <DOMAIN> (<DOMAIN>:17974:15)
+    at async <DOMAIN> (<DOMAIN>:18801:14)
+    at async <DOMAIN> (<DOMAIN>:18779:16)
+    at async <DOMAIN> (<DOMAIN>:31250:28)
+    at async <DOMAIN> (<DOMAIN>:31945:20)
+    at async <DOMAIN> (<DOMAIN>:33369:26)",undefined,undefined,undefined
+error,"[2026-04-05T08:42:16.307Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",cloudflare-workers,2026-04-05T08:42:16.307Z,false,https://ossapi.wort.uk/api/ai-chat/chat,POST,/api/ai-chat/chat,ok,ossshelf-api,fetch,stateless,fcc6bb6d-60ff-4749-aaf8-1f42916b742f,9e7741e04c7fafac,01KNECYB61W7051EZJNNCZX8D5,9e7741e04c7fafac,POST /api/ai-chat/chat,ossshelf-api,error,"[2026-04-05T08:42:16.307Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}","[2026-04-05T08:42:16.307Z] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",2f24288827c6b14fac807324df3a4ac2,cf-worker,6e17caf3060dae0ce11d7a96870cc7ea,fetch,"[<DATETIME>] [ERROR] [AI] OpenAI compatible chat completion failed Error: OpenAI API error: 400 - {""error"":{""code"":""1210"",""message"":""API 调用参数有误，请检查文档。""}}",undefined,undefined,undefined

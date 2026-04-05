@@ -113,3 +113,75 @@ export function getMimeTypeCategory(mimeType: string | null | undefined): string
   if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('tar')) return '压缩包';
   return '其他';
 }
+
+export type VisionMessageContent = Array<{ type: 'text' | 'image_url'; text?: string; image_url?: { url: string } }>;
+
+export type ModelVendor = 'openai' | 'anthropic' | 'zhipu' | 'deepseek' | 'alibaba' | 'google' | 'unknown';
+
+export function detectModelVendor(modelId: string): ModelVendor {
+  const id = modelId.toLowerCase();
+  if (id.includes('gpt') || id.includes('o1') || id.includes('o3')) return 'openai';
+  if (id.includes('claude')) return 'anthropic';
+  if (id.includes('glm')) return 'zhipu';
+  if (id.includes('deepseek')) return 'deepseek';
+  if (id.includes('qwen') || id.includes('tongyi')) return 'alibaba';
+  if (id.includes('gemini')) return 'google';
+  return 'unknown';
+}
+
+export function buildVisionMessageContent(
+  modelId: string,
+  base64Image: string,
+  mimeType: string,
+  textPrompt: string
+): VisionMessageContent {
+  const vendor = detectModelVendor(modelId);
+  let imageUrl: string;
+  
+  if (vendor === 'zhipu' && modelId.toLowerCase().includes('v')) {
+    imageUrl = base64Image;
+  } else {
+    imageUrl = `data:${mimeType};base64,${base64Image}`;
+  }
+  
+  return [
+    { type: 'text', text: textPrompt },
+    { type: 'image_url', image_url: { url: imageUrl } },
+  ];
+}
+
+export function buildThinkingConfig(modelId: string): Record<string, unknown> | undefined {
+  const vendor = detectModelVendor(modelId);
+  const id = modelId.toLowerCase();
+  
+  if (vendor === 'zhipu') {
+    if (id.includes('glm-4.5') || id.includes('glm-4.6') || id.includes('glm-4.7') || id.includes('glm-5')) {
+      return { thinking: { type: 'enabled' } };
+    }
+  }
+  
+  if (vendor === 'deepseek' && id.includes('r1')) {
+    return undefined;
+  }
+  
+  return undefined;
+}
+
+export function supportsReasoningContent(modelId: string): boolean {
+  const vendor = detectModelVendor(modelId);
+  const id = modelId.toLowerCase();
+  
+  if (vendor === 'zhipu') {
+    return id.includes('glm-4.5') || id.includes('glm-4.6') || id.includes('glm-4.7') || id.includes('glm-5');
+  }
+  
+  if (vendor === 'deepseek') {
+    return id.includes('r1');
+  }
+  
+  if (vendor === 'alibaba') {
+    return id.includes('qwq');
+  }
+  
+  return false;
+}

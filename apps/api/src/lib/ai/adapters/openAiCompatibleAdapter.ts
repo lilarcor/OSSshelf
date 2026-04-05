@@ -49,6 +49,10 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
         body.tool_choice = request.toolChoice || 'auto';
       }
 
+      if (request.extraBody) {
+        Object.assign(body, request.extraBody);
+      }
+
       const response = await fetch(`${this.config.apiEndpoint}/chat/completions`, {
         method: 'POST',
         headers: this.getHeaders(),
@@ -132,6 +136,10 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
       if (request.tools && request.tools.length > 0) {
         streamBody.tools = request.tools;
         streamBody.tool_choice = request.toolChoice || 'auto';
+      }
+
+      if (request.extraBody) {
+        Object.assign(streamBody, request.extraBody);
       }
 
       const response = await fetch(`${this.config.apiEndpoint}/chat/completions`, {

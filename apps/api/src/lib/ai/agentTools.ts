@@ -58,7 +58,7 @@ import { logger } from '@osshelf/shared';
 import { getAiConfigString, getAiConfigNumber } from './aiConfigService';
 import { ModelGateway } from './modelGateway';
 import type { ModelConfig } from './types';
-import { uint8ArrayToBase64, formatBytes, fetchFileBuffer, getMimeTypeCategory } from './utils';
+import { uint8ArrayToBase64, formatBytes, fetchFileBuffer, getMimeTypeCategory, buildVisionMessageContent } from './utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 配置常量
@@ -937,10 +937,7 @@ export class AgentToolExecutor {
               messages: [
                 {
                   role: 'user',
-                  content: [
-                    { type: 'image_url', image_url: { url: `data:${actualMimeType};base64,${base64Image}` } },
-                    { type: 'text', text: question },
-                  ],
+                  content: buildVisionMessageContent(visionModelId, base64Image, actualMimeType, question),
                 },
               ],
               maxTokens: visionMaxTokens,
