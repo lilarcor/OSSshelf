@@ -61,10 +61,11 @@ import type { ModelConfig } from './types';
 import { uint8ArrayToBase64, formatBytes, fetchFileBuffer, getMimeTypeCategory, buildVisionMessageContent } from './utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 配置常量
+// 默认配置常量（当数据库配置不可用时使用）
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const DEFAULT_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const DEFAULT_TEXT_CHUNK_SIZE = 1500;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 公共类型
@@ -758,6 +759,8 @@ export class AgentToolExecutor {
     const sectionIndex = args.sectionIndex as number | undefined;
     const db = getDb(this.env.DB);
 
+    const textChunkSize = await getAiConfigNumber(this.env, 'ai.tool.text_chunk_size', DEFAULT_TEXT_CHUNK_SIZE);
+
     const file = await db
       .select()
       .from(files)
@@ -792,13 +795,12 @@ export class AgentToolExecutor {
       };
     }
 
-    const CHUNK = 1500;
-    const totalChunks = Math.ceil(vectorText.length / CHUNK);
+    const totalChunks = Math.ceil(vectorText.length / textChunkSize);
     const allSections = Array.from({ length: totalChunks }, (_, i) => ({
       index: i,
       title: `第 ${i + 1} 段（共 ${totalChunks} 段）`,
-      content: vectorText.slice(i * CHUNK, Math.min((i + 1) * CHUNK, vectorText.length)),
-      charCount: Math.min(CHUNK, vectorText.length - i * CHUNK),
+      content: vectorText.slice(i * textChunkSize, Math.min((i + 1) * textChunkSize, vectorText.length)),
+      charCount: Math.min(textChunkSize, vectorText.length - i * textChunkSize),
     }));
 
     if (sectionIndex !== undefined) {
@@ -840,6 +842,8 @@ export class AgentToolExecutor {
       (args.question as string) ||
       '请详细描述这张图片的内容，包括：人物（外貌、性别、大概年龄、表情、穿着）、背景场景、主要物体、整体风格和色调。';
 
+    const maxImageSizeBytes = await getAiConfigNumber(this.env, 'ai.tool.max_image_size_bytes', DEFAULT_MAX_IMAGE_SIZE_BYTES);
+
     const db = getDb(this.env.DB);
     const file = await db
       .select()
@@ -858,14 +862,14 @@ export class AgentToolExecutor {
       };
     }
 
-    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+    if (file.size > maxImageSizeBytes) {
       return {
         fileId,
         fileName: file.name,
         mimeType: file.mimeType,
         size: formatBytes(file.size),
         visualDescription: null,
-        error: `图片过大（${formatBytes(file.size)}），超过 5MB 限制`,
+        error: `图片过大（${formatBytes(file.size)}），超过 ${formatBytes(maxImageSizeBytes)} 限制`,
         existingMetadata: {
           aiTags: file.aiTags || null,
           aiSummary: file.aiSummary || null,
@@ -940,7 +944,7 @@ export class AgentToolExecutor {
                   content: buildVisionMessageContent(base64Image, actualMimeType, question),
                 },
               ],
-              maxTokens: 2048,
+              maxTokens: visionMaxTokens,
               featureType: 'image_analysis',
             },
             visionModelId
@@ -950,7 +954,7 @@ export class AgentToolExecutor {
           const result = await (this.env.AI as any).run(visionModelId, {
             image: Array.from(imageBytes),
             prompt: question,
-            max_tokens: 2048,
+            max_tokens: visionMaxTokens,
           });
           description =
             (result as any)?.description?.trim() ||

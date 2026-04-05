@@ -15,6 +15,7 @@ import { getDb, files } from '../../db';
 import { eq, and, isNull, desc, sql } from 'drizzle-orm';
 import { logger } from '@osshelf/shared';
 import { getMimeTypeCategory } from './utils';
+import { getAiConfigNumber } from './aiConfigService';
 
 export interface FileContext {
   id: string;
@@ -162,6 +163,9 @@ export class RagEngine {
   async buildContext(request: ChatRagRequest): Promise<RagContext> {
     const startTime = Date.now();
 
+    const maxFiles = request.maxFiles || await getAiConfigNumber(this.env, 'ai.rag.max_files', DEFAULT_MAX_FILES);
+    const maxContextLength = request.maxContextLength || await getAiConfigNumber(this.env, 'ai.rag.max_context_length', DEFAULT_MAX_CONTEXT_LENGTH);
+
     try {
       const isFileList = this.isFileListQuery(request.query);
       let relevantFiles: FileContext[] = [];
@@ -177,7 +181,7 @@ export class RagEngine {
           .from(files)
           .where(and(eq(files.userId, request.userId), isNull(files.deletedAt), eq(files.isFolder, false)))
           .orderBy(desc(files.createdAt))
-          .limit(request.maxFiles || 10)
+          .limit(maxFiles + 5)
           .all();
 
         relevantFiles = recentFiles.map((f) => ({
@@ -192,7 +196,7 @@ export class RagEngine {
         relevantFiles = await this.searchRelevantFiles(
           request.query,
           request.userId,
-          request.maxFiles || DEFAULT_MAX_FILES
+          maxFiles
         );
 
         if (relevantFiles.length === 0) {
@@ -224,7 +228,7 @@ export class RagEngine {
       const contextText = await this.assembleFileContext(
         relevantFiles,
         request.includeFileContent ?? false,
-        request.maxContextLength || DEFAULT_MAX_CONTEXT_LENGTH
+        maxContextLength
       );
 
       const fullContextText = statsContext ? `${statsContext}\n\n${contextText}` : contextText;
