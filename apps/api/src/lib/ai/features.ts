@@ -297,7 +297,7 @@ async function callVisionModel(
             messages: [
               {
                 role: 'user',
-                content: buildVisionMessageContent(effectiveModelId, base64Image, mimeType, prompt),
+                content: buildVisionMessageContent(customModel.modelId, base64Image, mimeType, prompt),
               },
             ],
             maxTokens: 300,
@@ -387,7 +387,7 @@ async function callVisionModelForTags(
             messages: [
               {
                 role: 'user',
-                content: buildVisionMessageContent(effectiveModelId, base64Image, mimeType, IMAGE_TAG_PROMPT),
+                content: buildVisionMessageContent(customModel.modelId, base64Image, mimeType, IMAGE_TAG_PROMPT),
               },
             ],
             maxTokens: 100,
