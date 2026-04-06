@@ -831,7 +831,8 @@ function mergeSourcesFromResult(result: unknown, sources: AgentSource[]): boolea
 
   if (r.error) return false;
 
-  const fileList: any[] = r.files || (r.file ? [r.file] : []);
+  const rawFiles = r.files ?? null;
+  const fileList: any[] = Array.isArray(rawFiles) ? rawFiles : (r.file ? [r.file] : []);
 
   let hasNew = false;
   for (const f of fileList.slice(0, 20)) {

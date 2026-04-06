@@ -2,22 +2,25 @@
  * content.ts — 内容理解与分析工具
  *
  * 功能:
- * - 文本内容读取
+ * - 文本内容读取（支持多存储后端）
  * - 视觉分析图片
  * - 文件对比
- * - 元数据提取（新增）
- * - AI摘要/标签触发（新增）
- * - 内容预览（新增）
+ * - 元数据提取
+ * - AI摘要/标签触发
+ * - 内容快速预览
+ *
+ * 智能特性：
+ * - 自动选择最佳内容获取方式
+ * - 支持大文件分块加载
+ * - 编码自动检测（UTF-8/GBK）
  */
 
 import { eq, and, isNull } from 'drizzle-orm';
-import { getDb, files } from '../../../db';
-import { buildFileTextForVector } from '../../vectorIndex';
+import { getDb, files, fileNotes } from '../../../db';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
-import { getAiConfigNumber, getAiConfigString } from '../aiConfigService';
 import { ModelGateway } from '../modelGateway';
-import type { ToolDefinition, AgentFile } from './types';
+import type { ToolDefinition } from './types';
 import {
   uint8ArrayToBase64,
   formatBytes,
@@ -25,6 +28,15 @@ import {
   getMimeTypeCategory,
   buildVisionMessageContent,
 } from '../utils';
+import { readFileContent } from '../../../lib/fileContentHelper';
+import { buildFileTextForVector } from '../../vectorIndex';
+import { getAiConfigNumber, getAiConfigString } from '../aiConfigService';
+import {
+  toAgentFile,
+  validateFileAccess,
+  createSuccessResponse,
+  createErrorResponse,
+} from './agentToolUtils';
 
 const DEFAULT_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_TEXT_CHUNK_SIZE = 1500;
@@ -35,15 +47,21 @@ export const definitions: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'read_file_text',
-      description: `【文本内容读取】获取文件的文本内容（分段）。
-适用：文档/代码/CSV/Markdown 等文本类文件。
-⚠️ 图片/视频文件无文本内容，请用 analyze_image 代替。
-⚠️ 搜到 ≤5 个文本文件后，若需了解内容，逐一调用此工具。`,
+      description: `【读取文件内容】智能获取文件的文本内容，支持分段加载。
+适用场景：
+• 用户想查看文件具体内容时："看看这个文件写了什么"、"读一下配置文件"
+• 找到文档后需要了解详情："帮我看看这份报告的内容"
+• 需要编辑前先预览："先看一下当前内容再决定怎么改"
+
+⚠️ 智能提示：
+• 图片/视频文件请用 analyze_image 代替
+• 大文件会自动分块返回，可指定 sectionIndex 读取特定段落
+• 支持 txt/md/csv/json/xml/yaml/code 等多种格式`,
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件的 UUID（如 "bf7b4a5e-5872-4edb-a150-a9a1330c58a9"），必须是工具返回的 id 字段' },
-          sectionIndex: { type: 'number', description: '要读取的段落序号（0开始），不传则返回所有段落摘要' },
+          fileId: { type: 'string', description: '文件ID（从搜索结果中获取）' },
+          sectionIndex: { type: 'number', description: '段落序号（0开始），用于大文件分段阅读' },
         },
         required: ['fileId'],
       },
@@ -55,19 +73,18 @@ export const definitions: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'analyze_image',
-      description: `【视觉分析】直接"看"图片并描述内容，支持 S3/R2 和 Telegram 双存储。
-⚠️ 仅适用于图片文件（image/*）。`,
+      description: `【AI看图】直接"看"图片并描述内容，就像人眼观察一样。
+适用场景：
+• "这张照片拍的什么"、"描述一下这张图"
+• "找一下有猫的图片"后对搜索结果进行视觉确认
+• "截图里显示了什么错误信息"
+
+⚠️ 仅适用于图片文件（jpg/png/gif/webp等），其他文件类型会返回错误`,
       parameters: {
         type: 'object',
         properties: {
-          fileId: {
-            type: 'string',
-            description: '图片文件的 UUID，必须是工具返回的 id 字段',
-          },
-          question: {
-            type: 'string',
-            description: '对图片提问。默认："详细描述图片内容"',
-          },
+          fileId: { type: 'string', description: '图片文件ID' },
+          question: { type: 'string', description: '想问的问题（可选，默认详细描述）' },
         },
         required: ['fileId'],
       },
@@ -79,93 +96,110 @@ export const definitions: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'compare_files',
-      description: '对比两个文本文件的内容摘要差异，适合用户问"这两个文件有什么区别"时。',
+      description: `【对比差异】智能对比两个文件的内容差异。
+适用场景：
+• "这两个版本有什么不同"
+• "对比一下新旧配置文件"
+• "检查两份合同的区别"
+
+会从多个维度对比：大小、摘要、实际内容等`,
       parameters: {
         type: 'object',
         properties: {
-          fileIdA: { type: 'string', description: '第一个文件的 UUID' },
-          fileIdB: { type: 'string', description: '第二个文件的 UUID' },
+          fileIdA: { type: 'string', description: '第一个文件ID' },
+          fileIdB: { type: 'string', description: '第二个文件ID' },
         },
         required: ['fileIdA', 'fileIdB'],
       },
     },
   },
 
-  // 4. extract_metadata — 元数据提取（新增）
+  // 4. extract_metadata — 元数据提取
   {
     type: 'function',
     function: {
       name: 'extract_metadata',
-      description: `【元数据提取】提取文件的详细元数据信息。
-支持类型：
-- 图片：EXIF 信息（拍摄时间、设备、参数等）
-- PDF：作者、标题、页数、创建时间等
-- Office：作者、最后修改者、修订次数等`,
+      description: `【元数据探查】深入挖掘文件的隐藏信息。
+适用场景：
+• "这张照片是什么时候拍的"、"用什么设备拍的"
+• "这个PDF的作者是谁"
+• "文件详细信息"
+
+能提取：EXIF信息（拍摄时间/设备/参数）、作者、创建时间、修改历史等`,
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件的 UUID' },
+          fileId: { type: 'string', description: '目标文件ID' },
         },
         required: ['fileId'],
       },
     },
   },
 
-  // 5. generate_summary — 触发AI摘要生成（新增）
+  // 5. generate_summary — AI摘要生成
   {
     type: 'function',
     function: {
       name: 'generate_summary',
-      description: `【AI摘要生成】为指定文件触发 AI 摘要生成。
-如果文件已有摘要，可选择强制重新生成。
+      description: `【AI摘要】让AI为文件生成智能摘要。
 适用场景：
-- 文件刚上传但还没有 AI 摘要
-- 文件内容已更新需要重新生成摘要`,
+• "为这个文件生成摘要"
+• "重新总结一下这份文档"
+• "新上传的文件还没有摘要"
+
+⚠️ 已有摘要的文件不会重复生成（除非设置 forceRegenerate=true）`,
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件的 UUID' },
-          forceRegenerate: { type: 'boolean', description: '是否强制重新生成（即使已有摘要），默认 false' },
+          fileId: { type: 'string', description: '目标文件ID' },
+          forceRegenerate: { type: 'boolean', description: '强制重新生成（即使已有）' },
         },
         required: ['fileId'],
       },
     },
   },
 
-  // 6. generate_tags — 触发AI标签生成（新增）
+  // 6. generate_tags — AI标签推荐
   {
     type: 'function',
     function: {
       name: 'generate_tags',
-      description: `【AI标签生成】为指定文件触发 AI 标签自动生成。
-生成的标签会自动关联到该文件。
+      description: `【智能打标签】基于文件内容自动推荐最合适的标签。
 适用场景：
-- 批量标记未分类的文件
-- 为新上传的文件添加智能标签`,
+• "帮这些文件打个标签"
+• "批量标记未分类的文件"
+• "根据内容自动分类"
+
+系统会分析文件名、内容、上下文来推荐标签`,
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件的 UUID' },
-          maxTags: { type: 'number', description: '最大生成标签数量，默认 5' },
+          fileId: { type: 'string', description: '目标文件ID' },
+          maxTags: { type: 'number', description: '最多推荐几个标签（默认5）' },
         },
         required: ['fileId'],
       },
     },
   },
 
-  // 7. content_preview — 内容预览（新增）
+  // 7. content_preview — 快速预览
   {
     type: 'function',
     function: {
       name: 'content_preview',
-      description: `【快速预览】获取文件内容的快速预览（前 N 行或前 N 页）。
-适合快速浏览文件内容时使用，比 read_file_text 更轻量。`,
+      description: `【快速瞥一眼】轻量级文件内容预览，适合快速浏览。
+适用场景：
+• "简单看一下开头部分"
+• "这是什么格式的文件"
+• "大概有多少行内容"
+
+比 read_file_text 更快更省资源，只返回前N行或前N个字符`,
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件的 UUID' },
-          lines: { type: 'number', description: '预览行数（文本文件），默认 50' },
-          maxLength: { type: 'number', description: '最大字符数，默认 2000' },
+          fileId: { type: 'string', description: '目标文件ID' },
+          lines: { type: 'number', description: '预览行数（默认50）' },
+          maxLength: { type: 'number', description: '最大字符数（默认2000）' },
         },
         required: ['fileId'],
       },
@@ -182,38 +216,48 @@ export class ContentTools {
 
     const textChunkSize = await getAiConfigNumber(env, 'ai.tool.text_chunk_size', DEFAULT_TEXT_CHUNK_SIZE);
 
-    const file = await db
-      .select()
-      .from(files)
-      .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
-      .get();
-
-    if (!file) return { error: `文件不存在或无权访问: ${fileId}` };
+    // 使用公共的文件访问验证
+    const validation = await validateFileAccess(db, fileId, userId);
+    if (!validation.success) {
+      return createErrorResponse(validation.error, { fileId });
+    }
+    const file = validation.file;
 
     if (
       file.mimeType?.startsWith('image/') ||
       file.mimeType?.startsWith('video/') ||
       file.mimeType?.startsWith('audio/')
     ) {
-      return {
+      return createSuccessResponse({
         fileId,
         fileName: file.name,
         mimeType: file.mimeType,
         error: '该文件类型无文本内容',
-        _next_actions: file.mimeType.startsWith('image/') ? ['请使用 analyze_image 工具来理解图片内容。'] : [],
-      };
+      }, file.mimeType?.startsWith('image/') ? ['请使用 analyze_image 工具来理解图片内容。'] : []);
     }
 
-    const vectorText = await buildFileTextForVector(env, fileId);
-    if (!vectorText || vectorText.trim().length < 30) {
-      return {
+    // 使用公共的文件内容读取模块（支持多存储后端）
+    const readResult = await readFileContent(env, file as any, userId);
+
+    let vectorText: string;
+
+    if (readResult.success && readResult.content && readResult.content.trim().length >= 30) {
+      vectorText = readResult.content;
+      logger.info('ContentTool', '成功读取文件内容', { fileId, source: readResult.source });
+    } else if (file.aiSummary) {
+      // 降级：使用数据库中的AI摘要
+      vectorText = `${file.name}\n${file.aiSummary}`;
+      logger.info('ContentTool', '降级使用AI摘要', { fileId });
+    } else {
+      return createSuccessResponse({
         fileId,
         fileName: file.name,
         mimeType: file.mimeType,
-        aiSummary: file.aiSummary || null,
+        aiSummary: null,
         sections: [],
         note: '该文件尚无可提取的文本内容（可能未建立索引，或为二进制文件）。',
-      };
+        error: readResult.error || '无法读取文件内容',
+      });
     }
 
     const totalChunks = Math.ceil(vectorText.length / textChunkSize);

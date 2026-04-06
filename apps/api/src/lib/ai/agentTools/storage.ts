@@ -1,14 +1,14 @@
 /**
- * storage.ts — 存储桶管理工具
+ * storage.ts — 存储空间管理工具
  *
  * 功能:
- * - 列出存储桶
- * - 存储桶详情
- * - 设置默认存储桶
- * - 迁移文件到其他桶
+ * - 存储使用情况统计
+ * - 大文件发现
+ * - 空间清理建议
+ * - 文件类型分布
  */
 
-import { eq, and, isNull, count, sql, desc } from 'drizzle-orm';
+import { eq, and, isNull, desc, sql, count } from 'drizzle-orm';
 import { getDb, files, storageBuckets } from '../../../db';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
@@ -16,12 +16,18 @@ import type { ToolDefinition } from './types';
 import { formatBytes } from '../utils';
 
 export const definitions: ToolDefinition[] = [
+  // 1. get_storage_usage — 存储概览
   {
     type: 'function',
     function: {
-      name: 'list_buckets',
-      description: `【列出存储桶】列出所有可用的存储桶及其状态。
-显示每个桶的容量、文件数量、连接状态等。`,
+      name: 'get_storage_usage',
+      description: `【空间概况】查看存储空间的使用情况。
+适用场景：
+• "我的空间用得怎么样"
+• "还剩多少空间"
+• "哪些东西占空间大"
+
+提供总览：已用/剩余、文件数量、文件夹数量等`,
       parameters: {
         type: 'object',
         properties: {},
@@ -29,52 +35,85 @@ export const definitions: ToolDefinition[] = [
       },
     },
   },
+
+  // 2. get_large_files — 大文件列表
   {
     type: 'function',
     function: {
-      name: 'get_bucket_info',
-      description: `【存储桶详情】获取指定存储桶的详细信息。
-包括配置参数、使用统计、连接状态等。`,
+      name: 'get_large_files',
+      description: `【大文件】找出占用空间最多的文件。
+适用场景：
+• "找一下大文件"
+• "什么占的空间最多"
+• "清理一些大文件"
+
+帮助释放存储空间`,
       parameters: {
         type: 'object',
         properties: {
-          bucketId: { type: 'string', description: '存储桶 ID' },
+          limit: { type: 'number', description: '返回数量（默认20）' },
+          minSize: { type: 'number', description: '最小大小（字节），如 10*1024*1024=10MB' },
         },
-        required: ['bucketId'],
       },
     },
   },
+
+  // 3. get_file_type_distribution — 类型分布
   {
     type: 'function',
     function: {
-      name: 'set_default_bucket',
-      description: `【设置默认桶】指定新上传文件的默认存储桶。
-适用场景："以后的新文件存到R2桶"`,
+      name: 'get_file_type_distribution',
+      description: `【类型分布】按文件类型统计存储使用情况。
+适用场景：
+• "我的文件都是什么类型的"
+• "图片占多少空间"
+• "文档和视频的比例"
+
+帮助了解文件构成`,
       parameters: {
         type: 'object',
-        properties: {
-          bucketId: { type: 'string', description: '要设为默认的存储桶 ID' },
-          _confirmed: { type: 'boolean', description: '用户确认' },
-        },
-        required: ['bucketId', '_confirmed'],
+        properties: {},
+        required: [],
       },
     },
   },
+
+  // 4. get_folder_sizes — 文件夹大小
   {
     type: 'function',
     function: {
-      name: 'migrate_file_to_bucket',
-      description: `【迁移文件】将文件从一个存储桶迁移到另一个存储桶。
-⚠️ 大文件可能需要较长时间，请耐心等待。
-适用场景："把这个文件移到S3桶"、"迁移重要数据到备用存储"`,
+      name: 'get_folder_sizes',
+      description: `【文件夹占用】查看各文件夹的存储占用情况。
+适用场景：
+• "哪个文件夹最大"
+• "工作目录占多少空间"
+• "清理特定文件夹"`,
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '要迁移的文件 ID' },
-          targetBucketId: { type: 'string', description: '目标存储桶 ID' },
-          _confirmed: { type: 'boolean', description: '用户确认' },
+          topN: { type: 'number', description: '显示最大的 N 个（默认10）' },
+          folderId: { type: 'string', description: '指定父文件夹（可选，不传则全局）' },
         },
-        required: ['fileId', 'targetBucketId', '_confirmed'],
+      },
+    },
+  },
+
+  // 5. get_cleanup_suggestions — 清理建议
+  {
+    type: 'function',
+    function: {
+      name: 'get_cleanup_suggestions',
+      description: `【清理建议】智能分析并提供空间清理建议。
+适用场景：
+• "帮我清理一下空间"
+• "有什么可以删的"
+• "优化存储使用"
+
+会分析：重复文件、过期分享、大文件、空文件夹等`,
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
       },
     },
   },

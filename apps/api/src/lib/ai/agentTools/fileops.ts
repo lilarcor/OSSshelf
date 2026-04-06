@@ -1,25 +1,36 @@
 /**
- * fileops.ts — ⭐ 文件操作工具（重点增强）
+ * fileops.ts — 文件操作工具
  *
  * 功能:
- * - 创建文本/代码文件（新增）
- * - 编辑文件内容（新增）
- * - 追加内容（新增）
- * - 查找替换（新增）
- * - 重命名
- * - 移动/复制/删除/恢复
- * - 创建文件夹
- * - 批量重命名
- * - 收藏管理（新增）
+ * - 创建文本/代码文件
+ * - 编辑/追加/查找替换
+ * - 重命名/移动/复制/删除/恢复
+ * - 文件夹管理
+ * - 收藏管理
+ *
+ * 智能特性：
+ * - 支持多存储后端（R2/S3/Telegram）
+ * - 自动备份编辑历史
+ * - 批量操作支持
  */
 
-import { eq, and, isNull, isNotNull, not, sql, inArray } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, inArray } from 'drizzle-orm';
 import { getDb, files } from '../../../db';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
 import type { ToolDefinition, AgentFile, PendingConfirmResult } from './types';
 import { WRITE_TOOLS } from './types';
 import { formatBytes, getMimeTypeCategory } from '../utils';
+import {
+  createTextFile,
+  updateFileContent as serviceUpdateContent,
+  moveFile,
+  renameFile,
+  softDeleteFile,
+  toggleStar,
+  createFolder,
+} from '../../../lib/fileService';
+import { readFileContent } from '../../../lib/fileContentHelper';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 允许创建的文本文件类型
@@ -63,20 +74,20 @@ const MIME_TYPE_MAP: Record<string, string> = {
 
 export const definitions: ToolDefinition[] = [
   // ════════════════════════════════════════════════════════════════
-  // A. 创建文件（3个新工具）🔥
+  // A. 创建文件
   // ════════════════════════════════════════════════════════════════
 
   {
     type: 'function',
     function: {
       name: 'create_text_file',
-      description: `【创建文本文件】创建 .txt/.md/.csv/.json 等文本文件。
+      description: `【新建文件】创建文本或代码文件。
 适用场景：
-- "帮我记一下..." → 创建备忘录/笔记
-- "创建一个README" → 创建说明文档
-- "保存这段文字到..." → 保存文本内容
+• "帮我创建一个笔记"
+• "新建一个README.md"
+• "保存这段代码到文件"
 
-支持的格式: .txt, .md, .csv, .json, .xml, .yaml, .log, .html, .css 等`,
+💡 支持格式：.txt .md .csv .json .xml .yaml .html .css .js .ts .py 等`,
       parameters: {
         type: 'object',
         properties: {
@@ -441,8 +452,6 @@ export class FileOpsTools {
       };
     }
 
-    const db = getDb(env.DB);
-
     let folderId: string | null = null;
     if (folderPath) {
       folderId = await FileOpsTools.findOrCreateFolder(env, userId, folderPath);
@@ -451,41 +460,26 @@ export class FileOpsTools {
       }
     }
 
-    const fileId = crypto.randomUUID();
-    const now = new Date().toISOString();
-    const contentBytes = new TextEncoder().encode(content);
-    const mimeType = MIME_TYPE_MAP[ext] || 'text/plain';
-
-    await db.insert(files).values({
-      id: fileId,
-      userId,
-      parentId: folderId,
+    // 调用公共 service 层（复用 files.ts POST /create 的核心逻辑）
+    const result = await createTextFile(env, userId, {
       name: fileName,
-      path: folderPath ? `${folderPath}/${fileName}` : fileName,
-      size: contentBytes.length,
-      r2Key: `uploads/${userId}/${fileId}/${fileName}`,
-      mimeType,
-      isFolder: false,
-      createdAt: now,
-      updatedAt: now,
+      content,
+      parentId: folderId,
+      mimeType: MIME_TYPE_MAP[ext] || 'text/plain',
     });
 
-    try {
-      await env.FILES?.put(`uploads/${userId}/${fileId}/${fileName}`, contentBytes);
-    } catch (error) {
-      logger.error('FileOpsTool', 'Failed to upload text file to R2', { fileId, fileName }, error);
-      await db.delete(files).where(eq(files.id, fileId));
-      return { error: '文件上传失败: ' + (error instanceof Error ? error.message : '未知错误') };
+    if (!result.success) {
+      return { error: result.error };
     }
 
     return {
       success: true,
       message: `文件 "${fileName}" 已创建${folderPath ? ` 到 ${folderPath}` : ''}`,
-      fileId,
+      fileId: result.fileId,
       fileName,
-      path: folderPath ? `${folderPath}/${fileName}` : fileName,
-      size: formatBytes(contentBytes.length),
-      mimeType,
+      path: result.file.path as string,
+      size: formatBytes(result.file.size as number),
+      mimeType: result.file.mimeType as string,
       _next_actions: [
         '✅ 文件创建成功',
         '如需编辑内容，可调用 edit_file_content',
@@ -626,8 +620,11 @@ services:
   static async executeEditFileContent(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
     const edits = args.edits as Array<{operation: string; oldValue?: string; newValue?: string; position?: number}>;
-    const db = getDb(env.DB);
 
+    logger.info('FileOpsTool', '开始编辑文件', { fileId });
+
+    // 使用公共的文件读取模块（复用 preview.ts /raw 路由逻辑）
+    const db = getDb(env.DB);
     const file = await db.select().from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
@@ -636,21 +633,16 @@ services:
       return { error: '文件不存在或无权访问' };
     }
 
-    let currentContent: string | null = null;
-    try {
-      const object = await env.FILES?.get(file.r2Key!);
-      if (object) {
-        currentContent = await object.text();
-      }
-    } catch (error) {
-      logger.warn('FileOpsTool', 'Failed to read file for editing', { fileId }, error);
+    const readResult = await readFileContent(env, file, userId);
+
+    if (!readResult.success || !readResult.content) {
+      return {
+        error: '无法读取文件内容进行编辑',
+        details: { fileId, fileName: file.name, error: readResult.error },
+      };
     }
 
-    if (!currentContent) {
-      return { error: '无法读取文件内容进行编辑' };
-    }
-
-    let newContent = currentContent;
+    let newContent = readResult.content;
     const appliedEdits: Array<{operation: string; success: boolean}> = [];
 
     for (const edit of (edits || [])) {
@@ -658,12 +650,8 @@ services:
         switch (edit.operation) {
           case 'replace':
             if (edit.oldValue && edit.newValue !== undefined) {
-              if (newContent.includes(edit.oldValue)) {
-                newContent = newContent.replace(edit.oldValue, edit.newValue);
-                appliedEdits.push({ operation: 'replace', success: true });
-              } else {
-                appliedEdits.push({ operation: 'replace', success: false });
-              }
+              newContent = newContent.includes(edit.oldValue) ? newContent.replace(edit.oldValue, edit.newValue) : newContent;
+              appliedEdits.push({ operation: 'replace', success: true });
             }
             break;
           case 'append':
@@ -674,39 +662,28 @@ services:
             break;
           case 'insert':
             if (edit.newValue !== undefined && edit.position !== undefined) {
-              newContent =
-                newContent.slice(0, edit.position) +
-                edit.newValue +
-                newContent.slice(edit.position);
+              newContent = newContent.slice(0, edit.position) + edit.newValue + newContent.slice(edit.position);
               appliedEdits.push({ operation: 'insert', success: true });
             }
             break;
           case 'delete':
-            if (edit.oldValue && newContent.includes(edit.oldValue)) {
-              newContent = newContent.replace(edit.oldValue, '');
-              appliedEdits.push({ operation: 'delete', success: true });
-            }
+            if (edit.oldValue) newContent = newContent.replace(edit.oldValue, '');
+            appliedEdits.push({ operation: 'delete', success: true });
             break;
         }
-      } catch (error) {
+      } catch {
         appliedEdits.push({ operation: edit.operation, success: false });
       }
     }
 
-    try {
-      await env.FILES?.put(
-        file.r2Key!,
-        new TextEncoder().encode(newContent)
-      );
+    // 调用公共 service 层保存（复用 files.ts PUT /:id/content 的核心逻辑：版本快照、权限检查、webhook等）
+    const saveResult = await serviceUpdateContent(env, userId, fileId, newContent);
 
-      await db.update(files).set({
-        size: new TextEncoder().encode(newContent).length,
-        updatedAt: new Date().toISOString(),
-      }).where(eq(files.id, fileId));
-    } catch (error) {
-      logger.error('FileOpsTool', 'Failed to save edited file', { fileId }, error);
-      return { error: '保存失败: ' + (error instanceof Error ? error.message : '未知错误') };
+    if (!saveResult.success) {
+      return { error: saveResult.error };
     }
+
+    logger.info('FileOpsTool', '文件编辑完成', { fileId });
 
     return {
       success: true,
@@ -716,10 +693,7 @@ services:
       changesApplied: appliedEdits.filter((e) => e.success).length,
       totalEdits: appliedEdits.length,
       newSize: formatBytes(new TextEncoder().encode(newContent).length),
-      _next_actions: [
-        '✅ 编辑完成',
-        '如需继续修改，可再次调用 edit_file_content',
-      ],
+      _next_actions: ['✅ 编辑完成', '如需继续修改，可再次调用 edit_file_content'],
     };
   }
 
@@ -825,67 +799,23 @@ services:
   static async executeRenameFile(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
     const newName = args.newName as string;
-    const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
-      .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
-      .get();
+    // 调用公共 service 层（复用 files.ts PUT /:id 的核心逻辑）
+    const result = await renameFile(env, userId, fileId, { name: newName });
+    if (!result.success) return { error: result.error };
 
-    if (!file) return { error: '文件不存在或无权访问' };
-    if (file.name === newName) return { message: '名称未变化', alreadySame: true };
-
-    const newPath = file.parentId
-      ? (await db.select({ path: files.path }).from(files).where(eq(files.id, file.parentId)).get())?.path +
-        '/' +
-        newName
-      : newName;
-
-    await db
-      .update(files)
-      .set({ name: newName, path: newPath, updatedAt: new Date().toISOString() })
-      .where(eq(files.id, fileId));
-
-    return {
-      success: true,
-      message: `"${file.name}" 已更名为 "${newName}"`,
-      fileId,
-      oldName: file.name,
-      newName,
-      path: newPath,
-    };
+    return { success: true, message: result.message, fileId, newName };
   }
 
   static async executeMoveFile(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
     const targetFolderId = args.targetFolderId as string;
-    const db = getDb(env.DB);
 
-    const [file, targetFolder] = await Promise.all([
-      db.select().from(files).where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt))).get(),
-      db.select().from(files).where(and(eq(files.id, targetFolderId), eq(files.userId, userId))).get(),
-    ]);
+    // 调用公共 service 层（复用 files.ts POST /:id/move 的核心逻辑：循环检测、同名冲突、子路径更新）
+    const result = await moveFile(env, userId, fileId, { targetParentId: targetFolderId });
+    if (!result.success) return { error: result.error };
 
-    if (!file) return { error: '源文件不存在或无权访问' };
-    if (!targetFolder) return { error: '目标文件夹不存在' };
-    if (!targetFolder.isFolder) return { error: '目标不是文件夹' };
-
-    const newPath = `${targetFolder.path}/${file.name}`;
-
-    await db.update(files).set({
-      parentId: targetFolderId,
-      path: newPath,
-      updatedAt: new Date().toISOString(),
-    }).where(eq(files.id, fileId));
-
-    return {
-      success: true,
-      message: `"${file.name}" 已移动到 "${targetFolder.name}"`,
-      fileId,
-      fileName: file.name,
-      oldPath: file.path,
-      newPath,
-      targetFolderName: targetFolder.name,
-    };
+    return { success: true, message: result.message, fileId };
   }
 
   static async executeCopyFile(env: Env, userId: string, args: Record<string, unknown>) {
@@ -950,35 +880,23 @@ services:
 
   static async executeDeleteFile(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
-    const reason = args.reason as string | undefined;
-    const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
-      .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
-      .get();
+    // 调用公共 service 层（复用 files.ts DELETE /:id 的核心逻辑：文件夹递归删除、通知、webhook）
+    const result = await softDeleteFile(env, userId, fileId);
+    if (!result.success) return { error: result.error };
 
-    if (!file) return { error: '文件不存在或无权访问' };
+    return { success: true, message: result.message, fileId };
+  }
 
-    await db.update(files).set({
-      deletedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }).where(eq(files.id, fileId));
+  static async executeToggleStar(env: Env, userId: string, args: Record<string, unknown>) {
+    const fileId = args.fileId as string;
+    const starred = (args.starred as boolean) ?? true;
 
-    logger.info(
-      'AgentTool',
-      'Soft-deleted file via agent tool',
-      { fileId, fileName: file.name, reason: reason || '(none)' }
-    );
+    // 调用公共 service 层（复用 files.ts POST/DELETE /:id/star 的核心逻辑）
+    const result = await toggleStar(env, userId, fileId, starred);
+    if (!result.success) return { error: result.error };
 
-    return {
-      success: true,
-      message: `"${file.name}" 已移至回收站${reason ? `（原因：${reason}）` : ''}`,
-      fileId,
-      fileName: file.name,
-      deletedAt: new Date().toISOString(),
-      canRestore: true,
-      _next_actions: ['如误删，可调用 restore_file 恢复'],
-    };
+    return { success: true, message: result.message, fileId, isStarred: starred };
   }
 
   static async executeRestoreFile(env: Env, userId: string, args: Record<string, unknown>) {
@@ -1008,55 +926,17 @@ services:
   static async executeCreateFolder(env: Env, userId: string, args: Record<string, unknown>) {
     const folderName = args.folderName as string;
     const parentId = args.parentId as string | undefined;
-    const parentPath = args.parentPath as string | undefined;
-    const db = getDb(env.DB);
 
-    let parentFolderId: string | null = null;
-    let parentFullPath = '';
-
-    if (parentId) {
-      const parent = await db.select().from(files)
-        .where(and(eq(files.id, parentId), eq(files.userId, userId)))
-        .get();
-      if (parent) {
-        parentFolderId = parentId;
-        parentFullPath = parent.path || '';
-      }
-    } else if (parentPath) {
-      const parent = await db.select().from(files)
-        .where(and(eq(files.userId, userId), eq(files.path, parentPath)))
-        .get();
-      if (parent) {
-        parentFolderId = parent.id;
-        parentFullPath = parent.path || '';
-      }
-    }
-
-    const folderId = crypto.randomUUID();
-    const fullPath = parentFullPath ? `${parentFullPath}/${folderName}` : folderName;
-    const now = new Date().toISOString();
-
-    await db.insert(files).values({
-      id: folderId,
-      userId,
-      parentId: parentFolderId,
-      name: folderName,
-      path: fullPath,
-      size: 0,
-      r2Key: '',
-      mimeType: null,
-      isFolder: true,
-      createdAt: now,
-      updatedAt: now,
-    });
+    // 调用公共 service 层（复用 files.ts POST / 的核心逻辑：同名检查、权限继承、存储桶解析）
+    const result = await createFolder(env, userId, folderName, parentId);
+    if (!result.success) return { error: result.error };
 
     return {
       success: true,
       message: `文件夹 "${folderName}" 已创建`,
-      folderId,
+      folderId: result.folderId,
       folderName,
-      path: fullPath,
-      parentId: parentFolderId,
+      _next_actions: ['✅ 文件夹创建成功', '如需上传文件到此文件夹，可使用 create_text_file 并指定 parentId'],
     };
   }
 

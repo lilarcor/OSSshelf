@@ -1,13 +1,16 @@
 /**
- * search.ts — 搜索与发现类工具
+ * search.ts — 智能搜索与发现工具
  *
  * 功能:
- * - 语义+FTS混合搜索
- * - 结构化多维过滤
- * - 标签搜索
- * - 重复文件查找
- * - 智能搜索路由（新增）
- * - 标签总览（新增）
+ * - 语义搜索（向量搜索）
+ * - 关键词搜索（全文检索）
+ * - 智能路由（自动选择最佳搜索方式）
+ * - 文件过滤与排序
+ *
+ * 智能特性：
+ * - 自动拆分中文关键词（"文档资料共享" → ["文档", "资料", "共享"]）
+ * - 多策略融合（向量 + FTS + 元数据）
+ * - 自然语言理解（支持口语化表达）
  */
 
 import { eq, and, isNull, isNotNull, desc, asc, like, or, inArray, count, gte, lte, sql } from 'drizzle-orm';
@@ -24,168 +27,174 @@ import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
 import type { ToolDefinition, AgentFile, ToolResultBase } from './types';
 import { formatBytes, getMimeTypeCategory } from '../utils';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 工具定义
-// ─────────────────────────────────────────────────────────────────────────────
+import { splitKeywords } from '../../../lib/keywordSplitter';
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from './agentToolUtils';
 
 export const definitions: ToolDefinition[] = [
-  // 1. search_files — 语义+FTS混合搜索
+  // 1. search_files — 主要搜索工具
   {
     type: 'function',
     function: {
       name: 'search_files',
-      description: `【核心搜索】语义向量搜索 + 全文检索混合，覆盖文件名/描述/AI摘要/AI标签四个字段。
-适用场景：
-- 用户明确说要"找""搜"某类或某个文件
-- 关键词搜索：2-5 个核心词，避免完整句子
-- 支持 mimeTypePrefix 按文件类型过滤（如 "image/" "video/" "application/pdf"）
-⚠️ 返回 0 结果时：不要重试超过 2 次，改用 filter_files 按类型浏览
-⚠️ 找到图片时：调用 analyze_image 进行视觉确认`,
+      description: `【智能搜索】理解用户意图并找到最相关的文件。
+适用场景（几乎涵盖所有查找需求）：
+• "找一下XX文件"、"我的XX在哪里"
+• "找文档资料共享这个文件夹" → 自动拆分关键词智能匹配
+• "上周修改的PPT"、"最近的照片"
+• "包含'合同'的PDF"
+• "大于10MB的视频"
+
+💡 核心能力：
+✓ 中文语义理解：自动识别"文档资料共享"等复合词
+✓ 多维度匹配：文件名、内容、标签、描述
+✓ 类型感知：自动区分图片/文档/视频等
+✓ 时间范围：支持"最近N天"、"上周"、"本月"等自然语言`,
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: '搜索词（2-5个核心词）' },
-          limit: { type: 'number', description: '结果数量，默认 10，最大 30' },
-          mimeTypePrefix: { type: 'string', description: '类型过滤，如 "image/" "video/" "text/" "application/pdf"' },
-          folderId: { type: 'string', description: '限定在某文件夹内搜索' },
+          query: { type: 'string', description: '搜索词（支持中文、英文、混合，如"项目报告2024"、"会议纪要"）' },
+          limit: { type: 'number', description: '返回数量（默认10）' },
+          mimeTypePrefix: { type: 'string', description: '按类型过滤：image/ | video/ | application/pdf | text/ 等' },
+          folderId: { type: 'string', description: '限定在某个文件夹内搜索' },
+          minSize: { type: 'number', description: '最小文件大小（字节），如 1024*1024=1MB' },
+          maxSize: { type: 'number', description: '最大文件大小（字节）' },
+          dateFrom: { type: 'string', description: '起始日期（ISO格式：2025-01-01）' },
+          dateTo: { type: 'string', description: '截止日期（ISO格式：2025-12-31）' },
         },
         required: ['query'],
       },
     },
   },
 
-  // 2. filter_files — 结构化多维过滤
-  {
-    type: 'function',
-    function: {
-      name: 'filter_files',
-      description: `【结构化过滤】通过多维条件组合筛选文件，不依赖关键词匹配。
-适用场景：
-- "找所有图片" / "找大文件" / "最近一周上传的文件"
-- 搜索无结果时的备选方案
-- 需要视觉筛选时（先 filter_files 获取图片列表，再 analyze_image 逐张判断）`,
-      parameters: {
-        type: 'object',
-        properties: {
-          mimeTypePrefix: { type: 'string', description: '文件类型前缀，如 "image/" "video/" "audio/"' },
-          hasAiSummary: { type: 'boolean', description: '仅返回已有 AI 摘要的文件' },
-          hasVectorIndex: { type: 'boolean', description: '仅返回已建立向量索引的文件' },
-          isStarred: { type: 'boolean', description: '仅返回收藏的文件' },
-          minSizeBytes: { type: 'number', description: '最小文件大小（字节）' },
-          maxSizeBytes: { type: 'number', description: '最大文件大小（字节）' },
-          createdAfter: { type: 'string', description: '创建时间起（ISO 8601）' },
-          createdBefore: { type: 'string', description: '创建时间止（ISO 8601）' },
-          folderId: { type: 'string', description: '限定在某文件夹内，不传则全局' },
-          sortBy: {
-            type: 'string',
-            enum: ['newest', 'oldest', 'largest', 'smallest', 'name_asc', 'name_desc'],
-            description: '排序方式，默认 newest',
-          },
-          limit: { type: 'number', description: '结果数量，默认 20，最大 100' },
-        },
-        required: [],
-      },
-    },
-  },
-
-  // 3. search_by_tag — 标签搜索
-  {
-    type: 'function',
-    function: {
-      name: 'search_by_tag',
-      description: '按标签精确或模糊搜索文件。支持同时搜索多个标签（AND 逻辑：文件必须包含所有标签）。',
-      parameters: {
-        type: 'object',
-        properties: {
-          tags: {
-            type: 'array',
-            items: { type: 'string' },
-            description: '标签名数组，如 ["重要", "合同"]。多个标签取交集（AND）',
-          },
-          matchMode: {
-            type: 'string',
-            enum: ['any', 'all'],
-            description: '"any"=包含任意一个标签（OR），"all"=包含所有标签（AND）。默认 any',
-          },
-          limit: { type: 'number', description: '结果数量，默认 20' },
-        },
-        required: ['tags'],
-      },
-    },
-  },
-
-  // 4. search_duplicates — 重复文件查找
-  {
-    type: 'function',
-    function: {
-      name: 'search_duplicates',
-      description: '查找重复文件（相同内容哈希的文件）。适合用户问"有没有重复文件"时使用。',
-      parameters: {
-        type: 'object',
-        properties: {
-          mimeTypePrefix: { type: 'string', description: '可选：只查找某类型的重复文件' },
-          limit: { type: 'number', description: '返回重复组数量，默认 10' },
-        },
-        required: [],
-      },
-    },
-  },
-
-  // 5. smart_search — 智能搜索路由（新增）
+  // 2. smart_search — 智能路由搜索
   {
     type: 'function',
     function: {
       name: 'smart_search',
-      description: `【智能搜索引擎】自动选择最佳搜索策略。
-根据查询特征自动路由到合适的搜索工具：
-- 包含具体文件名 → 精确匹配 (filter_files)
-- 包含语义概念 → 向量语义搜索 (search_files)
-- 包含标签 → 标签搜索 (search_by_tag)
-- 包含路径 → 路径模式匹配
-- 拼写不确定 → 模糊匹配
+      description: `【万能搜索】当不确定用哪个工具时，直接调用此工具即可。
+它会自动判断最佳策略并返回结果。
 
-适用场景：
-- 不确定该用哪种搜索方式时
-- 自然语言查询："找我的照片"、"最近的文档"、"重要的文件"`,
+适合场景：
+• 用户需求模糊时："帮我找点东西"
+• 需要综合多个条件时："找最近的PPT或Word"
+• 快速试探性搜索
+
+⚠️ 此工具会根据 query 内容自动选择最优搜索方式`,
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: '搜索词（自然语言）' },
-          intent: {
-            type: 'string',
-            enum: ['auto', 'filename', 'semantic', 'tag', 'path', 'fuzzy'],
-            description: '搜索意图，默认 auto（自动检测）',
-          },
-          limit: { type: 'number', description: '结果数量，默认 10' },
+          query: { type: 'string', description: '用户的原始查询（保持原样传入）' },
+          context: { type: 'string', description: '对话上下文（帮助理解意图）' },
+          limit: { type: 'number', description: '返回数量（默认15）' },
         },
         required: ['query'],
       },
     },
   },
 
-  // 6. list_all_tags — 标签总览（新增）
+  // 3. filter_files — 高级筛选
   {
     type: 'function',
     function: {
-      name: 'list_all_tags',
-      description: `列出用户所有的标签及其使用次数、颜色等信息。
+      name: 'filter_files',
+      description: `【高级筛选】按多个条件精确过滤文件列表。
 适用场景：
-- 查看有哪些可用标签
-- 了解标签的使用频率
-- 为打标签提供参考`,
+• "找出所有超过100MB的文件"
+• "本月创建的PDF文档"
+• "未加标签的文件"
+• "已分享的图片"
+
+适合在已有大量结果后进一步精确筛选`,
       parameters: {
         type: 'object',
         properties: {
-          includeUsageCount: { type: 'boolean', description: '是否包含每个标签的使用次数，默认 true' },
-          sortBy: {
-            type: 'string',
-            enum: ['name', 'usage_count', 'created_at'],
-            description: '排序方式，默认 usage_count',
+          conditions: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                field: { type: 'string', enum: ['mimeType', 'size', 'created_at', 'updated_at', 'is_starred', 'has_tags'], description: '字段名' },
+                operator: { type: 'string', enum: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'is_null', 'not_null'], description: '操作符' },
+                value: { type: 'string', description: '值' },
+              },
+            },
+            description: '筛选条件数组',
           },
-          limit: { type: 'number', description: '返回数量，默认 50' },
+          limit: { type: 'number', description: '返回数量（默认50）' },
+          sortBy: { type: 'string', enum: ['name', 'size', 'updated_at', 'created_at'], description: '排序字段' },
+          sortOrder: { type: 'string', enum: ['asc', 'desc'], description: '排序方向' },
         },
-        required: [],
+      },
+    },
+  },
+
+  // 4. search_by_tag — 标签搜索
+  {
+    type: 'function',
+    function: {
+      name: 'search_by_tag',
+      description: `【标签搜索】通过标签快速定位相关文件。
+适用场景：
+• "所有标记为'重要'的文件"
+• "带'工作'标签的文档"
+• "有'待处理'标签的内容"
+
+适合用户已经建立了良好标签体系的情况`,
+      parameters: {
+        type: 'object',
+        properties: {
+          tag: { type: 'string', description: '目标标签名（支持模糊匹配）' },
+          limit: { type: 'number', description: '返回数量（默认20）' },
+        },
+        required: ['tag'],
+      },
+    },
+  },
+
+  // 5. get_similar_files — 相似文件推荐
+  {
+    type: 'function',
+    function: {
+      name: 'get_similar_files',
+      description: `【相似推荐】基于某个文件找到内容相似的其他文件。
+适用场景：
+• "找和这份报告类似的文档"
+• "还有没有像这样的图片"
+• "相关文件有哪些"
+
+基于向量语义相似度计算，不仅看文件名还看内容`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: '参考文件的ID' },
+          limit: { type: 'number', description: '推荐数量（默认10）' },
+        },
+        required: ['fileId'],
+      },
+    },
+  },
+
+  // 6. get_file_details — 文件详情
+  {
+    type: 'function',
+    function: {
+      name: 'get_file_details',
+      description: `【详细信息】获取文件的完整元数据和上下文信息。
+适用场景：
+• "这个文件的详细信息"
+• "看看文件的属性"
+• "什么时候上传的、多大"
+
+比搜索结果返回更多信息：路径链、标签列表、分享状态等`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: '目标文件ID' },
+        },
+        required: ['fileId'],
       },
     },
   },
@@ -206,7 +215,18 @@ export class SearchTools {
     const db = getDb(env.DB);
     let results: AgentFile[] = [];
 
+    // 使用智能关键词拆分（支持中文语义单元识别）
+    const splitResult = splitKeywords(query);
+    const keywords = splitResult.keywords.length > 0 ? splitResult.keywords : [query];
+
+    logger.info('AgentTool', '搜索关键词智能拆分', {
+      originalQuery: query,
+      keywords,
+      method: splitResult.method,
+    });
+
     try {
+      // 向量搜索使用原始查询（保持语义完整性）
       const vectorResults = await searchAndFetchFiles(env, query, userId, {
         limit: limit * 2,
         threshold: 0.22,
@@ -220,12 +240,12 @@ export class SearchTools {
     }
 
     if (results.length < 3) {
-      const kws = query.split(/\s+/).slice(0, 4);
+      // FTS 回退搜索使用拆分后的关键词
       const conditions: any[] = [
         eq(files.userId, userId),
         isNull(files.deletedAt),
         or(
-          ...kws.flatMap((w) => [
+          ...keywords.flatMap((w) => [
             like(files.name, `%${w}%`),
             like(files.description, `%${w}%`),
             like(files.aiSummary, `%${w}%`),

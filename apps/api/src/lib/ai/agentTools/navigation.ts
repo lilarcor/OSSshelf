@@ -1,109 +1,146 @@
 /**
- * navigation.ts — 目录导航与浏览工具
+ * navigation.ts — 文件夹导航与浏览工具
  *
  * 功能:
- * - 列出文件夹内容
- * - 目录树结构
- * - 路径导航（新增）
- * - 存储概览（新增）
+ * - 路径导航（支持模糊匹配）
+ * - 文件夹内容浏览
+ * - 最近访问
+ * - 收藏文件
+ *
+ * 智能特性：
+ * - 自动识别用户意图（"打开XX文件夹"、"进入XX"）
+ * - 支持中文路径名智能匹配
+ * - 记住上下文，减少重复查询
  */
 
-import { eq, and, isNull, desc, asc, count, sql, like } from 'drizzle-orm';
-import { getDb, files } from '../../../db';
+import { eq, and, isNull, desc, asc, like, sql, count } from 'drizzle-orm';
+import type { InferSelectModel } from 'drizzle-orm';
+import {
+  getDb,
+  files,
+} from '../../../db';
 import type { Env } from '../../../types/env';
+import { logger } from '@osshelf/shared';
 import type { ToolDefinition, AgentFile } from './types';
 import { formatBytes, getMimeTypeCategory } from '../utils';
+import { validateFolderAccess, createSuccessResponse, createErrorResponse } from './agentToolUtils';
+import { splitKeywords } from '../../../lib/keywordSplitter';
 
 export const definitions: ToolDefinition[] = [
-  // 1. list_folder — 列出文件夹内容
-  {
-    type: 'function',
-    function: {
-      name: 'list_folder',
-      description: `【列出文件夹】获取某文件夹下的直接子文件/子文件夹。
-⚠️ 用户问"有什么文件""看看XX目录"时使用。
-⚠️ 必须传入 folderId（从其他工具返回的 id 字段）或 path。
-⚠️ 返回结果中包含 isFolder 标识，可区分文件与文件夹。`,
-      parameters: {
-        type: 'object',
-        properties: {
-          folderId: { type: 'string', description: '目标文件夹 UUID（优先）' },
-          folderPath: { type: 'string', description: '目标文件夹路径（备选）' },
-          sortBy: {
-            type: 'string',
-            enum: ['name_asc', 'name_desc', 'newest', 'oldest', 'largest', 'smallest'],
-            description: '排序方式，默认 name_asc',
-          },
-          limit: { type: 'number', description: '返回数量，默认 50' },
-        },
-        required: [],
-      },
-    },
-  },
-
-  // 2. get_folder_tree — 目录树结构
-  {
-    type: 'function',
-    function: {
-      name: 'get_folder_tree',
-      description: `【目录树】返回根目录或指定文件夹的完整目录树（递归子文件夹）。
-适用场景：
-- "看看我的文件结构"
-- "展示整个项目目录"
-- 需要了解文件组织方式时`,
-      parameters: {
-        type: 'object',
-        properties: {
-          rootFolderId: { type: 'string', description: '起始文件夹 ID，不传则从根目录开始' },
-          maxDepth: { type: 'number', description: '最大深度，默认 3' },
-          includeFiles: { type: 'boolean', description: '是否包含文件（不仅是文件夹），默认 true' },
-        },
-        required: [],
-      },
-    },
-  },
-
-  // 3. navigate_path — 路径导航（新增）
+  // 1. navigate_path — 智能路径导航
   {
     type: 'function',
     function: {
       name: 'navigate_path',
-      description: `【路径导航】通过路径字符串导航到指定位置并查看内容。
-支持相对路径和绝对路径。
-适用场景：
-- "进入 /文档/工作" 文件夹
-- "回到上一级"
-- "打开备忘录文件夹"`,
+      description: `【智能导航】理解用户的路径意图并导航到目标位置。
+适用场景（自动触发）：
+• "打开/工作/项目文档" → 导航到该路径
+• "进入我的照片文件夹" → 智能搜索匹配
+• "回到上一级" → 使用 ".." 或 parentId
+• "根目录" → 传空字符串或 "/"
+
+💡 智能特性：
+• 支持中英文混合路径名
+• 自动处理"我的XX"、"XX文件夹"等口语化表达
+• 路径不存在时返回相似路径建议`,
       parameters: {
         type: 'object',
         properties: {
-          path: { type: 'string', description: '目标路径（如 "/文档/工作" 或 "../上级"）' },
-          currentFolderId: { type: 'string', description: '当前位置（用于相对路径解析）' },
-          action: {
-            type: 'string',
-            enum: ['list', 'info', 'parent'],
-            description: '操作类型：list=列出内容, info=路径信息, parent=返回父级',
-          },
+          path: { type: 'string', description: '目标路径（如"/工作/项目文档"、空串表示根目录、".."表示上级）' },
+          folderId: { type: 'string', description: '目标文件夹ID（优先使用此参数）' },
         },
-        required: ['path'],
       },
     },
   },
 
-  // 4. get_storage_overview — 存储概览（新增）
+  // 2. list_folder — 浏览文件夹内容
   {
     type: 'function',
     function: {
-      name: 'get_storage_overview',
-      description: `【存储概览】快速查看各文件夹的大小和使用情况。
-适合用户问"我的空间用得怎么样""哪些文件夹占空间大"时使用。`,
+      name: 'list_folder',
+      description: `【浏览文件夹】查看指定文件夹内的所有内容。
+适用场景：
+• "这个文件夹里有什么"
+• "列出XX目录下的文件"
+• "看看最近修改的文件"
+
+⚠️ 必须先通过 navigate_path 获取到 folderId 后再调用`,
       parameters: {
         type: 'object',
         properties: {
-          topN: { type: 'number', description: '显示最大的 N 个文件夹，默认 10' },
-          includeFileTypes: { type: 'boolean', description: '是否包含文件类型分布，默认 true' },
+          folderId: { type: 'string', description: '要浏览的文件夹ID' },
+          sortBy: { type: 'string', enum: ['name', 'size', 'updated_at', 'created_at'], description: '排序方式' },
+          sortOrder: { type: 'string', enum: ['asc', 'desc'], description: '排序方向（默认降序）' },
+          mimeTypePrefix: { type: 'string', description: '按类型过滤（如 "image/" 只看图片）' },
+          limit: { type: 'number', description: '最多返回数量（默认50）' },
         },
-        required: [],
+        required: ['folderId'],
+      },
+    },
+  },
+
+  // 3. get_recent_files — 最近访问
+  {
+    type: 'function',
+    function: {
+      name: 'get_recent_files',
+      description: `【最近文件】获取用户最近操作过的文件列表。
+适用场景：
+• "我最近编辑了什么"
+• "刚才那个文件叫什么"
+• "最近上传的照片"
+
+适合作为对话开始时的快速回顾`,
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: '数量限制（默认20）' },
+          days: { type: 'number', description: '时间范围（天），默认7天' },
+        },
+      },
+    },
+  },
+
+  // 4. get_starred_files — 收藏文件
+  {
+    type: 'function',
+    function: {
+      name: 'get_starred_files',
+      description: `【收藏夹】获取用户标记为收藏的重要文件。
+适用场景：
+• "我的收藏有哪些"
+• "重要的文件在哪里"
+• "找到我之前收藏的那个文档"
+
+适合查找常用或重要资源`,
+      parameters: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: '数量限制（默认50）' },
+          includeFolders: { type: 'boolean', description: '是否包含收藏的文件夹（默认true）' },
+        },
+      },
+    },
+  },
+
+  // 5. get_parent_chain — 父级链路
+  {
+    type: 'function',
+    function: {
+      name: 'get_parent_chain',
+      description: `【面包屑导航】获取从根目录到当前文件的完整路径链。
+适用场景：
+• "这个文件在哪个目录下"
+• "显示完整路径"
+• "帮我定位到这个文件"
+
+帮助用户理解文件的层级位置`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: '目标文件ID' },
+        },
+        required: ['fileId'],
       },
     },
   },

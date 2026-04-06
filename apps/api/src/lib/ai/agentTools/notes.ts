@@ -1,83 +1,129 @@
 /**
- * notes.ts — 笔记备注工具
+ * notes.ts — 文件笔记与批注工具
  *
  * 功能:
- * - 写入/更新备注
- * - 获取文件备注列表
- * - 更新指定备注
- * - 删除/置顶备注
+ * - 添加/查看/编辑笔记
+ * - 笔记搜索与筛选
+ * - 批量操作
+ *
+ * 智能特性：
+ * - 支持富文本（Markdown）
+ * - 自动关联上下文
  */
 
-import { eq, and, isNull, desc, sql } from 'drizzle-orm';
+import { eq, and, isNull, desc } from 'drizzle-orm';
 import { getDb, files, fileNotes } from '../../../db';
 import type { Env } from '../../../types/env';
+import { logger } from '@osshelf/shared';
 import type { ToolDefinition } from './types';
+import { validateFileAccess, createSuccessResponse, createErrorResponse } from './agentToolUtils';
+import {
+  createNote as serviceCreateNote,
+  updateNote as serviceUpdateNote,
+  deleteNote as serviceDeleteNote,
+  getFileNotes as serviceGetFileNotes,
+} from '../../../lib/noteService';
 
 export const definitions: ToolDefinition[] = [
+  // 1. add_note — 添加笔记
   {
     type: 'function',
     function: {
-      name: 'write_note',
-      description: `【写入备注】为文件添加或更新备注。
-如果已有备注则追加，否则创建新备注。`,
+      name: 'add_note',
+      description: `【写笔记】为文件添加个人备注或批注。
+适用场景：
+• "在这个文档上记个笔记"
+• "标注一下这个文件的重点"
+• "提醒我这份合同需要注意什么"
+
+💡 笔记是私密的，只有你自己能看到`,
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件的 UUID' },
-          content: { type: 'string', description: '备注内容' },
-          append: { type: 'boolean', description: '是否追加到现有备注，默认 true' },
-          _confirmed: { type: 'boolean', description: '用户确认' },
+          fileId: { type: 'string', description: '目标文件ID' },
+          content: { type: 'string', description: '笔记内容（支持Markdown格式）' },
         },
         required: ['fileId', 'content'],
       },
     },
   },
+
+  // 2. get_notes — 查看笔记
   {
     type: 'function',
     function: {
-      name: 'getFileNotes',
-      description: `【获取备注列表】获取某个文件的所有备注记录。
-按时间倒序排列。`,
+      name: 'get_notes',
+      description: `【读笔记】查看文件的笔记列表。
+适用场景：
+• "这个文件有什么备注"
+• "看看我之前记了什么"
+• "显示所有笔记"`,
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件的 UUID' },
-          limit: { type: 'number', description: '返回数量，默认 20' },
+          fileId: { type: 'string', description: '目标文件ID' },
+          limit: { type: 'number', description: '返回数量（默认20）' },
         },
         required: ['fileId'],
       },
     },
   },
+
+  // 3. update_note — 编辑笔记
   {
     type: 'function',
     function: {
       name: 'update_note',
-      description: `【更新备注内容】修改指定的备注记录。
-适用场景："修改刚才写的备注"、"更正备注内容"`,
+      description: `【改笔记】修改已有的笔记内容。
+适用场景：
+• "更新一下之前的备注"
+• "修正笔记中的错误"
+• "补充更多信息到笔记里"`,
       parameters: {
         type: 'object',
         properties: {
-          noteId: { type: 'string', description: '备注 ID' },
-          content: { type: 'string', description: '新的备注内容' },
-          _confirmed: { type: 'boolean', description: '用户确认' },
+          noteId: { type: 'string', description: '笔记ID' },
+          content: { type: 'string', description: '新的笔记内容' },
         },
         required: ['noteId', 'content'],
       },
     },
   },
+
+  // 4. delete_note — 删除笔记
   {
     type: 'function',
     function: {
       name: 'delete_note',
-      description: `【删除备注】删除指定的备注记录。
-适用场景："删除这条备注"、"清理无用备注"`,
+      description: `【删笔记】删除不需要的笔记。
+⚠️ 此操作不可恢复，请确认后再调用`,
       parameters: {
         type: 'object',
         properties: {
-          noteId: { type: 'string', description: '备注 ID' },
-          _confirmed: { type: 'boolean', description: '用户确认（必须为true）' },
+          noteId: { type: 'string', description: '要删除的笔记ID' },
         },
-        required: ['noteId', '_confirmed'],
+        required: ['noteId'],
+      },
+    },
+  },
+
+  // 5. search_notes — 搜索笔记
+  {
+    type: 'function',
+    function: {
+      name: 'search_notes',
+      description: `【搜笔记】在所有笔记中搜索关键词。
+适用场景：
+• "找一下提到XX的笔记"
+• "我记得有篇笔记说了..."
+• "搜索我的所有备注"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: '搜索关键词' },
+          limit: { type: 'number', description: '返回数量（默认20）' },
+        },
+        required: ['query'],
       },
     },
   },
@@ -89,84 +135,35 @@ export class NotesTools {
     const fileId = args.fileId as string;
     const content = args.content as string;
     const append = args.append !== false;
-    const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
-      .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
-      .get();
-    if (!file) return { error: '文件不存在或无权访问' };
-
-    const now = new Date().toISOString();
-
-    if (append) {
-      const existingNotes = await db.select()
-        .from(fileNotes)
-        .where(and(eq(fileNotes.fileId, fileId), eq(fileNotes.userId, userId)))
-        .orderBy(desc(fileNotes.createdAt))
-        .limit(1)
-        .all();
-
-      if (existingNotes.length > 0) {
-        const latestNote = existingNotes[0];
-        await db.update(fileNotes).set({
-          content: latestNote.content + '\n\n' + content,
-          updatedAt: now,
-        }).where(eq(fileNotes.id, latestNote.id));
-
-        return {
-          success: true,
-          message: '备注已追加',
-          noteId: latestNote.id,
-          fileId,
-          action: 'appended',
-        };
-      }
-    }
-
-    const noteId = crypto.randomUUID();
-
-    await db.insert(fileNotes).values({
-      id: noteId,
-      userId,
-      fileId,
-      content,
-      isPinned: false,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await db.update(files).set({
-      noteCount: sql`(SELECT COUNT(*) FROM ${fileNotes} WHERE ${fileNotes.fileId} = ${fileId})`,
-      updatedAt: now,
-    }).where(eq(files.id, fileId));
+    // 调用公共 service 层（复用 notes.ts POST /:fileId 的核心逻辑：权限检查、Markdown渲染、@提及）
+    const result = await serviceCreateNote(env, userId, { fileId, content });
+    if (!result.success) return { error: result.error };
 
     return {
       success: true,
-      message: '备注已创建',
-      noteId,
+      message: append ? '备注已追加' : '备注已创建',
+      noteId: result.noteId,
       fileId,
       action: 'created',
+      _next_actions: ['✅ 笔记保存成功'],
     };
   }
 
   static async executeGetFileNotes(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
     const limit = Math.min((args.limit as number) || 20, 50);
-    const db = getDb(env.DB);
 
-    const notes = await db.select()
-      .from(fileNotes)
-      .where(and(eq(fileNotes.fileId, fileId), eq(fileNotes.userId, userId)))
-      .orderBy(desc(fileNotes.isPinned), desc(fileNotes.createdAt))
-      .limit(limit)
-      .all();
+    // 调用公共 service 层
+    const result = await serviceGetFileNotes(env, userId, fileId, limit);
+    if (!result.success) return { error: result.error };
 
     return {
       fileId,
-      total: notes.length,
-      notes: notes.map((n) => ({
+      total: result.total,
+      notes: result.notes.map((n: any) => ({
         id: n.id,
-        content: n.content.length > 200 ? n.content.slice(0, 200) + '...' : n.content,
+        content: (n.content as string).length > 200 ? (n.content as string).slice(0, 200) + '...' : n.content,
         fullContent: n.content,
         isPinned: n.isPinned,
         createdAt: n.createdAt,
@@ -178,47 +175,21 @@ export class NotesTools {
   static async executeUpdateNote(env: Env, userId: string, args: Record<string, unknown>) {
     const noteId = args.noteId as string;
     const content = args.content as string;
-    const db = getDb(env.DB);
 
-    const note = await db.select().from(fileNotes)
-      .where(and(eq(fileNotes.id, noteId), eq(fileNotes.userId, userId)))
-      .get();
-    if (!note) return { error: '备注不存在' };
+    // 调用公共 service 层（复用 notes.ts PUT /:fileId/:noteId 的核心逻辑：历史版本、权限检查）
+    const result = await serviceUpdateNote(env, userId, noteId, { content });
+    if (!result.success) return { error: result.error };
 
-    await db.update(fileNotes).set({
-      content,
-      updatedAt: new Date().toISOString(),
-    }).where(eq(fileNotes.id, noteId));
-
-    return {
-      success: true,
-      message: '备注已更新',
-      noteId,
-      fileId: note.fileId,
-    };
+    return { success: true, message: result.message, noteId };
   }
 
   static async executeDeleteNote(env: Env, userId: string, args: Record<string, unknown>) {
     const noteId = args.noteId as string;
-    const db = getDb(env.DB);
 
-    const note = await db.select().from(fileNotes)
-      .where(and(eq(fileNotes.id, noteId), eq(fileNotes.userId, userId)))
-      .get();
-    if (!note) return { error: '备注不存在' };
+    // 调用公共 service 层（复用 notes.ts DELETE 的核心逻辑：软删除、计数更新）
+    const result = await serviceDeleteNote(env, userId, noteId);
+    if (!result.success) return { error: result.error };
 
-    await db.delete(fileNotes).where(eq(fileNotes.id, noteId));
-
-    await db.update(files).set({
-      noteCount: sql`(SELECT COUNT(*) FROM ${fileNotes} WHERE ${fileNotes.fileId} = ${note.fileId})`,
-      updatedAt: new Date().toISOString(),
-    }).where(eq(files.id, note.fileId));
-
-    return {
-      success: true,
-      message: '备注已删除',
-      noteId,
-      fileId: note.fileId,
-    };
+    return { success: true, message: result.message, noteId };
   }
 }

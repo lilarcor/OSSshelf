@@ -1,117 +1,134 @@
 /**
- * share.ts — ⭐ 分享与链接管理工具（增强版）
+ * share.ts — 文件分享与协作工具
  *
  * 功能:
- * - 创建分享链接
- * - 列出分享链接
- * - 更新分享设置（新增）
- * - 撤销分享链接（新增）
- * - 分享详情统计（新增）
- * - 创建直链（新增）
- * - 列出/撤销直链（新增）
- * - 创建上传链接（新增）
+ * - 创建/管理分享链接
+ * - 权限控制（查看/编辑/下载）
+ * - 分享统计与追踪
+ * - 批量分享
+ *
+ * 智能特性：
+ * - 自动生成安全链接
+ * - 支持密码保护
+ * - 到期时间设置
  */
 
-import { eq, and, isNull, isNotNull, gte, desc, sql, or } from 'drizzle-orm';
+import { eq, and, isNull, desc } from 'drizzle-orm';
 import { getDb, files, shares } from '../../../db';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
 import type { ToolDefinition } from './types';
-import { WRITE_TOOLS } from './types';
+import {
+  createShareLink as serviceCreateShare,
+  revokeShare as serviceRevokeShare,
+} from '../../../lib/shareService';
 
 export const definitions: ToolDefinition[] = [
-  // A. 分享链接
+  // 1. create_share_link — 创建分享链接
   {
     type: 'function',
     function: {
-      name: 'create_share',
-      description: `【创建分享链接】为文件创建分享链接。
-可设置密码、有效期、下载次数限制等。
-⚠️ 创建前应先确认文件存在（通过搜索/过滤获取 fileId）。`,
+      name: 'create_share_link',
+      description: `【生成链接】为文件或文件夹创建可分享的链接。
+适用场景：
+• "把这个文件分享给同事"
+• "生成一个分享链接"
+• "让其他人能下载这个文档"
+
+💡 可设置：密码、有效期、权限等`,
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件的 UUID' },
+          fileId: { type: 'string', description: '目标文件ID' },
+          permission: { type: 'string', enum: ['read', 'write', 'download'], description: '权限级别' },
+          expiresAt: { type: 'string', description: '过期时间（ISO格式，可选）' },
           password: { type: 'string', description: '访问密码（可选）' },
-          expiresAt: { type: 'string', description: '过期时间（ISO 8601，可选）' },
-          maxVisits: { type: 'number', description: '最大访问次数（可选）' },
-          allowDownload: { type: 'boolean', description: '是否允许下载，默认 true' },
-          _confirmed: { type: 'boolean', description: '用户确认' },
+          maxUses: { type: 'number', description: '最大使用次数（可选）' },
         },
         required: ['fileId'],
       },
     },
   },
+
+  // 2. list_shares — 查看分享列表
   {
     type: 'function',
     function: {
       name: 'list_shares',
-      description: `【列出分享链接】列出当前用户的所有活跃分享链接。
-支持按状态筛选（全部/仅活跃/仅过期）。`,
+      description: `【我的分享】查看所有活跃的分享链接及其状态。
+适用场景：
+• "我分享了哪些文件"
+• "这些链接还有效吗"
+• "查看分享统计"`,
       parameters: {
         type: 'object',
         properties: {
-          includeExpired: { type: 'boolean', description: '是否包含已过期的分享，默认 false' },
-          fileId: { type: 'string', description: '限定某个文件的分享（可选）' },
-          limit: { type: 'number', description: '返回数量，默认 20' },
+          limit: { type: 'number', description: '返回数量（默认20）' },
         },
-        required: [],
       },
     },
   },
-  {
-    type: 'function',
-    function: {
-      name: 'update_share',
-      description: `【更新分享设置】修改已存在的分享链接配置。
-适用场景："把这个分享有效期改成7天"、"修改密码"、"取消下载权限"`,
-      parameters: {
-        type: 'object',
-        properties: {
-          shareId: { type: 'string', description: '分享链接 ID' },
-          password: { type: 'string', description: '新密码（留空则不修改）' },
-          expiresAt: { type: 'string', description: '新过期时间（留空则不修改）' },
-          maxVisits: { type: 'number', description: '新最大访问次数（留空则不修改）' },
-          allowDownload: { type: 'boolean', description: '是否允许下载（留空则不修改）' },
-          _confirmed: { type: 'boolean', description: '用户确认' },
-        },
-        required: ['shareId'],
-      },
-    },
-  },
+
+  // 3. revoke_share — 撤销分享
   {
     type: 'function',
     function: {
       name: 'revoke_share',
-      description: `【撤销分享链接】立即作废分享链接。
-撤销后将无法再通过此链接访问文件。
-适用场景："取消这个分享"、"链接泄露了需要作废"`,
+      description: `【取消分享】撤销某个分享链接使其失效。
+⚠️ 此操作不可恢复，已获取链接的用户将无法访问`,
       parameters: {
         type: 'object',
         properties: {
-          shareId: { type: 'string', description: '分享链接 ID' },
-          reason: { type: 'string', description: '撤销原因（用于审计）' },
-          _confirmed: { type: 'boolean', description: '用户确认（必须为true）' },
-        },
-        required: ['shareId', '_confirmed'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_share_details',
-      description: `【分享详情】查看分享链接的详细信息和访问统计。
-包括创建时间、访问次数、最后访问时间、是否过期等。`,
-      parameters: {
-        type: 'object',
-        properties: {
-          shareId: { type: 'string', description: '分享链接 ID' },
+          shareId: { type: 'string', description: '要撤销的分享ID' },
         },
         required: ['shareId'],
       },
     },
   },
+
+  // 4. update_share_settings — 更新分享设置
+  {
+    type: 'function',
+    function: {
+      name: 'update_share_settings',
+      description: `【改设置】修改已有分享链接的配置。
+适用场景：
+• "延长这个链接的有效期"
+• "给分享加上密码"
+• "改为只读权限"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          shareId: { type: 'string', description: '分享ID' },
+          permission: { type: 'string', enum: ['read', 'write', 'download'], description: '新的权限级别' },
+          expiresAt: { type: 'string', description: '新的过期时间' },
+          password: { type: 'string', description: '新的访问密码（空字符串表示移除）' },
+        },
+        required: ['shareId'],
+      },
+    },
+  },
+
+  // 5. get_share_stats — 分享统计
+  {
+    type: 'function',
+    function: {
+      name: 'get_share_stats',
+      description: `【看统计】查看分享链接的使用情况。
+适用场景：
+• "这个链接被访问了多少次"
+• "谁下载了这个文件"
+• "分享效果如何"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          shareId: { type: 'string', description: '分享ID' },
+        },
+        required: ['shareId'],
+      },
+    },
+  },
+
 
   // B. 直链管理（2个新工具）🔥
   {
@@ -183,87 +200,48 @@ export class ShareTools {
     const fileId = args.fileId as string;
     const password = args.password as string | undefined;
     const expiresAtStr = args.expiresAt as string | undefined;
-    const maxVisits = args.maxVisits as number | undefined;
-    const allowDownload = args.allowDownload !== false;
-    const db = getDb(env.DB);
+    const maxUses = args.maxVisits as number | undefined;
 
-    const file = await db.select().from(files)
-      .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
-      .get();
-    if (!file) return { error: `文件不存在或无权访问: ${fileId}` };
-
-    const shareId = crypto.randomUUID();
-    const token = generateSecureToken(32);
-    const now = new Date().toISOString();
-
-    let expiresAt: string | null = null;
-    if (expiresAtStr) {
-      try {
-        new Date(expiresAtStr);
-        expiresAt = expiresAtStr;
-      } catch {
-        return { error: '无效的过期时间格式' };
-      }
-    }
-
-    await db.insert(shares).values({
-      id: shareId,
-      userId,
+    // 调用公共 service 层（复用 share.ts POST 的核心逻辑：权限检查、密码哈希、过期时间）
+    const result = await serviceCreateShare(env, userId, {
       fileId,
-      password: password || null,
-      expiresAt,
-      downloadLimit: maxVisits || null,
-      downloadCount: 0,
-      isUploadLink: false,
-      uploadToken: null,
-      createdAt: now,
+      password,
+      expiresAt: expiresAtStr,
+      maxUses,
     });
 
-    const shareUrl = `/share/${shareId}`;
+    if (!result.success) return { error: result.error };
 
     return {
       success: true,
       message: `分享链接已创建`,
-      shareId,
-      url: shareUrl,
+      shareId: result.shareId,
+      url: `/share/${result.shareId}`,
       hasPassword: !!password,
-      expiresAt,
-      downloadLimit: maxVisits,
-      fileName: file.name,  // 从 file 对象获取，不存储在 shares 表
+      expiresAt: expiresAtStr || null,
+      downloadLimit: maxUses,
       _next_actions: [
         '✅ 分享链接已创建',
         '可通过 list_shares 查看所有分享',
-        '可通过 update_share 修改设置',
         '可通过 revoke_share 撤销分享',
       ],
     };
   }
 
   static async executeListShares(env: Env, userId: string, args: Record<string, unknown>) {
-    const includeExpired = args.includeExpired === true;
-    const fileId = args.fileId as string | undefined;
     const limit = Math.min((args.limit as number) || 20, 100);
     const db = getDb(env.DB);
-
-    const conditions: any[] = [eq(shares.userId, userId)];
-    if (!includeExpired) {
-      conditions.push(or(isNull(shares.expiresAt), gte(shares.expiresAt, new Date().toISOString())));
-    }
-    if (fileId) {
-      conditions.push(eq(shares.fileId, fileId));
-    }
 
     const rows = await db
       .select()
       .from(shares)
-      .where(and(...conditions))
+      .where(eq(shares.userId, userId))
       .orderBy(desc(shares.createdAt))
       .limit(limit)
       .all();
 
     return {
       total: rows.length,
-      includeExpired,
       shares: rows.map((s) => ({
         id: s.id,
         fileId: s.fileId,
@@ -273,7 +251,6 @@ export class ShareTools {
         downloads: Number(s.downloadCount) || 0,
         downloadLimit: s.downloadLimit,
         expiresAt: s.expiresAt,
-        isActive: !s.expiresAt || new Date(s.expiresAt) > new Date(),
         createdAt: s.createdAt,
       })),
     };
@@ -305,18 +282,14 @@ export class ShareTools {
 
   static async executeRevokeShare(env: Env, userId: string, args: Record<string, unknown>) {
     const shareId = args.shareId as string;
-    const reason = args.reason as string | undefined;
-    const db = getDb(env.DB);
 
-    await db.delete(shares)
-      .where(and(eq(shares.id, shareId), eq(shares.userId, userId)))
-      .run();
-
-    logger.info('AgentTool', 'Revoked share link', { shareId, reason: reason || '(none)' });
+    // 调用公共 service 层（复用 share.ts DELETE 的核心逻辑：权限检查）
+    const result = await serviceRevokeShare(env, userId, shareId);
+    if (!result.success) return { error: result.error };
 
     return {
       success: true,
-      message: '分享链接已撤销',
+      message: result.message,
       shareId,
       revokedAt: new Date().toISOString(),
     };

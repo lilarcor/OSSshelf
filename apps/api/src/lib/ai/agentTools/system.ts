@@ -1,14 +1,14 @@
 /**
- * system.ts — 系统管理工具
+ * system.ts — 系统信息与帮助工具
  *
  * 功能:
- * - 获取用户信息
- * - API密钥管理
- * - Webhook管理
- * - 审计日志查询
+ * - 系统状态检查
+ * - 功能说明与使用指南
+ * - 版本信息
+ * - 常见问题解答
  */
 
-import { eq, and, isNull, desc, sql, like, or, inArray } from 'drizzle-orm';
+import { eq, and, isNull, desc, sql, like, or } from 'drizzle-orm';
 import { getDb, files, apiKeys, webhooks, auditLogs } from '../../../db';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
@@ -16,12 +16,18 @@ import type { ToolDefinition } from './types';
 import { formatBytes } from '../utils';
 
 export const definitions: ToolDefinition[] = [
+  // 1. get_system_status — 系统状态
   {
     type: 'function',
     function: {
-      name: 'get_user_profile',
-      description: `【获取用户信息】查看当前用户的账户信息和配置。
-包括存储使用情况、角色、设置等。`,
+      name: 'get_system_status',
+      description: `【系统状态】查看系统运行状态和健康情况。
+适用场景：
+• "系统正常吗"
+• "服务状态如何"
+• "有什么问题吗"
+
+显示：存储连接、数据库状态、AI服务等`,
       parameters: {
         type: 'object',
         properties: {},
@@ -29,114 +35,63 @@ export const definitions: ToolDefinition[] = [
       },
     },
   },
+
+  // 2. get_help — 使用帮助
   {
     type: 'function',
     function: {
-      name: 'list_api_keys',
-      description: `【列出API密钥】列出当前用户的所有API密钥。
-显示创建时间、最后使用时间、状态等。
-⚠️ 不会返回完整的密钥值，只显示前8位和后4位。`,
+      name: 'get_help',
+      description: `【使用指南】获取功能说明和操作指引。
+适用场景：
+• "这个怎么用"
+• "有哪些功能"
+• "帮我看看教程"
+
+提供：功能列表、最佳实践、常见操作示例`,
       parameters: {
         type: 'object',
         properties: {
-          includeExpired: { type: 'boolean', description: '是否包含已过期的密钥，默认 false' },
-          limit: { type: 'number', description: '返回数量，默认 20' },
+          topic: { type: 'string', description: '具体主题（可选，如"搜索"、"分享"、"上传"）' },
         },
+      },
+    },
+  },
+
+  // 3. get_version_info — 版本信息
+  {
+    type: 'function',
+    function: {
+      name: 'get_version_info',
+      description: `【版本信息】查看当前系统的版本号和更新日志。
+适用场景：
+• "这是什么版本"
+• "最近更新了什么"
+• "有新功能吗"`,
+      parameters: {
+        type: 'object',
+        properties: {},
         required: [],
       },
     },
   },
+
+  // 4. get_faq — 常见问题
   {
     type: 'function',
     function: {
-      name: 'create_api_key',
-      description: `【创建API密钥】生成新的API密钥用于程序化访问。
-可设置名称、权限范围、过期时间等。
-⚠️ 创建后请立即保存密钥，之后无法再次查看完整值。`,
+      name: 'get_faq',
+      description: `【常见问题】查看FAQ和解决方案。
+适用场景：
+• "遇到问题了怎么办"
+• "为什么XX不行"
+• "报错怎么解决"
+
+涵盖：上传失败、搜索无结果、权限问题等常见场景`,
       parameters: {
         type: 'object',
         properties: {
-          name: { type: 'string', description: '密钥名称（便于识别）' },
-          scopes: { type: 'array', items: { type: 'string' }, description: '权限范围，如 ["read", "write", "admin"]' },
-          expiresInDays: { type: 'number', description: '有效天数，不传则永不过期' },
-          _confirmed: { type: 'boolean', description: '用户确认' },
+          category: { type: 'string', description: '问题分类（可选）' },
         },
-        required: ['name'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'revoke_api_key',
-      description: `【撤销API密钥】立即作废指定的API密钥。
-撤销后将无法再使用此密钥进行API调用。
-适用场景："这个密钥泄露了需要作废"、"不再需要某个密钥"`,
-      parameters: {
-        type: 'object',
-        properties: {
-          keyId: { type: 'string', description: 'API 密钥 ID' },
-          reason: { type: 'string', description: '撤销原因（用于审计）' },
-          _confirmed: { type: 'boolean', description: '用户确认（必须为true）' },
-        },
-        required: ['keyId', '_confirmed'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'list_webhooks',
-      description: `【列出Webhook】列出所有已配置的Webhook端点。
-显示触发事件类型、URL、状态等。`,
-      parameters: {
-        type: 'object',
-        properties: {
-          includeDisabled: { type: 'boolean', description: '是否包含已禁用的Webhook，默认 false' },
-          limit: { type: 'number', description: '返回数量，默认 20' },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'create_webhook',
-      description: `【创建Webhook】配置新的Webhook端点接收系统事件通知。
-支持多种事件类型：文件上传/删除/分享等。`,
-      parameters: {
-        type: 'object',
-        properties: {
-          name: { type: 'string', description: 'Webhook 名称' },
-          url: { type: 'string', description: '回调 URL' },
-          events: {
-            type: 'array',
-            items: { type: 'string' },
-            description: '要监听的事件类型，如 ["file.uploaded", "file.deleted", "share.created"]',
-          },
-          secret: { type: 'string', description: '签名密钥（可选，用于验证回调）' },
-          _confirmed: { type: 'boolean', description: '用户确认' },
-        },
-        required: ['name', 'url'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_audit_logs',
-      description: `【审计日志】查询用户的操作审计日志。
-记录所有重要操作：上传、删除、分享、权限变更等。
-适合排查问题或了解操作历史。`,
-      parameters: {
-        type: 'object',
-        properties: {
-          actionType: { type: 'string', description: '按操作类型筛选（可选）' },
-          limit: { type: 'number', description: '返回数量，默认 30' },
-          sinceHours: { type: 'number', description: '最近N小时，默认 24' },
-        },
-        required: [],
       },
     },
   },

@@ -1,120 +1,134 @@
 /**
- * tags.ts — 标签管理工具
+ * tags.ts — 智能标签管理工具
  *
  * 功能:
- * - 添加/移除标签
- * - 列出所有标签及使用次数
- * - 合并重复标签
- * - 自动打标签
- * - 为文件夹打标签
+ * - 标签CRUD操作
+ * - 批量打标签
+ * - 标签搜索与推荐
+ * - 标签统计
+ *
+ * 智能特性：
+ * - 自动识别相关标签
+ * - 支持标签颜色/图标
  */
 
-import { eq, and, isNull, like, count, desc, asc } from 'drizzle-orm';
+import { eq, and, isNull, inArray, like, count, desc, asc } from 'drizzle-orm';
 import { getDb, files, fileTags } from '../../../db';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
 import type { ToolDefinition } from './types';
 
 export const definitions: ToolDefinition[] = [
+  // 1. add_tags — 添加标签
   {
     type: 'function',
     function: {
-      name: 'add_tag',
-      description: '为文件添加一个或多个标签。',
+      name: 'add_tags',
+      description: `【打标签】为文件添加一个或多个标签。
+适用场景：
+• "给这个文件加上'重要'标签"
+• "标记为'待处理'"
+• "批量标记这些文档"
+
+💡 如果标签不存在会自动创建`,
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件 UUID' },
-          tags: { type: 'array', items: { type: 'string' }, description: '标签名数组，如 ["重要", "合同"]' },
-          _confirmed: { type: 'boolean', description: '用户确认' },
+          fileId: { type: 'string', description: '目标文件ID' },
+          tagNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '标签名数组，如 ["重要", "工作", "2024"]',
+          },
         },
-        required: ['fileId', 'tags'],
+        required: ['fileId', 'tagNames'],
       },
     },
   },
+
+  // 2. remove_tags — 移除标签
   {
     type: 'function',
     function: {
-      name: 'remove_tag',
-      description: '从文件移除指定标签。',
+      name: 'remove_tags',
+      description: `【去标签】移除文件的指定标签。
+适用场景：
+• "去掉'重要'标签"
+• "取消这个文件的标记"`,
       parameters: {
         type: 'object',
         properties: {
-          fileId: { type: 'string', description: '文件 UUID' },
-          tags: { type: 'array', items: { type: 'string' }, description: '要移除的标签名数组' },
-          _confirmed: { type: 'boolean', description: '用户确认' },
+          fileId: { type: 'string', description: '目标文件ID' },
+          tagNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '要移除的标签名数组',
+          },
         },
-        required: ['fileId', 'tags'],
+        required: ['fileId', 'tagNames'],
       },
     },
   },
+
+  // 3. get_file_tags — 获取文件标签
+  {
+    type: 'function',
+    function: {
+      name: 'get_file_tags',
+      description: `【看标签】查看文件的所有标签。
+适用场景：
+• "这个文件有什么标签"
+• "显示标签列表"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: '目标文件ID' },
+        },
+        required: ['fileId'],
+      },
+    },
+  },
+
+  // 4. list_all_tags — 标签总览
   {
     type: 'function',
     function: {
       name: 'list_all_tags',
-      description: `列出所有标签及其使用频率。
-适用场景："我有哪些标签""哪些标签用得最多"`,
+      description: `【标签库】查看所有可用的标签及其使用情况。
+适用场景：
+• "我有哪些标签"
+• "哪些标签用得最多"
+• "管理我的标签体系"
+
+帮助用户了解整体标签使用情况`,
       parameters: {
         type: 'object',
         properties: {
-          sortBy: { type: 'string', enum: ['name', 'usage_count'], description: '排序方式，默认 usage_count' },
-          limit: { type: 'number', description: '返回数量，默认 50' },
+          includeUsageCount: { type: 'boolean', description: '是否显示使用次数（默认true）' },
+          sortBy: { type: 'string', enum: ['name', 'usage_count', 'created_at'], description: '排序方式' },
+          limit: { type: 'number', description: '返回数量（默认50）' },
         },
-        required: [],
       },
     },
   },
+
+  // 5. create_tag — 创建新标签
   {
     type: 'function',
     function: {
-      name: 'merge_tags',
-      description: `合并重复或相似的标签。
-适用场景：发现"重要"和"重要文档"两个相似标签时合并它们。
-合并后源标签会被删除，文件关联到目标标签。`,
+      name: 'create_tag',
+      description: `【建标签】创建一个新的标签（可选颜色和图标）。
+适用场景：
+• "创建一个'紧急'标签，红色"
+• "新建标签'项目A'"`,
       parameters: {
         type: 'object',
         properties: {
-          sourceTag: { type: 'string', description: '源标签（将被删除）' },
-          targetTag: { type: 'string', description: '目标标签（保留）' },
-          _confirmed: { type: 'boolean', description: '用户确认（必须为true）' },
+          name: { type: 'string', description: '标签名称' },
+          color: { type: 'string', description: '标签颜色（十六进制，如 "#FF5733"，可选）' },
+          icon: { type: 'string', description: '图标名称（可选）' },
         },
-        required: ['sourceTag', 'targetTag'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'auto_tag_files',
-      description: `基于AI为指定文件自动推荐并添加标签。
-系统会分析文件内容并推荐最相关的已有标签或新标签。`,
-      parameters: {
-        type: 'object',
-        properties: {
-          fileIds: { type: 'array', items: { type: 'string' }, description: '要自动打标签的文件ID列表' },
-          maxTagsPerFile: { type: 'number', description: '每个文件最多添加几个标签，默认 3' },
-          createNewTags: { type: 'boolean', description: '是否允许创建新标签，默认 true' },
-          _confirmed: { type: 'boolean', description: '用户确认' },
-        },
-        required: ['fileIds'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'tag_folder',
-      description: `为文件夹内的所有文件批量添加标签。
-适用场景："给这个文件夹里的所有文件都加上'项目X'标签"`,
-      parameters: {
-        type: 'object',
-        properties: {
-          folderId: { type: 'string', description: '目标文件夹 ID' },
-          tags: { type: 'array', items: { type: 'string' }, description: '要添加的标签列表' },
-          recursive: { type: 'boolean', description: '是否递归子文件夹，默认 false' },
-          _confirmed: { type: 'boolean', description: '用户确认' },
-        },
-        required: ['folderId', 'tags'],
+        required: ['name'],
       },
     },
   },
