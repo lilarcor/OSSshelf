@@ -9,7 +9,7 @@
  *  - 双存储透明：S3/R2 与 Telegram 对工具调用者完全透明
  *  - 上下文感知：工具结果携带足够元数据，避免 Agent 多余的补充查询
  *
- * 工具清单（17 个）：
+ * 工具清单（23 个）：
  *
  * ── 搜索与发现 ──────────────────────────────
  *  1.  search_files         语义 + FTS + 多字段混合搜索
@@ -25,18 +25,26 @@
  *  9.  get_file_notes       文件备注/笔记
  *
  * ── 目录导航 ──────────────────────────────────
- *  10. list_folder          列出文件夹内容
- *  11. get_folder_tree      目录树（可指定深度）
+ * 10. list_folder          列出文件夹内容
+ * 11. get_folder_tree      目录树（可指定深度）
  *
  * ── 集合与统计 ────────────────────────────────
- *  12. list_recent          最近上传/修改（可按类型过滤）
- *  13. list_starred         收藏文件
- *  14. list_shares          分享链接
- *  15. get_storage_stats    存储统计（总量/类型分布/存储桶分布）
- *  16. get_activity_stats   活动统计（最近 N 天上传趋势）
+ * 12. list_recent          最近上传/修改（可按类型过滤）
+ * 13. list_starred         收藏文件
+ * 14. list_shares          分享链接
+ * 15. get_storage_stats    存储统计（总量/类型分布/存储桶分布）
+ * 16. get_activity_stats   活动统计（最近 N 天上传趋势）
  *
  * ── 跨文件操作 ────────────────────────────────
- *  17. compare_files        比较两个文本文件的内容差异（摘要级）
+ * 17. compare_files        比较两个文本文件的内容差异（摘要级）
+ *
+ * ── 写操作（需用户确认）────────────────────────
+ * 18. rename_file          重命名文件或文件夹
+ * 19. add_tag              为文件添加标签
+ * 20. remove_tag           从文件移除标签
+ * 21. write_note           为文件添加或更新备注
+ * 22. update_description   更新文件的描述字段
+ * 23. create_share         为文件创建分享链接
  */
 
 import { eq, and, isNull, isNotNull, desc, asc, like, or, inArray, count, gte, lte, ne, sql } from 'drizzle-orm';
@@ -66,6 +74,15 @@ import { uint8ArrayToBase64, formatBytes, fetchFileBuffer, getMimeTypeCategory, 
 
 const DEFAULT_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_TEXT_CHUNK_SIZE = 1500;
+
+const WRITE_TOOLS = new Set([
+  'rename_file',
+  'add_tag',
+  'remove_tag',
+  'write_note',
+  'update_description',
+  'create_share'
+]);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 公共类型
@@ -459,6 +476,129 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
     },
   },
+
+  // ── 18. rename_file ──────────────────────────────────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'rename_file',
+      description: `【写操作-需确认】重命名文件或文件夹。
+⚠️ 执行前必须在回复中告知用户新旧文件名，等用户确认后再调用（传入 _confirmed: true）。
+适用场景：用户说"把文件X改名为Y"、"重命名这个文件"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: '文件的 UUID，必须是工具返回的 id 字段' },
+          newName: { type: 'string', description: '新文件名（含扩展名）' },
+          _confirmed: { type: 'boolean', description: '用户是否已确认此操作（内部使用）' },
+        },
+        required: ['fileId', 'newName'],
+      },
+    },
+  },
+
+  // ── 19. add_tag ───────────────────────────────────────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'add_tag',
+      description: `【写操作-需确认】为文件添加标签。标签不存在时自动创建。
+⚠️ 执行前必须在回复中告知用户将要添加的标签名称。
+适用场景：用户说"给这个文件打上重要标签"、"标记为合同"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: '文件的 UUID，必须是工具返回的 id 字段' },
+          tagName: { type: 'string', description: '标签名称' },
+          color: { type: 'string', description: '标签颜色（可选，十六进制如 #FF5733）' },
+          _confirmed: { type: 'boolean', description: '用户是否已确认此操作（内部使用）' },
+        },
+        required: ['fileId', 'tagName'],
+      },
+    },
+  },
+
+  // ── 20. remove_tag ────────────────────────────────────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'remove_tag',
+      description: `【写操作-需确认】从文件移除标签。
+⚠️ 执行前必须在回复中告知用户将要移除的标签名称。
+适用场景：用户说"去掉重要标签"、"移除合同标签"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: '文件的 UUID，必须是工具返回的 id 字段' },
+          tagName: { type: 'string', description: '要移除的标签名称' },
+          _confirmed: { type: 'boolean', description: '用户是否已确认此操作（内部使用）' },
+        },
+        required: ['fileId', 'tagName'],
+      },
+    },
+  },
+
+  // ── 21. write_note ────────────────────────────────────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'write_note',
+      description: `【写操作-需确认】为文件添加或更新备注（支持 Markdown 格式）。
+⚠️ 执行前必须在回复中告知用户备注内容概要。
+适用场景：用户说"给这个文件加个备注"、"记录一下注意事项"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: '文件的 UUID，必须是工具返回的 id 字段' },
+          content: { type: 'string', description: '备注内容（支持 Markdown）' },
+          _confirmed: { type: 'boolean', description: '用户是否已确认此操作（内部使用）' },
+        },
+        required: ['fileId', 'content'],
+      },
+    },
+  },
+
+  // ── 22. update_description ────────────────────────────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'update_description',
+      description: `【写操作-需确认】更新文件的描述字段。
+⚠️ 执行前必须在回复中告知用户新描述内容。
+适用场景：用户说"更新文件描述"、"修改说明为..."`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: '文件的 UUID，必须是工具返回的 id 字段' },
+          description: { type: 'string', description: '新的描述内容' },
+          _confirmed: { type: 'boolean', description: '用户是否已确认此操作（内部使用）' },
+        },
+        required: ['fileId', 'description'],
+      },
+    },
+  },
+
+  // ── 23. create_share ──────────────────────────────────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'create_share',
+      description: `【写操作-需确认】为文件创建分享链接。
+⚠️ 执行前必须告知用户分享设置（有效期、密码等）。
+适用场景：用户说"生成分享链接"、"分享这个文件"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: '文件的 UUID，必须是工具返回的 id 字段' },
+          expiresInDays: { type: 'number', description: '有效天数，不传则永久有效' },
+          password: { type: 'string', description: '访问密码（可选）' },
+          downloadLimit: { type: 'number', description: '最大下载次数（可选）' },
+          _confirmed: { type: 'boolean', description: '用户是否已确认此操作（内部使用）' },
+        },
+        required: ['fileId'],
+      },
+    },
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -473,6 +613,15 @@ export class AgentToolExecutor {
 
   async execute(toolName: string, args: Record<string, unknown>): Promise<unknown> {
     logger.info('AgentTool', `Execute: ${toolName}`, { args, userId: this.userId });
+
+    if (WRITE_TOOLS.has(toolName) && !args._confirmed) {
+      return {
+        status: 'pending_confirm',
+        message: `即将执行 ${toolName} 操作，请用户确认是否继续？`,
+        toolName,
+        args,
+      };
+    }
 
     const dispatch: Record<string, () => Promise<unknown>> = {
       search_files: () => this.searchFiles(args),
@@ -492,6 +641,12 @@ export class AgentToolExecutor {
       get_storage_stats: () => this.getStorageStats(),
       get_activity_stats: () => this.getActivityStats(args),
       compare_files: () => this.compareFiles(args),
+      rename_file: () => this.renameFile(args),
+      add_tag: () => this.addTag(args),
+      remove_tag: () => this.removeTag(args),
+      write_note: () => this.writeNote(args),
+      update_description: () => this.updateDescription(args),
+      create_share: () => this.createShare(args),
     };
 
     const fn = dispatch[toolName];
@@ -1110,6 +1265,7 @@ export class AgentToolExecutor {
         sizeBytes: v.size,
         mimeType: v.mimeType,
         changeSummary: v.changeSummary || null,
+        aiChangeSummary: v.aiChangeSummary || null,
         createdAt: v.createdAt,
         isCurrent: v.version === file.currentVersion,
       })),
@@ -1507,6 +1663,258 @@ export class AgentToolExecutor {
       sizeDiff: fileA.size - fileB.size,
       sizeDiffFormatted: formatBytes(Math.abs(fileA.size - fileB.size)),
       note: '文件内容已提供，请基于各自的 aiSummary 字段对比主要差异，或调用 read_file_text 读取具体内容后再对比。',
+    };
+  }
+
+  // ── 18. rename_file ──────────────────────────────────────────────────────
+
+  private async renameFile(args: Record<string, unknown>) {
+    const fileId = args.fileId as string;
+    const newName = args.newName as string;
+    const db = getDb(this.env.DB);
+
+    if (!newName || newName.length > 255) {
+      return { error: '文件名长度必须在 1-255 个字符之间', fileId };
+    }
+
+    const file = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.id, fileId), eq(files.userId, this.userId), isNull(files.deletedAt)))
+      .get();
+
+    if (!file) return { error: '文件不存在或无权访问', fileId };
+
+    const oldName = file.name;
+    await db.update(files).set({ name: newName, updatedAt: new Date().toISOString() }).where(eq(files.id, fileId));
+
+    try {
+      await db.insert(auditLogs).values({
+        id: crypto.randomUUID(),
+        userId: this.userId,
+        action: 'file.rename',
+        resourceType: 'file',
+        resourceId: fileId,
+        details: JSON.stringify({ oldName, newName }),
+        createdAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      logger.warn('AgentTool', 'Failed to write audit log for rename', { fileId }, e);
+    }
+
+    return {
+      success: true,
+      message: `文件已重命名: "${oldName}" → "${newName}"`,
+      fileId,
+      oldName,
+      newName,
+    };
+  }
+
+  // ── 19. add_tag ───────────────────────────────────────────────────────────
+
+  private async addTag(args: Record<string, unknown>) {
+    const fileId = args.fileId as string;
+    const tagName = args.tagName as string;
+    const color = (args.color as string) || null;
+    const db = getDb(this.env.DB);
+
+    if (!tagName || tagName.length > 50) {
+      return { error: '标签名长度必须在 1-50 个字符之间', fileId };
+    }
+
+    const file = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.id, fileId), eq(files.userId, this.userId), isNull(files.deletedAt)))
+      .get();
+
+    if (!file) return { error: '文件不存在或无权访问', fileId };
+
+    const existing = await db
+      .select()
+      .from(fileTags)
+      .where(and(eq(fileTags.fileId, fileId), eq(fileTags.name, tagName), eq(fileTags.userId, this.userId)))
+      .get();
+
+    if (existing) {
+      return { success: true, message: `标签 "${tagName}" 已存在`, fileId, tag: existing };
+    }
+
+    const newTag = {
+      id: crypto.randomUUID(),
+      fileId,
+      userId: this.userId,
+      name: tagName,
+      color: color || '#3B82F6',
+      createdAt: new Date().toISOString(),
+    };
+
+    await db.insert(fileTags).values(newTag);
+
+    return {
+      success: true,
+      message: `已为文件 "${file.name}" 添加标签 "${tagName}"`,
+      fileId,
+      fileName: file.name,
+      tag: newTag,
+    };
+  }
+
+  // ── 20. remove_tag ────────────────────────────────────────────────────────
+
+  private async removeTag(args: Record<string, unknown>) {
+    const fileId = args.fileId as string;
+    const tagName = args.tagName as string;
+    const db = getDb(this.env.DB);
+
+    const existing = await db
+      .select()
+      .from(fileTags)
+      .where(and(eq(fileTags.fileId, fileId), eq(fileTags.name, tagName), eq(fileTags.userId, this.userId)))
+      .get();
+
+    if (!existing) {
+      return { error: `标签 "${tagName}" 不存在于该文件`, fileId };
+    }
+
+    await db.delete(fileTags).where(eq(fileTags.id, existing.id));
+
+    return {
+      success: true,
+      message: `已从文件移除标签 "${tagName}"`,
+      fileId,
+      removedTag: tagName,
+    };
+  }
+
+  // ── 21. write_note ────────────────────────────────────────────────────────
+
+  private async writeNote(args: Record<string, unknown>) {
+    const fileId = args.fileId as string;
+    const content = args.content as string;
+    const db = getDb(this.env.DB);
+
+    if (!content || content.length > 10000) {
+      return { error: '备注内容长度必须在 1-10000 个字符之间', fileId };
+    }
+
+    const file = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.id, fileId), eq(files.userId, this.userId), isNull(files.deletedAt)))
+      .get();
+
+    if (!file) return { error: '文件不存在或无权访问', fileId };
+
+    const now = new Date().toISOString();
+    const noteId = crypto.randomUUID();
+
+    await db.insert(fileNotes).values({
+      id: noteId,
+      fileId,
+      userId: this.userId,
+      content,
+      isPinned: false,
+      version: (file.currentVersion || 1),
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await db.update(files).set({ noteCount: sql`${files.noteCount} + 1`, updatedAt: now }).where(eq(files.id, fileId));
+
+    return {
+      success: true,
+      message: `已为文件 "${file.name}" 添加备注`,
+      fileId,
+      fileName: file.name,
+      noteId,
+      contentPreview: content.slice(0, 100) + (content.length > 100 ? '...' : ''),
+    };
+  }
+
+  // ── 22. update_description ────────────────────────────────────────────────
+
+  private async updateDescription(args: Record<string, unknown>) {
+    const fileId = args.fileId as string;
+    const description = args.description as string;
+    const db = getDb(this.env.DB);
+
+    if (description !== undefined && description.length > 500) {
+      return { error: '描述内容不能超过 500 个字符', fileId };
+    }
+
+    const file = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.id, fileId), eq(files.userId, this.userId), isNull(files.deletedAt)))
+      .get();
+
+    if (!file) return { error: '文件不存在或无权访问', fileId };
+
+    await db.update(files).set({ description: description || null, updatedAt: new Date().toISOString() }).where(eq(files.id, fileId));
+
+    return {
+      success: true,
+      message: `已更新文件 "${file.name}" 的描述`,
+      fileId,
+      fileName: file.name,
+      oldDescription: file.description || null,
+      newDescription: description || null,
+    };
+  }
+
+  // ── 23. create_share ──────────────────────────────────────────────────────
+
+  private async createShare(args: Record<string, unknown>) {
+    const fileId = args.fileId as string;
+    const expiresInDays = args.expiresInDays as number | undefined;
+    const password = args.password as string | undefined;
+    const downloadLimit = args.downloadLimit as number | undefined;
+    const db = getDb(this.env.DB);
+
+    if (password && password.length < 4) {
+      return { error: '密码长度至少需要 4 个字符', fileId };
+    }
+
+    const file = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.id, fileId), eq(files.userId, this.userId), isNull(files.deletedAt)))
+      .get();
+
+    if (!file) return { error: '文件不存在或无权访问', fileId };
+
+    const now = new Date();
+    const shareId = crypto.randomUUID();
+    const uploadToken = crypto.randomUUID();
+    const expiresAt = expiresInDays ? new Date(now.getTime() + expiresInDays * 86400000).toISOString() : null;
+
+    const newShare = {
+      id: shareId,
+      fileId,
+      userId: this.userId,
+      password: password || null,
+      expiresAt,
+      downloadLimit: downloadLimit || null,
+      downloadCount: 0,
+      isUploadLink: false,
+      uploadToken,
+      createdAt: now.toISOString(),
+    };
+
+    await db.insert(shares).values(newShare);
+
+    return {
+      success: true,
+      message: `已为文件 "${file.name}" 创建分享链接`,
+      fileId,
+      fileName: file.name,
+      shareId,
+      uploadToken,
+      expiresAt,
+      downloadLimit: newShare.downloadLimit,
+      hasPassword: !!password,
     };
   }
 }

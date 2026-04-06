@@ -71,7 +71,7 @@ interface ToolCallEvent {
   toolName: string;
   args: Record<string, unknown>;
   result?: unknown;
-  status: 'running' | 'done' | 'error';
+  status: 'running' | 'done' | 'error' | 'pending_confirm';
 }
 
 interface Message {
@@ -107,6 +107,12 @@ const TOOL_META: Record<string, { label: string; icon: React.ReactNode }> = {
   get_storage_stats: { label: '查询存储统计', icon: <BarChart3 className="h-3 w-3" /> },
   get_activity_stats: { label: '查看活动统计', icon: <BarChart3 className="h-3 w-3" /> },
   compare_files: { label: '对比文件', icon: <FileText className="h-3 w-3" /> },
+  rename_file: { label: '重命名文件', icon: <Pencil className="h-3 w-3" /> },
+  add_tag: { label: '添加标签', icon: <Tag className="h-3 w-3" /> },
+  remove_tag: { label: '移除标签', icon: <Tag className="h-3 w-3" /> },
+  write_note: { label: '添加备注', icon: <FileText className="h-3 w-3" /> },
+  update_description: { label: '更新描述', icon: <FileText className="h-3 w-3" /> },
+  create_share: { label: '创建分享', icon: <Share2 className="h-3 w-3" /> },
 };
 
 // ────────────────────────────────────────────────────────────
@@ -185,12 +191,24 @@ function parseFileRefs(text: string, onFileClick: (id: string, isFolder: boolean
 // Sub-components
 // ────────────────────────────────────────────────────────────
 
-function ToolCallCard({ tc, onFileClick }: { tc: ToolCallEvent; onFileClick: (id: string) => void }) {
+function ToolCallCard({
+  tc,
+  onFileClick,
+  onConfirm,
+}: {
+  tc: ToolCallEvent;
+  onFileClick: (id: string) => void;
+  onConfirm?: (toolName: string, args: Record<string, unknown>) => void;
+}) {
   const meta = TOOL_META[tc.toolName] || {
     label: tc.toolName.replace(/_/g, ' '),
     icon: <Sparkles className="h-3 w-3" />,
   };
   const [expanded, setExpanded] = useState(false);
+
+  const resultObj = tc.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>) : null;
+  const isPendingConfirm = resultObj?.status === 'pending_confirm';
+  const confirmMessage = resultObj?.message as string | undefined;
 
   const resultFiles: AgentFile[] = (() => {
     if (!tc.result || typeof tc.result !== 'object') return [];
@@ -270,9 +288,11 @@ function ToolCallCard({ tc, onFileClick }: { tc: ToolCallEvent; onFileClick: (id
   return (
     <div
       className={`my-1.5 rounded-xl overflow-hidden border ${
-        isRunning
-          ? 'border-amber-200 dark:border-amber-800 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10'
-          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80'
+        isPendingConfirm
+          ? 'border-amber-300 dark:border-amber-700 bg-gradient-to-r from-amber-50/80 to-transparent dark:from-amber-900/20'
+          : isRunning
+            ? 'border-amber-200 dark:border-amber-800 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10'
+            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80'
       }`}
     >
       {/* Header bar — always visible */}
@@ -364,6 +384,32 @@ function ToolCallCard({ tc, onFileClick }: { tc: ToolCallEvent; onFileClick: (id
                 ))}
               </div>
               等待工具返回结果…
+            </div>
+          )}
+
+          {/* Pending confirm state */}
+          {isPendingConfirm && (
+            <div className="pt-2 space-y-2">
+              <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-100/50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700">
+                <span className="text-amber-600 dark:text-amber-400 text-xs">⚠️</span>
+                <p className="text-xs text-amber-800 dark:text-amber-200 flex-1">
+                  {confirmMessage || '此操作需要您的确认才能执行'}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onConfirm?.(tc.toolName, tc.args)}
+                  className="flex-1 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors"
+                >
+                  确认执行
+                </button>
+                <button
+                  onClick={() => setExpanded(false)}
+                  className="flex-1 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs font-medium transition-colors"
+                >
+                  取消
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -726,6 +772,14 @@ export function AIChat() {
     [isLoading, currentSessionId, urlSessionId, navigate, queryClient]
   );
 
+  const handleToolConfirm = useCallback(
+    (toolName: string, args: Record<string, unknown>) => {
+      const confirmMessage = `确认执行 ${TOOL_META[toolName]?.label || toolName}`;
+      sendMessage(confirmMessage);
+    },
+    [sendMessage]
+  );
+
   const handleRegenerate = (msgId: string) => {
     const idx = messages.findIndex((m) => m.id === msgId);
     if (idx <= 0) return;
@@ -956,7 +1010,7 @@ export function AIChat() {
                   {msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0 && (
                     <div className="mb-2 space-y-1">
                       {msg.toolCalls.map((tc) => (
-                        <ToolCallCard key={tc.id} tc={tc} onFileClick={handleToolFileClick} />
+                        <ToolCallCard key={tc.id} tc={tc} onFileClick={handleToolFileClick} onConfirm={handleToolConfirm} />
                       ))}
                     </div>
                   )}

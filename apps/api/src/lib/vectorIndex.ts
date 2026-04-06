@@ -263,9 +263,24 @@ export async function buildFileTextForVector(env: Env, fileId: string): Promise<
     .limit(5)
     .all();
 
-  const parts = [file.name, file.description || '', file.aiSummary || '', ...notes.map((n) => n.content)].filter(
-    Boolean
-  );
+  // aiTags 是 JSON 数组字符串，展开为空格分隔的标签词，提升标签匹配召回率
+  let tagsText = '';
+  if (file.aiTags) {
+    try {
+      const tags: string[] = JSON.parse(file.aiTags);
+      tagsText = tags.join(' ');
+    } catch {
+      tagsText = file.aiTags;
+    }
+  }
+
+  const parts = [
+    file.name,
+    file.description || '',
+    file.aiSummary || '',
+    tagsText,
+    ...notes.map((n) => n.content),
+  ].filter(Boolean);
 
   return parts.join('\n');
 }

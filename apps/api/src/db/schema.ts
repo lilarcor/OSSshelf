@@ -419,6 +419,7 @@ export const fileVersions = sqliteTable(
     hash: text('hash'),
     refCount: integer('ref_count').default(1).notNull(),
     changeSummary: text('change_summary'),
+    aiChangeSummary: text('ai_change_summary'),
     createdBy: text('created_by').references(() => users.id),
     createdAt: text('created_at').notNull(),
   },
