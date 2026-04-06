@@ -40,6 +40,26 @@ import {
   Download,
   ChevronDown,
   Filter,
+  Info,
+  Upload,
+  Lock,
+  Link2,
+  GitBranch,
+  Wrench,
+  Brain,
+  BookOpen,
+  HardDrive,
+  Key,
+  Webhook,
+  Shield,
+  ClipboardList,
+  StickyNote,
+  Layers,
+  Zap,
+  Eye,
+  Code,
+  User,
+  Users,
 } from 'lucide-react';
 import { aiApi, filesApi, type AiChatMessage } from '@/services/api';
 import ReactMarkdown from 'react-markdown';
@@ -89,30 +109,107 @@ interface Message {
 // Tool name → label + icon
 // ────────────────────────────────────────────────────────────
 
-const TOOL_META: Record<string, { label: string; icon: React.ReactNode }> = {
-  search_files: { label: '搜索文件', icon: <Search className="h-3 w-3" /> },
-  filter_files: { label: '筛选文件', icon: <Filter className="h-3 w-3" /> },
-  search_by_tag: { label: '标签搜索', icon: <Tag className="h-3 w-3" /> },
-  search_duplicates: { label: '查找重复文件', icon: <Copy className="h-3 w-3" /> },
-  read_file_text: { label: '读取文件内容', icon: <FileText className="h-3 w-3" /> },
-  analyze_image: { label: '分析图片', icon: <Image className="h-3 w-3" /> },
-  get_file_detail: { label: '获取文件详情', icon: <FileText className="h-3 w-3" /> },
-  get_file_versions: { label: '查看版本历史', icon: <Clock className="h-3 w-3" /> },
-  get_file_notes: { label: '查看备注', icon: <FileText className="h-3 w-3" /> },
-  list_folder: { label: '浏览文件夹', icon: <FolderOpen className="h-3 w-3" /> },
-  get_folder_tree: { label: '查看目录树', icon: <FolderOpen className="h-3 w-3" /> },
-  list_recent: { label: '最近文件', icon: <Clock className="h-3 w-3" /> },
-  list_starred: { label: '查看收藏', icon: <Star className="h-3 w-3" /> },
-  list_shares: { label: '查看共享', icon: <Share2 className="h-3 w-3" /> },
-  get_storage_stats: { label: '查询存储统计', icon: <BarChart3 className="h-3 w-3" /> },
-  get_activity_stats: { label: '查看活动统计', icon: <BarChart3 className="h-3 w-3" /> },
-  compare_files: { label: '对比文件', icon: <FileText className="h-3 w-3" /> },
-  rename_file: { label: '重命名文件', icon: <Pencil className="h-3 w-3" /> },
-  add_tag: { label: '添加标签', icon: <Tag className="h-3 w-3" /> },
-  remove_tag: { label: '移除标签', icon: <Tag className="h-3 w-3" /> },
-  write_note: { label: '添加备注', icon: <FileText className="h-3 w-3" /> },
-  update_description: { label: '更新描述', icon: <FileText className="h-3 w-3" /> },
-  create_share: { label: '创建分享', icon: <Share2 className="h-3 w-3" /> },
+const TOOL_META: Record<string, { label: string; icon: React.ReactNode; category: string }> = {
+  // 🔍 搜索发现 (6)
+  search_files: { label: '搜索文件', icon: <Search className="h-3 w-3" />, category: '搜索发现' },
+  filter_files: { label: '筛选文件', icon: <Filter className="h-3 w-3" />, category: '搜索发现' },
+  search_by_tag: { label: '标签搜索', icon: <Tag className="h-3 w-3" />, category: '搜索发现' },
+  search_duplicates: { label: '查找重复文件', icon: <Copy className="h-3 w-3" />, category: '搜索发现' },
+  smart_search: { label: '智能搜索', icon: <Sparkles className="h-3 w-3" />, category: '搜索发现' },
+  list_all_tags: { label: '列出所有标签', icon: <Tag className="h-3 w-3" />, category: '搜索发现' },
+  // 📄 内容理解 (7)
+  read_file_text: { label: '读取文件内容', icon: <FileText className="h-3 w-3" />, category: '内容理解' },
+  analyze_image: { label: '分析图片', icon: <Image className="h-3 w-3" />, category: '内容理解' },
+  compare_files: { label: '对比文件', icon: <FileText className="h-3 w-3" />, category: '内容理解' },
+  extract_metadata: { label: '提取元数据', icon: <ClipboardList className="h-3 w-3" />, category: '内容理解' },
+  generate_summary: { label: '生成摘要', icon: <Brain className="h-3 w-3" />, category: '内容理解' },
+  generate_tags: { label: '生成标签', icon: <Tag className="h-3 w-3" />, category: '内容理解' },
+  content_preview: { label: '内容预览', icon: <Eye className="h-3 w-3" />, category: '内容理解' },
+  // 📂 目录导航 (4)
+  list_folder: { label: '浏览文件夹', icon: <FolderOpen className="h-3 w-3" />, category: '目录导航' },
+  get_folder_tree: { label: '查看目录树', icon: <FolderOpen className="h-3 w-3" />, category: '目录导航' },
+  navigate_path: { label: '路径导航', icon: <Layers className="h-3 w-3" />, category: '目录导航' },
+  get_storage_overview: { label: '存储概览', icon: <HardDrive className="h-3 w-3" />, category: '目录导航' },
+  // 📊 统计分析 (5)
+  get_storage_stats: { label: '存储统计', icon: <BarChart3 className="h-3 w-3" />, category: '统计分析' },
+  get_activity_stats: { label: '活动趋势', icon: <BarChart3 className="h-3 w-3" />, category: '统计分析' },
+  get_user_quota_info: { label: '配额信息', icon: <BarChart3 className="h-3 w-3" />, category: '统计分析' },
+  get_file_type_distribution: { label: '文件类型分布', icon: <BarChart3 className="h-3 w-3" />, category: '统计分析' },
+  get_sharing_stats: { label: '分享统计', icon: <Share2 className="h-3 w-3" />, category: '统计分析' },
+  // 📁 文件操作 (15)
+  create_text_file: { label: '创建文本文件', icon: <FileText className="h-3 w-3" />, category: '文件操作' },
+  create_code_file: { label: '创建代码文件', icon: <Code className="h-3 w-3" />, category: '文件操作' },
+  create_file_from_template: { label: '从模板创建', icon: <FileText className="h-3 w-3" />, category: '文件操作' },
+  edit_file_content: { label: '编辑文件', icon: <Pencil className="h-3 w-3" />, category: '文件操作' },
+  append_to_file: { label: '追加内容', icon: <FileText className="h-3 w-3" />, category: '文件操作' },
+  find_and_replace: { label: '查找替换', icon: <Wrench className="h-3 w-3" />, category: '文件操作' },
+  rename_file: { label: '重命名', icon: <Pencil className="h-3 w-3" />, category: '文件操作' },
+  move_file: { label: '移动文件', icon: <FolderOpen className="h-3 w-3" />, category: '文件操作' },
+  copy_file: { label: '复制文件', icon: <Copy className="h-3 w-3" />, category: '文件操作' },
+  delete_file: { label: '删除文件', icon: <Trash2 className="h-3 w-3" />, category: '文件操作' },
+  restore_file: { label: '恢复文件', icon: <RefreshCw className="h-3 w-3" />, category: '文件操作' },
+  create_folder: { label: '创建文件夹', icon: <FolderOpen className="h-3 w-3" />, category: '文件操作' },
+  batch_rename: { label: '批量重命名', icon: <Pencil className="h-3 w-3" />, category: '文件操作' },
+  star_file: { label: '收藏文件', icon: <Star className="h-3 w-3" />, category: '文件操作' },
+  unstar_file: { label: '取消收藏', icon: <Star className="h-3 w-3" />, category: '文件操作' },
+  // 🏷️ 标签管理 (6)
+  add_tag: { label: '添加标签', icon: <Tag className="h-3 w-3" />, category: '标签管理' },
+  remove_tag: { label: '移除标签', icon: <Tag className="h-3 w-3" />, category: '标签管理' },
+  list_all_tags_for_management: { label: '标签管理列表', icon: <Tag className="h-3 w-3" />, category: '标签管理' },
+  merge_tags: { label: '合并标签', icon: <GitBranch className="h-3 w-3" />, category: '标签管理' },
+  auto_tag_files: { label: '自动打标签', icon: <Zap className="h-3 w-3" />, category: '标签管理' },
+  tag_folder: { label: '文件夹打标', icon: <Tag className="h-3 w-3" />, category: '标签管理' },
+  // 🔗 分享链接 (8)
+  create_share: { label: '创建分享链接', icon: <Share2 className="h-3 w-3" />, category: '分享链接' },
+  list_shares: { label: '列出分享', icon: <Share2 className="h-3 w-3" />, category: '分享链接' },
+  update_share: { label: '更新分享设置', icon: <Settings className="h-3 w-3" />, category: '分享链接' },
+  revoke_share: { label: '撤销分享', icon: <Share2 className="h-3 w-3" />, category: '分享链接' },
+  get_share_details: { label: '分享详情', icon: <Share2 className="h-3 w-3" />, category: '分享链接' },
+  create_direct_link: { label: '创建直链', icon: <Link2 className="h-3 w-3" />, category: '分享链接' },
+  revoke_direct_link: { label: '撤销直链', icon: <Link2 className="h-3 w-3" />, category: '分享链接' },
+  create_upload_link_for_folder: { label: '创建上传链接', icon: <Upload className="h-3 w-3" />, category: '分享链接' },
+  // 📜 版本管理 (4)
+  get_file_versions: { label: '版本历史', icon: <Clock className="h-3 w-3" />, category: '版本管理' },
+  restore_version: { label: '恢复版本', icon: <RefreshCw className="h-3 w-3" />, category: '版本管理' },
+  compare_versions: { label: '对比版本', icon: <GitBranch className="h-3 w-3" />, category: '版本管理' },
+  set_version_retention: { label: '版本保留策略', icon: <Settings className="h-3 w-3" />, category: '版本管理' },
+  // 📝 笔记备注 (4)
+  write_note: { label: '写入备注', icon: <StickyNote className="h-3 w-3" />, category: '笔记备注' },
+  getFileNotes: { label: '获取备注列表', icon: <StickyNote className="h-3 w-3" />, category: '笔记备注' },
+  update_note: { label: '更新备注', icon: <StickyNote className="h-3 w-3" />, category: '笔记备注' },
+  delete_note: { label: '删除备注', icon: <StickyNote className="h-3 w-3" />, category: '笔记备注' },
+  // 🔐 权限管理 (6)
+  get_file_permissions: { label: '查看权限', icon: <Shield className="h-3 w-3" />, category: '权限管理' },
+  grant_permission: { label: '授权访问', icon: <Lock className="h-3 w-3" />, category: '权限管理' },
+  revoke_permission: { label: '撤销权限', icon: <Lock className="h-3 w-3" />, category: '权限管理' },
+  set_folder_access_level: { label: '设置访问级别', icon: <Shield className="h-3 w-3" />, category: '权限管理' },
+  list_user_groups: { label: '用户组列表', icon: <Users className="h-3 w-3" />, category: '权限管理' },
+  manage_group_members: { label: '管理组成员', icon: <Users className="h-3 w-3" />, category: '权限管理' },
+  // 💾 存储桶 (4)
+  list_buckets: { label: '列出存储桶', icon: <HardDrive className="h-3 w-3" />, category: '存储管理' },
+  get_bucket_info: { label: '存储桶详情', icon: <HardDrive className="h-3 w-3" />, category: '存储管理' },
+  set_default_bucket: { label: '设默认桶', icon: <HardDrive className="h-3 w-3" />, category: '存储管理' },
+  migrate_file_to_bucket: { label: '迁移文件', icon: <HardDrive className="h-3 w-3" />, category: '存储管理' },
+  // ⚙️ 系统管理 (7)
+  get_user_profile: { label: '用户画像', icon: <User className="h-3 w-3" />, category: '系统管理' },
+  list_api_keys: { label: 'API密钥列表', icon: <Key className="h-3 w-3" />, category: '系统管理' },
+  create_api_key: { label: '创建API密钥', icon: <Key className="h-3 w-3" />, category: '系统管理' },
+  revoke_api_key: { label: '撤销API密钥', icon: <Key className="h-3 w-3" />, category: '系统管理' },
+  list_webhooks: { label: 'Webhook列表', icon: <Webhook className="h-3 w-3" />, category: '系统管理' },
+  create_webhook: { label: '创建Webhook', icon: <Webhook className="h-3 w-3" />, category: '系统管理' },
+  get_audit_logs: { label: '审计日志', icon: <ClipboardList className="h-3 w-3" />, category: '系统管理' },
+  // 🤖 AI增强 (5)
+  trigger_ai_summary: { label: 'AI摘要', icon: <Brain className="h-3 w-3" />, category: 'AI增强' },
+  trigger_ai_tags: { label: 'AI标签', icon: <Zap className="h-3 w-3" />, category: 'AI增强' },
+  rebuild_vector_index: { label: '重建向量索引', icon: <RefreshCw className="h-3 w-3" />, category: 'AI增强' },
+  ask_rag_question: { label: 'RAG问答', icon: <BookOpen className="h-3 w-3" />, category: 'AI增强' },
+  smart_rename_suggest: { label: '智能重命名', icon: <Sparkles className="h-3 w-3" />, category: 'AI增强' },
+  // 兼容旧工具名
+  get_file_detail: { label: '获取文件详情', icon: <FileText className="h-3 w-3" />, category: '内容理解' },
+  get_file_notes: { label: '查看备注', icon: <FileText className="h-3 w-3" />, category: '笔记备注' },
+  list_recent: { label: '最近文件', icon: <Clock className="h-3 w-3" />, category: '搜索发现' },
+  list_starred: { label: '查看收藏', icon: <Star className="h-3 w-3" />, category: '搜索发现' },
+  update_description: { label: '更新描述', icon: <FileText className="h-3 w-3" />, category: '内容理解' },
 };
 
 // ────────────────────────────────────────────────────────────
@@ -142,6 +239,8 @@ const SUGGESTED = [
   '有哪些带有"项目"标签的文件？',
   '列出根目录的内容',
   '我收藏了哪些文件？',
+  '帮我创建一个备忘录文件，内容是明天要去开会',
+  '帮我把这段代码保存到代码文件夹',
   '查看我分享了哪些文件',
 ];
 
@@ -509,6 +608,113 @@ function AssistantContent({
 }
 
 // ────────────────────────────────────────────────────────────
+// Tool Info Modal — 工具说明弹窗
+// ────────────────────────────────────────────────────────────
+
+const TOOL_CATEGORIES = [
+  { key: '搜索发现', icon: <Search className="h-4 w-4" />, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', desc: '智能搜索、文件过滤、标签检索、重复检测' },
+  { key: '内容理解', icon: <FileText className="h-4 w-4" />, color: 'text-violet-500', bg: 'bg-violet-50 dark:bg-violet-900/20', border: 'border-violet-200 dark:border-violet-800', desc: '读取文件、图片分析、元数据提取、AI摘要/标签' },
+  { key: '目录导航', icon: <FolderOpen className="h-4 w-4" />, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-800', desc: '浏览文件夹、目录树、路径导航、存储概览' },
+  { key: '统计分析', icon: <BarChart3 className="h-4 w-4" />, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', desc: '存储统计、活动趋势、配额信息、类型分布' },
+  { key: '文件操作', icon: <FileText className="h-4 w-4" />, color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-800', desc: '创建/编辑/重命名/移动/复制/删除/收藏文件' },
+  { key: '标签管理', icon: <Tag className="h-4 w-4" />, color: 'text-pink-500', bg: 'bg-pink-50 dark:bg-pink-900/20', border: 'border-pink-200 dark:border-pink-800', desc: '添加/移除/合并标签、自动打标、批量标签' },
+  { key: '分享链接', icon: <Share2 className="h-4 w-4" />, color: 'text-cyan-500', bg: 'bg-cyan-50 dark:bg-cyan-900/20', border: 'border-cyan-200 dark:border-cyan-800', desc: '创建分享链接、直链、上传链接、权限控制' },
+  { key: '版本管理', icon: <Clock className="h-4 w-4" />, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-900/20', border: 'border-indigo-200 dark:border-indigo-800', desc: '查看历史版本、恢复版本、版本对比' },
+  { key: '笔记备注', icon: <StickyNote className="h-4 w-4" />, color: 'text-yellow-600', bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-200 dark:border-yellow-800', desc: '为文件添加/编辑/删除备注' },
+  { key: '权限管理', icon: <Shield className="h-4 w-4" />, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-800', desc: '文件权限、文件夹访问级别、用户组管理' },
+  { key: '存储管理', icon: <HardDrive className="h-4 w-4" />, color: 'text-slate-500', bg: 'bg-slate-100 dark:bg-slate-800', border: 'border-slate-300 dark:border-slate-700', desc: '存储桶列表、详情、默认设置、文件迁移' },
+  { key: '系统管理', icon: <Settings className="h-4 w-4" />, color: 'text-gray-500', bg: 'bg-gray-50 dark:bg-gray-900/20', border: 'border-gray-200 dark:border-gray-700', desc: '用户画像、API密钥、Webhook、审计日志' },
+  { key: 'AI增强', icon: <Brain className="h-4 w-4" />, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-200 dark:border-purple-800', desc: 'AI摘要、AI标签、向量索引、RAG问答、智能命名' },
+];
+
+function ToolInfoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  if (!open) return null;
+
+  const totalTools = Object.keys(TOOL_META).length;
+
+  const toolsByCategory = TOOL_CATEGORIES.map((cat) => ({
+    ...cat,
+    tools: Object.entries(TOOL_META)
+      .filter(([, v]) => v.category === cat.key)
+      .map(([name, v]) => ({ name, ...v })),
+  }));
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-3xl max-h-[85vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+              <Wrench className="h-4.5 w-4.5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">AI 工具集</h2>
+              <p className="text-xs text-slate-400">共 {totalTools} 个工具 · 13 个功能模块</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-400 hover:text-slate-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Body — scrollable */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {toolsByCategory.map((cat) => (
+            <div key={cat.key} className={`rounded-xl border ${cat.border} ${cat.bg} overflow-hidden`}>
+              <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-slate-100 dark:border-slate-700/50">
+                <span className={cat.color}>{cat.icon}</span>
+                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{cat.key}</span>
+                <span className="text-[10px] text-slate-400 ml-auto">{cat.tools.length}个工具</span>
+              </div>
+              <div className="px-4 py-2">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">{cat.desc}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {cat.tools.map((t) => (
+                    <span
+                      key={t.name}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/60 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-[11px] text-slate-600 dark:text-slate-300"
+                    >
+                      <span className={cat.color}>{t.icon}</span>
+                      {t.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Usage tips */}
+          <div className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/10 p-4 mt-2">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="h-4 w-4 text-violet-500" />
+              <span className="text-sm font-semibold text-violet-700 dark:text-violet-300">使用技巧</span>
+            </div>
+            <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-400">
+              <li>• 用自然语言描述需求，AI会自动选择最合适的工具</li>
+              <li>• 支持<strong>创建文件</strong>："帮我记一下明天要去开会，存到备忘录"</li>
+              <li>• 支持<strong>编辑文件</strong>："把配置文件里的端口改成8080"</li>
+              <li>• 支持<strong>收藏/分享</strong>："收藏这个项目文件夹"、"创建分享链接"</li>
+              <li>• 支持<strong>RAG问答</strong>："我的合同里违约金怎么规定的？"</li>
+              <li>• 危险操作（删除、修改）需要您确认后才会执行</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0 flex items-center justify-between">
+          <span className="text-[10px] text-slate-400">OSSshelf AI Agent Tools v2.0</span>
+          <button onClick={onClose} className="px-4 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors">
+            知道了
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
 // Main component
 // ────────────────────────────────────────────────────────────
 
@@ -527,6 +733,7 @@ export function AIChat() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
+  const [showToolInfo, setShowToolInfo] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -948,6 +1155,14 @@ export function AIChat() {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setShowToolInfo(true)}
+              className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-600 transition-colors relative"
+              title={`查看全部 ${Object.keys(TOOL_META).length} 个可用工具`}
+            >
+              <Info className="h-4 w-4" />
+              <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-violet-500 text-[8px] text-white flex items-center justify-center font-bold leading-none">81</span>
+            </button>
+            <button
               onClick={() => navigate('/ai-settings')}
               className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title="AI 设置"
@@ -970,7 +1185,7 @@ export function AIChat() {
                   可以搜索文件、查看统计、浏览文件夹，结果可直接点击跳转
                 </p>
                 <div className="flex flex-wrap gap-1.5 justify-center mb-6 max-w-sm">
-                  {['搜索', '统计', '浏览', '收藏', '共享', '标签'].map((t) => (
+                  {['搜索', '创建', '编辑', '统计', '浏览', '收藏', '分享', '标签', '版本', 'AI'].map((t) => (
                     <span
                       key={t}
                       className="px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-xs border border-violet-200 dark:border-violet-700"
@@ -1174,6 +1389,9 @@ export function AIChat() {
           </div>
         </div>
       )}
+
+      {/* Tool Info Modal */}
+      <ToolInfoModal open={showToolInfo} onClose={() => setShowToolInfo(false)} />
     </div>
   );
 }

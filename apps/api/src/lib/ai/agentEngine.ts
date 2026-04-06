@@ -29,7 +29,7 @@
 
 import type { Env } from '../../types/env';
 import { ModelGateway } from './modelGateway';
-import { AgentToolExecutor, TOOL_DEFINITIONS } from './agentTools';
+import { AgentToolExecutor, TOOL_DEFINITIONS } from './agentTools/index';
 import type { StreamChunk } from './types';
 import { logger } from '@osshelf/shared';
 import { getAiConfigNumber } from './aiConfigService';
@@ -296,7 +296,7 @@ export class AgentEngine {
     onChunk: (chunk: AgentChunk) => void,
     signal?: AbortSignal
   ): Promise<{ fullText: string; sources: AgentSource[] }> {
-    this.executor.userId = userId;
+    this.executor.setUserId(userId);
 
     const [caps, config] = await Promise.all([
       this.getModelCapabilities(modelId, userId),
