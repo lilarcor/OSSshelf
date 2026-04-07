@@ -393,6 +393,7 @@ export function AIChatWidget() {
           maxFiles: 8,
           includeFileContent: false,
           onChunk: (raw: SseChunk) => {
+            console.log('[AI Chat Widget] onChunk called:', raw.done ? { done: raw.done, confirmRequest: raw.confirmRequest } : { hasContent: !!raw.content });
             if (raw.toolStart && raw.toolCallId && raw.toolName) {
               const tc: ToolCallEvent = {
                 id: raw.toolCallId,
