@@ -8,7 +8,6 @@ INSERT INTO ai_config (id, key, category, label, description, value_type, number
     ('cfg-agent-temperature', 'ai.agent.temperature', 'agent', 'Agent温度参数', 'Agent对话时的温度参数（0-2之间，越低越确定）', 'number', 0.3, '0.3', 1, 14),
     ('cfg-agent-max-tool-calls', 'ai.agent.max_tool_calls', 'agent', '最大工具调用次数', '单次Agent响应中最大工具调用次数', 'number', 20, '20', 1, 15),
     ('cfg-agent-max-idle-rounds', 'ai.agent.max_idle_rounds', 'agent', '最大空转轮数', '连续无新文件信息后自动退出的轮数', 'number', 3, '3', 1, 16),
-    ('cfg-agent-max-tool-result-chars', 'ai.agent.max_tool_result_chars', 'agent', '工具结果最大字符数', '单个工具结果的最大字符数（超长会被截断）', 'number', 15000, '15000', 1, 19),
     ('cfg-agent-image-timeout-ms', 'ai.agent.image_timeout_ms', 'agent', '图片分析超时(ms)', '单张图片分析的超时时间（毫秒）', 'number', 25000, '25000', 1, 20);
 
 -- ═══════════════════════════════════════════════════════════════════════════

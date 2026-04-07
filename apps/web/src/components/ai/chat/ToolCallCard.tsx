@@ -158,10 +158,7 @@ export function ToolCallCard({ tc, onFileClick, onConfirm, toolMeta = {} }: Tool
                 </div>
               ) : (
                 <pre className="text-[11px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-md p-2 overflow-auto font-mono max-h-32">
-                  {(() => {
-                    const resultStr = JSON.stringify(tc.result, null, 2);
-                    return resultStr.length > 500 ? resultStr.slice(0, 500) + '\n... (已截断)' : resultStr;
-                  })()}
+                  {JSON.stringify(tc.result, null, 2)}
                 </pre>
               )}
             </div>

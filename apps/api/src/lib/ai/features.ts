@@ -31,19 +31,6 @@ import { initializeAiConfig, getAiConfigString, getAiConfigNumber, getAiConfigBo
 import { uint8ArrayToBase64, fetchFileBuffer, buildVisionMessageContent } from './utils';
 import type { AiFeatureType } from './types';
 
-const DEFAULT_SUMMARY_CONTENT_LIMIT = 8192;
-const DEFAULT_RENAME_CONTENT_LIMIT = 4096;
-
-async function getContentLimits(env: Env): Promise<{ summary: number; rename: number }> {
-  try {
-    const summaryLimit = await getAiConfigNumber(env, 'ai.summary.content_limit', DEFAULT_SUMMARY_CONTENT_LIMIT);
-    const renameLimit = await getAiConfigNumber(env, 'ai.rename.content_limit', DEFAULT_RENAME_CONTENT_LIMIT);
-    return { summary: summaryLimit, rename: renameLimit };
-  } catch {
-    return { summary: DEFAULT_SUMMARY_CONTENT_LIMIT, rename: DEFAULT_RENAME_CONTENT_LIMIT };
-  }
-}
-
 const SUMMARY_PROMPTS: Record<string, string> = {
   default: '你是文件助手。请用简洁的中文（不超过3句话）概括文件主要内容。',
   code: '你是代码分析助手。请概括以下代码的功能、主要类/函数/接口、核心逻辑。（不超过4句话）',
@@ -465,7 +452,6 @@ export async function generateFileSummary(
     throw new Error('AI service not configured');
   }
 
-  const contentLimits = await getContentLimits(env);
   const db = getDb(env.DB);
   const file = await db.select().from(files).where(eq(files.id, fileId)).get();
 
@@ -482,7 +468,7 @@ export async function generateFileSummary(
 
   let textContent = content;
   if (!textContent) {
-    textContent = await extractTextFromFile(env, file, contentLimits.summary);
+    textContent = await extractTextFromFile(env, file);
   }
 
   if (!textContent) {
@@ -492,8 +478,6 @@ export async function generateFileSummary(
   if (textContent.length < 50) {
     throw new Error('文件内容太短（少于50字符），无法生成摘要');
   }
-
-  const truncatedContent = textContent.slice(0, contentLimits.summary);
 
   try {
     const summary = await callChatModel(
@@ -508,7 +492,7 @@ export async function generateFileSummary(
           },
           {
             role: 'user',
-            content: truncatedContent,
+            content: textContent,
           },
         ],
       },
@@ -608,7 +592,6 @@ export async function suggestFileName(
     throw new Error('AI service not configured');
   }
 
-  const contentLimits = await getContentLimits(env);
   const db = getDb(env.DB);
   const file = await db.select().from(files).where(eq(files.id, fileId)).get();
 
@@ -627,7 +610,7 @@ export async function suggestFileName(
       textContent = await extractTextFromFile(env, file);
     }
     if (textContent && textContent.length >= 30) {
-      contextForAI = `文件内容（前${contentLimits.rename}字）：\n${textContent.slice(0, contentLimits.rename)}`;
+      contextForAI = `文件内容：\n${textContent}`;
       isContentBased = true;
     } else {
       contextForAI = `文件类型：${file.mimeType || '未知'}`;
@@ -695,7 +678,6 @@ export async function suggestFileNameFromContent(
     throw new Error('文件内容太短（少于30字符），无法生成命名建议');
   }
 
-  const contentLimits = await getContentLimits(env);
   const ext = extension || '';
   try {
     const responseText = await callChatModel(env, userId || 'default', 'rename', {
@@ -712,7 +694,7 @@ export async function suggestFileNameFromContent(
         },
         {
           role: 'user',
-          content: `文件类型：${mimeType || '未知'}\n文件内容（前${contentLimits.rename}字）：\n${content.slice(0, contentLimits.rename)}`,
+          content: `文件类型：${mimeType || '未知'}\n文件内容：\n${content}`,
         },
       ],
     });
@@ -733,7 +715,7 @@ export async function suggestFileNameFromContent(
   }
 }
 
-async function extractTextFromFile(env: Env, file: typeof files.$inferSelect, limit?: number): Promise<string> {
+async function extractTextFromFile(env: Env, file: typeof files.$inferSelect): Promise<string> {
   if (!canGenerateSummary(file.mimeType, file.name)) {
     return '';
   }
@@ -743,8 +725,7 @@ async function extractTextFromFile(env: Env, file: typeof files.$inferSelect, li
     if (!content) return '';
 
     const decoder = new TextDecoder('utf-8');
-    const contentLimit = limit || DEFAULT_SUMMARY_CONTENT_LIMIT;
-    return decoder.decode(content).slice(0, contentLimit);
+    return decoder.decode(content);
   } catch (error) {
     logger.error('AI', '提取文件文本失败', { fileId: file.id }, error);
     return '';

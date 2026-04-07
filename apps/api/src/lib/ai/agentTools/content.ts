@@ -288,7 +288,7 @@ export class ContentTools {
       sectionSummaries: allSections.map((s) => ({
         index: s.index,
         title: s.title,
-        preview: s.content.slice(0, 100) + (s.content.length > 100 ? '...' : ''),
+        preview: s.content,
       })),
       _next_actions:
         totalChunks > 1 ? ['若需阅读具体内容，传入 sectionIndex 参数（0 到 ' + (totalChunks - 1) + '）再次调用。'] : [],
@@ -646,10 +646,6 @@ export class ContentTools {
 
       const previewLines = vectorText.split('\n').slice(0, lines);
       let preview = previewLines.join('\n');
-
-      if (preview.length > maxLength) {
-        preview = preview.slice(0, maxLength) + '\n... (内容已截断)';
-      }
 
       return {
         fileId,

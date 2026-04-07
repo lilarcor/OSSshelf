@@ -14,9 +14,20 @@ export type ModelCapability = 'chat' | 'completion' | 'embedding' | 'vision' | '
 
 export type ThinkingParamFormat = 'object' | 'boolean' | 'string' | '';
 
+export interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string | ChatContentPart[];
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string | ChatContentPart[] | null;
+  toolCalls?: ToolCall[];
+  toolCallId?: string;
 }
 
 export interface ChatContentPart {

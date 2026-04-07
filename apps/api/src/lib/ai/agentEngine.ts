@@ -22,7 +22,6 @@
  *  - native tool calling 和 prompt-based 两条路径均支持
  *
  * 【上下文管理】
- *  - 工具结果超长时智能截断（保留文件列表，截断冗余文本）
  *  - 对话历史按 token 预算裁剪
  *  - 工具结果注入 prompt injection 防护标记
  */
@@ -42,7 +41,6 @@ import { eq, and } from 'drizzle-orm';
 
 const DEFAULT_MAX_TOOL_CALLS = 20;
 const DEFAULT_MAX_IDLE_ROUNDS = 3;
-const DEFAULT_MAX_TOOL_RESULT_CHARS = 15000;
 const DEFAULT_AGENT_TEMPERATURE = 0.3;
 const DEFAULT_IMAGE_TIMEOUT_MS = 25000;
 const TOKENS_PER_CHAR = 0.5;
@@ -80,7 +78,6 @@ const INJECTION_GUARD = `
 interface AgentConfig {
   maxToolCalls: number;
   maxIdleRounds: number;
-  maxToolResultChars: number;
   agentTemperature: number;
   imageTimeoutMs: number;
 }
@@ -90,7 +87,6 @@ async function loadAgentConfig(env: Env): Promise<AgentConfig> {
     return {
       maxToolCalls: await getAiConfigNumber(env, 'ai.agent.max_tool_calls', DEFAULT_MAX_TOOL_CALLS),
       maxIdleRounds: await getAiConfigNumber(env, 'ai.agent.max_idle_rounds', DEFAULT_MAX_IDLE_ROUNDS),
-      maxToolResultChars: await getAiConfigNumber(env, 'ai.agent.max_tool_result_chars', DEFAULT_MAX_TOOL_RESULT_CHARS),
       agentTemperature: await getAiConfigNumber(env, 'ai.agent.temperature', DEFAULT_AGENT_TEMPERATURE),
       imageTimeoutMs: await getAiConfigNumber(env, 'ai.agent.image_timeout_ms', DEFAULT_IMAGE_TIMEOUT_MS),
     };
@@ -98,7 +94,6 @@ async function loadAgentConfig(env: Env): Promise<AgentConfig> {
     return {
       maxToolCalls: DEFAULT_MAX_TOOL_CALLS,
       maxIdleRounds: DEFAULT_MAX_IDLE_ROUNDS,
-      maxToolResultChars: DEFAULT_MAX_TOOL_RESULT_CHARS,
       agentTemperature: DEFAULT_AGENT_TEMPERATURE,
       imageTimeoutMs: DEFAULT_IMAGE_TIMEOUT_MS,
     };
@@ -410,7 +405,6 @@ export class AgentEngine {
       modelId: modelId || 'default',
       config: {
         maxToolCalls: config.maxToolCalls,
-        maxToolResultChars: config.maxToolResultChars,
       },
     });
 
@@ -462,7 +456,12 @@ export class AgentEngine {
         await this.gateway.chatCompletionStream(
           userId,
           {
-            messages: messages.map((m) => ({ role: m.role as any, content: m.content || '' })),
+            messages: messages.map((m) => ({
+              role: m.role as any,
+              content: m.content ?? null,
+              toolCalls: m.toolCalls,
+              toolCallId: m.toolCallId,
+            })),
             temperature: config.agentTemperature,
             tools: TOOL_DEFINITIONS,
             toolChoice: 'auto',
@@ -587,7 +586,7 @@ export class AgentEngine {
 
         messages.push({
           role: 'tool',
-          content: smartTruncate(JSON.stringify(result, null, 2), config.maxToolResultChars) + INJECTION_GUARD,
+          content: JSON.stringify(result, null, 2) + INJECTION_GUARD,
           toolCallId: tc.id,
         });
 
@@ -781,7 +780,7 @@ export class AgentEngine {
 
       messages.push({
         role: 'user',
-        content: `[工具 ${toolName} 结果]\n\`\`\`json\n${smartTruncate(JSON.stringify(result, null, 2), config.maxToolResultChars)}\n\`\`\`\n${INJECTION_GUARD}${hintText}\n\n请根据以上结果继续回答用户问题。`,
+        content: `[工具 ${toolName} 结果]\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n${INJECTION_GUARD}${hintText}\n\n请根据以上结果继续回答用户问题。`,
       });
 
       // idleRounds 只在工具结果是 error（无效执行）时累加
@@ -857,7 +856,6 @@ export class AgentEngine {
 
     // 并行执行，单张图片最多配置的超时时间（避免单张卡死整个链）
     const imageTimeoutMs = config?.imageTimeoutMs || DEFAULT_IMAGE_TIMEOUT_MS;
-    const maxToolResultChars = config?.maxToolResultChars || DEFAULT_MAX_TOOL_RESULT_CHARS;
     const parallelResults = await Promise.all(
       pendingImages.map(async ({ imgFile, chainId, chainArgs }) => {
         let chainResult: unknown;
@@ -887,7 +885,7 @@ export class AgentEngine {
 
       messages.push({
         role: 'tool',
-        content: smartTruncate(JSON.stringify(chainResult, null, 2), maxToolResultChars) + INJECTION_GUARD,
+        content: JSON.stringify(chainResult, null, 2) + INJECTION_GUARD,
         toolCallId: chainId,
       });
     }
@@ -986,38 +984,6 @@ function mergeSourcesFromResult(result: unknown, sources: AgentSource[]): boolea
   }
 
   return hasNew;
-}
-
-/** 智能截断工具结果，保留文件列表结构，截断过长文本字段 */
-function smartTruncate(text: string, maxChars: number = DEFAULT_MAX_TOOL_RESULT_CHARS): string {
-  if (text.length <= maxChars) return text;
-  try {
-    const obj = JSON.parse(text);
-    // 如果有 sections 字段（文件内容），只保留前 2 段
-    if (obj.sections && Array.isArray(obj.sections)) {
-      obj.sections = obj.sections.slice(0, 2);
-      obj._truncated = true;
-      const restr = JSON.stringify(obj, null, 2);
-      if (restr.length <= maxChars) return restr;
-    }
-    // 通用截断：保留结构，截断超长字符串值（提高到 4096 字符）
-    const truncObj = truncateStrings(obj, 4096);
-    const restr2 = JSON.stringify(truncObj, null, 2);
-    return restr2.length <= maxChars ? restr2 : text.slice(0, maxChars) + '\n...(结果已截断)';
-  } catch {
-    return text.slice(0, maxChars) + '\n...(结果已截断)';
-  }
-}
-
-function truncateStrings(obj: unknown, maxLen: number): unknown {
-  if (typeof obj === 'string') return obj.length > maxLen ? obj.slice(0, maxLen) + '...' : obj;
-  if (Array.isArray(obj)) return obj.map((item) => truncateStrings(item, maxLen));
-  if (obj && typeof obj === 'object') {
-    return Object.fromEntries(
-      Object.entries(obj as Record<string, unknown>).map(([k, v]) => [k, truncateStrings(v, maxLen)])
-    );
-  }
-  return obj;
 }
 
 function safeForwardPoint(buffer: string): number {

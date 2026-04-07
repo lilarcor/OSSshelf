@@ -38,7 +38,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   tool: '🔧 工具配置',
   feature: '✨ 功能配置',
   rag: '📚 RAG 配置',
-  limit: '📏 内容限制',
   retry: '🔄 重试策略',
   prompt: '💬 提示词模板',
 };
@@ -99,7 +98,7 @@ export function AdvancedConfigPanel({
         </Button>
       </div>
 
-      {['model', 'parameter', 'agent', 'tool', 'feature', 'rag', 'limit', 'retry', 'prompt'].map((category) => {
+      {['model', 'parameter', 'agent', 'tool', 'feature', 'rag', 'retry', 'prompt'].map((category) => {
         const categoryConfigs = systemConfigs.filter((c) => c.category === category);
         if (categoryConfigs.length === 0) return null;
 

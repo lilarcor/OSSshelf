@@ -553,8 +553,7 @@ export class RagEngine {
         try {
           const content = await buildFileTextForVector(this.env, file.id);
           if (content && content.length > 0) {
-            const truncatedContent = content.slice(0, 1000);
-            fileParts.push(`内容预览：\n${truncatedContent}`);
+            fileParts.push(`内容预览：\n${content}`);
           }
         } catch {
           continue;

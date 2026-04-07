@@ -162,7 +162,7 @@ export class NotesTools {
       total: result.total,
       notes: result.notes.map((n: any) => ({
         id: n.id,
-        content: (n.content as string).length > 200 ? (n.content as string).slice(0, 200) + '...' : n.content,
+        content: n.content,
         fullContent: n.content,
         isPinned: n.isPinned,
         createdAt: n.createdAt,
@@ -228,7 +228,7 @@ export class NotesTools {
         noteId: r.noteId,
         fileId: r.fileId,
         fileName: r.fileName,
-        snippet: r.content?.slice(0, 200) || '',
+        snippet: r.content || '',
         createdAt: r.createdAt,
       })),
     };

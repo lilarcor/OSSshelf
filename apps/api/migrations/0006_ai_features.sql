@@ -116,11 +116,6 @@ INSERT INTO ai_config (id, key, category, label, description, value_type, string
 INSERT INTO ai_config (id, key, category, label, description, value_type, number_value, default_value, is_editable, sort_order) VALUES
     ('cfg-param-temperature', 'ai.model.temperature', 'parameter', '温度参数', '控制模型输出的随机性（0-2之间，越高越随机）', 'number', 0.7, '0.7', 1, 11);
 
--- 内容限制配置
-INSERT INTO ai_config (id, key, category, label, description, value_type, number_value, default_value, is_editable, sort_order) VALUES
-    ('cfg-limit-summary', 'ai.summary.content_limit', 'limit', '摘要内容长度限制', '生成摘要时输入文本的最大字符数', 'number', 8192, '8192', 1, 20),
-    ('cfg-limit-rename', 'ai.rename.content_limit', 'limit', '重命名内容长度限制', '智能重命名时输入文本的最大字符数', 'number', 4096, '4096', 1, 21);
-
 -- 重试策略配置
 INSERT INTO ai_config (id, key, category, label, description, value_type, number_value, default_value, is_editable, sort_order) VALUES
     ('cfg-retry-max-retries', 'ai.request.max_retries', 'retry', '最大重试次数', 'API请求失败后的最大重试次数', 'number', 3, '3', 0, 30),
