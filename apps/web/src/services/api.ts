@@ -1448,9 +1448,11 @@ export const aiApi = {
 
           try {
             const data = JSON.parse(trimmedLine.slice(6));
+            console.log('[SSE] Received chunk:', data.done ? { done: data.done, confirmRequest: data.confirmRequest, confirmId: data.confirmId } : { type: data.content ? 'content' : 'other' });
             options.onChunk(data);
             if (data.done) return;
-          } catch {
+          } catch (parseErr) {
+            console.warn('[SSE] Failed to parse:', trimmedLine.slice(0, 100), parseErr);
             continue;
           }
         }

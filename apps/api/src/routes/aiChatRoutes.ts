@@ -460,10 +460,12 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
           if (doneEmitted) return;
           doneEmitted = true;
           enqueue(data);
-          try {
-            controller.close();
-          } catch {}
-          resolveStream();
+          setTimeout(() => {
+            try {
+              controller.close();
+            } catch {}
+            resolveStream();
+          }, 50);
         };
 
         try {
