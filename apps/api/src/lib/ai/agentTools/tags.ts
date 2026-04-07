@@ -19,11 +19,10 @@ import { logger } from '@osshelf/shared';
 import type { ToolDefinition } from './types';
 
 export const definitions: ToolDefinition[] = [
-  // 1. add_tags — 添加标签
   {
     type: 'function',
     function: {
-      name: 'add_tags',
+      name: 'add_tag',
       description: `【打标签】为文件添加一个或多个标签。
 适用场景：
 • "给这个文件加上'重要'标签"
@@ -35,22 +34,21 @@ export const definitions: ToolDefinition[] = [
         type: 'object',
         properties: {
           fileId: { type: 'string', description: '目标文件ID' },
-          tagNames: {
+          tags: {
             type: 'array',
             items: { type: 'string' },
             description: '标签名数组，如 ["重要", "工作", "2024"]',
           },
         },
-        required: ['fileId', 'tagNames'],
+        required: ['fileId', 'tags'],
       },
     },
   },
 
-  // 2. remove_tags — 移除标签
   {
     type: 'function',
     function: {
-      name: 'remove_tags',
+      name: 'remove_tag',
       description: `【去标签】移除文件的指定标签。
 适用场景：
 • "去掉'重要'标签"
@@ -70,7 +68,6 @@ export const definitions: ToolDefinition[] = [
     },
   },
 
-  // 3. get_file_tags — 获取文件标签
   {
     type: 'function',
     function: {
@@ -89,11 +86,10 @@ export const definitions: ToolDefinition[] = [
     },
   },
 
-  // 4. list_all_tags — 标签总览
   {
     type: 'function',
     function: {
-      name: 'list_all_tags',
+      name: 'list_all_tags_for_management',
       description: `【标签库】查看所有可用的标签及其使用情况。
 适用场景：
 • "我有哪些标签"
@@ -112,23 +108,70 @@ export const definitions: ToolDefinition[] = [
     },
   },
 
-  // 5. create_tag — 创建新标签
   {
     type: 'function',
     function: {
-      name: 'create_tag',
-      description: `【建标签】创建一个新的标签（可选颜色和图标）。
+      name: 'merge_tags',
+      description: `【合并标签】将一个标签合并到另一个标签。
 适用场景：
-• "创建一个'紧急'标签，红色"
-• "新建标签'项目A'"`,
+• "把'重要'和'紧急'合并"
+• "整理重复标签"`,
       parameters: {
         type: 'object',
         properties: {
-          name: { type: 'string', description: '标签名称' },
-          color: { type: 'string', description: '标签颜色（十六进制，如 "#FF5733"，可选）' },
-          icon: { type: 'string', description: '图标名称（可选）' },
+          sourceTag: { type: 'string', description: '要合并的源标签名' },
+          targetTag: { type: 'string', description: '目标标签名' },
         },
-        required: ['name'],
+        required: ['sourceTag', 'targetTag'],
+      },
+    },
+  },
+
+  {
+    type: 'function',
+    function: {
+      name: 'tag_folder',
+      description: `【文件夹打标签】为文件夹内所有文件批量打标签。
+适用场景：
+• "给这个文件夹所有文件加上'项目A'标签"
+• "批量标记整个目录"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          folderId: { type: 'string', description: '文件夹ID' },
+          tags: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '要添加的标签名数组',
+          },
+          recursive: { type: 'boolean', description: '是否递归处理子文件夹（默认false）' },
+        },
+        required: ['folderId', 'tags'],
+      },
+    },
+  },
+
+  {
+    type: 'function',
+    function: {
+      name: 'auto_tag_files',
+      description: `【智能打标签】基于文件内容自动生成并添加标签。
+适用场景：
+• "自动给这些文件打标签"
+• "智能分类文档"
+
+AI会分析文件名、内容、类型等信息生成合适的标签`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '要处理的文件ID列表',
+          },
+          maxTags: { type: 'number', description: '每个文件最多添加的标签数（默认5）' },
+        },
+        required: ['fileIds'],
       },
     },
   },
@@ -214,6 +257,41 @@ export class TagsTools {
       message: `已移除 ${removedCount} 个标签`,
       fileId,
       removedTags: tagNames.slice(0, removedCount),
+    };
+  }
+
+  static async executeGetFileTags(env: Env, userId: string, args: Record<string, unknown>) {
+    const fileId = args.fileId as string;
+    const db = getDb(env.DB);
+
+    const file = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
+      .get();
+    if (!file) return { error: `文件不存在或无权访问: ${fileId}` };
+
+    const tags = await db
+      .select({
+        id: fileTags.id,
+        name: fileTags.name,
+        color: fileTags.color,
+        createdAt: fileTags.createdAt,
+      })
+      .from(fileTags)
+      .where(eq(fileTags.fileId, fileId))
+      .all();
+
+    return {
+      fileId,
+      fileName: file.name,
+      tags: tags.map((t) => ({
+        id: t.id,
+        name: t.name,
+        color: t.color,
+        createdAt: t.createdAt,
+      })),
+      count: tags.length,
     };
   }
 

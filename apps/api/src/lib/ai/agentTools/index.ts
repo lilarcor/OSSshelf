@@ -130,7 +130,8 @@ const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<
     search_by_tag: (env, userId, args) => SearchTools.executeSearchByTag(env, userId, args),
     search_duplicates: (env, userId, args) => SearchTools.executeSearchDuplicates(env, userId, args),
     smart_search: (env, userId, args) => SearchTools.executeSmartSearch(env, userId, args),
-    list_all_tags: (env, userId, args) => SearchTools.executeListAllTags(env, userId, args),
+    get_similar_files: (env, userId, args) => SearchTools.executeGetSimilarFiles(env, userId, args),
+    get_file_details: (env, userId, args) => SearchTools.executeGetFileDetails(env, userId, args),
 
     // ════════════════════════════════════════════════════════════════
     // 📄 内容理解与分析 (content.ts)
@@ -146,9 +147,12 @@ const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<
     // ════════════════════════════════════════════════════════════════
     // 📂 目录导航 (navigation.ts)
     // ════════════════════════════════════════════════════════════════
-    list_folder: (env, userId, args) => NavigationTools.executeListFolder(env, userId, args),
-    get_folder_tree: (env, userId, args) => NavigationTools.executeGetFolderTree(env, userId, args),
     navigate_path: (env, userId, args) => NavigationTools.executeNavigatePath(env, userId, args),
+    list_folder: (env, userId, args) => NavigationTools.executeListFolder(env, userId, args),
+    get_recent_files: (env, userId, args) => NavigationTools.executeGetRecentFiles(env, userId, args),
+    get_starred_files: (env, userId, args) => NavigationTools.executeGetStarredFiles(env, userId, args),
+    get_parent_chain: (env, userId, args) => NavigationTools.executeGetParentChain(env, userId, args),
+    get_folder_tree: (env, userId, args) => NavigationTools.executeGetFolderTree(env, userId, args),
     get_storage_overview: (env, userId, args) => NavigationTools.executeGetStorageOverview(env, userId, args),
 
     // ════════════════════════════════════════════════════════════════
@@ -184,6 +188,7 @@ const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<
     // ════════════════════════════════════════════════════════════════
     add_tag: (env, userId, args) => TagsTools.executeAddTag(env, userId, args),
     remove_tag: (env, userId, args) => TagsTools.executeRemoveTag(env, userId, args),
+    get_file_tags: (env, userId, args) => TagsTools.executeGetFileTags(env, userId, args),
     list_all_tags_for_management: (env, userId, args) => TagsTools.executeListAllTags(env, userId, args),
     merge_tags: (env, userId, args) => TagsTools.executeMergeTags(env, userId, args),
     auto_tag_files: (env, userId, args) => TagsTools.executeAutoTagFiles(env, userId, args),
@@ -192,15 +197,14 @@ const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<
     // ════════════════════════════════════════════════════════════════
     // 🔗 分享与链接 (share.ts) ⭐
     // ════════════════════════════════════════════════════════════════
-    create_share: (env, userId, args) => ShareTools.executeCreateShare(env, userId, args),
+    create_share_link: (env, userId, args) => ShareTools.executeCreateShare(env, userId, args),
     list_shares: (env, userId, args) => ShareTools.executeListShares(env, userId, args),
-    update_share: (env, userId, args) => ShareTools.executeUpdateShare(env, userId, args),
+    update_share_settings: (env, userId, args) => ShareTools.executeUpdateShare(env, userId, args),
     revoke_share: (env, userId, args) => ShareTools.executeRevokeShare(env, userId, args),
-    get_share_details: (env, userId, args) => ShareTools.executeGetShareDetails(env, userId, args),
+    get_share_stats: (env, userId, args) => ShareTools.executeGetShareDetails(env, userId, args),
     create_direct_link: (env, userId, args) => ShareTools.executeCreateDirectLink(env, userId, args),
     revoke_direct_link: (env, userId, args) => ShareTools.executeRevokeDirectLink(env, userId, args),
-    create_upload_link_for_folder: (env, userId, args) =>
-      ShareTools.executeCreateUploadLinkForFolder(env, userId, args),
+    create_upload_link_for_folder: (env, userId, args) => ShareTools.executeCreateUploadLinkForFolder(env, userId, args),
 
     // ════════════════════════════════════════════════════════════════
     // 📜 版本管理 (version.ts)
@@ -213,10 +217,11 @@ const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<
     // ════════════════════════════════════════════════════════════════
     // 📝 笔记备注 (notes.ts)
     // ════════════════════════════════════════════════════════════════
-    write_note: (env, userId, args) => NotesTools.executeWriteNote(env, userId, args),
-    getFileNotes: (env, userId, args) => NotesTools.executeGetFileNotes(env, userId, args),
+    add_note: (env, userId, args) => NotesTools.executeWriteNote(env, userId, args),
+    get_notes: (env, userId, args) => NotesTools.executeGetFileNotes(env, userId, args),
     update_note: (env, userId, args) => NotesTools.executeUpdateNote(env, userId, args),
     delete_note: (env, userId, args) => NotesTools.executeDeleteNote(env, userId, args),
+    search_notes: (env, userId, args) => NotesTools.executeSearchNotes(env, userId, args),
 
     // ════════════════════════════════════════════════════════════════
     // 🔐 权限管理 (permission.ts) ⭐
@@ -231,6 +236,10 @@ const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<
     // ════════════════════════════════════════════════════════════════
     // 💾 存储桶管理 (storage.ts)
     // ════════════════════════════════════════════════════════════════
+    get_storage_usage: (env, userId, args) => StorageTools.executeGetStorageUsage(env, userId, args),
+    get_large_files: (env, userId, args) => StorageTools.executeGetLargeFiles(env, userId, args),
+    get_folder_sizes: (env, userId, args) => StorageTools.executeGetFolderSizes(env, userId, args),
+    get_cleanup_suggestions: (env, userId, args) => StorageTools.executeGetCleanupSuggestions(env, userId, args),
     list_buckets: (env, userId, args) => StorageTools.executeListBuckets(env, userId, args),
     get_bucket_info: (env, userId, args) => StorageTools.executeGetBucketInfo(env, userId, args),
     set_default_bucket: (env, userId, args) => StorageTools.executeSetDefaultBucket(env, userId, args),
@@ -239,6 +248,10 @@ const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<
     // ════════════════════════════════════════════════════════════════
     // ⚙️ 系统管理 (system.ts)
     // ════════════════════════════════════════════════════════════════
+    get_system_status: (env, userId, args) => SystemTools.executeGetSystemStatus(env, userId, args),
+    get_help: (env, userId, args) => SystemTools.executeGetHelp(env, userId, args),
+    get_version_info: (env, userId, args) => SystemTools.executeGetVersionInfo(env, userId, args),
+    get_faq: (env, userId, args) => SystemTools.executeGetFaq(env, userId, args),
     get_user_profile: (env, userId, args) => SystemTools.executeGetUserProfile(env, userId, args),
     list_api_keys: (env, userId, args) => SystemTools.executeListApiKeys(env, userId, args),
     create_api_key: (env, userId, args) => SystemTools.executeCreateApiKey(env, userId, args),
@@ -287,9 +300,12 @@ export class AgentToolExecutor {
       const executor = TOOL_EXECUTOR_MAP[toolName];
       if (!executor) {
         logger.warn('AgentTool', 'Unknown tool requested', { toolName });
+        const allTools = Object.keys(TOOL_EXECUTOR_MAP).sort();
+        const similarTools = findSimilarTools(toolName, allTools);
         return {
           error: `未知工具: ${toolName}`,
-          availableTools: Object.keys(TOOL_EXECUTOR_MAP).sort(),
+          hint: similarTools.length > 0 ? `您是否想使用: ${similarTools.join(', ')}?` : `可用工具共 ${allTools.length} 个`,
+          similarTools,
         };
       }
 
@@ -385,6 +401,33 @@ export class AgentToolExecutor {
 // ─────────────────────────────────────────────────────────────────────────────
 // 辅助函数
 // ─────────────────────────────────────────────────────────────────────────────
+
+function findSimilarTools(toolName: string, allTools: string[], maxResults: number = 5): string[] {
+  const lowerName = toolName.toLowerCase();
+  const scores: Array<{ name: string; score: number }> = [];
+
+  for (const name of allTools) {
+    const lowerTarget = name.toLowerCase();
+    let score = 0;
+
+    if (lowerTarget === lowerName) {
+      score = 100;
+    } else if (lowerTarget.includes(lowerName) || lowerName.includes(lowerTarget)) {
+      score = 80;
+    } else if (lowerTarget.split('_').some((part) => lowerName.includes(part)) || lowerName.split('_').some((part) => lowerTarget.includes(part))) {
+      score = 60;
+    } else {
+      const commonChars = [...lowerName].filter((c) => lowerTarget.includes(c)).length;
+      score = (commonChars / Math.max(lowerName.length, lowerTarget.length)) * 50;
+    }
+
+    if (score > 30) {
+      scores.push({ name, score });
+    }
+  }
+
+  return scores.sort((a, b) => b.score - a.score).slice(0, maxResults).map((s) => s.name);
+}
 
 export function getAvailableToolNames(): string[] {
   return Object.keys(TOOL_EXECUTOR_MAP).sort();

@@ -141,6 +141,46 @@ export const definitions: ToolDefinition[] = [
       },
     },
   },
+
+  // 6. get_folder_tree — 文件夹树
+  {
+    type: 'function',
+    function: {
+      name: 'get_folder_tree',
+      description: `【目录树】获取文件夹的层级树结构。
+适用场景：
+• "显示目录结构"
+• "查看文件夹下有什么"
+• "展开子目录"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          folderId: { type: 'string', description: '根文件夹ID（不传则从根目录开始）' },
+          depth: { type: 'number', description: '展开深度（默认2，最大5）' },
+        },
+      },
+    },
+  },
+
+  // 7. get_storage_overview — 存储概览
+  {
+    type: 'function',
+    function: {
+      name: 'get_storage_overview',
+      description: `【存储概览】查看整体存储使用情况。
+适用场景：
+• "我用了多少空间"
+• "存储使用情况"
+• "空间分布统计"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          topN: { type: 'number', description: '显示前N个大文件夹（默认10）' },
+          includeFileTypes: { type: 'boolean', description: '是否包含文件类型分布（默认true）' },
+        },
+      },
+    },
+  },
 ];
 
 export class NavigationTools {
@@ -416,6 +456,87 @@ export class NavigationTools {
           }
         : {}),
       _next_actions: ['如需查看某文件夹详细内容，调用 list_folder 并传入 folderId'],
+    };
+  }
+
+  static async executeGetRecentFiles(env: Env, userId: string, args: Record<string, unknown>) {
+    const limit = Math.min((args.limit as number) || 20, 100);
+    const days = (args.days as number) || 7;
+    const db = getDb(env.DB);
+
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    const rows = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false), sql`${files.updatedAt} >= ${since}`))
+      .orderBy(desc(files.updatedAt))
+      .limit(limit)
+      .all();
+
+    return {
+      total: rows.length,
+      days,
+      files: rows.map(toAgentFile),
+    };
+  }
+
+  static async executeGetStarredFiles(env: Env, userId: string, args: Record<string, unknown>) {
+    const limit = Math.min((args.limit as number) || 50, 100);
+    const includeFolders = args.includeFolders !== false;
+    const db = getDb(env.DB);
+
+    const conditions = [eq(files.userId, userId), isNull(files.deletedAt), eq(files.isStarred, true)];
+    if (!includeFolders) {
+      conditions.push(eq(files.isFolder, false));
+    }
+
+    const rows = await db
+      .select()
+      .from(files)
+      .where(and(...conditions))
+      .orderBy(desc(files.updatedAt))
+      .limit(limit)
+      .all();
+
+    return {
+      total: rows.length,
+      files: rows.map(toAgentFile),
+    };
+  }
+
+  static async executeGetParentChain(env: Env, userId: string, args: Record<string, unknown>) {
+    const fileId = args.fileId as string;
+    const db = getDb(env.DB);
+
+    const file = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
+      .get();
+
+    if (!file) return { error: `文件不存在: ${fileId}` };
+
+    const chain: AgentFile[] = [];
+    let currentId: string | null = file.parentId;
+
+    while (currentId) {
+      const parent = await db
+        .select()
+        .from(files)
+        .where(eq(files.id, currentId))
+        .get();
+      if (!parent) break;
+      chain.unshift(toAgentFile(parent));
+      currentId = parent.parentId;
+    }
+
+    return {
+      fileId,
+      fileName: file.name,
+      path: file.path,
+      chain,
+      depth: chain.length,
     };
   }
 }

@@ -400,7 +400,7 @@ export class ShareTools {
   static async executeCreateUploadLinkForFolder(env: Env, userId: string, args: Record<string, unknown>) {
     const folderId = args.folderId as string;
     const password = args.password as string | undefined;
-    const expiresInHours = Math.min((args.expiresInHours as number) || 72, 720); // 最大30天
+    const expiresInHours = Math.min((args.expiresInHours as number) || 72, 720);
     const allowedMimeTypes = args.allowedMimeTypes as string[] | undefined;
     const maxSizeBytes = args.maxSizeBytes as number | undefined;
     const maxUploads = args.maxUploads as number | undefined;

@@ -8,7 +8,7 @@
  * - 常见问题解答
  */
 
-import { eq, and, isNull, desc, sql, like, or } from 'drizzle-orm';
+import { eq, and, isNull, desc, sql, like, or, count } from 'drizzle-orm';
 import { getDb, files, apiKeys, webhooks, auditLogs } from '../../../db';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
@@ -95,9 +95,257 @@ export const definitions: ToolDefinition[] = [
       },
     },
   },
+
+  // 5. get_user_profile — 用户信息
+  {
+    type: 'function',
+    function: {
+      name: 'get_user_profile',
+      description: `【我的信息】查看当前用户的个人资料和设置。
+适用场景：
+• "我的账户信息"
+• "查看个人设置"`,
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+    },
+  },
+
+  // 6. list_api_keys — API密钥列表
+  {
+    type: 'function',
+    function: {
+      name: 'list_api_keys',
+      description: `【API密钥】查看所有API密钥。
+适用场景：
+• "我有哪些API密钥"
+• "管理访问令牌"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          includeExpired: { type: 'boolean', description: '是否包含已过期的（默认false）' },
+        },
+      },
+    },
+  },
+
+  // 7. create_api_key — 创建API密钥
+  {
+    type: 'function',
+    function: {
+      name: 'create_api_key',
+      description: `【创建密钥】生成新的API访问密钥。
+⚠️ 密钥创建后只显示一次，请妥善保管`,
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: '密钥名称/备注' },
+          expiresInDays: { type: 'number', description: '有效期（天），不传则永不过期' },
+          permissions: { type: 'array', items: { type: 'string' }, description: '权限列表' },
+        },
+        required: ['name'],
+      },
+    },
+  },
+
+  // 8. revoke_api_key — 撤销API密钥
+  {
+    type: 'function',
+    function: {
+      name: 'revoke_api_key',
+      description: `【撤销密钥】立即作废某个API密钥。
+⚠️ 此操作不可恢复`,
+      parameters: {
+        type: 'object',
+        properties: {
+          keyId: { type: 'string', description: '要撤销的密钥ID' },
+        },
+        required: ['keyId'],
+      },
+    },
+  },
+
+  // 9. list_webhooks — Webhook列表
+  {
+    type: 'function',
+    function: {
+      name: 'list_webhooks',
+      description: `【Webhook列表】查看所有配置的Webhook。
+适用场景：
+• "我配置了哪些回调"
+• "管理事件通知"`,
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+    },
+  },
+
+  // 10. create_webhook — 创建Webhook
+  {
+    type: 'function',
+    function: {
+      name: 'create_webhook',
+      description: `【创建Webhook】配置事件回调URL。
+适用场景：
+• "文件上传后通知我的服务"
+• "配置自动化流程"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: '回调URL' },
+          events: { type: 'array', items: { type: 'string' }, description: '订阅的事件类型' },
+          secret: { type: 'string', description: '签名密钥（可选）' },
+        },
+        required: ['url', 'events'],
+      },
+    },
+  },
+
+  // 11. get_audit_logs — 审计日志
+  {
+    type: 'function',
+    function: {
+      name: 'get_audit_logs',
+      description: `【操作日志】查看账户操作历史记录。
+适用场景：
+• "谁访问了我的文件"
+• "最近有什么操作"
+• "安全审计"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', description: '筛选操作类型（可选）' },
+          startDate: { type: 'string', description: '开始日期（可选）' },
+          endDate: { type: 'string', description: '结束日期（可选）' },
+          limit: { type: 'number', description: '返回数量（默认50）' },
+        },
+      },
+    },
+  },
 ];
 
 export class SystemTools {
+  static async executeGetSystemStatus(env: Env, userId: string, _args: Record<string, unknown>) {
+    const db = getDb(env.DB);
+
+    const [storageStats, recentActivity] = await Promise.all([
+      db
+        .select({
+          totalSize: sql<number>`COALESCE(SUM(${files.size}), 0)`,
+          fileCount: count(),
+        })
+        .from(files)
+        .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false)))
+        .get(),
+      db
+        .select()
+        .from(auditLogs)
+        .where(eq(auditLogs.userId, userId))
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(5)
+        .all(),
+    ]);
+
+    return {
+      status: 'healthy',
+      services: {
+        database: 'connected',
+        storage: env.FILES ? 'available' : 'unavailable',
+        ai: env.AI ? 'available' : 'unavailable',
+      },
+      userStats: {
+        storageUsed: formatBytes(storageStats?.totalSize || 0),
+        fileCount: storageStats?.fileCount || 0,
+      },
+      recentActivity: recentActivity.slice(0, 3).map((l) => ({
+        action: l.action,
+        createdAt: l.createdAt,
+      })),
+    };
+  }
+
+  static async executeGetHelp(_env: Env, _userId: string, args: Record<string, unknown>) {
+    const topic = args.topic as string | undefined;
+
+    const helpTopics: Record<string, { description: string; commands: string[] }> = {
+      search: {
+        description: '搜索文件和内容',
+        commands: ['"找一下XX文件"', '"搜索包含XX的文档"', '"最近的照片"'],
+      },
+      share: {
+        description: '分享文件和文件夹',
+        commands: ['"分享这个文件"', '"创建下载链接"', '"查看我的分享"'],
+      },
+      organize: {
+        description: '整理和管理文件',
+        commands: ['"给这个文件打标签"', '"移动到XX文件夹"', '"重命名为XX"'],
+      },
+    };
+
+    if (topic && helpTopics[topic]) {
+      return {
+        topic,
+        ...helpTopics[topic],
+        tip: '直接用自然语言告诉我你想做什么即可',
+      };
+    }
+
+    return {
+      message: '我是你的文件管理助手，可以帮你：',
+      capabilities: [
+        '🔍 搜索和查找文件',
+        '📂 浏览文件夹',
+        '🏷️ 管理标签',
+        '🔗 创建分享链接',
+        '📝 添加笔记备注',
+        '📊 查看存储统计',
+      ],
+      tip: '直接用自然语言描述你的需求，我会理解并执行',
+      availableTopics: Object.keys(helpTopics),
+    };
+  }
+
+  static async executeGetVersionInfo(_env: Env, _userId: string, _args: Record<string, unknown>) {
+    return {
+      version: '1.0.0',
+      releaseDate: '2025-01-01',
+      features: ['AI智能助手', '向量搜索', '多存储桶支持', '版本管理'],
+      changelog: [
+        { version: '1.0.0', date: '2025-01-01', changes: '初始版本发布' },
+      ],
+    };
+  }
+
+  static async executeGetFaq(_env: Env, _userId: string, args: Record<string, unknown>) {
+    const category = args.category as string | undefined;
+
+    const faqs: Record<string, Array<{ question: string; answer: string }>> = {
+      upload: [
+        { question: '上传失败怎么办？', answer: '检查文件大小是否超过限制，或尝试刷新页面后重试' },
+        { question: '支持哪些文件类型？', answer: '支持所有常见文件类型，包括图片、文档、视频、压缩包等' },
+      ],
+      search: [
+        { question: '搜索不到文件？', answer: '尝试使用更通用的关键词，或检查文件是否被删除' },
+        { question: '如何搜索文件内容？', answer: '直接描述内容即可，系统会自动搜索文件名、标签和AI摘要' },
+      ],
+      share: [
+        { question: '分享链接无效？', answer: '检查链接是否过期，或是否设置了访问密码' },
+        { question: '如何取消分享？', answer: '说"取消分享"或"撤销链接"即可' },
+      ],
+    };
+
+    if (category && faqs[category]) {
+      return { category, faqs: faqs[category] };
+    }
+
+    return {
+      categories: Object.keys(faqs),
+      tip: '可以指定分类查看更多问题，如"上传问题"、"搜索问题"',
+    };
+  }
+
   static async executeGetUserProfile(env: Env, userId: string, _args: Record<string, unknown>) {
     const db = getDb(env.DB);
 

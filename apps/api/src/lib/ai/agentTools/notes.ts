@@ -11,7 +11,7 @@
  * - 自动关联上下文
  */
 
-import { eq, and, isNull, desc } from 'drizzle-orm';
+import { eq, and, isNull, desc, like } from 'drizzle-orm';
 import { getDb, files, fileNotes } from '../../../db';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
@@ -185,10 +185,52 @@ export class NotesTools {
   static async executeDeleteNote(env: Env, userId: string, args: Record<string, unknown>) {
     const noteId = args.noteId as string;
 
-    // 调用公共 service 层（复用 notes.ts DELETE 的核心逻辑：软删除、计数更新）
     const result = await serviceDeleteNote(env, userId, noteId);
     if (!result.success) return { error: result.error };
 
     return { success: true, message: result.message, noteId };
+  }
+
+  static async executeSearchNotes(env: Env, userId: string, args: Record<string, unknown>) {
+    const query = args.query as string;
+    const limit = Math.min((args.limit as number) || 20, 100);
+    const db = getDb(env.DB);
+
+    if (!query) {
+      return { error: '请提供搜索关键词' };
+    }
+
+    const results = await db
+      .select({
+        noteId: fileNotes.id,
+        fileId: fileNotes.fileId,
+        fileName: files.name,
+        content: fileNotes.content,
+        createdAt: fileNotes.createdAt,
+      })
+      .from(fileNotes)
+      .innerJoin(files, eq(fileNotes.fileId, files.id))
+      .where(
+        and(
+          eq(fileNotes.userId, userId),
+          isNull(fileNotes.deletedAt),
+          like(fileNotes.content, `%${query}%`)
+        )
+      )
+      .orderBy(desc(fileNotes.createdAt))
+      .limit(limit)
+      .all();
+
+    return {
+      total: results.length,
+      query,
+      results: results.map((r) => ({
+        noteId: r.noteId,
+        fileId: r.fileId,
+        fileName: r.fileName,
+        snippet: r.content?.slice(0, 200) || '',
+        createdAt: r.createdAt,
+      })),
+    };
   }
 }

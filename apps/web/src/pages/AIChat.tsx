@@ -49,12 +49,18 @@ import type { Message, ToolCallEvent, SseChunk } from '@/components/ai/types';
 // ────────────────────────────────────────────────────────────
 
 const TOOL_META: Record<string, { label: string; icon: React.ReactNode; category: string }> = {
+  // 搜索发现
   search_files: { label: '搜索文件', icon: <Search className="h-3 w-3" />, category: '搜索发现' },
   filter_files: { label: '筛选文件', icon: <Filter className="h-3 w-3" />, category: '搜索发现' },
   search_by_tag: { label: '标签搜索', icon: <Tag className="h-3 w-3" />, category: '搜索发现' },
   search_duplicates: { label: '查找重复文件', icon: <Copy className="h-3 w-3" />, category: '搜索发现' },
   smart_search: { label: '智能搜索', icon: <Sparkles className="h-3 w-3" />, category: '搜索发现' },
-  list_all_tags: { label: '列出所有标签', icon: <Tag className="h-3 w-3" />, category: '搜索发现' },
+  get_similar_files: { label: '相似文件', icon: <Copy className="h-3 w-3" />, category: '搜索发现' },
+  get_file_details: { label: '文件详情', icon: <FileText className="h-3 w-3" />, category: '搜索发现' },
+  get_recent_files: { label: '最近文件', icon: <RefreshCw className="h-3 w-3" />, category: '搜索发现' },
+  get_starred_files: { label: '收藏文件', icon: <Sparkles className="h-3 w-3" />, category: '搜索发现' },
+
+  // 内容理解
   read_file_text: { label: '读取文件内容', icon: <FileText className="h-3 w-3" />, category: '内容理解' },
   analyze_image: { label: '分析图片', icon: <Zap className="h-3 w-3" />, category: '内容理解' },
   compare_files: { label: '对比文件', icon: <FileText className="h-3 w-3" />, category: '内容理解' },
@@ -62,15 +68,22 @@ const TOOL_META: Record<string, { label: string; icon: React.ReactNode; category
   generate_summary: { label: '生成摘要', icon: <Sparkles className="h-3 w-3" />, category: '内容理解' },
   generate_tags: { label: '生成标签', icon: <Tag className="h-3 w-3" />, category: '内容理解' },
   content_preview: { label: '内容预览', icon: <Code className="h-3 w-3" />, category: '内容理解' },
+
+  // 目录导航
   list_folder: { label: '浏览文件夹', icon: <FileText className="h-3 w-3" />, category: '目录导航' },
   get_folder_tree: { label: '查看目录树', icon: <FileText className="h-3 w-3" />, category: '目录导航' },
   navigate_path: { label: '路径导航', icon: <Tag className="h-3 w-3" />, category: '目录导航' },
   get_storage_overview: { label: '存储概览', icon: <Download className="h-3 w-3" />, category: '目录导航' },
+  get_parent_chain: { label: '父级链路', icon: <FileText className="h-3 w-3" />, category: '目录导航' },
+
+  // 统计分析
   get_storage_stats: { label: '存储统计', icon: <Search className="h-3 w-3" />, category: '统计分析' },
   get_activity_stats: { label: '活动趋势', icon: <Search className="h-3 w-3" />, category: '统计分析' },
   get_user_quota_info: { label: '配额信息', icon: <Search className="h-3 w-3" />, category: '统计分析' },
   get_file_type_distribution: { label: '文件类型分布', icon: <Search className="h-3 w-3" />, category: '统计分析' },
   get_sharing_stats: { label: '分享统计', icon: <Copy className="h-3 w-3" />, category: '统计分析' },
+
+  // 文件操作
   create_text_file: { label: '创建文本文件', icon: <FileText className="h-3 w-3" />, category: '文件操作' },
   create_code_file: { label: '创建代码文件', icon: <Code className="h-3 w-3" />, category: '文件操作' },
   create_file_from_template: { label: '从模板创建', icon: <FileText className="h-3 w-3" />, category: '文件操作' },
@@ -86,38 +99,62 @@ const TOOL_META: Record<string, { label: string; icon: React.ReactNode; category
   batch_rename: { label: '批量重命名', icon: <Code className="h-3 w-3" />, category: '文件操作' },
   star_file: { label: '收藏文件', icon: <Sparkles className="h-3 w-3" />, category: '文件操作' },
   unstar_file: { label: '取消收藏', icon: <Sparkles className="h-3 w-3" />, category: '文件操作' },
+
+  // 标签管理
   add_tag: { label: '添加标签', icon: <Tag className="h-3 w-3" />, category: '标签管理' },
   remove_tag: { label: '移除标签', icon: <Tag className="h-3 w-3" />, category: '标签管理' },
+  get_file_tags: { label: '文件标签', icon: <Tag className="h-3 w-3" />, category: '标签管理' },
   list_all_tags_for_management: { label: '标签管理列表', icon: <Tag className="h-3 w-3" />, category: '标签管理' },
   merge_tags: { label: '合并标签', icon: <Code className="h-3 w-3" />, category: '标签管理' },
   auto_tag_files: { label: '自动打标签', icon: <Zap className="h-3 w-3" />, category: '标签管理' },
   tag_folder: { label: '文件夹打标', icon: <Tag className="h-3 w-3" />, category: '标签管理' },
-  create_share: { label: '创建分享链接', icon: <Copy className="h-3 w-3" />, category: '分享链接' },
+
+  // 分享链接
+  create_share_link: { label: '创建分享链接', icon: <Copy className="h-3 w-3" />, category: '分享链接' },
   list_shares: { label: '列出分享', icon: <Copy className="h-3 w-3" />, category: '分享链接' },
-  update_share: { label: '更新分享设置', icon: <Code className="h-3 w-3" />, category: '分享链接' },
+  update_share_settings: { label: '更新分享设置', icon: <Code className="h-3 w-3" />, category: '分享链接' },
   revoke_share: { label: '撤销分享', icon: <Copy className="h-3 w-3" />, category: '分享链接' },
-  get_share_details: { label: '分享详情', icon: <Copy className="h-3 w-3" />, category: '分享链接' },
+  get_share_stats: { label: '分享统计', icon: <Copy className="h-3 w-3" />, category: '分享链接' },
   create_direct_link: { label: '创建直链', icon: <Code className="h-3 w-3" />, category: '分享链接' },
   revoke_direct_link: { label: '撤销直链', icon: <Code className="h-3 w-3" />, category: '分享链接' },
   create_upload_link_for_folder: { label: '创建上传链接', icon: <Download className="h-3 w-3" />, category: '分享链接' },
+
+  // 版本管理
   get_file_versions: { label: '版本历史', icon: <RefreshCw className="h-3 w-3" />, category: '版本管理' },
   restore_version: { label: '恢复版本', icon: <RefreshCw className="h-3 w-3" />, category: '版本管理' },
   compare_versions: { label: '对比版本', icon: <Code className="h-3 w-3" />, category: '版本管理' },
   set_version_retention: { label: '版本保留策略', icon: <Code className="h-3 w-3" />, category: '版本管理' },
-  write_note: { label: '写入备注', icon: <FileText className="h-3 w-3" />, category: '笔记备注' },
-  getFileNotes: { label: '获取备注列表', icon: <FileText className="h-3 w-3" />, category: '笔记备注' },
+
+  // 笔记备注
+  add_note: { label: '添加备注', icon: <FileText className="h-3 w-3" />, category: '笔记备注' },
+  get_notes: { label: '获取备注列表', icon: <FileText className="h-3 w-3" />, category: '笔记备注' },
   update_note: { label: '更新备注', icon: <Code className="h-3 w-3" />, category: '笔记备注' },
   delete_note: { label: '删除备注', icon: <FileText className="h-3 w-3" />, category: '笔记备注' },
+  search_notes: { label: '搜索备注', icon: <Search className="h-3 w-3" />, category: '笔记备注' },
+
+  // 权限管理
   get_file_permissions: { label: '查看权限', icon: <Code className="h-3 w-3" />, category: '权限管理' },
   grant_permission: { label: '授权访问', icon: <Code className="h-3 w-3" />, category: '权限管理' },
   revoke_permission: { label: '撤销权限', icon: <Code className="h-3 w-3" />, category: '权限管理' },
   set_folder_access_level: { label: '设置访问级别', icon: <Code className="h-3 w-3" />, category: '权限管理' },
   list_user_groups: { label: '用户组列表', icon: <Code className="h-3 w-3" />, category: '权限管理' },
   manage_group_members: { label: '管理组成员', icon: <Code className="h-3 w-3" />, category: '权限管理' },
+
+  // 存储管理
   list_buckets: { label: '列出存储桶', icon: <Download className="h-3 w-3" />, category: '存储管理' },
   get_bucket_info: { label: '存储桶详情', icon: <Download className="h-3 w-3" />, category: '存储管理' },
   set_default_bucket: { label: '设默认桶', icon: <Download className="h-3 w-3" />, category: '存储管理' },
   migrate_file_to_bucket: { label: '迁移文件', icon: <Download className="h-3 w-3" />, category: '存储管理' },
+  get_storage_usage: { label: '存储使用量', icon: <Download className="h-3 w-3" />, category: '存储管理' },
+  get_large_files: { label: '大文件列表', icon: <FileText className="h-3 w-3" />, category: '存储管理' },
+  get_folder_sizes: { label: '文件夹大小', icon: <FileText className="h-3 w-3" />, category: '存储管理' },
+  get_cleanup_suggestions: { label: '清理建议', icon: <RefreshCw className="h-3 w-3" />, category: '存储管理' },
+
+  // 系统管理
+  get_system_status: { label: '系统状态', icon: <Zap className="h-3 w-3" />, category: '系统管理' },
+  get_help: { label: '帮助信息', icon: <FileText className="h-3 w-3" />, category: '系统管理' },
+  get_version_info: { label: '版本信息', icon: <RefreshCw className="h-3 w-3" />, category: '系统管理' },
+  get_faq: { label: '常见问题', icon: <FileText className="h-3 w-3" />, category: '系统管理' },
   get_user_profile: { label: '用户画像', icon: <Code className="h-3 w-3" />, category: '系统管理' },
   list_api_keys: { label: 'API密钥列表', icon: <Code className="h-3 w-3" />, category: '系统管理' },
   create_api_key: { label: '创建API密钥', icon: <Code className="h-3 w-3" />, category: '系统管理' },
@@ -125,16 +162,13 @@ const TOOL_META: Record<string, { label: string; icon: React.ReactNode; category
   list_webhooks: { label: 'Webhook列表', icon: <Code className="h-3 w-3" />, category: '系统管理' },
   create_webhook: { label: '创建Webhook', icon: <Code className="h-3 w-3" />, category: '系统管理' },
   get_audit_logs: { label: '审计日志', icon: <FileText className="h-3 w-3" />, category: '系统管理' },
+
+  // AI增强
   trigger_ai_summary: { label: 'AI摘要', icon: <Sparkles className="h-3 w-3" />, category: 'AI增强' },
   trigger_ai_tags: { label: 'AI标签', icon: <Zap className="h-3 w-3" />, category: 'AI增强' },
   rebuild_vector_index: { label: '重建向量索引', icon: <RefreshCw className="h-3 w-3" />, category: 'AI增强' },
   ask_rag_question: { label: 'RAG问答', icon: <FileText className="h-3 w-3" />, category: 'AI增强' },
   smart_rename_suggest: { label: '智能重命名', icon: <Sparkles className="h-3 w-3" />, category: 'AI增强' },
-  get_file_detail: { label: '获取文件详情', icon: <FileText className="h-3 w-3" />, category: '内容理解' },
-  get_file_notes: { label: '查看备注', icon: <FileText className="h-3 w-3" />, category: '笔记备注' },
-  list_recent: { label: '最近文件', icon: <RefreshCw className="h-3 w-3" />, category: '搜索发现' },
-  list_starred: { label: '查看收藏', icon: <Sparkles className="h-3 w-3" />, category: '搜索发现' },
-  update_description: { label: '更新描述', icon: <FileText className="h-3 w-3" />, category: '内容理解' },
 };
 
 const SUGGESTED = [

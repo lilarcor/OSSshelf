@@ -1000,8 +1000,8 @@ function smartTruncate(text: string, maxChars: number = DEFAULT_MAX_TOOL_RESULT_
       const restr = JSON.stringify(obj, null, 2);
       if (restr.length <= maxChars) return restr;
     }
-    // 通用截断：保留结构，截断超长字符串值
-    const truncObj = truncateStrings(obj, 500);
+    // 通用截断：保留结构，截断超长字符串值（提高到 4096 字符）
+    const truncObj = truncateStrings(obj, 4096);
     const restr2 = JSON.stringify(truncObj, null, 2);
     return restr2.length <= maxChars ? restr2 : text.slice(0, maxChars) + '\n...(结果已截断)';
   } catch {

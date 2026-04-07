@@ -8,8 +8,8 @@
  * - 文件类型分布
  */
 
-import { eq, and, isNull, desc, sql, count } from 'drizzle-orm';
-import { getDb, files, storageBuckets } from '../../../db';
+import { eq, and, isNull, isNotNull, desc, sql, count } from 'drizzle-orm';
+import { getDb, files, storageBuckets, shares } from '../../../db';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
 import type { ToolDefinition } from './types';
@@ -58,27 +58,7 @@ export const definitions: ToolDefinition[] = [
     },
   },
 
-  // 3. get_file_type_distribution — 类型分布
-  {
-    type: 'function',
-    function: {
-      name: 'get_file_type_distribution',
-      description: `【类型分布】按文件类型统计存储使用情况。
-适用场景：
-• "我的文件都是什么类型的"
-• "图片占多少空间"
-• "文档和视频的比例"
-
-帮助了解文件构成`,
-      parameters: {
-        type: 'object',
-        properties: {},
-        required: [],
-      },
-    },
-  },
-
-  // 4. get_folder_sizes — 文件夹大小
+  // 3. get_folder_sizes — 文件夹大小
   {
     type: 'function',
     function: {
@@ -117,9 +97,223 @@ export const definitions: ToolDefinition[] = [
       },
     },
   },
+
+  // 6. list_buckets — 存储桶列表
+  {
+    type: 'function',
+    function: {
+      name: 'list_buckets',
+      description: `【存储桶列表】查看所有可用的存储桶。
+适用场景：
+• "有哪些存储桶"
+• "查看存储桶配置"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          includeStats: { type: 'boolean', description: '是否包含使用统计（默认false）' },
+        },
+      },
+    },
+  },
+
+  // 7. get_bucket_info — 存储桶详情
+  {
+    type: 'function',
+    function: {
+      name: 'get_bucket_info',
+      description: `【存储桶详情】获取指定存储桶的详细信息。
+适用场景：
+• "这个存储桶的配置"
+• "查看存储桶容量"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          bucketId: { type: 'string', description: '存储桶ID' },
+        },
+        required: ['bucketId'],
+      },
+    },
+  },
+
+  // 8. set_default_bucket — 设置默认存储桶
+  {
+    type: 'function',
+    function: {
+      name: 'set_default_bucket',
+      description: `【设置默认存储桶】更改用户的默认存储桶。
+⚠️ 此操作会影响后续上传文件的存储位置`,
+      parameters: {
+        type: 'object',
+        properties: {
+          bucketId: { type: 'string', description: '要设为默认的存储桶ID' },
+        },
+        required: ['bucketId'],
+      },
+    },
+  },
+
+  // 9. migrate_file_to_bucket — 迁移文件
+  {
+    type: 'function',
+    function: {
+      name: 'migrate_file_to_bucket',
+      description: `【迁移文件】将文件迁移到另一个存储桶。
+适用场景：
+• "把这个文件移到另一个存储桶"
+• "文件存储位置调整"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: '要迁移的文件ID' },
+          targetBucketId: { type: 'string', description: '目标存储桶ID' },
+        },
+        required: ['fileId', 'targetBucketId'],
+      },
+    },
+  },
 ];
 
 export class StorageTools {
+  static async executeGetStorageUsage(env: Env, userId: string, _args: Record<string, unknown>) {
+    const db = getDb(env.DB);
+
+    const [totalStats, folderCount] = await Promise.all([
+      db
+        .select({
+          totalSize: sql<number>`COALESCE(SUM(${files.size}), 0)`,
+          fileCount: count(),
+        })
+        .from(files)
+        .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false)))
+        .get(),
+      db
+        .select({ cnt: count() })
+        .from(files)
+        .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, true)))
+        .get(),
+    ]);
+
+    return {
+      usedBytes: totalStats?.totalSize || 0,
+      usedFormatted: formatBytes(totalStats?.totalSize || 0),
+      fileCount: totalStats?.fileCount || 0,
+      folderCount: folderCount?.cnt || 0,
+    };
+  }
+
+  static async executeGetLargeFiles(env: Env, userId: string, args: Record<string, unknown>) {
+    const limit = Math.min((args.limit as number) || 20, 100);
+    const minSize = (args.minSize as number) || 10 * 1024 * 1024;
+    const db = getDb(env.DB);
+
+    const rows = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false), sql`${files.size} >= ${minSize}`))
+      .orderBy(desc(files.size))
+      .limit(limit)
+      .all();
+
+    return {
+      total: rows.length,
+      files: rows.map((f) => ({
+        id: f.id,
+        name: f.name,
+        size: formatBytes(f.size),
+        sizeBytes: f.size,
+        mimeType: f.mimeType,
+        updatedAt: f.updatedAt,
+      })),
+    };
+  }
+
+  static async executeGetFolderSizes(env: Env, userId: string, args: Record<string, unknown>) {
+    const topN = Math.min((args.topN as number) || 10, 50);
+    const db = getDb(env.DB);
+
+    const rows = await db
+      .select({
+        folderId: files.id,
+        folderName: files.name,
+        folderPath: files.path,
+        totalSize: sql<number>`COALESCE((SELECT SUM(f2.size) FROM files f2 WHERE f2.parent_id = files.id AND f2.deleted_at IS NULL), 0)`,
+        fileCount: sql<number>`(SELECT COUNT(*) FROM files f2 WHERE f2.parent_id = files.id AND f2.deleted_at IS NULL AND f2.is_folder = FALSE)`,
+      })
+      .from(files)
+      .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, true)))
+      .orderBy(desc(sql`(SELECT COALESCE(SUM(f2.size), 0) FROM files f2 WHERE f2.parent_id = files.id AND f2.deleted_at IS NULL)`))
+      .limit(topN)
+      .all();
+
+    return {
+      total: rows.length,
+      folders: rows.map((r) => ({
+        id: r.folderId,
+        name: r.folderName,
+        path: r.folderPath,
+        totalSize: formatBytes(r.totalSize || 0),
+        totalSizeBytes: r.totalSize || 0,
+        fileCount: Number(r.fileCount) || 0,
+      })),
+    };
+  }
+
+  static async executeGetCleanupSuggestions(env: Env, userId: string, _args: Record<string, unknown>) {
+    const db = getDb(env.DB);
+
+    const [duplicates, largeFiles, emptyFolders, expiredShares] = await Promise.all([
+      db
+        .select({ hash: files.hash, cnt: count() })
+        .from(files)
+        .where(and(eq(files.userId, userId), isNull(files.deletedAt), isNotNull(files.hash)))
+        .groupBy(files.hash)
+        .having(sql`count(*) > 1`)
+        .limit(10)
+        .all(),
+      db
+        .select()
+        .from(files)
+        .where(and(eq(files.userId, userId), isNull(files.deletedAt), sql`${files.size} > 104857600`))
+        .orderBy(desc(files.size))
+        .limit(10)
+        .all(),
+      db
+        .select()
+        .from(files)
+        .where(and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, true)))
+        .limit(50)
+        .all(),
+      db
+        .select()
+        .from(shares)
+        .where(and(eq(shares.userId, userId), sql`${shares.expiresAt} < datetime('now')`))
+        .limit(10)
+        .all(),
+    ]);
+
+    return {
+      suggestions: [
+        {
+          type: 'duplicates',
+          message: `发现 ${duplicates.length} 组重复文件`,
+          count: duplicates.length,
+          potentialSavings: '可节省空间',
+        },
+        {
+          type: 'large_files',
+          message: `发现 ${largeFiles.length} 个超过100MB的大文件`,
+          count: largeFiles.length,
+        },
+        {
+          type: 'expired_shares',
+          message: `发现 ${expiredShares.length} 个已过期的分享链接`,
+          count: expiredShares.length,
+        },
+      ],
+      _next_actions: ['可使用 search_duplicates 查看重复文件详情', '可使用 get_large_files 查看大文件列表'],
+    };
+  }
+
   static async executeListBuckets(env: Env, userId: string, _args: Record<string, unknown>) {
     const db = getDb(env.DB);
 

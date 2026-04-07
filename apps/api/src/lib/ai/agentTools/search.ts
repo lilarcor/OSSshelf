@@ -197,6 +197,29 @@ export const definitions: ToolDefinition[] = [
       },
     },
   },
+
+  // 7. search_duplicates — 查找重复文件
+  {
+    type: 'function',
+    function: {
+      name: 'search_duplicates',
+      description: `【查重复】查找重复或相似的文件。
+适用场景：
+• "有没有重复的文件"
+• "查找相同内容的文件"
+• "清理重复文件"
+
+基于文件哈希和内容相似度检测`,
+      parameters: {
+        type: 'object',
+        properties: {
+          folderId: { type: 'string', description: '限定在某个文件夹内搜索（可选）' },
+          includeSimilar: { type: 'boolean', description: '是否包含相似文件（默认false）' },
+          limit: { type: 'number', description: '返回数量（默认20）' },
+        },
+      },
+    },
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -329,10 +352,15 @@ export class SearchTools {
   }
 
   static async executeSearchByTag(env: Env, userId: string, args: Record<string, unknown>) {
-    const tags = args.tags as string[];
+    const tagInput = args.tag ?? args.tags;
+    const tags: string[] = Array.isArray(tagInput) ? tagInput : tagInput ? [tagInput as string] : [];
     const matchMode = (args.matchMode as string) || 'any';
     const limit = Math.min((args.limit as number) || 20, 50);
     const db = getDb(env.DB);
+
+    if (tags.length === 0) {
+      return { error: '请提供标签名' };
+    }
 
     if (matchMode === 'all' && tags.length > 1) {
       const fileIdsWithTag = await Promise.all(
@@ -487,42 +515,84 @@ export class SearchTools {
     }
   }
 
-  static async executeListAllTags(env: Env, userId: string, args: Record<string, unknown>) {
-    const includeUsageCount = args.includeUsageCount !== false;
-    const sortBy = (args.sortBy as string) || 'usage_count';
-    const limit = Math.min((args.limit as number) || 50, 100);
+  static async executeGetSimilarFiles(env: Env, userId: string, args: Record<string, unknown>) {
+    const fileId = args.fileId as string;
+    const limit = Math.min((args.limit as number) || 10, 20);
     const db = getDb(env.DB);
 
-    let rows;
+    const file = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
+      .get();
+    if (!file) return { error: `文件不存在: ${fileId}` };
 
-    if (includeUsageCount) {
-      rows = await db
-        .select({
-          id: fileTags.id,
-          name: fileTags.name,
-          color: fileTags.color,
-          createdAt: fileTags.createdAt,
-          usageCount: count(fileTags.fileId),
-        })
-        .from(fileTags)
-        .where(eq(fileTags.userId, userId))
-        .groupBy(fileTags.name)
-        .orderBy(sortBy === 'name' ? asc(fileTags.name) : desc(count(fileTags.fileId)))
+    try {
+      const vectorResults = await searchAndFetchFiles(env, file.name || '', userId, {
+        limit: limit + 1,
+        threshold: 0.3,
+      });
+      const similar = vectorResults
+        .filter((f: any) => f.id !== fileId)
+        .slice(0, limit)
+        .map(toAgentFile);
+
+      return {
+        fileId,
+        fileName: file.name,
+        total: similar.length,
+        similarFiles: similar,
+      };
+    } catch (error) {
+      const similarByName = await db
+        .select()
+        .from(files)
+        .where(
+          and(
+            eq(files.userId, userId),
+            isNull(files.deletedAt),
+            like(files.name, `%${file.name?.split('.')[0] || ''}%`),
+            sql`${files.id} != ${fileId}`
+          )
+        )
         .limit(limit)
         .all();
-    } else {
-      rows = await db.select().from(fileTags).where(eq(fileTags.userId, userId)).limit(limit).all();
+
+      return {
+        fileId,
+        fileName: file.name,
+        total: similarByName.length,
+        similarFiles: similarByName.map(toAgentFile),
+        note: '基于文件名匹配（向量搜索不可用）',
+      };
     }
+  }
+
+  static async executeGetFileDetails(env: Env, userId: string, args: Record<string, unknown>) {
+    const fileId = args.fileId as string;
+    const db = getDb(env.DB);
+
+    const file = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
+      .get();
+    if (!file) return { error: `文件不存在: ${fileId}` };
+
+    const [tags, fileShares] = await Promise.all([
+      db.select().from(fileTags).where(eq(fileTags.fileId, fileId)).all(),
+      db.select().from(shares).where(eq(shares.fileId, fileId)).limit(5).all(),
+    ]);
 
     return {
-      total: rows.length,
-      tags: rows.map((r) => ({
-        name: r.name,
-        color: r.color,
-        usageCount: (r as any).usageCount || null,
-        createdAt: r.createdAt,
+      file: toAgentFile(file),
+      tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      shares: fileShares.map((s) => ({
+        id: s.id,
+        hasPassword: !!s.password,
+        expiresAt: s.expiresAt,
+        createdAt: s.createdAt,
       })),
-      _next_actions: ['可使用 search_by_tag 按标签搜索文件', '可使用 add_tag / remove_tag 管理文件标签'],
     };
   }
 }
