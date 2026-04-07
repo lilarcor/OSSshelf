@@ -130,13 +130,14 @@ export const definitions: ToolDefinition[] = [
 ];
 
 export class AiEnhanceTools {
-
   static async executeTriggerAiSummary(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
     const forceRegenerate = args.forceRegenerate === true;
     const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
     if (!file) return { error: '文件不存在或无权访问' };
@@ -156,9 +157,7 @@ export class AiEnhanceTools {
 
     return {
       status: 'queued',
-      message: forceRegenerate
-        ? 'AI摘要重新生成任务已加入队列'
-        : 'AI摘要生成任务已加入队列',
+      message: forceRegenerate ? 'AI摘要重新生成任务已加入队列' : 'AI摘要生成任务已加入队列',
       fileId,
       fileName: file.name,
       _next_actions: [
@@ -173,7 +172,9 @@ export class AiEnhanceTools {
     const maxTags = Math.min((args.maxTags as number) || 5, 10);
     const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
     if (!file) return { error: '文件不存在或无权访问' };
@@ -186,10 +187,7 @@ export class AiEnhanceTools {
       fileId,
       fileName: file.name,
       maxTags,
-      _next_actions: [
-        '完成后可通过 get_file_detail 查看更新后的标签',
-        '可通过 search_by_tag 按新标签搜索文件',
-      ],
+      _next_actions: ['完成后可通过 get_file_detail 查看更新后的标签', '可通过 search_by_tag 按新标签搜索文件'],
     };
   }
 
@@ -199,7 +197,9 @@ export class AiEnhanceTools {
 
     if (fileId) {
       const db = getDb(env.DB);
-      const file = await db.select().from(files)
+      const file = await db
+        .select()
+        .from(files)
         .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
         .get();
       if (!file) return { error: '文件不存在或无权访问' };
@@ -211,10 +211,7 @@ export class AiEnhanceTools {
         message: `正在为 "${file.name}" 重建向量索引`,
         fileId,
         fileName: file.name,
-        _next_actions: [
-          '索引重建可能需要几秒到几分钟',
-          '完成后 search_files 结果会更准确',
-        ],
+        _next_actions: ['索引重建可能需要几秒到几分钟', '完成后 search_files 结果会更准确'],
       };
     }
 
@@ -222,9 +219,7 @@ export class AiEnhanceTools {
 
     return {
       status: 'queued',
-      message: forceAll
-        ? '正在重建所有文件的向量索引（强制模式）'
-        : '正在为无索引的文件建立向量索引',
+      message: forceAll ? '正在重建所有文件的向量索引（强制模式）' : '正在为无索引的文件建立向量索引',
       scope: 'all_files',
       forceAll,
       _next_actions: [
@@ -262,7 +257,9 @@ export class AiEnhanceTools {
     const style = (args.style as string) || 'descriptive';
     const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
     if (!file) return { error: '文件不存在或无权访问' };
@@ -285,10 +282,7 @@ export class AiEnhanceTools {
         generateSuggestionName(file.name, style === 'descriptive' ? 'standardized' : 'descriptive', file.mimeType),
         generateSuggestionName(file.name, 'date_prefix', file.mimeType),
       ].filter(Boolean),
-      _next_actions: [
-        '选择一个建议的名称后，可调用 rename_file 执行重命名',
-        '也可以基于这些建议自定义名称',
-      ],
+      _next_actions: ['选择一个建议的名称后，可调用 rename_file 执行重命名', '也可以基于这些建议自定义名称'],
     };
   }
 }

@@ -12,226 +12,130 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  MessageSquare,
   Send,
   FileText,
-  Image,
-  File,
   Sparkles,
-  FolderOpen,
-  Plus,
-  Trash2,
-  ExternalLink,
-  PanelLeftClose,
-  Settings,
   StopCircle,
   Copy,
   Check,
   RefreshCw,
-  Pencil,
-  X,
-  Loader2,
   Search,
-  BarChart3,
-  Star,
-  Share2,
-  Clock,
+  Filter,
   Tag,
   Download,
-  ChevronDown,
-  Filter,
-  Info,
-  Upload,
-  Lock,
-  Link2,
-  GitBranch,
-  Wrench,
-  Brain,
-  BookOpen,
-  HardDrive,
-  Key,
-  Webhook,
-  Shield,
-  ClipboardList,
-  StickyNote,
-  Layers,
   Zap,
-  Eye,
   Code,
-  User,
-  Users,
 } from 'lucide-react';
 import { aiApi, filesApi, type AiChatMessage } from '@/services/api';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeHighlight from 'rehype-highlight';
-import 'highlight.js/styles/github-dark.css';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDate } from '@/utils';
 import { FilePreview } from '@/components/files/FilePreview';
 import { useAuthStore } from '@/stores/auth';
 import type { FileItem } from '@osshelf/shared';
-
-// ────────────────────────────────────────────────────────────
-// Types
-// ────────────────────────────────────────────────────────────
-
-interface AgentFile {
-  id: string;
-  name: string;
-  path: string;
-  isFolder: boolean;
-  mimeType: string | null;
-  size: number;
-  createdAt: string;
-}
-
-interface ToolCallEvent {
-  id: string;
-  toolName: string;
-  args: Record<string, unknown>;
-  result?: unknown;
-  status: 'running' | 'done' | 'error' | 'pending_confirm';
-}
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  reasoning?: string;
-  sources?: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
-  toolCalls?: ToolCallEvent[];
-  timestamp: Date;
-  isLoading?: boolean;
-}
+import {
+  ToolCallCard,
+  FileChip,
+  ReasoningSection,
+  AssistantContent,
+  ToolInfoModal,
+  ChatSidebar,
+  ChatHeader,
+  WelcomeScreen,
+} from '@/components/ai/chat';
+import type { Message, ToolCallEvent, SseChunk } from '@/components/ai/types';
 
 // ────────────────────────────────────────────────────────────
 // Tool name → label + icon
 // ────────────────────────────────────────────────────────────
 
 const TOOL_META: Record<string, { label: string; icon: React.ReactNode; category: string }> = {
-  // 🔍 搜索发现 (6)
   search_files: { label: '搜索文件', icon: <Search className="h-3 w-3" />, category: '搜索发现' },
   filter_files: { label: '筛选文件', icon: <Filter className="h-3 w-3" />, category: '搜索发现' },
   search_by_tag: { label: '标签搜索', icon: <Tag className="h-3 w-3" />, category: '搜索发现' },
   search_duplicates: { label: '查找重复文件', icon: <Copy className="h-3 w-3" />, category: '搜索发现' },
   smart_search: { label: '智能搜索', icon: <Sparkles className="h-3 w-3" />, category: '搜索发现' },
   list_all_tags: { label: '列出所有标签', icon: <Tag className="h-3 w-3" />, category: '搜索发现' },
-  // 📄 内容理解 (7)
   read_file_text: { label: '读取文件内容', icon: <FileText className="h-3 w-3" />, category: '内容理解' },
-  analyze_image: { label: '分析图片', icon: <Image className="h-3 w-3" />, category: '内容理解' },
+  analyze_image: { label: '分析图片', icon: <Zap className="h-3 w-3" />, category: '内容理解' },
   compare_files: { label: '对比文件', icon: <FileText className="h-3 w-3" />, category: '内容理解' },
-  extract_metadata: { label: '提取元数据', icon: <ClipboardList className="h-3 w-3" />, category: '内容理解' },
-  generate_summary: { label: '生成摘要', icon: <Brain className="h-3 w-3" />, category: '内容理解' },
+  extract_metadata: { label: '提取元数据', icon: <Download className="h-3 w-3" />, category: '内容理解' },
+  generate_summary: { label: '生成摘要', icon: <Sparkles className="h-3 w-3" />, category: '内容理解' },
   generate_tags: { label: '生成标签', icon: <Tag className="h-3 w-3" />, category: '内容理解' },
-  content_preview: { label: '内容预览', icon: <Eye className="h-3 w-3" />, category: '内容理解' },
-  // 📂 目录导航 (4)
-  list_folder: { label: '浏览文件夹', icon: <FolderOpen className="h-3 w-3" />, category: '目录导航' },
-  get_folder_tree: { label: '查看目录树', icon: <FolderOpen className="h-3 w-3" />, category: '目录导航' },
-  navigate_path: { label: '路径导航', icon: <Layers className="h-3 w-3" />, category: '目录导航' },
-  get_storage_overview: { label: '存储概览', icon: <HardDrive className="h-3 w-3" />, category: '目录导航' },
-  // 📊 统计分析 (5)
-  get_storage_stats: { label: '存储统计', icon: <BarChart3 className="h-3 w-3" />, category: '统计分析' },
-  get_activity_stats: { label: '活动趋势', icon: <BarChart3 className="h-3 w-3" />, category: '统计分析' },
-  get_user_quota_info: { label: '配额信息', icon: <BarChart3 className="h-3 w-3" />, category: '统计分析' },
-  get_file_type_distribution: { label: '文件类型分布', icon: <BarChart3 className="h-3 w-3" />, category: '统计分析' },
-  get_sharing_stats: { label: '分享统计', icon: <Share2 className="h-3 w-3" />, category: '统计分析' },
-  // 📁 文件操作 (15)
+  content_preview: { label: '内容预览', icon: <Code className="h-3 w-3" />, category: '内容理解' },
+  list_folder: { label: '浏览文件夹', icon: <FileText className="h-3 w-3" />, category: '目录导航' },
+  get_folder_tree: { label: '查看目录树', icon: <FileText className="h-3 w-3" />, category: '目录导航' },
+  navigate_path: { label: '路径导航', icon: <Tag className="h-3 w-3" />, category: '目录导航' },
+  get_storage_overview: { label: '存储概览', icon: <Download className="h-3 w-3" />, category: '目录导航' },
+  get_storage_stats: { label: '存储统计', icon: <Search className="h-3 w-3" />, category: '统计分析' },
+  get_activity_stats: { label: '活动趋势', icon: <Search className="h-3 w-3" />, category: '统计分析' },
+  get_user_quota_info: { label: '配额信息', icon: <Search className="h-3 w-3" />, category: '统计分析' },
+  get_file_type_distribution: { label: '文件类型分布', icon: <Search className="h-3 w-3" />, category: '统计分析' },
+  get_sharing_stats: { label: '分享统计', icon: <Copy className="h-3 w-3" />, category: '统计分析' },
   create_text_file: { label: '创建文本文件', icon: <FileText className="h-3 w-3" />, category: '文件操作' },
   create_code_file: { label: '创建代码文件', icon: <Code className="h-3 w-3" />, category: '文件操作' },
   create_file_from_template: { label: '从模板创建', icon: <FileText className="h-3 w-3" />, category: '文件操作' },
-  edit_file_content: { label: '编辑文件', icon: <Pencil className="h-3 w-3" />, category: '文件操作' },
+  edit_file_content: { label: '编辑文件', icon: <Code className="h-3 w-3" />, category: '文件操作' },
   append_to_file: { label: '追加内容', icon: <FileText className="h-3 w-3" />, category: '文件操作' },
-  find_and_replace: { label: '查找替换', icon: <Wrench className="h-3 w-3" />, category: '文件操作' },
-  rename_file: { label: '重命名', icon: <Pencil className="h-3 w-3" />, category: '文件操作' },
-  move_file: { label: '移动文件', icon: <FolderOpen className="h-3 w-3" />, category: '文件操作' },
+  find_and_replace: { label: '查找替换', icon: <Code className="h-3 w-3" />, category: '文件操作' },
+  rename_file: { label: '重命名', icon: <Code className="h-3 w-3" />, category: '文件操作' },
+  move_file: { label: '移动文件', icon: <FileText className="h-3 w-3" />, category: '文件操作' },
   copy_file: { label: '复制文件', icon: <Copy className="h-3 w-3" />, category: '文件操作' },
-  delete_file: { label: '删除文件', icon: <Trash2 className="h-3 w-3" />, category: '文件操作' },
+  delete_file: { label: '删除文件', icon: <FileText className="h-3 w-3" />, category: '文件操作' },
   restore_file: { label: '恢复文件', icon: <RefreshCw className="h-3 w-3" />, category: '文件操作' },
-  create_folder: { label: '创建文件夹', icon: <FolderOpen className="h-3 w-3" />, category: '文件操作' },
-  batch_rename: { label: '批量重命名', icon: <Pencil className="h-3 w-3" />, category: '文件操作' },
-  star_file: { label: '收藏文件', icon: <Star className="h-3 w-3" />, category: '文件操作' },
-  unstar_file: { label: '取消收藏', icon: <Star className="h-3 w-3" />, category: '文件操作' },
-  // 🏷️ 标签管理 (6)
+  create_folder: { label: '创建文件夹', icon: <FileText className="h-3 w-3" />, category: '文件操作' },
+  batch_rename: { label: '批量重命名', icon: <Code className="h-3 w-3" />, category: '文件操作' },
+  star_file: { label: '收藏文件', icon: <Sparkles className="h-3 w-3" />, category: '文件操作' },
+  unstar_file: { label: '取消收藏', icon: <Sparkles className="h-3 w-3" />, category: '文件操作' },
   add_tag: { label: '添加标签', icon: <Tag className="h-3 w-3" />, category: '标签管理' },
   remove_tag: { label: '移除标签', icon: <Tag className="h-3 w-3" />, category: '标签管理' },
   list_all_tags_for_management: { label: '标签管理列表', icon: <Tag className="h-3 w-3" />, category: '标签管理' },
-  merge_tags: { label: '合并标签', icon: <GitBranch className="h-3 w-3" />, category: '标签管理' },
+  merge_tags: { label: '合并标签', icon: <Code className="h-3 w-3" />, category: '标签管理' },
   auto_tag_files: { label: '自动打标签', icon: <Zap className="h-3 w-3" />, category: '标签管理' },
   tag_folder: { label: '文件夹打标', icon: <Tag className="h-3 w-3" />, category: '标签管理' },
-  // 🔗 分享链接 (8)
-  create_share: { label: '创建分享链接', icon: <Share2 className="h-3 w-3" />, category: '分享链接' },
-  list_shares: { label: '列出分享', icon: <Share2 className="h-3 w-3" />, category: '分享链接' },
-  update_share: { label: '更新分享设置', icon: <Settings className="h-3 w-3" />, category: '分享链接' },
-  revoke_share: { label: '撤销分享', icon: <Share2 className="h-3 w-3" />, category: '分享链接' },
-  get_share_details: { label: '分享详情', icon: <Share2 className="h-3 w-3" />, category: '分享链接' },
-  create_direct_link: { label: '创建直链', icon: <Link2 className="h-3 w-3" />, category: '分享链接' },
-  revoke_direct_link: { label: '撤销直链', icon: <Link2 className="h-3 w-3" />, category: '分享链接' },
-  create_upload_link_for_folder: { label: '创建上传链接', icon: <Upload className="h-3 w-3" />, category: '分享链接' },
-  // 📜 版本管理 (4)
-  get_file_versions: { label: '版本历史', icon: <Clock className="h-3 w-3" />, category: '版本管理' },
+  create_share: { label: '创建分享链接', icon: <Copy className="h-3 w-3" />, category: '分享链接' },
+  list_shares: { label: '列出分享', icon: <Copy className="h-3 w-3" />, category: '分享链接' },
+  update_share: { label: '更新分享设置', icon: <Code className="h-3 w-3" />, category: '分享链接' },
+  revoke_share: { label: '撤销分享', icon: <Copy className="h-3 w-3" />, category: '分享链接' },
+  get_share_details: { label: '分享详情', icon: <Copy className="h-3 w-3" />, category: '分享链接' },
+  create_direct_link: { label: '创建直链', icon: <Code className="h-3 w-3" />, category: '分享链接' },
+  revoke_direct_link: { label: '撤销直链', icon: <Code className="h-3 w-3" />, category: '分享链接' },
+  create_upload_link_for_folder: { label: '创建上传链接', icon: <Download className="h-3 w-3" />, category: '分享链接' },
+  get_file_versions: { label: '版本历史', icon: <RefreshCw className="h-3 w-3" />, category: '版本管理' },
   restore_version: { label: '恢复版本', icon: <RefreshCw className="h-3 w-3" />, category: '版本管理' },
-  compare_versions: { label: '对比版本', icon: <GitBranch className="h-3 w-3" />, category: '版本管理' },
-  set_version_retention: { label: '版本保留策略', icon: <Settings className="h-3 w-3" />, category: '版本管理' },
-  // 📝 笔记备注 (4)
-  write_note: { label: '写入备注', icon: <StickyNote className="h-3 w-3" />, category: '笔记备注' },
-  getFileNotes: { label: '获取备注列表', icon: <StickyNote className="h-3 w-3" />, category: '笔记备注' },
-  update_note: { label: '更新备注', icon: <StickyNote className="h-3 w-3" />, category: '笔记备注' },
-  delete_note: { label: '删除备注', icon: <StickyNote className="h-3 w-3" />, category: '笔记备注' },
-  // 🔐 权限管理 (6)
-  get_file_permissions: { label: '查看权限', icon: <Shield className="h-3 w-3" />, category: '权限管理' },
-  grant_permission: { label: '授权访问', icon: <Lock className="h-3 w-3" />, category: '权限管理' },
-  revoke_permission: { label: '撤销权限', icon: <Lock className="h-3 w-3" />, category: '权限管理' },
-  set_folder_access_level: { label: '设置访问级别', icon: <Shield className="h-3 w-3" />, category: '权限管理' },
-  list_user_groups: { label: '用户组列表', icon: <Users className="h-3 w-3" />, category: '权限管理' },
-  manage_group_members: { label: '管理组成员', icon: <Users className="h-3 w-3" />, category: '权限管理' },
-  // 💾 存储桶 (4)
-  list_buckets: { label: '列出存储桶', icon: <HardDrive className="h-3 w-3" />, category: '存储管理' },
-  get_bucket_info: { label: '存储桶详情', icon: <HardDrive className="h-3 w-3" />, category: '存储管理' },
-  set_default_bucket: { label: '设默认桶', icon: <HardDrive className="h-3 w-3" />, category: '存储管理' },
-  migrate_file_to_bucket: { label: '迁移文件', icon: <HardDrive className="h-3 w-3" />, category: '存储管理' },
-  // ⚙️ 系统管理 (7)
-  get_user_profile: { label: '用户画像', icon: <User className="h-3 w-3" />, category: '系统管理' },
-  list_api_keys: { label: 'API密钥列表', icon: <Key className="h-3 w-3" />, category: '系统管理' },
-  create_api_key: { label: '创建API密钥', icon: <Key className="h-3 w-3" />, category: '系统管理' },
-  revoke_api_key: { label: '撤销API密钥', icon: <Key className="h-3 w-3" />, category: '系统管理' },
-  list_webhooks: { label: 'Webhook列表', icon: <Webhook className="h-3 w-3" />, category: '系统管理' },
-  create_webhook: { label: '创建Webhook', icon: <Webhook className="h-3 w-3" />, category: '系统管理' },
-  get_audit_logs: { label: '审计日志', icon: <ClipboardList className="h-3 w-3" />, category: '系统管理' },
-  // 🤖 AI增强 (5)
-  trigger_ai_summary: { label: 'AI摘要', icon: <Brain className="h-3 w-3" />, category: 'AI增强' },
+  compare_versions: { label: '对比版本', icon: <Code className="h-3 w-3" />, category: '版本管理' },
+  set_version_retention: { label: '版本保留策略', icon: <Code className="h-3 w-3" />, category: '版本管理' },
+  write_note: { label: '写入备注', icon: <FileText className="h-3 w-3" />, category: '笔记备注' },
+  getFileNotes: { label: '获取备注列表', icon: <FileText className="h-3 w-3" />, category: '笔记备注' },
+  update_note: { label: '更新备注', icon: <Code className="h-3 w-3" />, category: '笔记备注' },
+  delete_note: { label: '删除备注', icon: <FileText className="h-3 w-3" />, category: '笔记备注' },
+  get_file_permissions: { label: '查看权限', icon: <Code className="h-3 w-3" />, category: '权限管理' },
+  grant_permission: { label: '授权访问', icon: <Code className="h-3 w-3" />, category: '权限管理' },
+  revoke_permission: { label: '撤销权限', icon: <Code className="h-3 w-3" />, category: '权限管理' },
+  set_folder_access_level: { label: '设置访问级别', icon: <Code className="h-3 w-3" />, category: '权限管理' },
+  list_user_groups: { label: '用户组列表', icon: <Code className="h-3 w-3" />, category: '权限管理' },
+  manage_group_members: { label: '管理组成员', icon: <Code className="h-3 w-3" />, category: '权限管理' },
+  list_buckets: { label: '列出存储桶', icon: <Download className="h-3 w-3" />, category: '存储管理' },
+  get_bucket_info: { label: '存储桶详情', icon: <Download className="h-3 w-3" />, category: '存储管理' },
+  set_default_bucket: { label: '设默认桶', icon: <Download className="h-3 w-3" />, category: '存储管理' },
+  migrate_file_to_bucket: { label: '迁移文件', icon: <Download className="h-3 w-3" />, category: '存储管理' },
+  get_user_profile: { label: '用户画像', icon: <Code className="h-3 w-3" />, category: '系统管理' },
+  list_api_keys: { label: 'API密钥列表', icon: <Code className="h-3 w-3" />, category: '系统管理' },
+  create_api_key: { label: '创建API密钥', icon: <Code className="h-3 w-3" />, category: '系统管理' },
+  revoke_api_key: { label: '撤销API密钥', icon: <Code className="h-3 w-3" />, category: '系统管理' },
+  list_webhooks: { label: 'Webhook列表', icon: <Code className="h-3 w-3" />, category: '系统管理' },
+  create_webhook: { label: '创建Webhook', icon: <Code className="h-3 w-3" />, category: '系统管理' },
+  get_audit_logs: { label: '审计日志', icon: <FileText className="h-3 w-3" />, category: '系统管理' },
+  trigger_ai_summary: { label: 'AI摘要', icon: <Sparkles className="h-3 w-3" />, category: 'AI增强' },
   trigger_ai_tags: { label: 'AI标签', icon: <Zap className="h-3 w-3" />, category: 'AI增强' },
   rebuild_vector_index: { label: '重建向量索引', icon: <RefreshCw className="h-3 w-3" />, category: 'AI增强' },
-  ask_rag_question: { label: 'RAG问答', icon: <BookOpen className="h-3 w-3" />, category: 'AI增强' },
+  ask_rag_question: { label: 'RAG问答', icon: <FileText className="h-3 w-3" />, category: 'AI增强' },
   smart_rename_suggest: { label: '智能重命名', icon: <Sparkles className="h-3 w-3" />, category: 'AI增强' },
-  // 兼容旧工具名
   get_file_detail: { label: '获取文件详情', icon: <FileText className="h-3 w-3" />, category: '内容理解' },
   get_file_notes: { label: '查看备注', icon: <FileText className="h-3 w-3" />, category: '笔记备注' },
-  list_recent: { label: '最近文件', icon: <Clock className="h-3 w-3" />, category: '搜索发现' },
-  list_starred: { label: '查看收藏', icon: <Star className="h-3 w-3" />, category: '搜索发现' },
+  list_recent: { label: '最近文件', icon: <RefreshCw className="h-3 w-3" />, category: '搜索发现' },
+  list_starred: { label: '查看收藏', icon: <Sparkles className="h-3 w-3" />, category: '搜索发现' },
   update_description: { label: '更新描述', icon: <FileText className="h-3 w-3" />, category: '内容理解' },
 };
-
-// ────────────────────────────────────────────────────────────
-// SSE Chunk type (mirrors backend AgentChunk)
-// ────────────────────────────────────────────────────────────
-
-interface SseChunk {
-  content?: string;
-  done?: boolean;
-  sessionId?: string;
-  sources?: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
-  error?: string;
-  usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
-  reasoning?: boolean;
-  // Tool events
-  toolStart?: boolean;
-  toolResult?: boolean;
-  toolName?: string;
-  toolCallId?: string;
-  args?: Record<string, unknown>;
-  result?: unknown;
-}
 
 const SUGGESTED = [
   '帮我找最近上传的文件',
@@ -243,480 +147,6 @@ const SUGGESTED = [
   '帮我把这段代码保存到代码文件夹',
   '查看我分享了哪些文件',
 ];
-
-// ────────────────────────────────────────────────────────────
-// File ref parser: [FILE:id:name] → clickable element
-// ────────────────────────────────────────────────────────────
-
-function parseFileRefs(text: string, onFileClick: (id: string, isFolder: boolean) => void): React.ReactNode[] {
-  const parts: React.ReactNode[] = [];
-  const regex = /\[(FILE|FOLDER):([^:]+):([^\]]+)\]/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(text))) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-    const isFolder = match[1] === 'FOLDER';
-    const id = match[2];
-    const name = match[3];
-    parts.push(
-      <button
-        key={`${id}-${match.index}`}
-        onClick={() => onFileClick(id!, isFolder)}
-        className="inline-flex items-center gap-1.5 px-2 py-0.5 mx-0.5 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-xs font-medium transition-all group"
-      >
-        {isFolder ? (
-          <FolderOpen className="h-3 w-3 text-amber-500" />
-        ) : (
-          <FileText className="h-3 w-3 text-violet-500" />
-        )}
-        <span>{name}</span>
-        <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-      </button>
-    );
-    lastIndex = match.index + match[0].length;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
-  return parts;
-}
-
-// ────────────────────────────────────────────────────────────
-// Sub-components
-// ────────────────────────────────────────────────────────────
-
-function ToolCallCard({
-  tc,
-  onFileClick,
-  onConfirm,
-}: {
-  tc: ToolCallEvent;
-  onFileClick: (id: string) => void;
-  onConfirm?: (toolName: string, args: Record<string, unknown>) => void;
-}) {
-  const meta = TOOL_META[tc.toolName] || {
-    label: tc.toolName.replace(/_/g, ' '),
-    icon: <Sparkles className="h-3 w-3" />,
-  };
-  const [expanded, setExpanded] = useState(false);
-
-  const resultObj = tc.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>) : null;
-  const isPendingConfirm = resultObj?.status === 'pending_confirm';
-  const confirmMessage = resultObj?.message as string | undefined;
-
-  const resultFiles: AgentFile[] = (() => {
-    if (!tc.result || typeof tc.result !== 'object') return [];
-    const r = tc.result as Record<string, unknown>;
-
-    // 处理 files 数组格式（搜索类工具）
-    const filesArray = r.files as Array<{ id: string; name: string; mimeType?: string | null }> | undefined;
-    if (filesArray?.length) {
-      return filesArray.slice(0, 6).map((f) => ({
-        id: f.id,
-        name: f.name,
-        path: '',
-        isFolder: false,
-        size: 0,
-        createdAt: '',
-        mimeType: f.mimeType ?? null,
-        parentId: null,
-        aiSummary: null,
-        aiTags: null,
-        isStarred: false,
-        description: null,
-      }));
-    }
-
-    // 处理单文件对象格式（get_file_detail 等）
-    if (r.id && r.name && typeof r.id === 'string' && typeof r.name === 'string') {
-      return [{
-        id: r.id as string,
-        name: r.name as string,
-        path: (r.path as string) || '',
-        isFolder: (r.isFolder as boolean) || false,
-        size: (r.size as number) || 0,
-        createdAt: (r.createdAt as string) || '',
-        mimeType: (r.mimeType as string | null) ?? null,
-        parentId: null,
-        aiSummary: null,
-        aiTags: null,
-        isStarred: false,
-        description: null,
-      }];
-    }
-
-    // 处理 compare_files 的 fileA/fileB
-    const fileA = r.fileA as { id: string; name: string; mimeType?: string | null } | undefined;
-    const fileB = r.fileB as { id: string; name: string; mimeType?: string | null } | undefined;
-    if (fileA?.id && fileB?.id) {
-      return [fileA, fileB].map((f) => ({
-        id: f.id,
-        name: f.name,
-        path: '',
-        isFolder: false,
-        size: 0,
-        createdAt: '',
-        mimeType: f.mimeType ?? null,
-        parentId: null,
-        aiSummary: null,
-        aiTags: null,
-        isStarred: false,
-        description: null,
-      }));
-    }
-
-    return [];
-  })();
-
-  const argsSummary = tc.args
-    ? Object.entries(tc.args)
-        .map(([k, v]) => `${k}: ${typeof v === 'string' ? v.slice(0, 30) : JSON.stringify(v).slice(0, 30)}`)
-        .join(' | ')
-    : '';
-
-  const isRunning = tc.status === 'running';
-  const isDone = tc.status === 'done';
-  const hasArgs = Boolean(tc.args && Object.keys(tc.args).length > 0);
-  const showResult = isDone && Boolean(tc.result);
-
-  return (
-    <div
-      className={`my-1.5 rounded-xl overflow-hidden border ${
-        isPendingConfirm
-          ? 'border-amber-300 dark:border-amber-700 bg-gradient-to-r from-amber-50/80 to-transparent dark:from-amber-900/20'
-          : isRunning
-            ? 'border-amber-200 dark:border-amber-800 bg-gradient-to-r from-amber-50/50 to-transparent dark:from-amber-900/10'
-            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80'
-      }`}
-    >
-      {/* Header bar — always visible */}
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-2 w-full px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors text-left"
-      >
-        {/* Status icon */}
-        <span
-          className={`flex items-center justify-center h-5 w-5 rounded-full flex-shrink-0 ${
-            isRunning
-              ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 animate-pulse'
-              : 'bg-violet-100 dark:bg-violet-900/40 text-violet-600'
-          }`}
-        >
-          {isRunning ? <Loader2 className="h-3 w-3 animate-spin" /> : meta.icon}
-        </span>
-
-        {/* Tool name + status */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{meta.label}</span>
-            {isRunning && <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">正在执行…</span>}
-            {isDone && <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">已完成</span>}
-          </div>
-          {/* Args preview when not expanded */}
-          {!expanded && argsSummary && <p className="text-[10px] text-slate-400 mt-0.5 truncate">{argsSummary}</p>}
-        </div>
-
-        {/* Expand toggle */}
-        <ChevronDown
-          className={`h-3.5 w-3.5 text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''} flex-shrink-0`}
-        />
-      </button>
-
-      {/* Expanded content */}
-      {expanded && (
-        <div className="px-3 pb-2.5 pt-0 border-t border-slate-100 dark:border-slate-700/50 space-y-2">
-          {/* Args detail */}
-          {hasArgs && (
-            <div className="pt-2">
-              <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">参数</p>
-              <pre className="text-[11px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-md p-2 overflow-auto font-mono max-h-24">
-                {JSON.stringify(tc.args, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          {/* Result */}
-          {showResult && (
-            <div>
-              <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">结果</p>
-              {resultFiles.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                  {resultFiles.map((f) => (
-                    <button
-                      key={f.id}
-                      onClick={() => onFileClick(f.id)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 hover:border-violet-300 dark:hover:border-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all text-left"
-                    >
-                      <File className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      <span className="text-xs text-slate-700 dark:text-slate-300 truncate">{f.name}</span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <pre
-                  className={`text-[11px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-md p-2 overflow-auto font-mono max-h-32`}
-                >
-                  {(() => {
-                    const resultStr = JSON.stringify(tc.result, null, 2);
-                    return resultStr.length > 500 ? resultStr.slice(0, 500) + '\n... (已截断)' : resultStr;
-                  })()}
-                </pre>
-              )}
-            </div>
-          )}
-
-          {/* Running state placeholder */}
-          {isRunning && !tc.result && (
-            <div className="pt-1 flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
-              <div className="flex gap-0.5">
-                {[0, 100, 200].map((d) => (
-                  <span
-                    key={d}
-                    className="h-1 w-1 rounded-full bg-amber-400 animate-bounce"
-                    style={{ animationDelay: `${d}ms` }}
-                  />
-                ))}
-              </div>
-              等待工具返回结果…
-            </div>
-          )}
-
-          {/* Pending confirm state */}
-          {isPendingConfirm && (
-            <div className="pt-2 space-y-2">
-              <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-100/50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700">
-                <span className="text-amber-600 dark:text-amber-400 text-xs">⚠️</span>
-                <p className="text-xs text-amber-800 dark:text-amber-200 flex-1">
-                  {confirmMessage || '此操作需要您的确认才能执行'}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => onConfirm?.(tc.toolName, tc.args)}
-                  className="flex-1 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors"
-                >
-                  确认执行
-                </button>
-                <button
-                  onClick={() => setExpanded(false)}
-                  className="flex-1 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs font-medium transition-colors"
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FileChip({ file, onClick }: { file: AgentFile; onClick: () => void }) {
-  const getIcon = (mime: string | null) => {
-    if (file.isFolder) return <FolderOpen className="h-3.5 w-3.5 text-amber-500" />;
-    if (!mime) return <File className="h-3.5 w-3.5" />;
-    if (mime.startsWith('image/')) return <Image className="h-3.5 w-3.5 text-blue-500" />;
-    if (mime.includes('pdf')) return <FileText className="h-3.5 w-3.5 text-red-500" />;
-    if (mime.startsWith('text/') || mime.includes('document'))
-      return <FileText className="h-3.5 w-3.5 text-slate-500" />;
-    return <File className="h-3.5 w-3.5 text-slate-400" />;
-  };
-
-  const formatSize = (bytes: number) => {
-    if (!bytes) return '';
-    if (bytes < 1024) return `${bytes}B`;
-    if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)}KB`;
-    return `${(bytes / 1024 ** 2).toFixed(1)}MB`;
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-violet-300 dark:hover:border-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all text-left group w-full sm:w-auto min-w-0"
-    >
-      {getIcon(file.mimeType)}
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate max-w-[160px]">{file.name}</p>
-        {file.size > 0 && <p className="text-[10px] text-slate-400">{formatSize(file.size)}</p>}
-      </div>
-      <ExternalLink className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-    </button>
-  );
-}
-
-function ReasoningSection({ content }: { content: string }) {
-  const [expanded, setExpanded] = useState(false);
-
-  if (!content.trim()) return null;
-
-  return (
-    <div className="mb-2 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-2 w-full px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700/30 transition-colors text-left"
-      >
-        <span className="flex items-center justify-center h-5 w-5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-600 flex-shrink-0">
-          <Sparkles className="h-3 w-3" />
-        </span>
-        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">思考过程</span>
-        <ChevronDown
-          className={`h-3.5 w-3.5 text-slate-400 transition-transform ml-auto ${expanded ? 'rotate-180' : ''}`}
-        />
-      </button>
-      {expanded && (
-        <div className="px-3 pb-2.5 pt-0 border-t border-slate-100 dark:border-slate-700/50">
-          <div className="text-xs text-slate-500 dark:text-slate-400 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
-            {content}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Renders assistant message content with [FILE:...] refs converted to buttons
-function AssistantContent({
-  content,
-  onFileClick,
-}: {
-  content: string;
-  onFileClick: (id: string, isFolder: boolean) => void;
-}) {
-  const cleanedContent = content.replace(/```tool_call\s*[\s\S]*?```/g, '').trim();
-  const hasRefs = /\[(FILE|FOLDER):[^\]]+\]/.test(cleanedContent);
-
-  if (!hasRefs) {
-    return (
-      <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-headings:mt-3 prose-pre:bg-slate-950 prose-code:text-violet-600 dark:prose-code:text-violet-400">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-          {cleanedContent}
-        </ReactMarkdown>
-      </div>
-    );
-  }
-
-  // Has refs — render inline
-  return (
-    <div className="text-sm leading-relaxed whitespace-pre-wrap">{parseFileRefs(cleanedContent, onFileClick)}</div>
-  );
-}
-
-// ────────────────────────────────────────────────────────────
-// Tool Info Modal — 工具说明弹窗
-// ────────────────────────────────────────────────────────────
-
-const TOOL_CATEGORIES = [
-  { key: '搜索发现', icon: <Search className="h-4 w-4" />, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', desc: '智能搜索、文件过滤、标签检索、重复检测' },
-  { key: '内容理解', icon: <FileText className="h-4 w-4" />, color: 'text-violet-500', bg: 'bg-violet-50 dark:bg-violet-900/20', border: 'border-violet-200 dark:border-violet-800', desc: '读取文件、图片分析、元数据提取、AI摘要/标签' },
-  { key: '目录导航', icon: <FolderOpen className="h-4 w-4" />, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-800', desc: '浏览文件夹、目录树、路径导航、存储概览' },
-  { key: '统计分析', icon: <BarChart3 className="h-4 w-4" />, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', desc: '存储统计、活动趋势、配额信息、类型分布' },
-  { key: '文件操作', icon: <FileText className="h-4 w-4" />, color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-800', desc: '创建/编辑/重命名/移动/复制/删除/收藏文件' },
-  { key: '标签管理', icon: <Tag className="h-4 w-4" />, color: 'text-pink-500', bg: 'bg-pink-50 dark:bg-pink-900/20', border: 'border-pink-200 dark:border-pink-800', desc: '添加/移除/合并标签、自动打标、批量标签' },
-  { key: '分享链接', icon: <Share2 className="h-4 w-4" />, color: 'text-cyan-500', bg: 'bg-cyan-50 dark:bg-cyan-900/20', border: 'border-cyan-200 dark:border-cyan-800', desc: '创建分享链接、直链、上传链接、权限控制' },
-  { key: '版本管理', icon: <Clock className="h-4 w-4" />, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-900/20', border: 'border-indigo-200 dark:border-indigo-800', desc: '查看历史版本、恢复版本、版本对比' },
-  { key: '笔记备注', icon: <StickyNote className="h-4 w-4" />, color: 'text-yellow-600', bg: 'bg-yellow-50 dark:bg-yellow-900/20', border: 'border-yellow-200 dark:border-yellow-800', desc: '为文件添加/编辑/删除备注' },
-  { key: '权限管理', icon: <Shield className="h-4 w-4" />, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-800', desc: '文件权限、文件夹访问级别、用户组管理' },
-  { key: '存储管理', icon: <HardDrive className="h-4 w-4" />, color: 'text-slate-500', bg: 'bg-slate-100 dark:bg-slate-800', border: 'border-slate-300 dark:border-slate-700', desc: '存储桶列表、详情、默认设置、文件迁移' },
-  { key: '系统管理', icon: <Settings className="h-4 w-4" />, color: 'text-gray-500', bg: 'bg-gray-50 dark:bg-gray-900/20', border: 'border-gray-200 dark:border-gray-700', desc: '用户画像、API密钥、Webhook、审计日志' },
-  { key: 'AI增强', icon: <Brain className="h-4 w-4" />, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-200 dark:border-purple-800', desc: 'AI摘要、AI标签、向量索引、RAG问答、智能命名' },
-];
-
-function ToolInfoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  if (!open) return null;
-
-  const totalTools = Object.keys(TOOL_META).length;
-
-  const toolsByCategory = TOOL_CATEGORIES.map((cat) => ({
-    ...cat,
-    tools: Object.entries(TOOL_META)
-      .filter(([, v]) => v.category === cat.key)
-      .map(([name, v]) => ({ name, ...v })),
-  }));
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-3xl max-h-[85vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-              <Wrench className="h-4.5 w-4.5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">AI 工具集</h2>
-              <p className="text-xs text-slate-400">共 {totalTools} 个工具 · 13 个功能模块</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-400 hover:text-slate-600">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Body — scrollable */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-          {toolsByCategory.map((cat) => (
-            <div key={cat.key} className={`rounded-xl border ${cat.border} ${cat.bg} overflow-hidden`}>
-              <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-slate-100 dark:border-slate-700/50">
-                <span className={cat.color}>{cat.icon}</span>
-                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{cat.key}</span>
-                <span className="text-[10px] text-slate-400 ml-auto">{cat.tools.length}个工具</span>
-              </div>
-              <div className="px-4 py-2">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">{cat.desc}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {cat.tools.map((t) => (
-                    <span
-                      key={t.name}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/60 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-[11px] text-slate-600 dark:text-slate-300"
-                    >
-                      <span className={cat.color}>{t.icon}</span>
-                      {t.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {/* Usage tips */}
-          <div className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/10 p-4 mt-2">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-4 w-4 text-violet-500" />
-              <span className="text-sm font-semibold text-violet-700 dark:text-violet-300">使用技巧</span>
-            </div>
-            <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-400">
-              <li>• 用自然语言描述需求，AI会自动选择最合适的工具</li>
-              <li>• 支持<strong>创建文件</strong>："帮我记一下明天要去开会，存到备忘录"</li>
-              <li>• 支持<strong>编辑文件</strong>："把配置文件里的端口改成8080"</li>
-              <li>• 支持<strong>收藏/分享</strong>："收藏这个项目文件夹"、"创建分享链接"</li>
-              <li>• 支持<strong>RAG问答</strong>："我的合同里违约金怎么规定的？"</li>
-              <li>• 危险操作（删除、修改）需要您确认后才会执行</li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0 flex items-center justify-between">
-          <span className="text-[10px] text-slate-400">OSSshelf AI Agent Tools v2.0</span>
-          <button onClick={onClose} className="px-4 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors">
-            知道了
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ────────────────────────────────────────────────────────────
-// Main component
-// ────────────────────────────────────────────────────────────
 
 export function AIChat() {
   const navigate = useNavigate();
@@ -739,7 +169,6 @@ export function AIChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const renameRef = useRef<HTMLInputElement>(null);
   const scrollPositionsRef = useRef<Map<string, number>>(new Map());
   const prevSessionIdRef = useRef<string | null>(null);
 
@@ -778,12 +207,6 @@ export function AIChat() {
   useEffect(() => {
     if (urlSessionId && urlSessionId !== currentSessionId) loadSession(urlSessionId);
   }, [urlSessionId]);
-  useEffect(() => {
-    if (renamingId) {
-      renameRef.current?.focus();
-      renameRef.current?.select();
-    }
-  }, [renamingId]);
 
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = 'auto';
@@ -886,7 +309,6 @@ export function AIChat() {
           maxFiles: 8,
           includeFileContent: false,
           onChunk: (raw: SseChunk) => {
-            // Tool start event
             if (raw.toolStart && raw.toolCallId && raw.toolName) {
               const tc: ToolCallEvent = {
                 id: raw.toolCallId,
@@ -901,7 +323,6 @@ export function AIChat() {
               return;
             }
 
-            // Tool result event
             if (raw.toolResult && raw.toolCallId) {
               const existing = toolCallsMap.get(raw.toolCallId);
               if (existing) {
@@ -923,7 +344,6 @@ export function AIChat() {
               return;
             }
 
-            // Reasoning content (思考过程)
             if (raw.reasoning && raw.content) {
               setMessages((prev) =>
                 prev.map((m) => (m.id === assistantId ? { ...m, reasoning: (m.reasoning || '') + raw.content! } : m))
@@ -931,22 +351,23 @@ export function AIChat() {
               return;
             }
 
-            // Text content
             if (raw.content) {
               setMessages((prev) =>
                 prev.map((m) => (m.id === assistantId ? { ...m, content: (m.content || '') + raw.content! } : m))
               );
             }
 
-            // Error from SSE stream
             if (raw.error && !raw.done) {
               setMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, content: (m.content || '') + `\n\n❌ 错误: ${raw.error}`, isLoading: false } : m))
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, content: (m.content || '') + `\n\n❌ 错误: ${raw.error}`, isLoading: false }
+                    : m
+                )
               );
               return;
             }
 
-            // Done
             if (raw.done) {
               setMessages((prev) =>
                 prev.map((m) => (m.id === assistantId ? { ...m, isLoading: false, sources: raw.sources || [] } : m))
@@ -1033,180 +454,32 @@ export function AIChat() {
 
   return (
     <div className="flex bg-slate-50 dark:bg-slate-950 overflow-hidden h-screen">
-      {/* Mobile overlay */}
-      {showSidebar && (
-        <div
-          className="lg:hidden fixed inset-0 z-20 bg-black/40 backdrop-blur-sm"
-          onClick={() => setShowSidebar(false)}
-        />
-      )}
+      <ChatSidebar
+        showSidebar={showSidebar}
+        sessions={sessions}
+        currentSessionId={currentSessionId}
+        renamingId={renamingId}
+        renameValue={renameValue}
+        onNewChat={handleNewChat}
+        onSelectSession={handleSelectSession}
+        onDeleteSession={handleDeleteSession}
+        onStartRename={(session) => {
+          setRenamingId(session.id);
+          setRenameValue(session.title);
+        }}
+        onConfirmRename={handleConfirmRename}
+        onCancelRename={() => setRenamingId(null)}
+        onRenameValueChange={setRenameValue}
+        onCloseMobile={() => setShowSidebar(false)}
+      />
 
-      {/* Sidebar */}
-      <aside
-        className={`flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-all duration-300 flex-shrink-0 ${showSidebar ? 'w-64' : 'w-0'} fixed inset-y-0 left-0 z-30 lg:relative lg:z-auto overflow-hidden`}
-      >
-        <div className="flex items-center justify-between px-3 py-3 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
-          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            对话历史
-          </span>
-          <button
-            onClick={handleNewChat}
-            className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-violet-600 transition-colors"
-            title="新建对话"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto min-h-0 p-1.5 space-y-0.5">
-          {sessions.length === 0 ? (
-            <p className="text-xs text-slate-400 text-center py-10">暂无对话记录</p>
-          ) : (
-            sessions.map((session: any) => (
-              <div
-                key={session.id}
-                onClick={() => handleSelectSession(session.id)}
-                className={`relative group rounded-lg px-3 py-2 cursor-pointer transition-colors ${session.id === currentSessionId ? 'bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
-              >
-                {renamingId === session.id ? (
-                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                    <input
-                      ref={renameRef}
-                      value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleConfirmRename(session.id);
-                        if (e.key === 'Escape') setRenamingId(null);
-                      }}
-                      className="flex-1 text-xs bg-white dark:bg-slate-700 border border-violet-300 dark:border-violet-600 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                    />
-                    <button
-                      onClick={() => handleConfirmRename(session.id)}
-                      className="p-1 rounded text-green-600 hover:bg-green-100"
-                    >
-                      <Check className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={() => setRenamingId(null)}
-                      className="p-1 rounded text-slate-400 hover:bg-slate-100"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-start gap-1">
-                      <span
-                        className={`text-xs font-medium truncate flex-1 leading-snug ${session.id === currentSessionId ? 'text-violet-700 dark:text-violet-300' : 'text-slate-700 dark:text-slate-300'}`}
-                      >
-                        {session.title}
-                      </span>
-                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRenamingId(session.id);
-                            setRenameValue(session.title);
-                          }}
-                          className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400"
-                          title="重命名"
-                        >
-                          <Pencil className="h-2.5 w-2.5" />
-                        </button>
-                        <button
-                          onClick={(e) => handleDeleteSession(e, session.id)}
-                          className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500"
-                          title="删除"
-                        >
-                          <Trash2 className="h-2.5 w-2.5" />
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{formatDate(session.updatedAt)}</p>
-                  </>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </aside>
-
-      {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
-        {/* Header */}
-        <header className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => navigate('/files')}
-              className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="返回文件管理"
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm">
-                <Sparkles className="h-3.5 w-3.5 text-white" />
-              </div>
-              <div>
-                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">文件管理助手</span>
-                <span className="hidden md:inline text-xs text-slate-400 ml-2">· 可直接查询您的文件</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowToolInfo(true)}
-              className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-600 transition-colors relative"
-              title={`查看全部 ${Object.keys(TOOL_META).length} 个可用工具`}
-            >
-              <Info className="h-4 w-4" />
-              <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-violet-500 text-[8px] text-white flex items-center justify-center font-bold leading-none">81</span>
-            </button>
-            <button
-              onClick={() => navigate('/ai-settings')}
-              className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="AI 设置"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
-          </div>
-        </header>
+        <ChatHeader toolCount={Object.keys(TOOL_META).length} onShowToolInfo={() => setShowToolInfo(true)} />
 
-        {/* Messages */}
         <div ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0">
           <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
             {messages.length === 0 && !isLoading && (
-              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-4 shadow-lg shadow-violet-500/20">
-                  <MessageSquare className="h-7 w-7 text-white" />
-                </div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1.5">文件管理智能助手</h2>
-                <p className="text-sm text-slate-400 mb-2 max-w-sm">
-                  可以搜索文件、查看统计、浏览文件夹，结果可直接点击跳转
-                </p>
-                <div className="flex flex-wrap gap-1.5 justify-center mb-6 max-w-sm">
-                  {['搜索', '创建', '编辑', '统计', '浏览', '收藏', '分享', '标签', '版本', 'AI'].map((t) => (
-                    <span
-                      key={t}
-                      className="px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-xs border border-violet-200 dark:border-violet-700"
-                    >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
-                  {SUGGESTED.map((q, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setInput(q)}
-                      className="text-left p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-violet-300 dark:hover:border-violet-700 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all text-xs text-slate-600 dark:text-slate-400 group"
-                    >
-                      <Sparkles className="h-3 w-3 text-violet-500 mb-1.5 group-hover:scale-110 transition-transform" />
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <WelcomeScreen suggestedQuestions={SUGGESTED} onSelectQuestion={setInput} />
             )}
 
             {messages.map((msg, index) => (
@@ -1218,19 +491,22 @@ export function AIChat() {
                 )}
 
                 <div className="max-w-[85%] min-w-0">
-                  {/* Reasoning section (思考过程) */}
                   {msg.role === 'assistant' && msg.reasoning && <ReasoningSection content={msg.reasoning} />}
 
-                  {/* Tool calls (above bubble, assistant only) */}
                   {msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0 && (
                     <div className="mb-2 space-y-1">
                       {msg.toolCalls.map((tc) => (
-                        <ToolCallCard key={tc.id} tc={tc} onFileClick={handleToolFileClick} onConfirm={handleToolConfirm} />
+                        <ToolCallCard
+                          key={tc.id}
+                          tc={tc}
+                          onFileClick={handleToolFileClick}
+                          onConfirm={handleToolConfirm}
+                          toolMeta={TOOL_META}
+                        />
                       ))}
                     </div>
                   )}
 
-                  {/* Message bubble */}
                   <div
                     className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                       msg.role === 'user'
@@ -1262,7 +538,6 @@ export function AIChat() {
                     )}
                   </div>
 
-                  {/* Source chips */}
                   {msg.sources && msg.sources.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {msg.sources.map((src, i) => (
@@ -1274,13 +549,12 @@ export function AIChat() {
                         >
                           <FileText className="h-3 w-3 text-slate-400 group-hover:text-violet-500" />
                           <span className="max-w-[100px] truncate">{src.name}</span>
-                          <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <Copy className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </button>
                       ))}
                     </div>
                   )}
 
-                  {/* Action row */}
                   {!msg.isLoading && (
                     <div className={`flex items-center gap-1 mt-1 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                       <span className="text-[10px] text-slate-400">{formatDate(msg.timestamp.toISOString())}</span>
@@ -1321,7 +595,6 @@ export function AIChat() {
           </div>
         </div>
 
-        {/* Input */}
         <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-end gap-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 focus-within:border-violet-400 dark:focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-400/20 transition-all px-3 py-2">
@@ -1356,7 +629,7 @@ export function AIChat() {
                   <button
                     onClick={() => sendMessage(input)}
                     disabled={!input.trim()}
-                    className="h-8 w-8 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white disabled:text-slate-400 flex items-center justify-center transition-colors shadow-sm"
+                    className="h-8 w-8 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shadow-sm"
                   >
                     <Send className="h-3.5 w-3.5" />
                   </button>
@@ -1390,8 +663,7 @@ export function AIChat() {
         </div>
       )}
 
-      {/* Tool Info Modal */}
-      <ToolInfoModal open={showToolInfo} onClose={() => setShowToolInfo(false)} />
+      <ToolInfoModal open={showToolInfo} onClose={() => setShowToolInfo(false)} toolMeta={TOOL_META} />
     </div>
   );
 }

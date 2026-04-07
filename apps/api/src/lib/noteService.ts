@@ -25,11 +25,7 @@ const MAX_NOTE_CONTENT_LENGTH = 10000;
 
 function renderMarkdown(content: string): string {
   if (!content) return '';
-  let html = content
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br/>');
+  const html = content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
   return html;
 }
 
@@ -222,7 +218,9 @@ export async function getFileNotes(
   userId: string,
   fileId: string,
   limit: number = 20
-): Promise<{ success: true; notes: Array<Record<string, unknown>>; total: number } | { success: false; error: string }> {
+): Promise<
+  { success: true; notes: Array<Record<string, unknown>>; total: number } | { success: false; error: string }
+> {
   const db = getDb(env.DB);
 
   const { hasAccess } = await checkFilePermission(db, fileId, userId, 'read', env);

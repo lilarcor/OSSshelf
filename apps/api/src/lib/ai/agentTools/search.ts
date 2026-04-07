@@ -15,23 +15,14 @@
 
 import { eq, and, isNull, isNotNull, desc, asc, like, or, inArray, count, gte, lte, sql } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
-import {
-  getDb,
-  files,
-  fileTags,
-  shares,
-  userStars,
-} from '../../../db';
+import { getDb, files, fileTags, shares, userStars } from '../../../db';
 import { searchAndFetchFiles } from '../../vectorIndex';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
 import type { ToolDefinition, AgentFile, ToolResultBase } from './types';
 import { formatBytes, getMimeTypeCategory } from '../utils';
 import { splitKeywords } from '../../../lib/keywordSplitter';
-import {
-  createSuccessResponse,
-  createErrorResponse,
-} from './agentToolUtils';
+import { createSuccessResponse, createErrorResponse } from './agentToolUtils';
 
 export const definitions: ToolDefinition[] = [
   // 1. search_files — 主要搜索工具
@@ -116,8 +107,16 @@ export const definitions: ToolDefinition[] = [
             items: {
               type: 'object',
               properties: {
-                field: { type: 'string', enum: ['mimeType', 'size', 'created_at', 'updated_at', 'is_starred', 'has_tags'], description: '字段名' },
-                operator: { type: 'string', enum: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'is_null', 'not_null'], description: '操作符' },
+                field: {
+                  type: 'string',
+                  enum: ['mimeType', 'size', 'created_at', 'updated_at', 'is_starred', 'has_tags'],
+                  description: '字段名',
+                },
+                operator: {
+                  type: 'string',
+                  enum: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'is_null', 'not_null'],
+                  description: '操作符',
+                },
                 value: { type: 'string', description: '值' },
               },
             },
@@ -205,7 +204,6 @@ export const definitions: ToolDefinition[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class SearchTools {
-
   static async executeSearchFiles(env: Env, userId: string, args: Record<string, unknown>) {
     const query = args.query as string;
     const limit = Math.min((args.limit as number) || 10, 30);
@@ -358,11 +356,7 @@ export class SearchTools {
         .select()
         .from(files)
         .where(
-          and(
-            eq(files.userId, userId),
-            isNull(files.deletedAt),
-            inArray(files.id, [...intersection].slice(0, limit))
-          )
+          and(eq(files.userId, userId), isNull(files.deletedAt), inArray(files.id, [...intersection].slice(0, limit)))
         )
         .all();
 
@@ -517,12 +511,7 @@ export class SearchTools {
         .limit(limit)
         .all();
     } else {
-      rows = await db
-        .select()
-        .from(fileTags)
-        .where(eq(fileTags.userId, userId))
-        .limit(limit)
-        .all();
+      rows = await db.select().from(fileTags).where(eq(fileTags.userId, userId)).limit(limit).all();
     }
 
     return {
@@ -533,10 +522,7 @@ export class SearchTools {
         usageCount: (r as any).usageCount || null,
         createdAt: r.createdAt,
       })),
-      _next_actions: [
-        '可使用 search_by_tag 按标签搜索文件',
-        '可使用 add_tag / remove_tag 管理文件标签',
-      ],
+      _next_actions: ['可使用 search_by_tag 按标签搜索文件', '可使用 add_tag / remove_tag 管理文件标签'],
     };
   }
 }

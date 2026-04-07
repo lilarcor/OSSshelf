@@ -8,12 +8,12 @@
 
 在正式增强方案之前，以下问题已在上一轮修复：
 
-| 问题 | 文件 | 修复方式 |
-|------|------|---------|
-| `ESTIMATED_TOKENS_PER_CHAR = 0.5` 对中文严重低估 | `ragEngine.ts` | 改为 `estimateTokens()` 函数，中文 0.67 / 英文 0.25 动态切换 |
-| `FILE_LIST_PATTERNS` 只覆盖中文 | `ragEngine.ts` | 补充 8 条英文正则（`how many files` / `storage usage` 等） |
-| `runAutoChain` 无视觉意图时也触发图片分析 | `agentEngine.ts` | 新增 `hasVisualIntent(query)` 门控，`query` 透传进入 `runAutoChain` |
-| `buildFileTextForVector` 未索引 `aiTags` | `vectorIndex.ts` | 展开 tags JSON 数组拼入向量文本，提升图片标签召回率 |
+| 问题                                             | 文件             | 修复方式                                                            |
+| ------------------------------------------------ | ---------------- | ------------------------------------------------------------------- |
+| `ESTIMATED_TOKENS_PER_CHAR = 0.5` 对中文严重低估 | `ragEngine.ts`   | 改为 `estimateTokens()` 函数，中文 0.67 / 英文 0.25 动态切换        |
+| `FILE_LIST_PATTERNS` 只覆盖中文                  | `ragEngine.ts`   | 补充 8 条英文正则（`how many files` / `storage usage` 等）          |
+| `runAutoChain` 无视觉意图时也触发图片分析        | `agentEngine.ts` | 新增 `hasVisualIntent(query)` 门控，`query` 透传进入 `runAutoChain` |
+| `buildFileTextForVector` 未索引 `aiTags`         | `vectorIndex.ts` | 展开 tags JSON 数组拼入向量文本，提升图片标签召回率                 |
 
 ---
 
@@ -104,7 +104,14 @@
 
 ```typescript
 // AgentToolExecutor.execute() 写操作前置检查
-const WRITE_TOOLS = new Set(['rename_file', 'add_tag', 'remove_tag', 'write_note', 'update_description', 'create_share']);
+const WRITE_TOOLS = new Set([
+  'rename_file',
+  'add_tag',
+  'remove_tag',
+  'write_note',
+  'update_description',
+  'create_share',
+]);
 
 // 在 execute() 入口处，写工具返回一个 pending_confirm 结构
 // Agent 读到这个结构后输出确认提示，用户确认后再调用 _confirm=true 参数重新触发
@@ -131,20 +138,25 @@ const WRITE_TOOLS = new Set(['rename_file', 'add_tag', 'remove_tag', 'write_note
 ```typescript
 // ragEngine.ts — buildContext() 开头新增
 
-async function getUserSearchPreferences(env: Env, userId: string): Promise<{
+async function getUserSearchPreferences(
+  env: Env,
+  userId: string
+): Promise<{
   topQueries: string[];
   topMimeTypes: string[];
 }> {
   const db = getDb(env.DB);
-  
+
   // 最近 30 天搜索记录，取 top 10 高频词
   const recent = await db
     .select({ query: searchHistory.query })
     .from(searchHistory)
-    .where(and(
-      eq(searchHistory.userId, userId),
-      gte(searchHistory.createdAt, new Date(Date.now() - 30 * 86400_000).toISOString())
-    ))
+    .where(
+      and(
+        eq(searchHistory.userId, userId),
+        gte(searchHistory.createdAt, new Date(Date.now() - 30 * 86400_000).toISOString())
+      )
+    )
     .orderBy(desc(searchHistory.createdAt))
     .limit(50)
     .all();
@@ -152,7 +164,7 @@ async function getUserSearchPreferences(env: Env, userId: string): Promise<{
   // 词频统计（简单分词：按空格和标点切割）
   const freq = new Map<string, number>();
   for (const r of recent) {
-    const words = r.query.split(/[\s，。、,.\-_]+/).filter(w => w.length >= 2);
+    const words = r.query.split(/[\s，。、,.\-_]+/).filter((w) => w.length >= 2);
     for (const w of words) {
       freq.set(w, (freq.get(w) || 0) + 1);
     }
@@ -193,10 +205,11 @@ async function getUserSearchPreferences(env: Env, userId: string): Promise<{
 // buildContext() 中，在 systemContent 拼接前
 
 const prefs = await getUserSearchPreferences(env, request.userId);
-const prefHint = prefs.topQueries.length > 0
-  ? `\n\n[用户偏好参考] 该用户近期常用搜索词：${prefs.topQueries.join('、')}；` +
-    `常用文件类型：${prefs.topMimeTypes.join('、')}。搜索结果匹配以上偏好时适当提升排序。`
-  : '';
+const prefHint =
+  prefs.topQueries.length > 0
+    ? `\n\n[用户偏好参考] 该用户近期常用搜索词：${prefs.topQueries.join('、')}；` +
+      `常用文件类型：${prefs.topMimeTypes.join('、')}。搜索结果匹配以上偏好时适当提升排序。`
+    : '';
 
 const systemContent = `${SYSTEM_PROMPTS.default}${prefHint}\n\n== 相关文件信息 ==\n...`;
 ```
@@ -269,10 +282,7 @@ export async function generateVersionSummary(
     maxTokens: 150,
   });
 
-  await db
-    .update(fileVersions)
-    .set({ aiChangeSummary: summary })
-    .where(eq(fileVersions.id, newVersionId));
+  await db.update(fileVersions).set({ aiChangeSummary: summary }).where(eq(fileVersions.id, newVersionId));
 }
 ```
 
@@ -282,12 +292,12 @@ export async function generateVersionSummary(
 
 ```typescript
 // agentTools.ts — get_file_versions 返回结构新增 aiChangeSummary 字段
-versions: versions.map(v => ({
+versions: versions.map((v) => ({
   versionNumber: v.versionNumber,
   size: formatBytes(v.size || 0),
   createdAt: v.createdAt,
   aiChangeSummary: v.aiChangeSummary || null, // 新增
-}))
+}));
 ```
 
 ---
@@ -311,10 +321,10 @@ export type WebhookEvent =
   | 'permission.granted'
   | 'permission.revoked'
   // 新增 AI 事件
-  | 'ai.summary_complete'    // 文件摘要生成完成
-  | 'ai.tags_generated'      // 图片标签生成完成
-  | 'ai.index_complete'      // 向量索引完成
-  | 'ai.insight_triggered';  // 主动洞察发现异常（见方案6）
+  | 'ai.summary_complete' // 文件摘要生成完成
+  | 'ai.tags_generated' // 图片标签生成完成
+  | 'ai.index_complete' // 向量索引完成
+  | 'ai.insight_triggered'; // 主动洞察发现异常（见方案6）
 ```
 
 **事件 payload 结构：**
@@ -377,18 +387,18 @@ await dispatchWebhook(env, userId, 'ai.summary_complete', {
 // ragEngine.ts
 
 export type QueryIntent =
-  | 'file_stats'      // 统计：文件数量/存储用量
-  | 'file_search'     // 搜索：找某类或某个文件
-  | 'content_qa'      // 问答：基于文件内容回答
-  | 'image_visual'    // 视觉：通过图片外观找图
-  | 'general';        // 通用：不涉及文件的问题
+  | 'file_stats' // 统计：文件数量/存储用量
+  | 'file_search' // 搜索：找某类或某个文件
+  | 'content_qa' // 问答：基于文件内容回答
+  | 'image_visual' // 视觉：通过图片外观找图
+  | 'general'; // 通用：不涉及文件的问题
 
 async function classifyIntent(env: Env, query: string): Promise<QueryIntent> {
   // 快速正则预过滤（避免每次都调用模型）
-  if (FILE_LIST_PATTERNS.some(p => p.test(query))) return 'file_stats';
+  if (FILE_LIST_PATTERNS.some((p) => p.test(query))) return 'file_stats';
 
   const VISUAL_PATTERNS = [/照片|图片.*(找|搜)|找.*照片|photo|image/i, /描述|外观|颜色|样子|scene/i];
-  if (VISUAL_PATTERNS.some(p => p.test(query))) return 'image_visual';
+  if (VISUAL_PATTERNS.some((p) => p.test(query))) return 'image_visual';
 
   // 模型分类（仅在正则未命中时调用）
   if (!env.AI) return 'file_search'; // 降级
@@ -439,7 +449,7 @@ switch (intent) {
     // 跳过文件搜索，直接走 LLM
     break;
   default: // file_search
-    // 原有向量搜索路径
+  // 原有向量搜索路径
 }
 ```
 
@@ -473,13 +483,15 @@ const orphanThreshold = new Date(Date.now() - 30 * 86400_000).toISOString();
 const orphans = await db
   .select({ id: files.id, userId: files.userId, name: files.name, size: files.size })
   .from(files)
-  .where(and(
-    isNull(files.deletedAt),
-    lt(files.createdAt, orphanThreshold),
-    isNull(files.aiSummary),
-    isNull(files.aiTags),
-    eq(files.noteCount, 0),
-  ))
+  .where(
+    and(
+      isNull(files.deletedAt),
+      lt(files.createdAt, orphanThreshold),
+      isNull(files.aiSummary),
+      isNull(files.aiTags),
+      eq(files.noteCount, 0)
+    )
+  )
   .limit(5)
   .all();
 
@@ -539,8 +551,8 @@ async function buildFileRelations(env: Env, fileId: string, userId: string): Pro
 
   const db = getDb(env.DB);
   const relations = similar
-    .filter(r => r.fileId !== fileId && r.score >= 0.6)
-    .map(r => ({
+    .filter((r) => r.fileId !== fileId && r.score >= 0.6)
+    .map((r) => ({
       id: crypto.randomUUID(),
       fileId,
       relatedFileId: r.fileId,
@@ -637,7 +649,7 @@ if (!share || !share.aiChatEnabled) return c.json({ error: 'AI chat not enabled'
 
 const ragContext = await ragEngine.buildContext({
   query: userMessage,
-  userId: share.userId,    // 用 owner 的 userId 查文件权限
+  userId: share.userId, // 用 owner 的 userId 查文件权限
   maxFiles: 1,
   includeFileContent: true,
   // 强制只查这一个文件
@@ -646,6 +658,7 @@ const ragContext = await ragEngine.buildContext({
 ```
 
 **前端变更：**
+
 - `ShareDialog.tsx`：创建分享时新增"允许访客 AI 问答"开关
 - `SharePage.tsx`：检测到 `aiChatEnabled` 时展示浮动问答框，右下角，折叠状态默认收起
 
@@ -658,6 +671,7 @@ const ragContext = await ragEngine.buildContext({
 **为什么：** 当前文本提取是纯 `TextDecoder`，对 PDF/Office 文件只能拿到原始字节，摘要和向量索引质量很差。引入结构化提取后，文档的标题层级、表格、列表都能保留，RAG 效果会有质的提升。
 
 **方案：** 调用已有的 Gotenberg 服务（FileConverter 项目中已部署在 Render）：
+
 1. PDF → HTML（Gotenberg 支持）→ 提取结构化文本
 2. Office → PDF → HTML → 提取文本
 
@@ -727,17 +741,19 @@ app.post('/cron/refresh-stale-vectors', async (c) => {
   const staleFiles = await db
     .select({ id: files.id, userId: files.userId })
     .from(files)
-    .where(and(
-      isNull(files.deletedAt),
-      lt(files.vectorIndexedAt, staleThreshold),
-      isNotNull(files.aiSummary), // 只重建有摘要的文件
-    ))
+    .where(
+      and(
+        isNull(files.deletedAt),
+        lt(files.vectorIndexedAt, staleThreshold),
+        isNotNull(files.aiSummary) // 只重建有摘要的文件
+      )
+    )
     .limit(200) // 批量上限，避免单次 Cron 超时
     .all();
 
   // 入队批量重索引
   await env.AI_TASKS_QUEUE.sendBatch(
-    staleFiles.map(f => ({ body: { type: 'index', fileId: f.id, userId: f.userId } }))
+    staleFiles.map((f) => ({ body: { type: 'index', fileId: f.id, userId: f.userId } }))
   );
 });
 
@@ -747,11 +763,13 @@ app.post('/cron/refresh-version-summaries', async (c) => {
   const outdated = await db
     .select({ id: files.id, userId: files.userId })
     .from(files)
-    .where(and(
-      isNull(files.deletedAt),
-      isNotNull(files.aiSummary),
-      // aiSummaryAt 早于 updatedAt 超过 1 小时（避免刚上传的文件重复处理）
-    ))
+    .where(
+      and(
+        isNull(files.deletedAt),
+        isNotNull(files.aiSummary)
+        // aiSummaryAt 早于 updatedAt 超过 1 小时（避免刚上传的文件重复处理）
+      )
+    )
     .limit(100)
     .all();
 });
@@ -773,21 +791,21 @@ crons = [
 
 ## 改动文件汇总
 
-| 文件 | 方案 | 改动类型 |
-|------|------|---------|
-| `lib/ai/agentTools.ts` | 1、7 | 新增工具定义 + executor |
-| `lib/ai/ragEngine.ts` | 2、5 | 偏好注入、意图分类 |
-| `lib/ai/agentEngine.ts` | 已完成 | 视觉意图门控 |
-| `lib/ai/features.ts` | 3、10、11、12 | 版本摘要、文档解析、音频、OCR |
-| `lib/vectorIndex.ts` | 7、13 | 关系图构建、增量重建 |
-| `lib/aiTaskQueue.ts` | 3、4 | 新增任务类型、Webhook 触发 |
-| `lib/webhook.ts` | 4 | 新增 AI 事件类型 |
-| `lib/notificationUtils.ts` | 6 | 新增 `ai_insight` 类型 |
-| `routes/search.ts` | 8 | 自然语言搜索端点 |
-| `routes/share.ts` | 9 | 分享页 AI 问答端点 |
-| `routes/cron.ts` | 6、13 | 洞察扫描、向量刷新 |
-| `db/schema.ts` | 3、7、9 | 新增字段和表 |
-| `migrations/` | 3、7、9 | SQL 迁移文件 |
-| `apps/web/src/pages/AISettings.tsx` | 4 | Webhook 事件列表 |
-| `apps/web/src/pages/SharePage.tsx` | 9 | 分享页问答框 |
-| `apps/web/src/components/files/dialogs/ShareDialog.tsx` | 9 | 创建分享开关 |
+| 文件                                                    | 方案          | 改动类型                      |
+| ------------------------------------------------------- | ------------- | ----------------------------- |
+| `lib/ai/agentTools.ts`                                  | 1、7          | 新增工具定义 + executor       |
+| `lib/ai/ragEngine.ts`                                   | 2、5          | 偏好注入、意图分类            |
+| `lib/ai/agentEngine.ts`                                 | 已完成        | 视觉意图门控                  |
+| `lib/ai/features.ts`                                    | 3、10、11、12 | 版本摘要、文档解析、音频、OCR |
+| `lib/vectorIndex.ts`                                    | 7、13         | 关系图构建、增量重建          |
+| `lib/aiTaskQueue.ts`                                    | 3、4          | 新增任务类型、Webhook 触发    |
+| `lib/webhook.ts`                                        | 4             | 新增 AI 事件类型              |
+| `lib/notificationUtils.ts`                              | 6             | 新增 `ai_insight` 类型        |
+| `routes/search.ts`                                      | 8             | 自然语言搜索端点              |
+| `routes/share.ts`                                       | 9             | 分享页 AI 问答端点            |
+| `routes/cron.ts`                                        | 6、13         | 洞察扫描、向量刷新            |
+| `db/schema.ts`                                          | 3、7、9       | 新增字段和表                  |
+| `migrations/`                                           | 3、7、9       | SQL 迁移文件                  |
+| `apps/web/src/pages/AISettings.tsx`                     | 4             | Webhook 事件列表              |
+| `apps/web/src/pages/SharePage.tsx`                      | 9             | 分享页问答框                  |
+| `apps/web/src/components/files/dialogs/ShareDialog.tsx` | 9             | 创建分享开关                  |

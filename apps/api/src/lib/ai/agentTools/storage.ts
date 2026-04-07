@@ -120,15 +120,11 @@ export const definitions: ToolDefinition[] = [
 ];
 
 export class StorageTools {
-
   static async executeListBuckets(env: Env, userId: string, _args: Record<string, unknown>) {
     const db = getDb(env.DB);
 
     try {
-      const buckets = await db.select()
-        .from(storageBuckets)
-        .where(eq(storageBuckets.userId, userId))
-        .all();
+      const buckets = await db.select().from(storageBuckets).where(eq(storageBuckets.userId, userId)).all();
 
       const bucketsWithStats = await Promise.all(
         buckets.map(async (bucket) => {
@@ -181,7 +177,8 @@ export class StorageTools {
     const bucketId = args.bucketId as string;
     const db = getDb(env.DB);
 
-    const bucket = await db.select()
+    const bucket = await db
+      .select()
       .from(storageBuckets)
       .where(and(eq(storageBuckets.id, bucketId), eq(storageBuckets.userId, userId)))
       .get();
@@ -195,16 +192,16 @@ export class StorageTools {
           folderCount: sql<number>`COUNT(*) FILTER (WHERE ${files.isFolder} = TRUE)`,
         })
         .from(files)
-        .where(
-          and(
-            eq(files.userId, userId),
-            eq(files.bucketId, bucketId),
-            isNull(files.deletedAt)
-          )
-        )
+        .where(and(eq(files.userId, userId), eq(files.bucketId, bucketId), isNull(files.deletedAt)))
         .get(),
       db
-        .select({ id: files.id, name: files.name, size: files.size, mimeType: files.mimeType, createdAt: files.createdAt })
+        .select({
+          id: files.id,
+          name: files.name,
+          size: files.size,
+          mimeType: files.mimeType,
+          createdAt: files.createdAt,
+        })
         .from(files)
         .where(and(eq(files.userId, userId), eq(files.bucketId, bucketId), isNull(files.deletedAt)))
         .orderBy(desc(files.createdAt))
@@ -241,17 +238,19 @@ export class StorageTools {
     const bucketId = args.bucketId as string;
     const db = getDb(env.DB);
 
-    const bucket = await db.select()
+    const bucket = await db
+      .select()
       .from(storageBuckets)
       .where(and(eq(storageBuckets.id, bucketId), eq(storageBuckets.userId, userId)))
       .get();
     if (!bucket) return { error: '存储桶不存在' };
 
-    await db.update(storageBuckets).set({ isDefault: false })
+    await db
+      .update(storageBuckets)
+      .set({ isDefault: false })
       .where(and(eq(storageBuckets.userId, userId), eq(storageBuckets.isDefault, true)));
 
-    await db.update(storageBuckets).set({ isDefault: true })
-      .where(eq(storageBuckets.id, bucketId));
+    await db.update(storageBuckets).set({ isDefault: true }).where(eq(storageBuckets.id, bucketId));
 
     logger.info('AgentTool', 'Set default bucket', { bucketId, bucketName: bucket.name, userId });
 
@@ -270,8 +269,16 @@ export class StorageTools {
     const db = getDb(env.DB);
 
     const [file, targetBucket] = await Promise.all([
-      db.select().from(files).where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt))).get(),
-      db.select().from(storageBuckets).where(and(eq(storageBuckets.id, targetBucketId), eq(storageBuckets.userId, userId))).get(),
+      db
+        .select()
+        .from(files)
+        .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
+        .get(),
+      db
+        .select()
+        .from(storageBuckets)
+        .where(and(eq(storageBuckets.id, targetBucketId), eq(storageBuckets.userId, userId)))
+        .get(),
     ]);
 
     if (!file) return { error: '文件不存在或无权访问' };
@@ -287,11 +294,14 @@ export class StorageTools {
 
       await env.FILES?.put(newR2Key, new Uint8Array(body));
 
-      await db.update(files).set({
-        bucketId: targetBucketId,
-        r2Key: newR2Key,
-        updatedAt: new Date().toISOString(),
-      }).where(eq(files.id, fileId));
+      await db
+        .update(files)
+        .set({
+          bucketId: targetBucketId,
+          r2Key: newR2Key,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(files.id, fileId));
 
       logger.info('AgentTool', 'Migrated file to different bucket', {
         fileId,

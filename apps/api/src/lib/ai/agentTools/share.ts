@@ -18,10 +18,7 @@ import { getDb, files, shares } from '../../../db';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
 import type { ToolDefinition } from './types';
-import {
-  createShareLink as serviceCreateShare,
-  revokeShare as serviceRevokeShare,
-} from '../../../lib/shareService';
+import { createShareLink as serviceCreateShare, revokeShare as serviceRevokeShare } from '../../../lib/shareService';
 
 export const definitions: ToolDefinition[] = [
   // 1. create_share_link — 创建分享链接
@@ -129,7 +126,6 @@ export const definitions: ToolDefinition[] = [
     },
   },
 
-
   // B. 直链管理（2个新工具）🔥
   {
     type: 'function',
@@ -183,7 +179,11 @@ export const definitions: ToolDefinition[] = [
           folderId: { type: 'string', description: '目标文件夹 ID' },
           password: { type: 'string', description: '访问密码（可选，建议设置）' },
           expiresInHours: { type: 'number', description: '有效时长（小时），默认 72（3天）' },
-          allowedMimeTypes: { type: 'array', items: { type: 'string' }, description: '允许上传的文件类型（如 ["image/*","application/pdf"]），不传则不限' },
+          allowedMimeTypes: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '允许上传的文件类型（如 ["image/*","application/pdf"]），不传则不限',
+          },
           maxSizeBytes: { type: 'number', description: '单个文件大小限制（字节），如 10485760=10MB' },
           maxUploads: { type: 'number', description: '最大上传数量（可选）' },
           _confirmed: { type: 'boolean', description: '用户确认' },
@@ -195,7 +195,6 @@ export const definitions: ToolDefinition[] = [
 ];
 
 export class ShareTools {
-
   static async executeCreateShare(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
     const password = args.password as string | undefined;
@@ -220,11 +219,7 @@ export class ShareTools {
       hasPassword: !!password,
       expiresAt: expiresAtStr || null,
       downloadLimit: maxUses,
-      _next_actions: [
-        '✅ 分享链接已创建',
-        '可通过 list_shares 查看所有分享',
-        '可通过 revoke_share 撤销分享',
-      ],
+      _next_actions: ['✅ 分享链接已创建', '可通过 list_shares 查看所有分享', '可通过 revoke_share 撤销分享'],
     };
   }
 
@@ -260,7 +255,9 @@ export class ShareTools {
     const shareId = args.shareId as string;
     const db = getDb(env.DB);
 
-    const share = await db.select().from(shares)
+    const share = await db
+      .select()
+      .from(shares)
       .where(and(eq(shares.id, shareId), eq(shares.userId, userId)))
       .get();
     if (!share) return { error: '分享链接不存在' };
@@ -299,7 +296,9 @@ export class ShareTools {
     const shareId = args.shareId as string;
     const db = getDb(env.DB);
 
-    const share = await db.select().from(shares)
+    const share = await db
+      .select()
+      .from(shares)
       .where(and(eq(shares.id, shareId), eq(shares.userId, userId)))
       .get();
     if (!share) return { error: '分享链接不存在' };
@@ -313,7 +312,9 @@ export class ShareTools {
       stats: {
         totalDownloads: Number(share.downloadCount) || 0,
         downloadLimit: share.downloadLimit,
-        remainingDownloads: share.downloadLimit ? Math.max(0, share.downloadLimit - (Number(share.downloadCount) || 0)) : null,
+        remainingDownloads: share.downloadLimit
+          ? Math.max(0, share.downloadLimit - (Number(share.downloadCount) || 0))
+          : null,
       },
       timeInfo: {
         createdAt: share.createdAt,
@@ -330,7 +331,9 @@ export class ShareTools {
     const maxDownloads = args.maxDownloads as number | undefined;
     const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
     if (!file) return { error: '文件不存在或无权访问' };
@@ -338,11 +341,14 @@ export class ShareTools {
     const directLinkToken = generateSecureToken(48);
     const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000).toISOString();
 
-    await db.update(files).set({
-      directLinkToken,
-      directLinkExpiresAt: expiresAt,
-      updatedAt: new Date().toISOString(),
-    }).where(eq(files.id, fileId));
+    await db
+      .update(files)
+      .set({
+        directLinkToken,
+        directLinkExpiresAt: expiresAt,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(files.id, fileId));
 
     logger.info('AgentTool', 'Created direct link', { fileId, fileName: file.name, expiresInHours });
 
@@ -356,10 +362,7 @@ export class ShareTools {
       expiresInHours,
       maxDownloads,
       warning: '⚠️ 直链无需登录即可下载，请谨慎分享！',
-      _next_actions: [
-        '✅ 直链已创建',
-        '可通过 revoke_direct_link 紧急撤销',
-      ],
+      _next_actions: ['✅ 直链已创建', '可通过 revoke_direct_link 紧急撤销'],
     };
   }
 
@@ -367,16 +370,21 @@ export class ShareTools {
     const fileId = args.fileId as string;
     const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId)))
       .get();
     if (!file) return { error: '文件不存在' };
 
-    await db.update(files).set({
-      directLinkToken: null,
-      directLinkExpiresAt: null,
-      updatedAt: new Date().toISOString(),
-    }).where(eq(files.id, fileId));
+    await db
+      .update(files)
+      .set({
+        directLinkToken: null,
+        directLinkExpiresAt: null,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(files.id, fileId));
 
     logger.info('AgentTool', 'Revoked direct link', { fileId, fileName: file.name });
 
@@ -398,7 +406,9 @@ export class ShareTools {
     const maxUploads = args.maxUploads as number | undefined;
     const db = getDb(env.DB);
 
-    const folder = await db.select().from(files)
+    const folder = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, folderId), eq(files.userId, userId), eq(files.isFolder, true)))
       .get();
     if (!folder) return { error: '文件夹不存在' };
@@ -438,11 +448,7 @@ export class ShareTools {
       expiresAt,
       expiresInHours,
       securityTip: password ? '✅ 已设置密码保护' : '⚠️ 未设置密码，任何人都可以上传',
-      _next_actions: [
-        '✅ 上传链接已创建',
-        '可通过 list_shares(isUploadLink=true) 查看',
-        '可通过 revoke_share 撤销',
-      ],
+      _next_actions: ['✅ 上传链接已创建', '可通过 list_shares(isUploadLink=true) 查看', '可通过 revoke_share 撤销'],
     };
   }
 }
@@ -454,7 +460,9 @@ export class ShareTools {
 function generateSecureToken(length: number): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const values = crypto.getRandomValues(new Uint8Array(length));
-  return Array.from(values).map((v) => chars[v % chars.length]).join('');
+  return Array.from(values)
+    .map((v) => chars[v % chars.length])
+    .join('');
 }
 
 function formatSize(bytes: number): string {

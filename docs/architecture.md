@@ -44,6 +44,7 @@ OSSshelf 是一个基于 Cloudflare 部署的多厂商 OSS 文件管理系统，
 ### v4.2.0 (2026-04-06) - AI Agent 引擎与系统配置
 
 **核心变更**：
+
 - Agent 引擎：支持 Function Calling 工具调用、推理内容显示
 - AI 系统配置：可配置默认模型、参数、限制、重试策略、提示词模板
 - 向量库管理：查看和删除向量索引，支持分页和搜索
@@ -52,10 +53,12 @@ OSSshelf 是一个基于 Cloudflare 部署的多厂商 OSS 文件管理系统，
 - 自定义模型：支持任意 Workers AI 模型 ID
 
 **新增文件**：
+
 - 后端：`lib/ai/agentEngine.ts`, `lib/ai/aiConfigService.ts`, `lib/ai/agentTools.ts`, `lib/ai/utils.ts`
 - 前端：`components/ai/AIChatWidget.tsx`
 
 **新增数据库表**：
+
 - `ai_system_config`
 
 详细功能说明请参阅 [AI_FEATURES.md](./AI_FEATURES.md)，API 文档请参阅 [API_AI.md](./API_AI.md)。
@@ -63,6 +66,7 @@ OSSshelf 是一个基于 Cloudflare 部署的多厂商 OSS 文件管理系统，
 ### v4.1.0 (2026-04-03) - AI 系统全面升级
 
 **核心变更**：
+
 - 多模型架构：Model Gateway Pattern，支持 Workers AI + OpenAI 兼容 API
 - AI 对话系统：SSE 流式响应、会话管理、RAG 文件问答
 - AI 配置中心：模型管理、功能级配置、一键启用、连接测试
@@ -70,10 +74,12 @@ OSSshelf 是一个基于 Cloudflare 部署的多厂商 OSS 文件管理系统，
 - 批量操作优化：取消/超时/错误限制
 
 **新增文件**：
+
 - 后端：`lib/ai/modelGateway.ts`, `lib/ai/types.ts`, `lib/ai/adapters/*`, `routes/aiConfigRoutes.ts`, `routes/aiChatRoutes.ts`
 - 前端：`pages/AIChat.tsx`, `pages/AISettings.tsx`, `components/ai/**`
 
 **新增数据库表**：
+
 - `ai_models`, `ai_chat_sessions`, `ai_chat_messages`, `ai_usage_stats`
 
 ## 技术栈
@@ -607,23 +613,23 @@ ossshelf/
 
 #### ai_models (AI 模型配置表) - v4.1.0
 
-| 字段               | 类型    | 默认值 | 说明                    |
-| ------------------ | ------- | ------ | ----------------------- |
-| `id`               | TEXT    | -      | 主键                    |
-| `userId`           | TEXT    | -      | 用户 ID (外键 → users)  |
-| `name`             | TEXT    | -      | 模型显示名称            |
-| `provider`         | TEXT    | -      | providers (workers_ai/openai_compatible) |
-| `modelId`          | TEXT    | -      | 模型 ID                |
-| `apiEndpoint`      | TEXT    | -      | API 端点（可选）        |
-| `apiKeyEncrypted`   | TEXT    | -      | 加密的 API Key          |
-| `isActive`         | INTEGER | false  | 是否激活 (0/1)          |
-| `capabilities`     | TEXT    | '[]'   | 能力 JSON 数组          |
-| `maxTokens`        | INTEGER | 4096   | 最大 Token 数           |
-| `temperature`      | REAL    | 0.7    | 温度参数                |
-| `systemPrompt`     | TEXT    | -      | 系统提示词（可选）       |
-| `configJson`       | TEXT    | '{}'   | 扩展配置 JSON           |
-| `createdAt`        | TEXT    | -      | 创建时间                |
-| `updatedAt`        | TEXT    | -      | 更新时间                |
+| 字段              | 类型    | 默认值 | 说明                                     |
+| ----------------- | ------- | ------ | ---------------------------------------- |
+| `id`              | TEXT    | -      | 主键                                     |
+| `userId`          | TEXT    | -      | 用户 ID (外键 → users)                   |
+| `name`            | TEXT    | -      | 模型显示名称                             |
+| `provider`        | TEXT    | -      | providers (workers_ai/openai_compatible) |
+| `modelId`         | TEXT    | -      | 模型 ID                                  |
+| `apiEndpoint`     | TEXT    | -      | API 端点（可选）                         |
+| `apiKeyEncrypted` | TEXT    | -      | 加密的 API Key                           |
+| `isActive`        | INTEGER | false  | 是否激活 (0/1)                           |
+| `capabilities`    | TEXT    | '[]'   | 能力 JSON 数组                           |
+| `maxTokens`       | INTEGER | 4096   | 最大 Token 数                            |
+| `temperature`     | REAL    | 0.7    | 温度参数                                 |
+| `systemPrompt`    | TEXT    | -      | 系统提示词（可选）                       |
+| `configJson`      | TEXT    | '{}'   | 扩展配置 JSON                            |
+| `createdAt`       | TEXT    | -      | 创建时间                                 |
+| `updatedAt`       | TEXT    | -      | 更新时间                                 |
 
 **索引**: `idx_ai_models_user_active`
 
@@ -641,14 +647,14 @@ ossshelf/
 
 #### ai_chat_messages (AI 对话消息表) - v4.1.0
 
-| 字段        | 类型 | 说明                       |
-| ----------- | ---- | -------------------------- |
-| `id`        | TEXT | 主键                       |
+| 字段        | 类型 | 说明                              |
+| ----------- | ---- | --------------------------------- |
+| `id`        | TEXT | 主键                              |
 | `sessionId` | TEXT | 会话 ID (外键 → ai_chat_sessions) |
-| `role`      | TEXT | 角色: user/assistant/system |
-| `content`   | TEXT | 消息内容                   |
-| `sources`   | TEXT | 来源文件 JSON（可选）       |
-| `createdAt` | TEXT | 创建时间                   |
+| `role`      | TEXT | 角色: user/assistant/system       |
+| `content`   | TEXT | 消息内容                          |
+| `sources`   | TEXT | 来源文件 JSON（可选）             |
+| `createdAt` | TEXT | 创建时间                          |
 
 **索引**: `idx_ai_chat_messages_session`
 
@@ -711,36 +717,36 @@ ossshelf/
 
 ## API 路由（定义于 `apps/api/src/index.ts`）
 
-| 路由前缀             | 模块             | 说明                                      |
-| -------------------- | ---------------- | ----------------------------------------- |
-| `/api/auth`          | auth.ts          | 用户认证、邮箱验证、密码重置 (v4.0.0增强) |
-| `/api/files`         | files.ts         | 文件管理                                  |
-| `/api/buckets`       | buckets.ts       | 存储桶管理                                |
-| `/api/share`         | share.ts         | 文件分享                                  |
-| `/api/direct`        | directLink.ts    | 文件直链                                  |
-| `/api/presign`       | presign.ts       | 预签名 URL                                |
-| `/api/tasks`         | tasks.ts         | 上传任务                                  |
-| `/api/downloads`     | downloads.ts     | 离线下载                                  |
-| `/api/batch`         | batch.ts         | 批量操作                                  |
-| `/api/search`        | search.ts        | 文件搜索                                  |
-| `/api/permissions`   | permissions.ts   | 权限与标签                                |
-| `/api/preview`       | preview.ts       | 文件预览                                  |
-| `/api/versions`      | versions.ts      | 版本控制 (v3.3.0)                         |
-| `/api/notes`         | notes.ts         | 文件笔记 (v3.5.0)                         |
-| `/api/api-keys`      | apiKeys.ts       | API Keys (v3.5.0)                         |
-| `/api/groups`        | groups.ts        | 用户组管理 (v3.6.0)                       |
-| `/api/webhooks`      | webhooks.ts      | Webhook 管理 (v3.6.0)                     |
-| `/api/ai`            | ai.ts            | AI 文件处理功能 (v3.7.0, v4.2.0 增强) |
+| 路由前缀             | 模块              | 说明                                        |
+| -------------------- | ----------------- | ------------------------------------------- |
+| `/api/auth`          | auth.ts           | 用户认证、邮箱验证、密码重置 (v4.0.0增强)   |
+| `/api/files`         | files.ts          | 文件管理                                    |
+| `/api/buckets`       | buckets.ts        | 存储桶管理                                  |
+| `/api/share`         | share.ts          | 文件分享                                    |
+| `/api/direct`        | directLink.ts     | 文件直链                                    |
+| `/api/presign`       | presign.ts        | 预签名 URL                                  |
+| `/api/tasks`         | tasks.ts          | 上传任务                                    |
+| `/api/downloads`     | downloads.ts      | 离线下载                                    |
+| `/api/batch`         | batch.ts          | 批量操作                                    |
+| `/api/search`        | search.ts         | 文件搜索                                    |
+| `/api/permissions`   | permissions.ts    | 权限与标签                                  |
+| `/api/preview`       | preview.ts        | 文件预览                                    |
+| `/api/versions`      | versions.ts       | 版本控制 (v3.3.0)                           |
+| `/api/notes`         | notes.ts          | 文件笔记 (v3.5.0)                           |
+| `/api/api-keys`      | apiKeys.ts        | API Keys (v3.5.0)                           |
+| `/api/groups`        | groups.ts         | 用户组管理 (v3.6.0)                         |
+| `/api/webhooks`      | webhooks.ts       | Webhook 管理 (v3.6.0)                       |
+| `/api/ai`            | ai.ts             | AI 文件处理功能 (v3.7.0, v4.2.0 增强)       |
 | `/api/ai-config`     | aiConfigRoutes.ts | AI 配置管理、系统配置 (v4.1.0, v4.2.0 增强) |
-| `/api/ai-chat`       | aiChatRoutes.ts   | AI 对话系统 (v4.1.0) |
-| `/api/analytics`     | analytics.ts     | 存储分析 (v3.8.0)                         |
-| `/api/notifications` | notifications.ts | 通知系统 (v3.8.0)                         |
-| `/api/v1`            | v1/index.ts      | RESTful v1 (v3.6.0)                       |
-| `/api/admin`         | admin.ts         | 管理员接口、邮件配置 (v4.0.0增强)         |
-| `/api/migrate`       | migrate.ts       | 存储桶迁移                                |
-| `/api/telegram`      | telegram.ts      | Telegram 存储                             |
-| `/cron`              | cron.ts          | 定时任务                                  |
-| `/dav`               | webdav.ts        | WebDAV 协议                               |
+| `/api/ai-chat`       | aiChatRoutes.ts   | AI 对话系统 (v4.1.0)                        |
+| `/api/analytics`     | analytics.ts      | 存储分析 (v3.8.0)                           |
+| `/api/notifications` | notifications.ts  | 通知系统 (v3.8.0)                           |
+| `/api/v1`            | v1/index.ts       | RESTful v1 (v3.6.0)                         |
+| `/api/admin`         | admin.ts          | 管理员接口、邮件配置 (v4.0.0增强)           |
+| `/api/migrate`       | migrate.ts        | 存储桶迁移                                  |
+| `/api/telegram`      | telegram.ts       | Telegram 存储                               |
+| `/cron`              | cron.ts           | 定时任务                                    |
+| `/dav`               | webdav.ts         | WebDAV 协议                                 |
 
 ---
 
@@ -843,17 +849,17 @@ apps/web/src/
 ```typescript
 class ModelGateway {
   // 获取当前活跃模型
-  async getActiveModel(userId: string): Promise<ModelConfig | null>
+  async getActiveModel(userId: string): Promise<ModelConfig | null>;
 
   // 根据 ID 获取模型
-  async getModelById(modelId: string, userId: string): Promise<ModelConfig | null>
+  async getModelById(modelId: string, userId: string): Promise<ModelConfig | null>;
 
   // 聊天补全（非流式）
   async chatCompletion(
     userId: string,
     request: ChatCompletionRequest,
     modelId?: string
-  ): Promise<ChatCompletionResponse>
+  ): Promise<ChatCompletionResponse>;
 
   // 聊天补全（SSE 流式）
   async chatCompletionStream(
@@ -861,13 +867,13 @@ class ModelGateway {
     request: ChatCompletionRequest,
     onChunk: (chunk: StreamChunk) => void,
     options?: { modelId?: string; signal?: AbortSignal }
-  ): Promise<void>
+  ): Promise<void>;
 
   // 获取适配器实例
-  getAdapter(config: ModelConfig): IModelAdapter
+  getAdapter(config: ModelConfig): IModelAdapter;
 
   // 获取默认 Workers AI 模型配置
-  private getDefaultWorkersAiModel(): ModelConfig
+  private getDefaultWorkersAiModel(): ModelConfig;
 }
 ```
 
@@ -883,27 +889,27 @@ class AgentEngine {
     modelId?: string,
     onChunk?: (chunk: AgentChunk) => void,
     signal?: AbortSignal
-  ): Promise<AgentResult>
+  ): Promise<AgentResult>;
 
   // 内置工具
-  tools: ToolDefinition[]
+  tools: ToolDefinition[];
 
   // 工具执行
-  private async executeTool(toolName: string, args: Record<string, unknown>): Promise<ToolResult>
+  private async executeTool(toolName: string, args: Record<string, unknown>): Promise<ToolResult>;
 }
 
 // SSE 事件类型
 interface AgentChunk {
-  content?: string           // 文本内容
-  reasoning?: boolean        // 是否为推理内容
-  toolStart?: boolean        // 工具调用开始
-  toolResult?: boolean       // 工具调用结果
-  toolName?: string          // 工具名称
-  toolCallId?: string        // 工具调用 ID
-  args?: Record<string, unknown>  // 工具参数
-  result?: unknown           // 工具结果
-  done: boolean              // 是否完成
-  sources?: SourceFile[]     // 来源文件
+  content?: string; // 文本内容
+  reasoning?: boolean; // 是否为推理内容
+  toolStart?: boolean; // 工具调用开始
+  toolResult?: boolean; // 工具调用结果
+  toolName?: string; // 工具名称
+  toolCallId?: string; // 工具调用 ID
+  args?: Record<string, unknown>; // 工具参数
+  result?: unknown; // 工具结果
+  done: boolean; // 是否完成
+  sources?: SourceFile[]; // 来源文件
 }
 ```
 
@@ -912,30 +918,30 @@ interface AgentChunk {
 ```typescript
 class AiConfigService {
   // 获取所有系统配置
-  async getAllConfigs(env: Env): Promise<AiSystemConfigItem[]>
+  async getAllConfigs(env: Env): Promise<AiSystemConfigItem[]>;
 
   // 获取单个配置
-  async getConfig(env: Env, key: string): Promise<ConfigValue | null>
+  async getConfig(env: Env, key: string): Promise<ConfigValue | null>;
 
   // 更新配置
-  async setConfig(env: Env, key: string, value: ConfigValue): Promise<void>
+  async setConfig(env: Env, key: string, value: ConfigValue): Promise<void>;
 
   // 重置为默认值
-  async resetConfig(env: Env, key: string): Promise<void>
+  async resetConfig(env: Env, key: string): Promise<void>;
 }
 
 // 配置分类
-type ConfigCategory = 'model' | 'parameter' | 'limit' | 'retry' | 'prompt' | 'feature'
+type ConfigCategory = 'model' | 'parameter' | 'limit' | 'retry' | 'prompt' | 'feature';
 
 // 配置项示例
 interface AiSystemConfigItem {
-  key: string
-  label: string
-  description: string
-  category: ConfigCategory
-  valueType: 'string' | 'number' | 'boolean' | 'json'
-  defaultValue: string | number | boolean
-  isEditable: boolean
+  key: string;
+  label: string;
+  description: string;
+  category: ConfigCategory;
+  valueType: 'string' | 'number' | 'boolean' | 'json';
+  defaultValue: string | number | boolean;
+  isEditable: boolean;
 }
 ```
 
@@ -964,12 +970,12 @@ interface IModelAdapter {
 
 可以为每个 AI 功能单独指定使用的模型：
 
-| 功能 | 配置键 | 所需能力 | 默认模型 |
-|------|--------|---------|---------|
-| 文件摘要 | `summary` | `chat` | `@cf/meta/llama-3.1-8b-instruct` |
-| 图片描述 | `imageCaption` | `vision` | `@cf/llava-hf/llava-1.5-7b-hf` |
-| 图片标签 | `imageTag` | `classify` | `@cf/microsoft/resnet-50` |
-| 智能重命名 | `rename` | `chat` | `@cf/meta/llama-3.1-8b-instruct` |
+| 功能       | 配置键         | 所需能力   | 默认模型                         |
+| ---------- | -------------- | ---------- | -------------------------------- |
+| 文件摘要   | `summary`      | `chat`     | `@cf/meta/llama-3.1-8b-instruct` |
+| 图片描述   | `imageCaption` | `vision`   | `@cf/llava-hf/llava-1.5-7b-hf`   |
+| 图片标签   | `imageTag`     | `classify` | `@cf/microsoft/resnet-50`        |
+| 智能重命名 | `rename`       | `chat`     | `@cf/meta/llama-3.1-8b-instruct` |
 
 **配置存储**: KV (`ai:feature-model-config:{userId}`)，30天过期
 
@@ -977,44 +983,44 @@ interface IModelAdapter {
 
 #### ai_models（模型配置表）
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | text | 主键 UUID |
-| user_id | text | 用户 ID |
-| name | text | 模型显示名称 |
-| provider | text | providers: workers_ai / openai_compatible |
-| model_id | text | 模型 ID |
-| api_endpoint | text? | API 端点（OpenAI 兼容） |
-| api_key_encrypted | text? | 加密的 API Key |
-| is_active | integer | 是否激活 (0/1) |
-| capabilities | text | 能力 JSON 数组 |
-| max_tokens | integer | 最大 Token 数 |
-| temperature | real | 温度参数 |
-| system_prompt | text? | 系统提示词 |
-| config_json | text | 扩展配置 JSON |
-| created_at | text | 创建时间 |
-| updated_at | text | 更新时间 |
+| 字段              | 类型    | 说明                                      |
+| ----------------- | ------- | ----------------------------------------- |
+| id                | text    | 主键 UUID                                 |
+| user_id           | text    | 用户 ID                                   |
+| name              | text    | 模型显示名称                              |
+| provider          | text    | providers: workers_ai / openai_compatible |
+| model_id          | text    | 模型 ID                                   |
+| api_endpoint      | text?   | API 端点（OpenAI 兼容）                   |
+| api_key_encrypted | text?   | 加密的 API Key                            |
+| is_active         | integer | 是否激活 (0/1)                            |
+| capabilities      | text    | 能力 JSON 数组                            |
+| max_tokens        | integer | 最大 Token 数                             |
+| temperature       | real    | 温度参数                                  |
+| system_prompt     | text?   | 系统提示词                                |
+| config_json       | text    | 扩展配置 JSON                             |
+| created_at        | text    | 创建时间                                  |
+| updated_at        | text    | 更新时间                                  |
 
 #### ai_chat_sessions（对话会话表）
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | text | 主键 UUID |
-| user_id | text | 用户 ID |
-| title | text | 会话标题 |
-| created_at | text | 创建时间 |
-| updated_at | text | 更新时间 |
+| 字段       | 类型 | 说明      |
+| ---------- | ---- | --------- |
+| id         | text | 主键 UUID |
+| user_id    | text | 用户 ID   |
+| title      | text | 会话标题  |
+| created_at | text | 创建时间  |
+| updated_at | text | 更新时间  |
 
 #### ai_chat_messages（对话消息表）
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | text | 主键 UUID |
-| session_id | text | 会话 ID |
-| role | text | 角色: user / assistant / system |
-| content | text | 消息内容 |
-| sources | text? | 来源文件 JSON |
-| created_at | text | 创建时间 |
+| 字段       | 类型  | 说明                            |
+| ---------- | ----- | ------------------------------- |
+| id         | text  | 主键 UUID                       |
+| session_id | text  | 会话 ID                         |
+| role       | text  | 角色: user / assistant / system |
+| content    | text  | 消息内容                        |
+| sources    | text? | 来源文件 JSON                   |
+| created_at | text  | 创建时间                        |
 
 ---
 

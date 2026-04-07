@@ -98,7 +98,6 @@ export const definitions: ToolDefinition[] = [
 ];
 
 export class SystemTools {
-
   static async executeGetUserProfile(env: Env, userId: string, _args: Record<string, unknown>) {
     const db = getDb(env.DB);
 
@@ -150,7 +149,8 @@ export class SystemTools {
         conditions.push(or(isNull(apiKeys.expiresAt), (sql as any)`${apiKeys.expiresAt} > NOW()`));
       }
 
-      const keys = await db.select()
+      const keys = await db
+        .select()
         .from(apiKeys)
         .where(and(...conditions))
         .orderBy(desc(apiKeys.createdAt))
@@ -218,7 +218,8 @@ export class SystemTools {
     const reason = args.reason as string | undefined;
     const db = getDb(env.DB);
 
-    await db.delete(apiKeys)
+    await db
+      .delete(apiKeys)
       .where(and(eq(apiKeys.id, keyId), eq(apiKeys.userId, userId)))
       .run();
 
@@ -243,7 +244,8 @@ export class SystemTools {
         conditions.push(eq(webhooks.isActive, true));
       }
 
-      const hooks = await db.select()
+      const hooks = await db
+        .select()
         .from(webhooks)
         .where(and(...conditions))
         .orderBy(desc(webhooks.createdAt))
@@ -306,15 +308,13 @@ export class SystemTools {
     const sinceDate = new Date(Date.now() - sinceHours * 60 * 60 * 1000).toISOString();
 
     try {
-      const conditions: any[] = [
-        eq(auditLogs.userId, userId),
-        (sql as any)`${auditLogs.createdAt} >= ${sinceDate}`,
-      ];
+      const conditions: any[] = [eq(auditLogs.userId, userId), (sql as any)`${auditLogs.createdAt} >= ${sinceDate}`];
       if (actionType) {
         conditions.push(like(auditLogs.action, `%${actionType}%`));
       }
 
-      const logs = await db.select()
+      const logs = await db
+        .select()
         .from(auditLogs)
         .where(and(...conditions))
         .orderBy(desc(auditLogs.createdAt))

@@ -135,13 +135,14 @@ export const definitions: ToolDefinition[] = [
 ];
 
 export class TagsTools {
-
   static async executeAddTag(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
     const tags = (args.tags as string[]) || [];
     const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
     if (!file) return { error: `文件不存在或无权访问: ${fileId}` };
@@ -151,7 +152,9 @@ export class TagsTools {
     for (const tagName of tags) {
       if (!tagName) continue;
 
-      const existing = await db.select().from(fileTags)
+      const existing = await db
+        .select()
+        .from(fileTags)
         .where(and(eq(fileTags.fileId, fileId), eq(fileTags.name, tagName)))
         .get();
 
@@ -185,7 +188,8 @@ export class TagsTools {
 
     let removedCount = 0;
     for (const tagName of tags) {
-      await db.delete(fileTags)
+      await db
+        .delete(fileTags)
         .where(and(eq(fileTags.fileId, fileId), eq(fileTags.name, tagName)))
         .run();
       removedCount += 1;
@@ -238,21 +242,18 @@ export class TagsTools {
       return { error: '源标签和目标标签不能相同' };
     }
 
-    const sourceRecords = await db.select()
+    const sourceRecords = await db
+      .select()
       .from(fileTags)
       .where(and(eq(fileTags.userId, userId), eq(fileTags.name, sourceTag)))
       .all();
 
     let migratedCount = 0;
     for (const record of sourceRecords) {
-
-      const existingTarget = await db.select()
+      const existingTarget = await db
+        .select()
         .from(fileTags)
-        .where(and(
-          eq(fileTags.userId, userId),
-          eq(fileTags.fileId, record.fileId),
-          eq(fileTags.name, targetTag)
-        ))
+        .where(and(eq(fileTags.userId, userId), eq(fileTags.fileId, record.fileId), eq(fileTags.name, targetTag)))
         .get();
 
       if (!existingTarget) {
@@ -283,10 +284,7 @@ export class TagsTools {
       message: `自动打标签任务已加入队列，将为 ${fileIds.length} 个文件各推荐最多 ${maxTagsPerFile} 个标签`,
       fileIds,
       maxTagsPerFile,
-      _next_actions: [
-        '完成后可通过 get_file_detail 查看更新后的标签',
-        '可通过 search_by_tag 按新标签搜索',
-      ],
+      _next_actions: ['完成后可通过 get_file_detail 查看更新后的标签', '可通过 search_by_tag 按新标签搜索'],
     };
   }
 
@@ -296,7 +294,9 @@ export class TagsTools {
     const recursive = args.recursive === true;
     const db = getDb(env.DB);
 
-    const folder = await db.select().from(files)
+    const folder = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, folderId), eq(files.userId, userId), eq(files.isFolder, true)))
       .get();
     if (!folder) return { error: '文件夹不存在' };
@@ -309,13 +309,18 @@ export class TagsTools {
     }
     conditions.push(eq(files.isFolder, false));
 
-    const filesInFolder = await db.select({ id: files.id }).from(files).where(and(...conditions)).all();
+    const filesInFolder = await db
+      .select({ id: files.id })
+      .from(files)
+      .where(and(...conditions))
+      .all();
     const fileIdsInFolder = filesInFolder.map((f) => f.id);
 
     let totalAdded = 0;
     for (const fileId of fileIdsInFolder) {
       for (const tag of tags) {
-        const existing = await db.select()
+        const existing = await db
+          .select()
           .from(fileTags)
           .where(and(eq(fileTags.fileId, fileId), eq(fileTags.name, tag)))
           .get();
@@ -346,7 +351,18 @@ export class TagsTools {
 }
 
 function generateTagColor(tagName: string): string {
-  const colors = ['#EF4444', '#F97316', '#F59E0B', '#84CC16', '#22C55E', '#14B8A6', '#06B6D4', '#3B82F6', '#8B5CF6', '#D946EF'];
+  const colors = [
+    '#EF4444',
+    '#F97316',
+    '#F59E0B',
+    '#84CC16',
+    '#22C55E',
+    '#14B8A6',
+    '#06B6D4',
+    '#3B82F6',
+    '#8B5CF6',
+    '#D946EF',
+  ];
   let hash = 0;
   for (let i = 0; i < tagName.length; i++) {
     hash = tagName.charCodeAt(i) + ((hash << 5) - hash);

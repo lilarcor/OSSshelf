@@ -15,10 +15,7 @@
 
 import { eq, and, isNull, desc, asc, like, sql, count } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
-import {
-  getDb,
-  files,
-} from '../../../db';
+import { getDb, files } from '../../../db';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
 import type { ToolDefinition, AgentFile } from './types';
@@ -147,23 +144,24 @@ export const definitions: ToolDefinition[] = [
 ];
 
 export class NavigationTools {
-
   static async executeListFolder(env: Env, userId: string, args: Record<string, unknown>) {
     const db = getDb(env.DB);
     let parentId: string | null = null;
 
     if (args.folderId) {
-      const folder = await db.select().from(files)
+      const folder = await db
+        .select()
+        .from(files)
         .where(and(eq(files.id, args.folderId as string), eq(files.userId, userId), isNull(files.deletedAt)))
         .get();
       if (!folder) return { error: `文件夹不存在: ${args.folderId}` };
       if (!folder.isFolder) return { error: `${args.folderId} 不是文件夹` };
       parentId = folder.id;
     } else if (args.folderPath) {
-      const folder = await db.select().from(files)
-        .where(
-          and(eq(files.userId, userId), eq(files.path, args.folderPath as string), isNull(files.deletedAt))
-        )
+      const folder = await db
+        .select()
+        .from(files)
+        .where(and(eq(files.userId, userId), eq(files.path, args.folderPath as string), isNull(files.deletedAt)))
         .get();
       if (folder) parentId = folder.id;
     }
@@ -182,7 +180,13 @@ export class NavigationTools {
     const rows = await db
       .select()
       .from(files)
-      .where(and(eq(files.userId, userId), isNull(files.deletedAt), parentId ? eq(files.parentId, parentId) : isNull(files.parentId)))
+      .where(
+        and(
+          eq(files.userId, userId),
+          isNull(files.deletedAt),
+          parentId ? eq(files.parentId, parentId) : isNull(files.parentId)
+        )
+      )
       .orderBy(orderMap[sortBy] ?? asc(files.name))
       .limit(limit)
       .all();
@@ -197,8 +201,7 @@ export class NavigationTools {
       total: children.length,
       folderCount,
       fileCount,
-      _next_actions:
-        folderCount > 0 ? ['如需进入某个子文件夹，请使用其 id 作为 folderId 调用本工具'] : [],
+      _next_actions: folderCount > 0 ? ['如需进入某个子文件夹，请使用其 id 作为 folderId 调用本工具'] : [],
     };
   }
 
@@ -249,7 +252,8 @@ export class NavigationTools {
     const tree = await buildTree(rootFolderId || null, maxDepth);
 
     function countNodes(nodes: any[]): { folders: number; files: number } {
-      let folders = 0, files = 0;
+      let folders = 0,
+        files = 0;
       for (const n of nodes) {
         if (n.isFolder) {
           folders++;
@@ -287,30 +291,34 @@ export class NavigationTools {
       if (!currentFolderId) {
         return { error: '需要提供 currentFolderId 才能返回父级' };
       }
-      const current = await db.select().from(files)
+      const current = await db
+        .select()
+        .from(files)
         .where(and(eq(files.id, currentFolderId), eq(files.userId, userId)))
         .get();
       targetId = current?.parentId || null;
     } else if (path.startsWith('/') || path.startsWith('\\')) {
-      const folder = await db.select().from(files)
-        .where(
-          and(eq(files.userId, userId), eq(files.path, path), isNull(files.deletedAt))
-        )
+      const folder = await db
+        .select()
+        .from(files)
+        .where(and(eq(files.userId, userId), eq(files.path, path), isNull(files.deletedAt)))
         .get();
       targetId = folder?.id || null;
     } else {
       const current = currentFolderId
-        ? await db.select().from(files).where(and(eq(files.id, currentFolderId), eq(files.userId, userId))).get()
+        ? await db
+            .select()
+            .from(files)
+            .where(and(eq(files.id, currentFolderId), eq(files.userId, userId)))
+            .get()
         : null;
 
-      const searchPath = current?.path
-        ? `${current.path}/${path}`
-        : `/${path}`;
+      const searchPath = current?.path ? `${current.path}/${path}` : `/${path}`;
 
-      const folder = await db.select().from(files)
-        .where(
-          and(eq(files.userId, userId), like(files.path, `%${searchPath}%`), isNull(files.deletedAt))
-        )
+      const folder = await db
+        .select()
+        .from(files)
+        .where(and(eq(files.userId, userId), like(files.path, `%${searchPath}%`), isNull(files.deletedAt)))
         .get();
       targetId = folder?.id || null;
     }
@@ -407,9 +415,7 @@ export class NavigationTools {
             })),
           }
         : {}),
-      _next_actions: [
-        '如需查看某文件夹详细内容，调用 list_folder 并传入 folderId',
-      ],
+      _next_actions: ['如需查看某文件夹详细内容，调用 list_folder 并传入 folderId'],
     };
   }
 }

@@ -127,12 +127,14 @@ All notable changes to this project will be documented in this file.
 **新文件**
 
 后端：
+
 - `apps/api/src/lib/ai/agentEngine.ts` - Agent 引擎
 - `apps/api/src/lib/ai/aiConfigService.ts` - AI 配置服务
 - `apps/api/src/lib/ai/agentTools.ts` - Agent 工具集
 - `apps/api/src/lib/ai/utils.ts` - AI 工具函数
 
 前端：
+
 - `apps/web/src/components/ai/AIChatWidget.tsx` - 全局悬浮聊天组件
 
 ### Changed
@@ -181,16 +183,16 @@ All notable changes to this project will be documented in this file.
 
 **Workers AI 可用模型**
 
-| 模型 | 参数量 | 类型 | 说明 |
-|------|--------|------|------|
-| DeepSeek R1 Distill Qwen 32B | 32B | chat | 推理能力强，数学/代码专家 |
-| Llama 3.3 70B (FP8) | 70B | chat | Meta 最新大模型 |
-| Qwen 1.5 14B Chat | 14B | chat | 中文能力优秀 |
-| Llama 3.1 8B Instruct | 8B | chat | 默认模型，通用问答 |
-| Mistral 7B Instruct v0.2 | 7B | chat | 响应速度快 |
-| Gemma 2B LoRA | 2B | chat | 轻量极速 |
-| LLaVA 1.5 7B Vision | 7B | vision | 图片理解 |
-| BGE-M3 Embedding | - | embedding | 向量化/语义搜索 |
+| 模型                         | 参数量 | 类型      | 说明                      |
+| ---------------------------- | ------ | --------- | ------------------------- |
+| DeepSeek R1 Distill Qwen 32B | 32B    | chat      | 推理能力强，数学/代码专家 |
+| Llama 3.3 70B (FP8)          | 70B    | chat      | Meta 最新大模型           |
+| Qwen 1.5 14B Chat            | 14B    | chat      | 中文能力优秀              |
+| Llama 3.1 8B Instruct        | 8B     | chat      | 默认模型，通用问答        |
+| Mistral 7B Instruct v0.2     | 7B     | chat      | 响应速度快                |
+| Gemma 2B LoRA                | 2B     | chat      | 轻量极速                  |
+| LLaVA 1.5 7B Vision          | 7B     | vision    | 图片理解                  |
+| BGE-M3 Embedding             | -      | embedding | 向量化/语义搜索           |
 
 **批量操作优化**
 
@@ -257,6 +259,7 @@ app.route('/api/ai-chat', aiChatRoutes)     # AI 对话系统
 **新文件**
 
 后端：
+
 - `apps/api/src/lib/ai/modelGateway.ts` - 模型网关
 - `apps/api/src/lib/ai/types.ts` - 类型定义
 - `apps/api/src/lib/ai/adapters/workersAiAdapter.ts` - Workers AI 适配器
@@ -266,6 +269,7 @@ app.route('/api/ai-chat', aiChatRoutes)     # AI 对话系统
 - `apps/api/src/routes/aiChatRoutes.ts` - AI 对话路由
 
 前端：
+
 - `pages/AIChat.tsx` - AI 对话页面
 - `pages/AISettings.tsx` - AI 设置页面
 - `components/ai/chat/ChatMessageBubble.tsx` - 消息气泡组件

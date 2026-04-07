@@ -365,13 +365,7 @@ async function handleNormalChat(
   }
 }
 
-async function handleStreamChat(
-  c: any,
-  userId: string,
-  query: string,
-  sessionId?: string,
-  modelId?: string
-) {
+async function handleStreamChat(c: any, userId: string, query: string, sessionId?: string, modelId?: string) {
   const startTime = Date.now();
   let actualSessionId = sessionId;
 

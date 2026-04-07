@@ -45,7 +45,14 @@ export interface ModelConfig {
   updatedAt: string;
 }
 
-export type AiFeatureType = 'image_caption' | 'image_tag' | 'image_analysis' | 'chat' | 'file_summary' | 'summary' | 'rename';
+export type AiFeatureType =
+  | 'image_caption'
+  | 'image_tag'
+  | 'image_analysis'
+  | 'chat'
+  | 'file_summary'
+  | 'summary'
+  | 'rename';
 
 export interface ChatCompletionRequest {
   messages: ChatMessage[];

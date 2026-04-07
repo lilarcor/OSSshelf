@@ -37,19 +37,79 @@ import { readFileContent } from '../../../lib/fileContentHelper';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ALLOWED_TEXT_EXTENSIONS = [
-  '.txt', '.md', '.csv', '.json', '.xml', '.yaml', '.yml',
-  '.log', '.html', '.htm', '.css', '.js', '.ts', '.jsx', '.tsx',
-  '.py', '.java', '.go', '.rs', '.c', '.cpp', '.h', '.php',
-  '.rb', '.swift', '.kt', '.sql', '.sh', '.bash', '.env',
-  '.gitignore', '.dockerignore', '.editorconfig', '.prettierrc',
+  '.txt',
+  '.md',
+  '.csv',
+  '.json',
+  '.xml',
+  '.yaml',
+  '.yml',
+  '.log',
+  '.html',
+  '.htm',
+  '.css',
+  '.js',
+  '.ts',
+  '.jsx',
+  '.tsx',
+  '.py',
+  '.java',
+  '.go',
+  '.rs',
+  '.c',
+  '.cpp',
+  '.h',
+  '.php',
+  '.rb',
+  '.swift',
+  '.kt',
+  '.sql',
+  '.sh',
+  '.bash',
+  '.env',
+  '.gitignore',
+  '.dockerignore',
+  '.editorconfig',
+  '.prettierrc',
 ];
 
 const ALLOWED_CODE_EXTENSIONS = [
-  '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.go', '.rs',
-  '.c', '.cpp', '.h', '.hpp', '.php', '.rb', '.swift', '.kt',
-  '.cs', '.scala', '.r', '.lua', '.perl', '.vue', '.svelte',
-  '.json', '.yaml', '.yml', '.toml', '.ini', '.conf', '.sql',
-  '.sh', '.bash', '.zsh', '.ps1', '.bat', '.cmd',
+  '.js',
+  '.ts',
+  '.jsx',
+  '.tsx',
+  '.py',
+  '.java',
+  '.go',
+  '.rs',
+  '.c',
+  '.cpp',
+  '.h',
+  '.hpp',
+  '.php',
+  '.rb',
+  '.swift',
+  '.kt',
+  '.cs',
+  '.scala',
+  '.r',
+  '.lua',
+  '.perl',
+  '.vue',
+  '.svelte',
+  '.json',
+  '.yaml',
+  '.yml',
+  '.toml',
+  '.ini',
+  '.conf',
+  '.sql',
+  '.sh',
+  '.bash',
+  '.zsh',
+  '.ps1',
+  '.bat',
+  '.cmd',
 ];
 
 const MIME_TYPE_MAP: Record<string, string> = {
@@ -435,7 +495,6 @@ export const definitions: ToolDefinition[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class FileOpsTools {
-
   static async executeCreateTextFile(env: Env, userId: string, args: Record<string, unknown>) {
     const content = args.content as string;
     const fileName = args.fileName as string;
@@ -520,7 +579,7 @@ export class FileOpsTools {
     const templates: Record<string, { defaultName: string; generator: (vars?: Record<string, string>) => string }> = {
       readme: {
         defaultName: 'README.md',
-        generator: (vars) => `# ${(vars?.projectName || 'My Project')}
+        generator: (vars) => `# ${vars?.projectName || 'My Project'}
 
 ## 简介
 ${vars?.description || '项目简介'}
@@ -538,7 +597,7 @@ npm run dev
 \`\`\`
 
 ## 作者
-${vars?.author || 'Unknown'} · ${(new Date()).getFullYear()}
+${vars?.author || 'Unknown'} · ${new Date().getFullYear()}
 `,
       },
       gitignore: {
@@ -555,18 +614,23 @@ dist/
       },
       'package-json': {
         defaultName: 'package.json',
-        generator: (vars) => JSON.stringify({
-          name: vars?.projectName || 'my-project',
-          version: vars?.version || '1.0.0',
-          description: vars?.description || '',
-          main: 'index.js',
-          scripts: {
-            start: 'node index.js',
-            dev: 'nodemon index.js',
-          },
-          dependencies: {},
-          devDependencies: {},
-        }, null, 2),
+        generator: (vars) =>
+          JSON.stringify(
+            {
+              name: vars?.projectName || 'my-project',
+              version: vars?.version || '1.0.0',
+              description: vars?.description || '',
+              main: 'index.js',
+              scripts: {
+                start: 'node index.js',
+                dev: 'nodemon index.js',
+              },
+              dependencies: {},
+              devDependencies: {},
+            },
+            null,
+            2
+          ),
       },
       'docker-compose': {
         defaultName: 'docker-compose.yml',
@@ -585,21 +649,26 @@ services:
       },
       'config-json': {
         defaultName: 'config.json',
-        generator: (vars) => JSON.stringify({
-          app: {
-            name: vars?.appName || 'My App',
-            version: '1.0.0',
-          },
-          server: {
-            host: '0.0.0.0',
-            port: 3000,
-          },
-          database: {
-            host: 'localhost',
-            port: 5432,
-            name: (vars?.dbName || 'mydb'),
-          },
-        }, null, 2),
+        generator: (vars) =>
+          JSON.stringify(
+            {
+              app: {
+                name: vars?.appName || 'My App',
+                version: '1.0.0',
+              },
+              server: {
+                host: '0.0.0.0',
+                port: 3000,
+              },
+              database: {
+                host: 'localhost',
+                port: 5432,
+                name: vars?.dbName || 'mydb',
+              },
+            },
+            null,
+            2
+          ),
       },
     };
 
@@ -619,13 +688,15 @@ services:
 
   static async executeEditFileContent(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
-    const edits = args.edits as Array<{operation: string; oldValue?: string; newValue?: string; position?: number}>;
+    const edits = args.edits as Array<{ operation: string; oldValue?: string; newValue?: string; position?: number }>;
 
     logger.info('FileOpsTool', '开始编辑文件', { fileId });
 
     // 使用公共的文件读取模块（复用 preview.ts /raw 路由逻辑）
     const db = getDb(env.DB);
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
 
@@ -643,14 +714,16 @@ services:
     }
 
     let newContent = readResult.content;
-    const appliedEdits: Array<{operation: string; success: boolean}> = [];
+    const appliedEdits: Array<{ operation: string; success: boolean }> = [];
 
-    for (const edit of (edits || [])) {
+    for (const edit of edits || []) {
       try {
         switch (edit.operation) {
           case 'replace':
             if (edit.oldValue && edit.newValue !== undefined) {
-              newContent = newContent.includes(edit.oldValue) ? newContent.replace(edit.oldValue, edit.newValue) : newContent;
+              newContent = newContent.includes(edit.oldValue)
+                ? newContent.replace(edit.oldValue, edit.newValue)
+                : newContent;
               appliedEdits.push({ operation: 'replace', success: true });
             }
             break;
@@ -704,10 +777,12 @@ services:
 
     return FileOpsTools.executeEditFileContent(env, userId, {
       fileId,
-      edits: [{
-        operation: 'append',
-        newValue: (addNewline ? '\n' : '') + content,
-      }],
+      edits: [
+        {
+          operation: 'append',
+          newValue: (addNewline ? '\n' : '') + content,
+        },
+      ],
     });
   }
 
@@ -719,7 +794,9 @@ services:
     const replaceAll = args.replaceAll !== false;
 
     const db = getDb(env.DB);
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
 
@@ -770,15 +847,15 @@ services:
     }
 
     try {
-      await env.FILES?.put(
-        file.r2Key!,
-        new TextEncoder().encode(newContent)
-      );
+      await env.FILES?.put(file.r2Key!, new TextEncoder().encode(newContent));
 
-      await db.update(files).set({
-        size: new TextEncoder().encode(newContent).length,
-        updatedAt: new Date().toISOString(),
-      }).where(eq(files.id, fileId));
+      await db
+        .update(files)
+        .set({
+          size: new TextEncoder().encode(newContent).length,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(files.id, fileId));
     } catch (error) {
       logger.error('FileOpsTool', 'Failed to save after find-replace', { fileId }, error);
       return { error: '保存失败' };
@@ -825,8 +902,16 @@ services:
     const db = getDb(env.DB);
 
     const [file, targetFolder] = await Promise.all([
-      db.select().from(files).where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt))).get(),
-      db.select().from(files).where(and(eq(files.id, targetFolderId), eq(files.userId, userId))).get(),
+      db
+        .select()
+        .from(files)
+        .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
+        .get(),
+      db
+        .select()
+        .from(files)
+        .where(and(eq(files.id, targetFolderId), eq(files.userId, userId)))
+        .get(),
     ]);
 
     if (!file) return { error: '源文件不存在或无权访问' };
@@ -856,10 +941,7 @@ services:
       const sourceObject = await env.FILES?.get(file.r2Key!);
       if (sourceObject) {
         const body = await sourceObject.arrayBuffer();
-        await env.FILES?.put(
-          `uploads/${userId}/${newFileId}/${finalName}`,
-          new Uint8Array(body)
-        );
+        await env.FILES?.put(`uploads/${userId}/${newFileId}/${finalName}`, new Uint8Array(body));
       }
     } catch (error) {
       logger.error('FileOpsTool', 'Failed to copy file in R2', { sourceId: fileId, newFileId }, error);
@@ -903,16 +985,21 @@ services:
     const fileId = args.fileId as string;
     const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId), isNotNull(files.deletedAt)))
       .get();
 
     if (!file) return { error: '该文件不在回收站中或不存在' };
 
-    await db.update(files).set({
-      deletedAt: null,
-      updatedAt: new Date().toISOString(),
-    }).where(eq(files.id, fileId));
+    await db
+      .update(files)
+      .set({
+        deletedAt: null,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(files.id, fileId));
 
     return {
       success: true,
@@ -949,13 +1036,7 @@ services:
     const rows = await db
       .select()
       .from(files)
-      .where(
-        and(
-          eq(files.userId, userId),
-          isNull(files.deletedAt),
-          inArray(files.id, fileIds)
-        )
-      )
+      .where(and(eq(files.userId, userId), isNull(files.deletedAt), inArray(files.id, fileIds)))
       .all();
 
     if (rows.length === 0) {
@@ -963,7 +1044,7 @@ services:
     }
 
     const previews = rows.map((row, idx) => {
-      let newName = template
+      const newName = template
         .replace('{序号}', String(idx + 1).padStart(2, '0'))
         .replace('{index}', String(idx))
         .replace('{原文件名}', row.name)
@@ -1023,7 +1104,9 @@ services:
     const reason = args.reason as string | undefined;
     const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
 
@@ -1043,10 +1126,13 @@ services:
       };
     }
 
-    await db.update(files).set({
-      isStarred: true,
-      updatedAt: new Date().toISOString(),
-    }).where(eq(files.id, fileId));
+    await db
+      .update(files)
+      .set({
+        isStarred: true,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(files.id, fileId));
 
     logger.info('AgentTool', 'Starred file', { fileId, fileName: file.name, reason: reason || '(none)' });
 
@@ -1055,10 +1141,7 @@ services:
       message: `已收藏 "${file.name}"${reason ? ` (${reason})` : ''}`,
       fileId,
       fileName: file.name,
-      _next_actions: [
-        '✅ 收藏成功',
-        '可通过 filter_files(isStarred=true) 查看所有收藏的文件',
-      ],
+      _next_actions: ['✅ 收藏成功', '可通过 filter_files(isStarred=true) 查看所有收藏的文件'],
     };
   }
 
@@ -1066,7 +1149,9 @@ services:
     const fileId = args.fileId as string;
     const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
 
@@ -1084,10 +1169,13 @@ services:
       };
     }
 
-    await db.update(files).set({
-      isStarred: false,
-      updatedAt: new Date().toISOString(),
-    }).where(eq(files.id, fileId));
+    await db
+      .update(files)
+      .set({
+        isStarred: false,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(files.id, fileId));
 
     return {
       success: true,
@@ -1104,7 +1192,9 @@ services:
   private static async findOrCreateFolder(env: Env, userId: string, path: string): Promise<string | null> {
     const db = getDb(env.DB);
 
-    const existing = await db.select().from(files)
+    const existing = await db
+      .select()
+      .from(files)
       .where(and(eq(files.userId, userId), eq(files.path, path), eq(files.isFolder, true)))
       .get();
 
@@ -1119,7 +1209,9 @@ services:
     for (const part of parts) {
       currentPath = currentPath ? `${currentPath}/${part}` : part;
 
-      const folder = await db.select().from(files)
+      const folder = await db
+        .select()
+        .from(files)
         .where(and(eq(files.userId, userId), eq(files.path, currentPath), eq(files.isFolder, true)))
         .get();
 

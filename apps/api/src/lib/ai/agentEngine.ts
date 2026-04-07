@@ -298,11 +298,8 @@ export class AgentEngine {
   ): Promise<{ fullText: string; sources: AgentSource[] }> {
     this.executor.setUserId(userId);
 
-    const [caps, config] = await Promise.all([
-      this.getModelCapabilities(modelId, userId),
-      loadAgentConfig(this.env),
-    ]);
-    
+    const [caps, config] = await Promise.all([this.getModelCapabilities(modelId, userId), loadAgentConfig(this.env)]);
+
     logger.info('AgentEngine', 'Run', {
       mode: caps.nativeToolCalling ? 'native' : 'prompt',
       vision: caps.vision,
@@ -694,9 +691,7 @@ export class AgentEngine {
     if (imageFiles.length === 0) return { callsUsed: 0, hadNewData: false };
 
     // 检查 AI 是否已经调用了 analyze_image，如果是则跳过自动链式调用
-    const aiCalledAnalyzeImage = collectedToolCalls?.some(
-      (tc) => tc.name === 'analyze_image'
-    ) || false;
+    const aiCalledAnalyzeImage = collectedToolCalls?.some((tc) => tc.name === 'analyze_image') || false;
     if (aiCalledAnalyzeImage) {
       logger.info('AgentEngine', 'Skipping runAutoChain - AI already called analyze_image');
       return { callsUsed: 0, hadNewData: false };
@@ -738,10 +733,7 @@ export class AgentEngine {
           const timeoutPromise = new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error('analyze_image timeout')), imageTimeoutMs)
           );
-          chainResult = await Promise.race([
-            this.executor.execute('analyze_image', chainArgs),
-            timeoutPromise,
-          ]);
+          chainResult = await Promise.race([this.executor.execute('analyze_image', chainArgs), timeoutPromise]);
         } catch (err) {
           chainResult = { error: err instanceof Error ? err.message : '视觉分析失败' };
         }
@@ -832,7 +824,7 @@ function mergeSourcesFromResult(result: unknown, sources: AgentSource[]): boolea
   if (r.error) return false;
 
   const rawFiles = r.files ?? null;
-  const fileList: any[] = Array.isArray(rawFiles) ? rawFiles : (r.file ? [r.file] : []);
+  const fileList: any[] = Array.isArray(rawFiles) ? rawFiles : r.file ? [r.file] : [];
 
   let hasNew = false;
   for (const f of fileList.slice(0, 20)) {
@@ -903,7 +895,7 @@ function safeForwardPoint(buffer: string): number {
   const pos = buffer.lastIndexOf('```');
   if (pos === -1) return buffer.length;
   const after = buffer.slice(pos + 3).trimStart();
-  return (after.startsWith('tool_call') || after.startsWith('tool\n') || after.startsWith('tool ')) ? pos : buffer.length;
+  return after.startsWith('tool_call') || after.startsWith('tool\n') || after.startsWith('tool ') ? pos : buffer.length;
 }
 
 function isAbortError(err: unknown): boolean {

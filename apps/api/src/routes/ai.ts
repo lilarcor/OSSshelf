@@ -415,9 +415,7 @@ app.post('/process-selected', async (c) => {
     ? filteredFiles.filter((f) => canGenerateSummary(f.mimeType, f.name))
     : [];
 
-  const tagFiles = types.includes('tags')
-    ? filteredFiles.filter((f) => f.mimeType?.startsWith('image/'))
-    : [];
+  const tagFiles = types.includes('tags') ? filteredFiles.filter((f) => f.mimeType?.startsWith('image/')) : [];
 
   const totalTasks = summaryFiles.length + tagFiles.length;
 

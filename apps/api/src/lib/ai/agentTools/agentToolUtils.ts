@@ -90,10 +90,7 @@ export async function validateFolderAccess(
 /**
  * 创建标准化的成功响应（带 _next_actions）
  */
-export function createSuccessResponse(
-  data: Record<string, unknown>,
-  nextActions?: string[]
-): Record<string, unknown> {
+export function createSuccessResponse(data: Record<string, unknown>, nextActions?: string[]): Record<string, unknown> {
   return {
     ...data,
     ...(nextActions?.length ? { _next_actions: nextActions } : {}),
@@ -103,10 +100,7 @@ export function createSuccessResponse(
 /**
  * 创建标准化的错误响应（带详细诊断信息）
  */
-export function createErrorResponse(
-  error: string,
-  context?: Record<string, unknown>
-): Record<string, unknown> {
+export function createErrorResponse(error: string, context?: Record<string, unknown>): Record<string, unknown> {
   logger.error('AgentTool', error, context);
 
   return {
@@ -118,8 +112,6 @@ export function createErrorResponse(
 /**
  * 批量转换文件列表为 AgentFile 格式
  */
-export function batchToAgentFile(
-  rows: InferSelectModel<typeof files>[]
-): AgentFile[] {
+export function batchToAgentFile(rows: InferSelectModel<typeof files>[]): AgentFile[] {
   return rows.map(toAgentFile);
 }

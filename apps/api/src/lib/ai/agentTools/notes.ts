@@ -130,7 +130,6 @@ export const definitions: ToolDefinition[] = [
 ];
 
 export class NotesTools {
-
   static async executeWriteNote(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
     const content = args.content as string;

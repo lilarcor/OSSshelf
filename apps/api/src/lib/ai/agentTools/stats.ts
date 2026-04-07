@@ -115,7 +115,6 @@ export const definitions: ToolDefinition[] = [
 ];
 
 export class StatsTools {
-
   static async executeGetStorageStats(env: Env, userId: string, args: Record<string, unknown>) {
     const dimension = (args.dimension as string) || 'mimetype';
     const db = getDb(env.DB);
@@ -221,9 +220,15 @@ export class StatsTools {
 
     let dateFormat: string;
     switch (period) {
-      case 'week': dateFormat = '%Y-%W'; break;
-      case 'month': dateFormat = '%Y-%m'; break;
-      default: dateFormat = '%Y-%m-%d'; break;
+      case 'week':
+        dateFormat = '%Y-%W';
+        break;
+      case 'month':
+        dateFormat = '%Y-%m';
+        break;
+      default:
+        dateFormat = '%Y-%m-%d';
+        break;
     }
 
     const activityRows = await db
@@ -233,13 +238,7 @@ export class StatsTools {
         uploadSize: sql<number>`SUM(${files.size})`,
       })
       .from(files)
-      .where(
-        and(
-          eq(files.userId, userId),
-          isNull(files.deletedAt),
-          gte(files.createdAt, sinceDate)
-        )
-      )
+      .where(and(eq(files.userId, userId), isNull(files.deletedAt), gte(files.createdAt, sinceDate)))
       .groupBy(sql`strftime('${dateFormat}', ${files.createdAt})`)
       .orderBy(sql`strftime('${dateFormat}', ${files.createdAt})`)
       .all();
@@ -299,7 +298,9 @@ export class StatsTools {
         starred: Number(stats?.starredCount) || 0,
       },
       coverage: {
-        summaryRate: stats?.fileCount ? ((Number(stats.withSummary) / Number(stats.fileCount)) * 100).toFixed(1) + '%' : '0%',
+        summaryRate: stats?.fileCount
+          ? ((Number(stats.withSummary) / Number(stats.fileCount)) * 100).toFixed(1) + '%'
+          : '0%',
         tagsRate: stats?.fileCount ? ((Number(stats.withTags) / Number(stats.fileCount)) * 100).toFixed(1) + '%' : '0%',
       },
     };
@@ -324,7 +325,9 @@ export class StatsTools {
           })
           .from(files)
           .where(baseWhere)
-          .groupBy(sql`CASE WHEN INSTR(${files.name}, '.') > 0 THEN SUBSTR(${files.name}, INSTR(${files.name}, '.')) ELSE '' END`)
+          .groupBy(
+            sql`CASE WHEN INSTR(${files.name}, '.') > 0 THEN SUBSTR(${files.name}, INSTR(${files.name}, '.')) ELSE '' END`
+          )
           .orderBy(desc(count()))
           .limit(topN)
           .all();
@@ -370,9 +373,7 @@ export class StatsTools {
 
     const conditions: any[] = [eq(shares.userId, userId)];
     if (!includeExpired) {
-      conditions.push(
-        or(isNull(shares.expiresAt), gte(shares.expiresAt, new Date().toISOString()))
-      );
+      conditions.push(or(isNull(shares.expiresAt), gte(shares.expiresAt, new Date().toISOString())));
     }
 
     const [totalShares, activeShares] = await Promise.all([

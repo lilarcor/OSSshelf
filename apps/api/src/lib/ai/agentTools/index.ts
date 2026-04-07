@@ -31,7 +31,15 @@ import { logger } from '@osshelf/shared';
 // ─────────────────────────────────────────────────────────────────────────────
 
 // 类型导出
-export { ToolDefinition, ToolCall, AgentFile, ToolResultBase, PendingConfirmResult, WRITE_TOOLS, FileRecord } from './types';
+export {
+  ToolDefinition,
+  ToolCall,
+  AgentFile,
+  ToolResultBase,
+  PendingConfirmResult,
+  WRITE_TOOLS,
+  FileRecord,
+} from './types';
 
 // 搜索模块 (6个工具)
 import { definitions as searchDefinitions, SearchTools } from './search';
@@ -112,140 +120,142 @@ export const TOOL_DEFINITIONS = [
 // 工具名称到执行器的映射表
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<string, unknown>) => Promise<unknown>> = {
-  // ════════════════════════════════════════════════════════════════
-  // 🔍 搜索与发现 (search.ts)
-  // ════════════════════════════════════════════════════════════════
-  'search_files': (env, userId, args) => SearchTools.executeSearchFiles(env, userId, args),
-  'filter_files': (env, userId, args) => SearchTools.executeFilterFiles(env, userId, args),
-  'search_by_tag': (env, userId, args) => SearchTools.executeSearchByTag(env, userId, args),
-  'search_duplicates': (env, userId, args) => SearchTools.executeSearchDuplicates(env, userId, args),
-  'smart_search': (env, userId, args) => SearchTools.executeSmartSearch(env, userId, args),
-  'list_all_tags': (env, userId, args) => SearchTools.executeListAllTags(env, userId, args),
+const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<string, unknown>) => Promise<unknown>> =
+  {
+    // ════════════════════════════════════════════════════════════════
+    // 🔍 搜索与发现 (search.ts)
+    // ════════════════════════════════════════════════════════════════
+    search_files: (env, userId, args) => SearchTools.executeSearchFiles(env, userId, args),
+    filter_files: (env, userId, args) => SearchTools.executeFilterFiles(env, userId, args),
+    search_by_tag: (env, userId, args) => SearchTools.executeSearchByTag(env, userId, args),
+    search_duplicates: (env, userId, args) => SearchTools.executeSearchDuplicates(env, userId, args),
+    smart_search: (env, userId, args) => SearchTools.executeSmartSearch(env, userId, args),
+    list_all_tags: (env, userId, args) => SearchTools.executeListAllTags(env, userId, args),
 
-  // ════════════════════════════════════════════════════════════════
-  // 📄 内容理解与分析 (content.ts)
-  // ════════════════════════════════════════════════════════════════
-  'read_file_text': (env, userId, args) => ContentTools.executeReadFileText(env, userId, args),
-  'analyze_image': (env, userId, args) => ContentTools.executeAnalyzeImage(env, userId, args),
-  'compare_files': (env, userId, args) => ContentTools.executeCompareFiles(env, userId, args),
-  'extract_metadata': (env, userId, args) => ContentTools.executeExtractMetadata(env, userId, args),
-  'generate_summary': (env, userId, args) => ContentTools.executeGenerateSummary(env, userId, args),
-  'generate_tags': (env, userId, args) => ContentTools.executeGenerateTags(env, userId, args),
-  'content_preview': (env, userId, args) => ContentTools.executeContentPreview(env, userId, args),
+    // ════════════════════════════════════════════════════════════════
+    // 📄 内容理解与分析 (content.ts)
+    // ════════════════════════════════════════════════════════════════
+    read_file_text: (env, userId, args) => ContentTools.executeReadFileText(env, userId, args),
+    analyze_image: (env, userId, args) => ContentTools.executeAnalyzeImage(env, userId, args),
+    compare_files: (env, userId, args) => ContentTools.executeCompareFiles(env, userId, args),
+    extract_metadata: (env, userId, args) => ContentTools.executeExtractMetadata(env, userId, args),
+    generate_summary: (env, userId, args) => ContentTools.executeGenerateSummary(env, userId, args),
+    generate_tags: (env, userId, args) => ContentTools.executeGenerateTags(env, userId, args),
+    content_preview: (env, userId, args) => ContentTools.executeContentPreview(env, userId, args),
 
-  // ════════════════════════════════════════════════════════════════
-  // 📂 目录导航 (navigation.ts)
-  // ════════════════════════════════════════════════════════════════
-  'list_folder': (env, userId, args) => NavigationTools.executeListFolder(env, userId, args),
-  'get_folder_tree': (env, userId, args) => NavigationTools.executeGetFolderTree(env, userId, args),
-  'navigate_path': (env, userId, args) => NavigationTools.executeNavigatePath(env, userId, args),
-  'get_storage_overview': (env, userId, args) => NavigationTools.executeGetStorageOverview(env, userId, args),
+    // ════════════════════════════════════════════════════════════════
+    // 📂 目录导航 (navigation.ts)
+    // ════════════════════════════════════════════════════════════════
+    list_folder: (env, userId, args) => NavigationTools.executeListFolder(env, userId, args),
+    get_folder_tree: (env, userId, args) => NavigationTools.executeGetFolderTree(env, userId, args),
+    navigate_path: (env, userId, args) => NavigationTools.executeNavigatePath(env, userId, args),
+    get_storage_overview: (env, userId, args) => NavigationTools.executeGetStorageOverview(env, userId, args),
 
-  // ════════════════════════════════════════════════════════════════
-  // 📊 统计与分析 (stats.ts)
-  // ════════════════════════════════════════════════════════════════
-  'get_storage_stats': (env, userId, args) => StatsTools.executeGetStorageStats(env, userId, args),
-  'get_activity_stats': (env, userId, args) => StatsTools.executeGetActivityStats(env, userId, args),
-  'get_user_quota_info': (env, userId, args) => StatsTools.executeGetUserQuotaInfo(env, userId, args),
-  'get_file_type_distribution': (env, userId, args) => StatsTools.executeGetFileTypeDistribution(env, userId, args),
-  'get_sharing_stats': (env, userId, args) => StatsTools.executeGetSharingStats(env, userId, args),
+    // ════════════════════════════════════════════════════════════════
+    // 📊 统计与分析 (stats.ts)
+    // ════════════════════════════════════════════════════════════════
+    get_storage_stats: (env, userId, args) => StatsTools.executeGetStorageStats(env, userId, args),
+    get_activity_stats: (env, userId, args) => StatsTools.executeGetActivityStats(env, userId, args),
+    get_user_quota_info: (env, userId, args) => StatsTools.executeGetUserQuotaInfo(env, userId, args),
+    get_file_type_distribution: (env, userId, args) => StatsTools.executeGetFileTypeDistribution(env, userId, args),
+    get_sharing_stats: (env, userId, args) => StatsTools.executeGetSharingStats(env, userId, args),
 
-  // ════════════════════════════════════════════════════════════════
-  // 📁 文件操作 (fileops.ts) ⭐
-  // ════════════════════════════════════════════════════════════════
-  'create_text_file': (env, userId, args) => FileOpsTools.executeCreateTextFile(env, userId, args),
-  'create_code_file': (env, userId, args) => FileOpsTools.executeCreateCodeFile(env, userId, args),
-  'create_file_from_template': (env, userId, args) => FileOpsTools.executeCreateFileFromTemplate(env, userId, args),
-  'edit_file_content': (env, userId, args) => FileOpsTools.executeEditFileContent(env, userId, args),
-  'append_to_file': (env, userId, args) => FileOpsTools.executeAppendToFile(env, userId, args),
-  'find_and_replace': (env, userId, args) => FileOpsTools.executeFindAndReplace(env, userId, args),
-  'rename_file': (env, userId, args) => FileOpsTools.executeRenameFile(env, userId, args),
-  'move_file': (env, userId, args) => FileOpsTools.executeMoveFile(env, userId, args),
-  'copy_file': (env, userId, args) => FileOpsTools.executeCopyFile(env, userId, args),
-  'delete_file': (env, userId, args) => FileOpsTools.executeDeleteFile(env, userId, args),
-  'restore_file': (env, userId, args) => FileOpsTools.executeRestoreFile(env, userId, args),
-  'create_folder': (env, userId, args) => FileOpsTools.executeCreateFolder(env, userId, args),
-  'batch_rename': (env, userId, args) => FileOpsTools.executeBatchRename(env, userId, args),
-  'star_file': (env, userId, args) => FileOpsTools.executeStarFile(env, userId, args),
-  'unstar_file': (env, userId, args) => FileOpsTools.executeUnstarFile(env, userId, args),
+    // ════════════════════════════════════════════════════════════════
+    // 📁 文件操作 (fileops.ts) ⭐
+    // ════════════════════════════════════════════════════════════════
+    create_text_file: (env, userId, args) => FileOpsTools.executeCreateTextFile(env, userId, args),
+    create_code_file: (env, userId, args) => FileOpsTools.executeCreateCodeFile(env, userId, args),
+    create_file_from_template: (env, userId, args) => FileOpsTools.executeCreateFileFromTemplate(env, userId, args),
+    edit_file_content: (env, userId, args) => FileOpsTools.executeEditFileContent(env, userId, args),
+    append_to_file: (env, userId, args) => FileOpsTools.executeAppendToFile(env, userId, args),
+    find_and_replace: (env, userId, args) => FileOpsTools.executeFindAndReplace(env, userId, args),
+    rename_file: (env, userId, args) => FileOpsTools.executeRenameFile(env, userId, args),
+    move_file: (env, userId, args) => FileOpsTools.executeMoveFile(env, userId, args),
+    copy_file: (env, userId, args) => FileOpsTools.executeCopyFile(env, userId, args),
+    delete_file: (env, userId, args) => FileOpsTools.executeDeleteFile(env, userId, args),
+    restore_file: (env, userId, args) => FileOpsTools.executeRestoreFile(env, userId, args),
+    create_folder: (env, userId, args) => FileOpsTools.executeCreateFolder(env, userId, args),
+    batch_rename: (env, userId, args) => FileOpsTools.executeBatchRename(env, userId, args),
+    star_file: (env, userId, args) => FileOpsTools.executeStarFile(env, userId, args),
+    unstar_file: (env, userId, args) => FileOpsTools.executeUnstarFile(env, userId, args),
 
-  // ════════════════════════════════════════════════════════════════
-  // 🏷️ 标签管理 (tags.ts)
-  // ════════════════════════════════════════════════════════════════
-  'add_tag': (env, userId, args) => TagsTools.executeAddTag(env, userId, args),
-  'remove_tag': (env, userId, args) => TagsTools.executeRemoveTag(env, userId, args),
-  'list_all_tags_for_management': (env, userId, args) => TagsTools.executeListAllTags(env, userId, args),
-  'merge_tags': (env, userId, args) => TagsTools.executeMergeTags(env, userId, args),
-  'auto_tag_files': (env, userId, args) => TagsTools.executeAutoTagFiles(env, userId, args),
-  'tag_folder': (env, userId, args) => TagsTools.executeTagFolder(env, userId, args),
+    // ════════════════════════════════════════════════════════════════
+    // 🏷️ 标签管理 (tags.ts)
+    // ════════════════════════════════════════════════════════════════
+    add_tag: (env, userId, args) => TagsTools.executeAddTag(env, userId, args),
+    remove_tag: (env, userId, args) => TagsTools.executeRemoveTag(env, userId, args),
+    list_all_tags_for_management: (env, userId, args) => TagsTools.executeListAllTags(env, userId, args),
+    merge_tags: (env, userId, args) => TagsTools.executeMergeTags(env, userId, args),
+    auto_tag_files: (env, userId, args) => TagsTools.executeAutoTagFiles(env, userId, args),
+    tag_folder: (env, userId, args) => TagsTools.executeTagFolder(env, userId, args),
 
-  // ════════════════════════════════════════════════════════════════
-  // 🔗 分享与链接 (share.ts) ⭐
-  // ════════════════════════════════════════════════════════════════
-  'create_share': (env, userId, args) => ShareTools.executeCreateShare(env, userId, args),
-  'list_shares': (env, userId, args) => ShareTools.executeListShares(env, userId, args),
-  'update_share': (env, userId, args) => ShareTools.executeUpdateShare(env, userId, args),
-  'revoke_share': (env, userId, args) => ShareTools.executeRevokeShare(env, userId, args),
-  'get_share_details': (env, userId, args) => ShareTools.executeGetShareDetails(env, userId, args),
-  'create_direct_link': (env, userId, args) => ShareTools.executeCreateDirectLink(env, userId, args),
-  'revoke_direct_link': (env, userId, args) => ShareTools.executeRevokeDirectLink(env, userId, args),
-  'create_upload_link_for_folder': (env, userId, args) => ShareTools.executeCreateUploadLinkForFolder(env, userId, args),
+    // ════════════════════════════════════════════════════════════════
+    // 🔗 分享与链接 (share.ts) ⭐
+    // ════════════════════════════════════════════════════════════════
+    create_share: (env, userId, args) => ShareTools.executeCreateShare(env, userId, args),
+    list_shares: (env, userId, args) => ShareTools.executeListShares(env, userId, args),
+    update_share: (env, userId, args) => ShareTools.executeUpdateShare(env, userId, args),
+    revoke_share: (env, userId, args) => ShareTools.executeRevokeShare(env, userId, args),
+    get_share_details: (env, userId, args) => ShareTools.executeGetShareDetails(env, userId, args),
+    create_direct_link: (env, userId, args) => ShareTools.executeCreateDirectLink(env, userId, args),
+    revoke_direct_link: (env, userId, args) => ShareTools.executeRevokeDirectLink(env, userId, args),
+    create_upload_link_for_folder: (env, userId, args) =>
+      ShareTools.executeCreateUploadLinkForFolder(env, userId, args),
 
-  // ════════════════════════════════════════════════════════════════
-  // 📜 版本管理 (version.ts)
-  // ════════════════════════════════════════════════════════════════
-  'get_file_versions': (env, userId, args) => VersionTools.executeGetFileVersions(env, userId, args),
-  'restore_version': (env, userId, args) => VersionTools.executeRestoreVersion(env, userId, args),
-  'compare_versions': (env, userId, args) => VersionTools.executeCompareVersions(env, userId, args),
-  'set_version_retention': (env, userId, args) => VersionTools.executeSetVersionRetention(env, userId, args),
+    // ════════════════════════════════════════════════════════════════
+    // 📜 版本管理 (version.ts)
+    // ════════════════════════════════════════════════════════════════
+    get_file_versions: (env, userId, args) => VersionTools.executeGetFileVersions(env, userId, args),
+    restore_version: (env, userId, args) => VersionTools.executeRestoreVersion(env, userId, args),
+    compare_versions: (env, userId, args) => VersionTools.executeCompareVersions(env, userId, args),
+    set_version_retention: (env, userId, args) => VersionTools.executeSetVersionRetention(env, userId, args),
 
-  // ════════════════════════════════════════════════════════════════
-  // 📝 笔记备注 (notes.ts)
-  // ════════════════════════════════════════════════════════════════
-  'write_note': (env, userId, args) => NotesTools.executeWriteNote(env, userId, args),
-  'getFileNotes': (env, userId, args) => NotesTools.executeGetFileNotes(env, userId, args),
-  'update_note': (env, userId, args) => NotesTools.executeUpdateNote(env, userId, args),
-  'delete_note': (env, userId, args) => NotesTools.executeDeleteNote(env, userId, args),
+    // ════════════════════════════════════════════════════════════════
+    // 📝 笔记备注 (notes.ts)
+    // ════════════════════════════════════════════════════════════════
+    write_note: (env, userId, args) => NotesTools.executeWriteNote(env, userId, args),
+    getFileNotes: (env, userId, args) => NotesTools.executeGetFileNotes(env, userId, args),
+    update_note: (env, userId, args) => NotesTools.executeUpdateNote(env, userId, args),
+    delete_note: (env, userId, args) => NotesTools.executeDeleteNote(env, userId, args),
 
-  // ════════════════════════════════════════════════════════════════
-  // 🔐 权限管理 (permission.ts) ⭐
-  // ════════════════════════════════════════════════════════════════
-  'get_file_permissions': (env, userId, args) => PermissionTools.executeGetFilePermissions(env, userId, args),
-  'grant_permission': (env, userId, args) => PermissionTools.executeGrantPermission(env, userId, args),
-  'revoke_permission': (env, userId, args) => PermissionTools.executeRevokePermission(env, userId, args),
-  'set_folder_access_level': (env, userId, args) => PermissionTools.executeSetFolderAccessLevel(env, userId, args),
-  'list_user_groups': (env, userId, args) => PermissionTools.executeListUserGroups(env, userId, args),
-  'manage_group_members': (env, userId, args) => PermissionTools.executeManageGroupMembers(env, userId, args),
+    // ════════════════════════════════════════════════════════════════
+    // 🔐 权限管理 (permission.ts) ⭐
+    // ════════════════════════════════════════════════════════════════
+    get_file_permissions: (env, userId, args) => PermissionTools.executeGetFilePermissions(env, userId, args),
+    grant_permission: (env, userId, args) => PermissionTools.executeGrantPermission(env, userId, args),
+    revoke_permission: (env, userId, args) => PermissionTools.executeRevokePermission(env, userId, args),
+    set_folder_access_level: (env, userId, args) => PermissionTools.executeSetFolderAccessLevel(env, userId, args),
+    list_user_groups: (env, userId, args) => PermissionTools.executeListUserGroups(env, userId, args),
+    manage_group_members: (env, userId, args) => PermissionTools.executeManageGroupMembers(env, userId, args),
 
-  // ════════════════════════════════════════════════════════════════
-  // 💾 存储桶管理 (storage.ts)
-  // ════════════════════════════════════════════════════════════════
-  'list_buckets': (env, userId, args) => StorageTools.executeListBuckets(env, userId, args),
-  'get_bucket_info': (env, userId, args) => StorageTools.executeGetBucketInfo(env, userId, args),
-  'set_default_bucket': (env, userId, args) => StorageTools.executeSetDefaultBucket(env, userId, args),
-  'migrate_file_to_bucket': (env, userId, args) => StorageTools.executeMigrateFileToBucket(env, userId, args),
+    // ════════════════════════════════════════════════════════════════
+    // 💾 存储桶管理 (storage.ts)
+    // ════════════════════════════════════════════════════════════════
+    list_buckets: (env, userId, args) => StorageTools.executeListBuckets(env, userId, args),
+    get_bucket_info: (env, userId, args) => StorageTools.executeGetBucketInfo(env, userId, args),
+    set_default_bucket: (env, userId, args) => StorageTools.executeSetDefaultBucket(env, userId, args),
+    migrate_file_to_bucket: (env, userId, args) => StorageTools.executeMigrateFileToBucket(env, userId, args),
 
-  // ════════════════════════════════════════════════════════════════
-  // ⚙️ 系统管理 (system.ts)
-  // ════════════════════════════════════════════════════════════════
-  'get_user_profile': (env, userId, args) => SystemTools.executeGetUserProfile(env, userId, args),
-  'list_api_keys': (env, userId, args) => SystemTools.executeListApiKeys(env, userId, args),
-  'create_api_key': (env, userId, args) => SystemTools.executeCreateApiKey(env, userId, args),
-  'revoke_api_key': (env, userId, args) => SystemTools.executeRevokeApiKey(env, userId, args),
-  'list_webhooks': (env, userId, args) => SystemTools.executeListWebhooks(env, userId, args),
-  'create_webhook': (env, userId, args) => SystemTools.executeCreateWebhook(env, userId, args),
-  'get_audit_logs': (env, userId, args) => SystemTools.executeGetAuditLogs(env, userId, args),
+    // ════════════════════════════════════════════════════════════════
+    // ⚙️ 系统管理 (system.ts)
+    // ════════════════════════════════════════════════════════════════
+    get_user_profile: (env, userId, args) => SystemTools.executeGetUserProfile(env, userId, args),
+    list_api_keys: (env, userId, args) => SystemTools.executeListApiKeys(env, userId, args),
+    create_api_key: (env, userId, args) => SystemTools.executeCreateApiKey(env, userId, args),
+    revoke_api_key: (env, userId, args) => SystemTools.executeRevokeApiKey(env, userId, args),
+    list_webhooks: (env, userId, args) => SystemTools.executeListWebhooks(env, userId, args),
+    create_webhook: (env, userId, args) => SystemTools.executeCreateWebhook(env, userId, args),
+    get_audit_logs: (env, userId, args) => SystemTools.executeGetAuditLogs(env, userId, args),
 
-  // ════════════════════════════════════════════════════════════════
-  // 🤖 AI增强 (ai-enhance.ts)
-  // ════════════════════════════════════════════════════════════════
-  'trigger_ai_summary': (env, userId, args) => AiEnhanceTools.executeTriggerAiSummary(env, userId, args),
-  'trigger_ai_tags': (env, userId, args) => AiEnhanceTools.executeTriggerAiTags(env, userId, args),
-  'rebuild_vector_index': (env, userId, args) => AiEnhanceTools.executeRebuildVectorIndex(env, userId, args),
-  'ask_rag_question': (env, userId, args) => AiEnhanceTools.executeAskRagQuestion(env, userId, args),
-  'smart_rename_suggest': (env, userId, args) => AiEnhanceTools.executeSmartRenameSuggest(env, userId, args),
-};
+    // ════════════════════════════════════════════════════════════════
+    // 🤖 AI增强 (ai-enhance.ts)
+    // ════════════════════════════════════════════════════════════════
+    trigger_ai_summary: (env, userId, args) => AiEnhanceTools.executeTriggerAiSummary(env, userId, args),
+    trigger_ai_tags: (env, userId, args) => AiEnhanceTools.executeTriggerAiTags(env, userId, args),
+    rebuild_vector_index: (env, userId, args) => AiEnhanceTools.executeRebuildVectorIndex(env, userId, args),
+    ask_rag_question: (env, userId, args) => AiEnhanceTools.executeAskRagQuestion(env, userId, args),
+    smart_rename_suggest: (env, userId, args) => AiEnhanceTools.executeSmartRenameSuggest(env, userId, args),
+  };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 统一的 AgentToolExecutor 类（向后兼容）
@@ -286,7 +296,6 @@ export class AgentToolExecutor {
       const isWriteOperation = WRITE_TOOLS.has(toolName);
 
       if (isWriteOperation && !args._confirmed) {
-
         return {
           status: 'pending_confirm' as const,
           message: `此操作需要用户确认`,
@@ -327,12 +336,17 @@ export class AgentToolExecutor {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      logger.error('AgentTool', `Tool execution failed [${toolName}]`, {
-        toolName,
-        userId: this.userId,
-        duration: `${duration}ms`,
-        error: errorMessage,
-      }, error instanceof Error ? error : undefined);
+      logger.error(
+        'AgentTool',
+        `Tool execution failed [${toolName}]`,
+        {
+          toolName,
+          userId: this.userId,
+          duration: `${duration}ms`,
+          error: errorMessage,
+        },
+        error instanceof Error ? error : undefined
+      );
 
       return {
         error: `${toolName} 执行失败: ${errorMessage}`,
@@ -350,25 +364,99 @@ export function getAvailableToolNames(): string[] {
   return Object.keys(TOOL_EXECUTOR_MAP).sort();
 }
 
-export function getToolDefinitionByName(toolName: string): typeof TOOL_DEFINITIONS[number] | undefined {
+export function getToolDefinitionByName(toolName: string): (typeof TOOL_DEFINITIONS)[number] | undefined {
   return TOOL_DEFINITIONS.find((def) => def.function.name === toolName);
 }
 
 export function getToolsByCategory(): Record<string, string[]> {
   const categories: Record<string, string[]> = {
-    '🔍 搜索与发现': ['search_files', 'filter_files', 'search_by_tag', 'search_duplicates', 'smart_search', 'list_all_tags'],
-    '📄 内容理解': ['read_file_text', 'analyze_image', 'compare_files', 'extract_metadata', 'generate_summary', 'generate_tags', 'content_preview'],
+    '🔍 搜索与发现': [
+      'search_files',
+      'filter_files',
+      'search_by_tag',
+      'search_duplicates',
+      'smart_search',
+      'list_all_tags',
+    ],
+    '📄 内容理解': [
+      'read_file_text',
+      'analyze_image',
+      'compare_files',
+      'extract_metadata',
+      'generate_summary',
+      'generate_tags',
+      'content_preview',
+    ],
     '📂 目录导航': ['list_folder', 'get_folder_tree', 'navigate_path', 'get_storage_overview'],
-    '📊 统计分析': ['get_storage_stats', 'get_activity_stats', 'get_user_quota_info', 'get_file_type_distribution', 'get_sharing_stats'],
-    '📁 文件操作': ['create_text_file', 'create_code_file', 'create_file_from_template', 'edit_file_content', 'append_to_file', 'find_and_replace', 'rename_file', 'move_file', 'copy_file', 'delete_file', 'restore_file', 'create_folder', 'batch_rename', 'star_file', 'unstar_file'],
-    '🏷️ 标签管理': ['add_tag', 'remove_tag', 'list_all_tags_for_management', 'merge_tags', 'auto_tag_files', 'tag_folder'],
-    '🔗 分享链接': ['create_share', 'list_shares', 'update_share', 'revoke_share', 'get_share_details', 'create_direct_link', 'revoke_direct_link', 'create_upload_link_for_folder'],
+    '📊 统计分析': [
+      'get_storage_stats',
+      'get_activity_stats',
+      'get_user_quota_info',
+      'get_file_type_distribution',
+      'get_sharing_stats',
+    ],
+    '📁 文件操作': [
+      'create_text_file',
+      'create_code_file',
+      'create_file_from_template',
+      'edit_file_content',
+      'append_to_file',
+      'find_and_replace',
+      'rename_file',
+      'move_file',
+      'copy_file',
+      'delete_file',
+      'restore_file',
+      'create_folder',
+      'batch_rename',
+      'star_file',
+      'unstar_file',
+    ],
+    '🏷️ 标签管理': [
+      'add_tag',
+      'remove_tag',
+      'list_all_tags_for_management',
+      'merge_tags',
+      'auto_tag_files',
+      'tag_folder',
+    ],
+    '🔗 分享链接': [
+      'create_share',
+      'list_shares',
+      'update_share',
+      'revoke_share',
+      'get_share_details',
+      'create_direct_link',
+      'revoke_direct_link',
+      'create_upload_link_for_folder',
+    ],
     '📜 版本管理': ['get_file_versions', 'restore_version', 'compare_versions', 'set_version_retention'],
     '📝 笔记备注': ['write_note', 'getFileNotes', 'update_note', 'delete_note'],
-    '🔐 权限管理': ['get_file_permissions', 'grant_permission', 'revoke_permission', 'set_folder_access_level', 'list_user_groups', 'manage_group_members'],
+    '🔐 权限管理': [
+      'get_file_permissions',
+      'grant_permission',
+      'revoke_permission',
+      'set_folder_access_level',
+      'list_user_groups',
+      'manage_group_members',
+    ],
     '💾 存储管理': ['list_buckets', 'get_bucket_info', 'set_default_bucket', 'migrate_file_to_bucket'],
-    '⚙️ 系统管理': ['get_user_profile', 'list_api_keys', 'create_api_key', 'revoke_api_key', 'list_webhooks', 'create_webhook', 'get_audit_logs'],
-    '🤖 AI增强': ['trigger_ai_summary', 'trigger_ai_tags', 'rebuild_vector_index', 'ask_rag_question', 'smart_rename_suggest'],
+    '⚙️ 系统管理': [
+      'get_user_profile',
+      'list_api_keys',
+      'create_api_key',
+      'revoke_api_key',
+      'list_webhooks',
+      'create_webhook',
+      'get_audit_logs',
+    ],
+    '🤖 AI增强': [
+      'trigger_ai_summary',
+      'trigger_ai_tags',
+      'rebuild_vector_index',
+      'ask_rag_question',
+      'smart_rename_suggest',
+    ],
   };
 
   return categories;

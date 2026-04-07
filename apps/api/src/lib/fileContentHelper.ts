@@ -107,7 +107,10 @@ export async function readFileContent(
           const arrayBuffer = await s3Res.arrayBuffer();
           const content = decodeTextContent(arrayBuffer);
           if (content) {
-            logger.info('FileContentHelper', '成功从S3兼容存储读取文件', { fileId: file.id, contentLength: content.length });
+            logger.info('FileContentHelper', '成功从S3兼容存储读取文件', {
+              fileId: file.id,
+              contentLength: content.length,
+            });
             return { success: true, content, source: 's3' };
           }
         }
@@ -182,10 +185,13 @@ export async function writeFileContent(
 
   // 更新数据库中的文件大小和时间戳
   try {
-    await db.update(files).set({
-      size: contentBytes.length,
-      updatedAt: new Date().toISOString(),
-    }).where(eq(files.id, file.id));
+    await db
+      .update(files)
+      .set({
+        size: contentBytes.length,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(files.id, file.id));
   } catch (dbError) {
     logger.warn('FileContentHelper', '数据库更新失败（非致命）', { fileId: file.id }, dbError);
   }
@@ -240,13 +246,20 @@ async function readFromTelegram(
     const textContent = decodeTextContent(arrayBuffer);
 
     if (textContent) {
-      logger.info('FileContentHelper', '成功从Telegram读取文件', { fileId: file.id, contentLength: textContent.length });
+      logger.info('FileContentHelper', '成功从Telegram读取文件', {
+        fileId: file.id,
+        contentLength: textContent.length,
+      });
       return { success: true, content: textContent, source: 'telegram' };
     }
 
     return { success: false, content: null, error: 'Telegram 文件内容为空' };
   } catch (tgError) {
-    return { success: false, content: null, error: `Telegram 下载失败: ${tgError instanceof Error ? tgError.message : '未知错误'}` };
+    return {
+      success: false,
+      content: null,
+      error: `Telegram 下载失败: ${tgError instanceof Error ? tgError.message : '未知错误'}`,
+    };
   }
 }
 

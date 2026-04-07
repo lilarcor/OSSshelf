@@ -89,18 +89,20 @@ export const definitions: ToolDefinition[] = [
 ];
 
 export class VersionTools {
-
   static async executeGetFileVersions(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
     const limit = Math.min((args.limit as number) || 20, 50);
     const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
     if (!file) return { error: '文件不存在或无权访问' };
 
-    const versions = await db.select()
+    const versions = await db
+      .select()
       .from(fileVersions)
       .where(eq(fileVersions.fileId, fileId))
       .orderBy(desc(fileVersions.version))
@@ -131,8 +133,16 @@ export class VersionTools {
     const db = getDb(env.DB);
 
     const [file, targetVersion] = await Promise.all([
-      db.select().from(files).where(and(eq(files.id, fileId), eq(files.userId, userId))).get(),
-      db.select().from(fileVersions).where(and(eq(fileVersions.id, versionId), eq(fileVersions.fileId, fileId))).get(),
+      db
+        .select()
+        .from(files)
+        .where(and(eq(files.id, fileId), eq(files.userId, userId)))
+        .get(),
+      db
+        .select()
+        .from(fileVersions)
+        .where(and(eq(fileVersions.id, versionId), eq(fileVersions.fileId, fileId)))
+        .get(),
     ]);
 
     if (!file) return { error: '文件不存在' };
@@ -160,13 +170,20 @@ export class VersionTools {
         createdAt: now,
       });
 
-      await db.update(files).set({
-        currentVersion: newVersionNum,
-        size: targetVersion.size,
-        updatedAt: now,
-      }).where(eq(files.id, fileId));
+      await db
+        .update(files)
+        .set({
+          currentVersion: newVersionNum,
+          size: targetVersion.size,
+          updatedAt: now,
+        })
+        .where(eq(files.id, fileId));
 
-      logger.info('AgentTool', 'Restored file to previous version', { fileId, fromVersion: targetVersion.version, toVersion: newVersionNum });
+      logger.info('AgentTool', 'Restored file to previous version', {
+        fileId,
+        fromVersion: targetVersion.version,
+        toVersion: newVersionNum,
+      });
 
       return {
         success: true,
@@ -190,23 +207,15 @@ export class VersionTools {
     const db = getDb(env.DB);
 
     const [verA, verB] = await Promise.all([
-      db.select()
+      db
+        .select()
         .from(fileVersions)
-        .where(
-          and(
-            eq(fileVersions.fileId, fileId),
-            eq(fileVersions.version, versionA)
-          )
-        )
+        .where(and(eq(fileVersions.fileId, fileId), eq(fileVersions.version, versionA)))
         .get(),
-      db.select()
+      db
+        .select()
         .from(fileVersions)
-        .where(
-          and(
-            eq(fileVersions.fileId, fileId),
-            eq(fileVersions.version, versionB)
-          )
-        )
+        .where(and(eq(fileVersions.fileId, fileId), eq(fileVersions.version, versionB)))
         .get(),
     ]);
 
@@ -233,7 +242,8 @@ export class VersionTools {
         diff: {
           sizeChange: verB.size - verA.size,
           sizeChangeFormatted: formatSizeDiff(verB.size - verA.size),
-          timeGapDays: Math.abs(new Date(verB.createdAt).getTime() - new Date(verA.createdAt).getTime()) / (1000 * 60 * 60 * 24),
+          timeGapDays:
+            Math.abs(new Date(verB.createdAt).getTime() - new Date(verA.createdAt).getTime()) / (1000 * 60 * 60 * 24),
           newerVersion: verB.createdAt > verA.createdAt ? 'B' : 'A',
         },
       },
@@ -246,16 +256,21 @@ export class VersionTools {
     const retentionDays = Math.max(1, Math.min((args.retentionDays as number) || 30, 365));
     const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId)))
       .get();
     if (!file) return { error: '文件不存在' };
 
-    await db.update(files).set({
-      maxVersions,
-      versionRetentionDays: retentionDays,
-      updatedAt: new Date().toISOString(),
-    }).where(eq(files.id, fileId));
+    await db
+      .update(files)
+      .set({
+        maxVersions,
+        versionRetentionDays: retentionDays,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(files.id, fileId));
 
     return {
       success: true,

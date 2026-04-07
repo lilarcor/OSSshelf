@@ -56,17 +56,9 @@ interface UserSearchPreferences {
   topMimeTypes: string[];
 }
 
-export type QueryIntent =
-  | 'file_stats'
-  | 'file_search'
-  | 'content_qa'
-  | 'image_visual'
-  | 'general';
+export type QueryIntent = 'file_stats' | 'file_search' | 'content_qa' | 'image_visual' | 'general';
 
-const VISUAL_PATTERNS = [
-  /照片|图片.*(找|搜)|找.*照片|photo|image/i,
-  /描述|外观|颜色|样子|scene/i,
-];
+const VISUAL_PATTERNS = [/照片|图片.*(找|搜)|找.*照片|photo|image/i, /描述|外观|颜色|样子|scene/i];
 
 const VALID_INTENTS: QueryIntent[] = ['file_stats', 'file_search', 'content_qa', 'image_visual', 'general'];
 
@@ -89,17 +81,14 @@ async function getUserSearchPreferences(env: Env, userId: string): Promise<UserS
     const recent = await db
       .select({ query: searchHistory.query })
       .from(searchHistory)
-      .where(and(
-        eq(searchHistory.userId, userId),
-        gte(searchHistory.createdAt, thirtyDaysAgo)
-      ))
+      .where(and(eq(searchHistory.userId, userId), gte(searchHistory.createdAt, thirtyDaysAgo)))
       .orderBy(desc(searchHistory.createdAt))
       .limit(50)
       .all();
 
     const freq = new Map<string, number>();
     for (const r of recent) {
-      const words = r.query.split(/[\s，。、,.\-_]+/).filter(w => w.length >= 2);
+      const words = r.query.split(/[\s，。、,.\-_]+/).filter((w) => w.length >= 2);
       for (const w of words) {
         freq.set(w, (freq.get(w) || 0) + 1);
       }
@@ -323,15 +312,18 @@ export class RagEngine {
   async buildContext(request: ChatRagRequest): Promise<RagContext> {
     const startTime = Date.now();
 
-    const maxFiles = request.maxFiles || await getAiConfigNumber(this.env, 'ai.rag.max_files', DEFAULT_MAX_FILES);
-    const maxContextLength = request.maxContextLength || await getAiConfigNumber(this.env, 'ai.rag.max_context_length', DEFAULT_MAX_CONTEXT_LENGTH);
+    const maxFiles = request.maxFiles || (await getAiConfigNumber(this.env, 'ai.rag.max_files', DEFAULT_MAX_FILES));
+    const maxContextLength =
+      request.maxContextLength ||
+      (await getAiConfigNumber(this.env, 'ai.rag.max_context_length', DEFAULT_MAX_CONTEXT_LENGTH));
 
     try {
       const prefs = await getUserSearchPreferences(this.env, request.userId);
       this.currentUserPreferences = prefs;
-      const prefHint = prefs.topQueries.length > 0
-        ? `\n\n[用户偏好参考] 该用户近期常用搜索词：${prefs.topQueries.join('、')}；常用文件类型：${prefs.topMimeTypes.join('、')}。搜索结果匹配以上偏好时适当提升排序。`
-        : '';
+      const prefHint =
+        prefs.topQueries.length > 0
+          ? `\n\n[用户偏好参考] 该用户近期常用搜索词：${prefs.topQueries.join('、')}；常用文件类型：${prefs.topMimeTypes.join('、')}。搜索结果匹配以上偏好时适当提升排序。`
+          : '';
 
       const intent = await classifyIntent(this.env, request.query);
       const isFileList = intent === 'file_stats';
@@ -385,11 +377,7 @@ export class RagEngine {
           description: f.description || undefined,
         }));
       } else {
-        relevantFiles = await this.searchRelevantFiles(
-          request.query,
-          request.userId,
-          maxFiles
-        );
+        relevantFiles = await this.searchRelevantFiles(request.query, request.userId, maxFiles);
 
         if (relevantFiles.length === 0) {
           // No relevant files found — let the empty context handler deal with it
@@ -520,9 +508,10 @@ export class RagEngine {
 
       if (this.currentUserPreferences && this.currentUserPreferences.topQueries.length > 0) {
         for (const result of results) {
-          const isMatch = this.currentUserPreferences.topQueries.some(keyword =>
-            result.name?.toLowerCase().includes(keyword.toLowerCase()) ||
-            result.summary?.toLowerCase().includes(keyword.toLowerCase())
+          const isMatch = this.currentUserPreferences.topQueries.some(
+            (keyword) =>
+              result.name?.toLowerCase().includes(keyword.toLowerCase()) ||
+              result.summary?.toLowerCase().includes(keyword.toLowerCase())
           );
           if (isMatch) {
             result.similarityScore = Math.min(1.0, result.similarityScore + 0.15);

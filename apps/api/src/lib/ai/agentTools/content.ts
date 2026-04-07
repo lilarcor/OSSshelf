@@ -31,12 +31,7 @@ import {
 import { readFileContent } from '../../../lib/fileContentHelper';
 import { buildFileTextForVector } from '../../vectorIndex';
 import { getAiConfigNumber, getAiConfigString } from '../aiConfigService';
-import {
-  toAgentFile,
-  validateFileAccess,
-  createSuccessResponse,
-  createErrorResponse,
-} from './agentToolUtils';
+import { toAgentFile, validateFileAccess, createSuccessResponse, createErrorResponse } from './agentToolUtils';
 
 const DEFAULT_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_TEXT_CHUNK_SIZE = 1500;
@@ -208,7 +203,6 @@ export const definitions: ToolDefinition[] = [
 ];
 
 export class ContentTools {
-
   static async executeReadFileText(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
     const sectionIndex = args.sectionIndex as number | undefined;
@@ -228,12 +222,15 @@ export class ContentTools {
       file.mimeType?.startsWith('video/') ||
       file.mimeType?.startsWith('audio/')
     ) {
-      return createSuccessResponse({
-        fileId,
-        fileName: file.name,
-        mimeType: file.mimeType,
-        error: '该文件类型无文本内容',
-      }, file.mimeType?.startsWith('image/') ? ['请使用 analyze_image 工具来理解图片内容。'] : []);
+      return createSuccessResponse(
+        {
+          fileId,
+          fileName: file.name,
+          mimeType: file.mimeType,
+          error: '该文件类型无文本内容',
+        },
+        file.mimeType?.startsWith('image/') ? ['请使用 analyze_image 工具来理解图片内容。'] : []
+      );
     }
 
     // 使用公共的文件内容读取模块（支持多存储后端）
@@ -304,7 +301,11 @@ export class ContentTools {
       (args.question as string) ||
       '请详细描述这张图片的内容，包括：人物（外貌、性别、大概年龄、表情、穿着）、背景场景、主要物体、整体风格和色调。';
 
-    const maxImageSizeBytes = await getAiConfigNumber(env, 'ai.tool.max_image_size_bytes', DEFAULT_MAX_IMAGE_SIZE_BYTES);
+    const maxImageSizeBytes = await getAiConfigNumber(
+      env,
+      'ai.tool.max_image_size_bytes',
+      DEFAULT_MAX_IMAGE_SIZE_BYTES
+    );
 
     const db = getDb(env.DB);
     const file = await db
@@ -357,11 +358,7 @@ export class ContentTools {
 
     const imageBytes = new Uint8Array(buffer);
     const actualMimeType = file.mimeType || 'image/jpeg';
-    const visionModelId = await getAiConfigString(
-      env,
-      'ai.default_model.vision',
-      '@cf/llava-hf/llava-1.5-7b-hf'
-    );
+    const visionModelId = await getAiConfigString(env, 'ai.default_model.vision', '@cf/llava-hf/llava-1.5-7b-hf');
     const visionMaxTokens = await getAiConfigNumber(env, 'ai.vision.max_tokens', 2048);
 
     try {
@@ -467,8 +464,16 @@ export class ContentTools {
     const db = getDb(env.DB);
 
     const [fileA, fileB] = await Promise.all([
-      db.select().from(files).where(and(eq(files.id, fileIdA), eq(files.userId, userId))).get(),
-      db.select().from(files).where(and(eq(files.id, fileIdB), eq(files.userId, userId))).get(),
+      db
+        .select()
+        .from(files)
+        .where(and(eq(files.id, fileIdA), eq(files.userId, userId)))
+        .get(),
+      db
+        .select()
+        .from(files)
+        .where(and(eq(files.id, fileIdB), eq(files.userId, userId)))
+        .get(),
     ]);
 
     if (!fileA) return { error: `文件 A 不存在: ${fileIdA}` };
@@ -586,9 +591,7 @@ export class ContentTools {
       fileName: file.name,
       status: 'queued',
       message: 'AI 摘要生成任务已加入队列，完成后将自动更新',
-      _next_actions: [
-        '可通过 get_file_detail 查看更新后的摘要状态',
-      ],
+      _next_actions: ['可通过 get_file_detail 查看更新后的摘要状态'],
     };
   }
 
@@ -611,10 +614,7 @@ export class ContentTools {
       maxTags,
       status: 'queued',
       message: `AI 标签生成任务已加入队列，最多生成 ${maxTags} 个标签`,
-      _next_actions: [
-        '可通过 get_file_detail 查看更新后的标签状态',
-        '可通过 search_by_tag 按新标签搜索文件',
-      ],
+      _next_actions: ['可通过 get_file_detail 查看更新后的标签状态', '可通过 search_by_tag 按新标签搜索文件'],
     };
   }
 
@@ -663,9 +663,10 @@ export class ContentTools {
         totalLength: vectorText.length,
         previewLength: preview.length,
         lineCount: previewLines.length,
-        _next_actions: preview.length >= maxLength
-          ? ['内容较长，如需完整阅读请调用 read_file_text']
-          : ['如需编辑内容，可调用 edit_file_content'],
+        _next_actions:
+          preview.length >= maxLength
+            ? ['内容较长，如需完整阅读请调用 read_file_text']
+            : ['如需编辑内容，可调用 edit_file_content'],
       };
     } catch (error) {
       return {

@@ -72,32 +72,62 @@ async function getSummaryPromptFromConfig(env: Env): Promise<Record<string, stri
 
 function getSummaryPrompt(mimeType: string | null, fileName: string): string {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
-  
+
   const codeExts = [
-    'js', 'jsx', 'ts', 'tsx', 'py', 'java', 'go', 'rs', 'c', 'cpp', 'h', 'hpp',
-    'cs', 'rb', 'php', 'swift', 'kt', 'scala', 'r', 'sql', 'sh', 'bash',
-    'html', 'htm', 'css', 'scss', 'less', 'vue', 'svelte',
+    'js',
+    'jsx',
+    'ts',
+    'tsx',
+    'py',
+    'java',
+    'go',
+    'rs',
+    'c',
+    'cpp',
+    'h',
+    'hpp',
+    'cs',
+    'rb',
+    'php',
+    'swift',
+    'kt',
+    'scala',
+    'r',
+    'sql',
+    'sh',
+    'bash',
+    'html',
+    'htm',
+    'css',
+    'scss',
+    'less',
+    'vue',
+    'svelte',
   ];
-  
+
   const dataExts = ['json', 'xml', 'yaml', 'yml', 'toml', 'ini', 'env'];
 
   if (ext === 'md' || ext === 'markdown') {
     return SUMMARY_PROMPTS.markdown;
   }
-  
+
   if (codeExts.includes(ext)) {
     return SUMMARY_PROMPTS.code;
   }
-  
+
   if (dataExts.includes(ext)) {
     return SUMMARY_PROMPTS.data;
   }
-  
-  if (mimeType === 'application/json' || mimeType === 'application/xml' ||
-      mimeType === 'application/javascript' || mimeType?.includes('yaml')) {
+
+  if (
+    mimeType === 'application/json' ||
+    mimeType === 'application/xml' ||
+    mimeType === 'application/javascript' ||
+    mimeType?.includes('yaml')
+  ) {
     return SUMMARY_PROMPTS.data;
   }
-  
+
   if (mimeType?.startsWith('text/') && mimeType !== 'text/plain') {
     return SUMMARY_PROMPTS.code;
   }
@@ -319,12 +349,7 @@ async function callVisionModel(
   }
 }
 
-async function callWorkersAiVision(
-  env: Env,
-  modelId: string,
-  imageData: number[],
-  prompt: string
-): Promise<string> {
+async function callWorkersAiVision(env: Env, modelId: string, imageData: number[], prompt: string): Promise<string> {
   if (!env.AI) {
     throw new Error('AI service not available');
   }
@@ -929,30 +954,22 @@ export async function generateVersionSummary(
     const newText = await buildFileTextForVector(env, fileId);
     if (!newText || newText.length < 50) return;
 
-    const summary = await callChatModel(
-      env,
-      userId || 'default',
-      'summary',
-      {
-        messages: [
-          {
-            role: 'system',
-            content: '你是文件变更分析助手。用 1-2 句话描述这次文件更新的主要变化。只关注内容变化，不提文件名或时间。',
-          },
-          {
-            role: 'user',
-            content: `版本：v${oldVer.version} → v${newVer.version}\n当前内容摘要：\n${newText.slice(0, 2000)}`,
-          },
-        ],
-        maxTokens: 150,
-      }
-    );
+    const summary = await callChatModel(env, userId || 'default', 'summary', {
+      messages: [
+        {
+          role: 'system',
+          content: '你是文件变更分析助手。用 1-2 句话描述这次文件更新的主要变化。只关注内容变化，不提文件名或时间。',
+        },
+        {
+          role: 'user',
+          content: `版本：v${oldVer.version} → v${newVer.version}\n当前内容摘要：\n${newText.slice(0, 2000)}`,
+        },
+      ],
+      maxTokens: 150,
+    });
 
     if (summary && summary.trim().length > 0) {
-      await db
-        .update(fileVersions)
-        .set({ aiChangeSummary: summary.trim() })
-        .where(eq(fileVersions.id, newVersionId));
+      await db.update(fileVersions).set({ aiChangeSummary: summary.trim() }).where(eq(fileVersions.id, newVersionId));
       logger.info('AI', '版本摘要生成成功', { fileId, versionId: newVersionId });
     }
   } catch (error) {

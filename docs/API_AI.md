@@ -117,8 +117,8 @@ GET /api/ai-config/models
 
 **查询参数**：
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
+| 参数         | 类型   | 说明                                                     |
+| ------------ | ------ | -------------------------------------------------------- |
 | `capability` | string | 按能力过滤：chat / vision / embedding / function_calling |
 
 **响应**：
@@ -184,6 +184,7 @@ Content-Type: application/json
 ```
 
 **验证规则**：
+
 - `name`: 必填，1-100 字符
 - `provider`: 必填，`workers_ai` 或 `openai_compatible`
 - `modelId`: 必填
@@ -364,6 +365,7 @@ Content-Type: application/json
 ```
 
 **说明**：
+
 - 每个字段可选
 - 设为 `null` 表示使用默认模型
 - 系统会验证 modelId 是否存在且属于当前用户
@@ -471,9 +473,7 @@ GET /api/ai-chat/sessions/:sessionId
         "id": "msg-uuid",
         "role": "assistant",
         "content": "你好！有什么可以帮助你的？",
-        "sources": [
-          { "id": "file-uuid", "name": "readme.md", "mimeType": "text/markdown", "score": 0.85 }
-        ],
+        "sources": [{ "id": "file-uuid", "name": "readme.md", "mimeType": "text/markdown", "score": 0.85 }],
         "modelUsed": "@cf/meta/llama-3.1-8b-instruct",
         "latencyMs": 1234,
         "createdAt": "2026-04-03T13:00:01Z"
@@ -530,14 +530,14 @@ Content-Type: application/json
 
 **参数说明**：
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `query` | string | 是 | 用户问题，1-2000 字符 |
-| `sessionId` | string | 否 | 会话 ID，不传则创建新会话 |
-| `modelId` | string | 否 | 指定模型 ID |
-| `maxFiles` | number | 否 | 最大引用文件数，默认 5，最大 10 |
-| `includeFileContent` | boolean | 否 | 是否包含文件内容，默认 false |
-| `stream` | boolean | 否 | 是否流式响应，默认 false |
+| 参数                 | 类型    | 必填 | 说明                            |
+| -------------------- | ------- | ---- | ------------------------------- |
+| `query`              | string  | 是   | 用户问题，1-2000 字符           |
+| `sessionId`          | string  | 否   | 会话 ID，不传则创建新会话       |
+| `modelId`            | string  | 否   | 指定模型 ID                     |
+| `maxFiles`           | number  | 否   | 最大引用文件数，默认 5，最大 10 |
+| `includeFileContent` | boolean | 否   | 是否包含文件内容，默认 false    |
+| `stream`             | boolean | 否   | 是否流式响应，默认 false        |
 
 **响应**：
 
@@ -546,9 +546,7 @@ Content-Type: application/json
   "success": true,
   "data": {
     "answer": "根据你的文件，这个项目的结构是...",
-    "sources": [
-      { "id": "file-uuid", "name": "package.json", "mimeType": "application/json", "score": 0.85 }
-    ],
+    "sources": [{ "id": "file-uuid", "name": "package.json", "mimeType": "application/json", "score": 0.85 }],
     "sessionId": "session-uuid",
     "latencyMs": 1234
   }
@@ -594,21 +592,21 @@ data: {"done":true,"sessionId":"session-uuid","sources":[{"id":"file-uuid","name
 
 **SSE 事件类型 v4.2.0**：
 
-| 事件类型 | 字段 | 说明 |
-|---------|------|------|
-| 文本内容 | `content` | AI 生成的文本内容 |
-| 推理内容 | `reasoning: true, content` | 模型的思考过程（DeepSeek R1、智谱 GLM 等） |
-| 工具调用开始 | `toolStart: true, toolName, toolCallId, args` | AI 开始调用工具 |
-| 工具调用结果 | `toolResult: true, toolCallId, toolName, result` | 工具调用返回结果 |
-| 完成 | `done: true, sessionId, sources` | 响应完成，包含来源文件 |
+| 事件类型     | 字段                                             | 说明                                       |
+| ------------ | ------------------------------------------------ | ------------------------------------------ |
+| 文本内容     | `content`                                        | AI 生成的文本内容                          |
+| 推理内容     | `reasoning: true, content`                       | 模型的思考过程（DeepSeek R1、智谱 GLM 等） |
+| 工具调用开始 | `toolStart: true, toolName, toolCallId, args`    | AI 开始调用工具                            |
+| 工具调用结果 | `toolResult: true, toolCallId, toolName, result` | 工具调用返回结果                           |
+| 完成         | `done: true, sessionId, sources`                 | 响应完成，包含来源文件                     |
 
 **SSE 解析示例**（JavaScript）：
 
 ```javascript
 const response = await fetch('/api/ai-chat/chat', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-  body: JSON.stringify({ query, sessionId, stream: true })
+  headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+  body: JSON.stringify({ query, sessionId, stream: true }),
 });
 
 const reader = response.body.getReader();
@@ -624,7 +622,7 @@ while (true) {
   for (const line of lines) {
     if (line.startsWith('data:')) {
       const data = JSON.parse(line.replace('data:', '').trim());
-      
+
       if (data.done) {
         console.log('完成，来源文件:', data.sources);
       } else if (data.reasoning) {
@@ -692,12 +690,12 @@ Content-Type: application/json
 
 **参数说明**：
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `query` | string | 是 | 搜索查询文本 |
-| `limit` | number | 否 | 返回结果数量，默认 20，最大 50 |
-| `threshold` | number | 否 | 相似度阈值，默认 0.7，范围 0-1 |
-| `mimeType` | string | 否 | MIME 类型过滤 |
+| 参数        | 类型   | 必填 | 说明                           |
+| ----------- | ------ | ---- | ------------------------------ |
+| `query`     | string | 是   | 搜索查询文本                   |
+| `limit`     | number | 否   | 返回结果数量，默认 20，最大 50 |
+| `threshold` | number | 否   | 相似度阈值，默认 0.7，范围 0-1 |
+| `mimeType`  | string | 否   | MIME 类型过滤                  |
 
 **响应**：
 
@@ -798,11 +796,7 @@ POST /api/ai/rename-suggest/:fileId
 {
   "success": true,
   "data": {
-    "suggestions": [
-      "UserLoginForm.jsx",
-      "AuthComponent.tsx",
-      "LoginPage.js"
-    ]
+    "suggestions": ["UserLoginForm.jsx", "AuthComponent.tsx", "LoginPage.js"]
   }
 }
 ```
@@ -952,12 +946,12 @@ Content-Type: application/json
 
 **参数说明**：
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `query` | string | 是 | 用户问题，1-500 字符 |
-| `scope` | string | 否 | 搜索范围：`all` 或 `folder`，默认 `all` |
-| `folderId` | string | 否 | 当 scope 为 folder 时指定文件夹 |
-| `limit` | number | 否 | 引用文件数量，默认 5，最大 10 |
+| 参数       | 类型   | 必填 | 说明                                    |
+| ---------- | ------ | ---- | --------------------------------------- |
+| `query`    | string | 是   | 用户问题，1-500 字符                    |
+| `scope`    | string | 否   | 搜索范围：`all` 或 `folder`，默认 `all` |
+| `folderId` | string | 否   | 当 scope 为 folder 时指定文件夹         |
+| `limit`    | number | 否   | 引用文件数量，默认 5，最大 10           |
 
 **响应**：
 
@@ -1034,14 +1028,14 @@ GET /api/ai-config/system-config
 
 **配置分类**：
 
-| 分类 | 说明 |
-|------|------|
-| `model` | 默认模型配置 |
-| `parameter` | 模型参数配置 |
-| `limit` | 内容限制配置 |
-| `retry` | 重试策略配置 |
-| `prompt` | 提示词模板配置 |
-| `feature` | 功能开关配置 |
+| 分类        | 说明           |
+| ----------- | -------------- |
+| `model`     | 默认模型配置   |
+| `parameter` | 模型参数配置   |
+| `limit`     | 内容限制配置   |
+| `retry`     | 重试策略配置   |
+| `prompt`    | 提示词模板配置 |
+| `feature`   | 功能开关配置   |
 
 ---
 
@@ -1108,11 +1102,11 @@ GET /api/ai/index/vectors
 
 **查询参数**：
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `page` | number | 页码，默认 1 |
+| 参数       | 类型   | 说明              |
+| ---------- | ------ | ----------------- |
+| `page`     | number | 页码，默认 1      |
 | `pageSize` | number | 每页数量，默认 20 |
-| `search` | string | 文件名搜索 |
+| `search`   | string | 文件名搜索        |
 
 **响应**：
 
@@ -1177,9 +1171,7 @@ GET /api/ai/index/diagnose
       "configured": true,
       "totalCount": 500,
       "userCount": 150,
-      "sampleVectors": [
-        { "id": "file-uuid", "score": 0.95, "metadata": { "fileName": "readme.md" } }
-      ]
+      "sampleVectors": [{ "id": "file-uuid", "score": 0.95, "metadata": { "fileName": "readme.md" } }]
     },
     "database": {
       "totalFiles": 200,
@@ -1229,18 +1221,18 @@ GET /api/ai/index/sample/:fileId
 
 ## 错误码
 
-| 错误码 | HTTP 状态 | 说明 |
-|--------|----------|------|
-| `G100` | 400 | 参数验证失败 |
-| `G101` | 400 | 无效的 provider 值 |
-| `G102` | 400 | 无效的 Workers AI 模型 ID |
-| `G103` | 400 | API Key 格式无效 |
-| `G104` | 400 | 配置无效 |
-| `G000` | 500 | 服务器内部错误 |
-| `G401` | 401 | 未授权 |
-| `G404` | 404 | 资源不存在 |
-| `G409` | 409 | 冲突（如任务已在运行） |
-| `G503` | 503 | 服务不可用（如 AI 任务队列未配置） |
+| 错误码 | HTTP 状态 | 说明                               |
+| ------ | --------- | ---------------------------------- |
+| `G100` | 400       | 参数验证失败                       |
+| `G101` | 400       | 无效的 provider 值                 |
+| `G102` | 400       | 无效的 Workers AI 模型 ID          |
+| `G103` | 400       | API Key 格式无效                   |
+| `G104` | 400       | 配置无效                           |
+| `G000` | 500       | 服务器内部错误                     |
+| `G401` | 401       | 未授权                             |
+| `G404` | 404       | 资源不存在                         |
+| `G409` | 409       | 冲突（如任务已在运行）             |
+| `G503` | 503       | 服务不可用（如 AI 任务队列未配置） |
 
 **错误响应格式**：
 

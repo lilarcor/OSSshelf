@@ -140,12 +140,13 @@ export const definitions: ToolDefinition[] = [
 ];
 
 export class PermissionTools {
-
   static async executeGetFilePermissions(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
     const db = getDb(env.DB);
 
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId)))
       .get();
     if (!file) return { error: '文件不存在或无权访问' };
@@ -182,7 +183,9 @@ export class PermissionTools {
     }
 
     const db = getDb(env.DB);
-    const file = await db.select().from(files)
+    const file = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId)))
       .get();
     if (!file) return { error: '文件不存在或无权访问' };
@@ -236,7 +239,9 @@ export class PermissionTools {
     const accessLevel = args.accessLevel as string;
     const db = getDb(env.DB);
 
-    const folder = await db.select().from(files)
+    const folder = await db
+      .select()
+      .from(files)
       .where(and(eq(files.id, folderId), eq(files.userId, userId), eq(files.isFolder, true)))
       .get();
     if (!folder) return { error: '文件夹不存在' };
@@ -248,9 +253,12 @@ export class PermissionTools {
       public_write: '所有人可读写',
     };
 
-    await db.update(files).set({
-      updatedAt: new Date().toISOString(),
-    }).where(eq(files.id, folderId));
+    await db
+      .update(files)
+      .set({
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(files.id, folderId));
 
     logger.info('AgentTool', 'Set folder access level', { folderId, folderName: folder.name, accessLevel });
 
@@ -270,7 +278,8 @@ export class PermissionTools {
     const db = getDb(env.DB);
 
     try {
-      const groups = await db.select()
+      const groups = await db
+        .select()
         .from(userGroups)
         .where(eq(userGroups.ownerId, userId))
         .orderBy(desc(userGroups.createdAt))
@@ -281,10 +290,7 @@ export class PermissionTools {
 
       if (includeMembers && groups.length > 0) {
         for (const group of groups) {
-          const members = await db.select()
-            .from(groupMembers)
-            .where(eq(groupMembers.groupId, group.id))
-            .all();
+          const members = await db.select().from(groupMembers).where(eq(groupMembers.groupId, group.id)).all();
 
           result.push({
             id: group.id,
@@ -328,7 +334,9 @@ export class PermissionTools {
     const role = args.role as string | undefined;
     const db = getDb(env.DB);
 
-    const group = await db.select().from(userGroups)
+    const group = await db
+      .select()
+      .from(userGroups)
       .where(and(eq(userGroups.id, groupId), eq(userGroups.ownerId, userId)))
       .get();
     if (!group) return { error: '用户组不存在或无权管理' };
@@ -337,7 +345,8 @@ export class PermissionTools {
 
     switch (action) {
       case 'add': {
-        const existing = await db.select()
+        const existing = await db
+          .select()
           .from(groupMembers)
           .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, targetUserId)))
           .get();
@@ -365,7 +374,8 @@ export class PermissionTools {
         };
       }
       case 'remove': {
-        await db.delete(groupMembers)
+        await db
+          .delete(groupMembers)
           .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, targetUserId)));
 
         return {
@@ -379,7 +389,9 @@ export class PermissionTools {
       case 'change_role': {
         if (!role) return { error: '更改角色时必须提供 role 参数' };
 
-        await db.update(groupMembers).set({ role })
+        await db
+          .update(groupMembers)
+          .set({ role })
           .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, targetUserId)));
 
         return {

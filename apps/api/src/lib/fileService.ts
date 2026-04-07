@@ -89,20 +89,25 @@ export async function createTextFile(
 
   // 写入存储
   try {
-    const writeResult = await writeFileContent(env, {
-      id: fileId,
-      r2Key,
-      bucketId: effectiveBucketId,
-      mimeType: fileMime,
-      size: contentBytes.length,
-      userId,
-      parentId: parentId || null,
-      name,
-      path,
-      isFolder: false,
-      createdAt: now,
-      updatedAt: now,
-    } as any, content, userId);
+    const writeResult = await writeFileContent(
+      env,
+      {
+        id: fileId,
+        r2Key,
+        bucketId: effectiveBucketId,
+        mimeType: fileMime,
+        size: contentBytes.length,
+        userId,
+        parentId: parentId || null,
+        name,
+        path,
+        isFolder: false,
+        createdAt: now,
+        updatedAt: now,
+      } as any,
+      content,
+      userId
+    );
 
     if (!writeResult.success) {
       return { success: false, error: writeResult.error || '存储写入失败' };
@@ -156,9 +161,17 @@ export async function createTextFile(
 // ─────────────────────────────────────────────────────────────────────────────
 
 const EDITABLE_MIME_TYPES = [
-  'text/', 'application/json', 'application/xml', 'application/javascript',
-  'application/x-yaml', 'application/yaml', 'text/markdown', 'text/plain',
-  'text/csv', 'text/html', 'text/css',
+  'text/',
+  'application/json',
+  'application/xml',
+  'application/javascript',
+  'application/x-yaml',
+  'application/yaml',
+  'text/markdown',
+  'text/plain',
+  'text/csv',
+  'text/html',
+  'text/css',
 ];
 
 function isEditableMimeType(mimeType: string | null): boolean {
@@ -197,18 +210,21 @@ export async function updateFileContent(
   }
 
   // 创建版本快照（如果配置允许且内容有变化）
-    if (oldContent !== newContent) {
-      try {
-        const newHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(newContent))
-          .then((buf) => Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join(''));
-        const doSnapshot = await shouldCreateVersion(getDb(env.DB), fileId, newHash);
-        if (doSnapshot) {
-          await createVersionSnapshot(db, env, { id: fileId } as any, { changeSummary: 'Agent 编辑', createdBy: userId });
-        }
-      } catch (versionError) {
-        logger.warn('FileService', '创建版本快照失败（非致命）', { fileId }, versionError);
+  if (oldContent !== newContent) {
+    try {
+      const newHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(newContent)).then((buf) =>
+        Array.from(new Uint8Array(buf))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('')
+      );
+      const doSnapshot = await shouldCreateVersion(getDb(env.DB), fileId, newHash);
+      if (doSnapshot) {
+        await createVersionSnapshot(db, env, { id: fileId } as any, { changeSummary: 'Agent 编辑', createdBy: userId });
       }
+    } catch (versionError) {
+      logger.warn('FileService', '创建版本快照失败（非致命）', { fileId }, versionError);
     }
+  }
 
   // 写入新内容
   const contentBytes = new TextEncoder().encode(newContent);
@@ -220,10 +236,13 @@ export async function updateFileContent(
 
   // 更新数据库记录
   const now = new Date().toISOString();
-  await db.update(files).set({
-    size: contentBytes.length,
-    updatedAt: now,
-  }).where(eq(files.id, fileId));
+  await db
+    .update(files)
+    .set({
+      size: contentBytes.length,
+      updatedAt: now,
+    })
+    .where(eq(files.id, fileId));
 
   logger.info('FileService', '文件内容更新成功', { fileId, fileName: file.name, newSize: contentBytes.length });
 
@@ -344,11 +363,14 @@ export async function renameFile(
   const now = new Date().toISOString();
   const newPath = file.parentId ? `${file.parentId}/${name}` : `/${name}`;
 
-  await db.update(files).set({
-    name,
-    path: newPath,
-    updatedAt: now,
-  }).where(eq(files.id, fileId));
+  await db
+    .update(files)
+    .set({
+      name,
+      path: newPath,
+      updatedAt: now,
+    })
+    .where(eq(files.id, fileId));
 
   logger.info('FileService', '文件重命名成功', { fileId, oldName: file.name, newName: name });
   return { success: true, message: '重命名成功' };
@@ -432,10 +454,13 @@ export async function toggleStar(
 
   if (!file) return { success: false, error: '文件不存在或无权访问' };
 
-  await db.update(files).set({
-    isStarred: starred,
-    updatedAt: new Date().toISOString(),
-  }).where(eq(files.id, fileId));
+  await db
+    .update(files)
+    .set({
+      isStarred: starred,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(files.id, fileId));
 
   logger.info('FileService', '收藏状态更新', { fileId, starred });
   return { success: true, message: starred ? '已添加到收藏' : '已取消收藏' };

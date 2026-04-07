@@ -382,7 +382,11 @@ export function AIChatWidget() {
             // Error from SSE stream
             if (raw.error && !raw.done) {
               setMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, content: (m.content || '') + `\n\n❌ 错误: ${raw.error}`, isLoading: false } : m))
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, content: (m.content || '') + `\n\n❌ 错误: ${raw.error}`, isLoading: false }
+                    : m
+                )
               );
               return;
             }
