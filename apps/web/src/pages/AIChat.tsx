@@ -25,6 +25,7 @@ import {
   Download,
   Zap,
   Code,
+  Loader2,
 } from 'lucide-react';
 import { aiApi, filesApi, type AiChatMessage } from '@/services/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -42,7 +43,7 @@ import {
   ChatHeader,
   WelcomeScreen,
 } from '@/components/ai/chat';
-import type { Message, ToolCallEvent, SseChunk } from '@/components/ai/types';
+import type { Message, ToolCallEvent, SseChunk, PendingConfirm } from '@/components/ai/types';
 
 // ────────────────────────────────────────────────────────────
 // Tool name → label + icon
@@ -403,9 +404,23 @@ export function AIChat() {
             }
 
             if (raw.done) {
-              setMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, isLoading: false, sources: raw.sources || [] } : m))
-              );
+              if (raw.confirmRequest && raw.confirmId && raw.summary) {
+                const pendingConfirm: PendingConfirm = {
+                  confirmId: raw.confirmId,
+                  toolName: raw.toolName || '',
+                  summary: raw.summary,
+                  args: raw.args || {},
+                };
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId ? { ...m, isLoading: false, pendingConfirm } : m
+                  )
+                );
+              } else {
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === assistantId ? { ...m, isLoading: false, sources: raw.sources || [] } : m))
+                );
+              }
               if (raw.sessionId) {
                 setCurrentSessionId(raw.sessionId);
                 if (!urlSessionId) navigate(`/ai-chat/${raw.sessionId}`, { replace: true });
@@ -441,6 +456,47 @@ export function AIChat() {
     },
     [sendMessage]
   );
+
+  const handleConfirm = useCallback(
+    async (msgId: string, confirmId: string) => {
+      setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, isLoading: true } : m)));
+      try {
+        const res = await aiApi.chatSession.confirmAction(confirmId);
+        if (res.data.success && res.data.data) {
+          const resultStr =
+            typeof res.data.data.result === 'object'
+              ? JSON.stringify(res.data.data.result, null, 2)
+              : String(res.data.data.result ?? '操作已完成');
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === msgId
+                ? { ...m, isLoading: false, pendingConfirm: undefined, content: (m.content || '') + `\n\n✅ 操作执行成功:\n${resultStr}` }
+                : m
+            )
+          );
+        }
+      } catch (e) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msgId
+              ? { ...m, isLoading: false, content: (m.content || '') + '\n\n❌ 操作执行失败' }
+              : m
+          )
+        );
+      }
+    },
+    []
+  );
+
+  const handleCancelConfirm = useCallback((msgId: string) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId
+          ? { ...m, pendingConfirm: undefined, content: (m.content || '') + '\n\n⛔ 用户已取消操作' }
+          : m
+      )
+    );
+  }, []);
 
   const handleRegenerate = (msgId: string) => {
     const idx = messages.findIndex((m) => m.id === msgId);
@@ -538,6 +594,38 @@ export function AIChat() {
                           toolMeta={TOOL_META}
                         />
                       ))}
+                    </div>
+                  )}
+
+                  {msg.role === 'assistant' && msg.pendingConfirm && (
+                    <div className="my-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm">
+                      <div className="flex items-start gap-2">
+                        <div className="flex items-center justify-center h-5 w-5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 flex-shrink-0 mt-0.5">
+                          <Sparkles className="h-3 w-3" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-amber-800 dark:text-amber-200 mb-1">待确认操作</div>
+                          <div className="text-amber-700 dark:text-amber-300 break-words">{msg.pendingConfirm.summary}</div>
+                          <div className="text-xs text-amber-500/70 mt-1 font-mono">{msg.pendingConfirm.toolName}</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-2.5 justify-end">
+                        <button
+                          onClick={() => handleCancelConfirm(msg.id)}
+                          disabled={msg.isLoading}
+                          className="px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
+                        >
+                          取消
+                        </button>
+                        <button
+                          onClick={() => handleConfirm(msg.id, msg.pendingConfirm!.confirmId)}
+                          disabled={msg.isLoading}
+                          className="px-2.5 py-1 rounded-md text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors disabled:opacity-50 flex items-center gap-1"
+                        >
+                          {msg.isLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                          确认执行
+                        </button>
+                      </div>
                     </div>
                   )}
 

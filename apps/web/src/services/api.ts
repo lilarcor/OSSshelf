@@ -1448,20 +1448,9 @@ export const aiApi = {
 
           try {
             const data = JSON.parse(trimmedLine.slice(6));
-            console.log('[SSE] Received chunk:', data.done ? { done: data.done, confirmRequest: data.confirmRequest, confirmId: data.confirmId, summary: data.summary } : { type: data.content ? 'content' : 'other' });
-            try {
-              console.log('[SSE] Calling onChunk callback, typeof onChunk:', typeof options.onChunk);
-              options.onChunk(data);
-              console.log('[SSE] onChunk callback completed');
-            } catch (callbackErr) {
-              console.error('[SSE] onChunk callback error:', callbackErr);
-            }
-            if (data.done) {
-              console.log('[SSE] done=true, returning');
-              return;
-            }
-          } catch (parseErr) {
-            console.warn('[SSE] Failed to parse:', trimmedLine.slice(0, 100), parseErr);
+            options.onChunk(data);
+            if (data.done) return;
+          } catch {
             continue;
           }
         }

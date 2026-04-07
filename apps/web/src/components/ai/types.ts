@@ -21,6 +21,13 @@ export interface ToolCallEvent {
   status: 'running' | 'done' | 'error' | 'pending_confirm';
 }
 
+export interface PendingConfirm {
+  confirmId: string;
+  toolName: string;
+  summary: string;
+  args: Record<string, unknown>;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -28,6 +35,7 @@ export interface Message {
   reasoning?: string;
   sources?: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
   toolCalls?: ToolCallEvent[];
+  pendingConfirm?: PendingConfirm;
   timestamp: Date;
   isLoading?: boolean;
 }
@@ -46,4 +54,7 @@ export interface SseChunk {
   toolCallId?: string;
   args?: Record<string, unknown>;
   result?: unknown;
+  confirmRequest?: boolean;
+  confirmId?: string;
+  summary?: string;
 }

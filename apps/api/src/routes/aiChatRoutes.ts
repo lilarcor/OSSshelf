@@ -480,11 +480,6 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
                   finalSources = chunk.sources;
                   emitDone({ done: true, sessionId: actualSessionId, sources: chunk.sources });
                 } else if (chunk.type === 'confirm_request') {
-                  logger.info('AI Chat', 'Sending confirm_request SSE', {
-                    confirmId: chunk.confirmId,
-                    toolName: chunk.toolName,
-                    summary: chunk.summary,
-                  });
                   emitDone({
                     done: true,
                     confirmRequest: true,

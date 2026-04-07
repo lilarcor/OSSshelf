@@ -393,7 +393,6 @@ export function AIChatWidget() {
           maxFiles: 8,
           includeFileContent: false,
           onChunk: (raw: SseChunk) => {
-            console.log('[AI Chat Widget] onChunk called:', raw.done ? { done: raw.done, confirmRequest: raw.confirmRequest } : { hasContent: !!raw.content });
             if (raw.toolStart && raw.toolCallId && raw.toolName) {
               const tc: ToolCallEvent = {
                 id: raw.toolCallId,
@@ -448,14 +447,7 @@ export function AIChatWidget() {
             }
 
             if (raw.done) {
-              console.log('[AI Chat] Received done chunk:', {
-                confirmRequest: raw.confirmRequest,
-                confirmId: raw.confirmId,
-                summary: raw.summary,
-                toolName: raw.toolName,
-              });
               if (raw.confirmRequest && raw.confirmId && raw.summary) {
-                console.log('[AI Chat] Setting pendingConfirm:', raw.confirmId);
                 const pendingConfirm: PendingConfirm = {
                   confirmId: raw.confirmId,
                   toolName: raw.toolName || '',
