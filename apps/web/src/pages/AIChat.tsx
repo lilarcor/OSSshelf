@@ -463,14 +463,25 @@ export function AIChat() {
       try {
         const res = await aiApi.chatSession.confirmAction(confirmId);
         if (res.data.success && res.data.data) {
+          const resultData = res.data.data;
           const resultStr =
-            typeof res.data.data.result === 'object'
-              ? JSON.stringify(res.data.data.result, null, 2)
-              : String(res.data.data.result ?? '操作已完成');
+            typeof resultData.result === 'object'
+              ? JSON.stringify(resultData.result, null, 2)
+              : String(resultData.result ?? '操作已完成');
           setMessages((prev) =>
             prev.map((m) =>
               m.id === msgId
-                ? { ...m, isLoading: false, pendingConfirm: undefined, content: (m.content || '') + `\n\n✅ 操作执行成功:\n${resultStr}` }
+                ? {
+                    ...m,
+                    isLoading: false,
+                    pendingConfirm: undefined,
+                    content: (m.content || '') + `\n\n✅ 操作执行成功:\n${resultStr}`,
+                    toolCalls: (m.toolCalls || []).map((tc) =>
+                      tc.result && typeof tc.result === 'object' && (tc.result as Record<string, unknown>).status === 'pending_confirm'
+                        ? { ...tc, result: resultData.result }
+                        : tc
+                    ),
+                  }
                 : m
             )
           );
