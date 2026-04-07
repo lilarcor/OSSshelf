@@ -447,7 +447,14 @@ export function AIChatWidget() {
             }
 
             if (raw.done) {
+              console.log('[AI Chat] Received done chunk:', {
+                confirmRequest: raw.confirmRequest,
+                confirmId: raw.confirmId,
+                summary: raw.summary,
+                toolName: raw.toolName,
+              });
               if (raw.confirmRequest && raw.confirmId && raw.summary) {
+                console.log('[AI Chat] Setting pendingConfirm:', raw.confirmId);
                 const pendingConfirm: PendingConfirm = {
                   confirmId: raw.confirmId,
                   toolName: raw.toolName || '',
