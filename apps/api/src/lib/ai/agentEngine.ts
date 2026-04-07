@@ -927,6 +927,7 @@ export class AgentEngine {
     if (!pending) {
       throw new Error('确认请求不存在、已过期或已被消费');
     }
+    this.executor.setUserId(userId);
     return this.executor.executeConfirmed(pending.toolName, pending.args);
   }
 

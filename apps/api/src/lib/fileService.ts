@@ -26,6 +26,7 @@ import { s3Put } from './s3client';
 import { createVersionSnapshot, shouldCreateVersion } from './versionManager';
 import { dispatchWebhook } from './webhook';
 import { readFileContent, writeFileContent } from './fileContentHelper';
+import { deleteFileVector } from './vectorIndex';
 
 export interface CreateTextFileInput {
   name: string;
@@ -380,7 +381,7 @@ export async function renameFile(
 // 软删除文件（复用 files.ts DELETE /:id 的核心逻辑）
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function softDeleteFolder(db: ReturnType<typeof getDb>, folderId: string, deletedAt: string) {
+async function softDeleteFolder(db: ReturnType<typeof getDb>, folderId: string, deletedAt: string, env: Env) {
   const folder = await db.select().from(files).where(eq(files.id, folderId)).get();
   if (!folder?.isFolder) return;
 
@@ -392,9 +393,10 @@ async function softDeleteFolder(db: ReturnType<typeof getDb>, folderId: string, 
 
   for (const child of children) {
     if (child.isFolder) {
-      await softDeleteFolder(db, child.id, deletedAt);
+      await softDeleteFolder(db, child.id, deletedAt, env);
     }
     await db.update(files).set({ deletedAt, updatedAt: deletedAt }).where(eq(files.id, child.id));
+    await deleteFileVector(env, child.id);
   }
 }
 
@@ -417,8 +419,10 @@ export async function softDeleteFile(
   if (!file) return { success: false, error: '文件不存在' };
 
   const now = new Date().toISOString();
-  if (file.isFolder) await softDeleteFolder(db, fileId, now);
+  if (file.isFolder) await softDeleteFolder(db, fileId, now, env);
   await db.update(files).set({ deletedAt: now, updatedAt: now }).where(eq(files.id, fileId));
+
+  await deleteFileVector(env, fileId);
 
   logger.info('FileService', '文件软删除成功', { fileId, fileName: file.name, isFolder: file.isFolder });
 
