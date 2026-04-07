@@ -249,10 +249,8 @@ async function callChatModel(
     }
 
     if (env.AI) {
-      const summaryMaxTokens = await getAiConfigNumber(env, 'ai.summary.max_tokens', 200);
       const fallbackResponse = await (env.AI as any).run(effectiveModelId, {
         messages: request.messages,
-        max_tokens: request.maxTokens || summaryMaxTokens,
         stream: false,
       });
 
@@ -295,7 +293,6 @@ async function callVisionModel(
   const gateway = new ModelGateway(env);
   const featureConfig = await getFeatureModelConfig(env, userId);
   const effectiveModelId = featureConfig.imageCaption || defaultModelId;
-  const imageCaptionMaxTokens = await getAiConfigNumber(env, 'ai.image_caption.max_tokens', 2048);
 
   const visionGateway = new ModelGateway(env);
   const resolved = await visionGateway.resolveModelForCall(userId, effectiveModelId);
@@ -321,7 +318,6 @@ async function callVisionModel(
                 content: buildVisionMessageContent(base64Image, mimeType, prompt),
               },
             ],
-            maxTokens: imageCaptionMaxTokens,
             featureType: 'image_caption',
           },
           effectiveModelId
@@ -332,7 +328,6 @@ async function callVisionModel(
         const response = await (env.AI as any).run(effectiveModelId, {
           image: uint8Array,
           prompt,
-          max_tokens: imageCaptionMaxTokens,
         });
         return (
           (response as { description?: string; response?: string }).description?.trim() ||
@@ -353,11 +348,9 @@ async function callWorkersAiVision(env: Env, modelId: string, imageData: number[
   if (!env.AI) {
     throw new Error('AI service not available');
   }
-  const imageCaptionMaxTokens = await getAiConfigNumber(env, 'ai.image_caption.max_tokens', 2048);
   const response = await (env.AI as any).run(modelId, {
     image: imageData,
     prompt,
-    max_tokens: imageCaptionMaxTokens,
   });
   return (response as { description?: string }).description?.trim() || '';
 }
@@ -384,8 +377,6 @@ async function callVisionModelForTags(
   const gateway = new ModelGateway(env);
   const featureConfig = await getFeatureModelConfig(env, userId);
   const effectiveModelId = featureConfig.imageTag || defaultModelId;
-  const imageTagMaxTokens = await getAiConfigNumber(env, 'ai.image_tag.max_tokens', 1024);
-
   const resolved = await gateway.resolveModelForCall(userId, effectiveModelId);
 
   try {
@@ -409,7 +400,6 @@ async function callVisionModelForTags(
                 content: buildVisionMessageContent(base64Image, mimeType, IMAGE_TAG_PROMPT),
               },
             ],
-            maxTokens: imageTagMaxTokens,
             featureType: 'image_tag',
           },
           effectiveModelId
@@ -420,7 +410,6 @@ async function callVisionModelForTags(
         const response = await (env.AI as any).run(effectiveModelId, {
           image: uint8Array,
           prompt: IMAGE_TAG_PROMPT,
-          max_tokens: imageTagMaxTokens,
         });
         const text =
           (response as { description?: string; response?: string }).description?.trim() ||
@@ -441,11 +430,9 @@ async function callWorkersAiVisionForTags(env: Env, modelId: string, imageData: 
   if (!env.AI) {
     throw new Error('AI service not available');
   }
-  const imageTagMaxTokens = await getAiConfigNumber(env, 'ai.image_tag.max_tokens', 1024);
   const response = await (env.AI as any).run(modelId, {
     image: imageData,
     prompt: IMAGE_TAG_PROMPT,
-    max_tokens: imageTagMaxTokens,
   });
   const text = (response as { description?: string }).description?.trim() || '';
   return parseTagsFromText(text);
@@ -507,7 +494,6 @@ export async function generateFileSummary(
   }
 
   const truncatedContent = textContent.slice(0, contentLimits.summary);
-  const summaryMaxTokens = await getAiConfigNumber(env, 'ai.summary.max_tokens', 2048);
 
   try {
     const summary = await callChatModel(
@@ -525,7 +511,6 @@ export async function generateFileSummary(
             content: truncatedContent,
           },
         ],
-        maxTokens: summaryMaxTokens,
       },
       signal
     );
@@ -658,8 +643,6 @@ export async function suggestFileName(
     contextForAI = hints;
   }
 
-  const renameMaxTokens = await getAiConfigNumber(env, 'ai.rename.max_tokens', 150);
-
   try {
     const responseText = await callChatModel(env, userId || file.userId || 'default', 'rename', {
       messages: [
@@ -678,7 +661,6 @@ export async function suggestFileName(
           content: `原文件名：${file.name}\n${contextForAI}`,
         },
       ],
-      maxTokens: renameMaxTokens,
     });
 
     const suggestions = responseText
@@ -715,8 +697,6 @@ export async function suggestFileNameFromContent(
 
   const contentLimits = await getContentLimits(env);
   const ext = extension || '';
-  const renameMaxTokens = await getAiConfigNumber(env, 'ai.rename.max_tokens', 150);
-
   try {
     const responseText = await callChatModel(env, userId || 'default', 'rename', {
       messages: [
@@ -735,7 +715,6 @@ export async function suggestFileNameFromContent(
           content: `文件类型：${mimeType || '未知'}\n文件内容（前${contentLimits.rename}字）：\n${content.slice(0, contentLimits.rename)}`,
         },
       ],
-      maxTokens: renameMaxTokens,
     });
 
     const suggestions = responseText
@@ -965,7 +944,6 @@ export async function generateVersionSummary(
           content: `版本：v${oldVer.version} → v${newVer.version}\n当前内容摘要：\n${newText.slice(0, 2000)}`,
         },
       ],
-      maxTokens: 150,
     });
 
     if (summary && summary.trim().length > 0) {

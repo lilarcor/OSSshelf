@@ -359,7 +359,6 @@ export class ContentTools {
     const imageBytes = new Uint8Array(buffer);
     const actualMimeType = file.mimeType || 'image/jpeg';
     const visionModelId = await getAiConfigString(env, 'ai.default_model.vision', '@cf/llava-hf/llava-1.5-7b-hf');
-    const visionMaxTokens = await getAiConfigNumber(env, 'ai.vision.max_tokens', 2048);
 
     try {
       const modelGateway = new ModelGateway(env);
@@ -388,7 +387,6 @@ export class ContentTools {
             userId,
             {
               messages: [{ role: 'user', content: buildVisionMessageContent(base64Image, actualMimeType, question) }],
-              maxTokens: visionMaxTokens,
               featureType: 'image_analysis',
             },
             visionModelId
@@ -398,7 +396,6 @@ export class ContentTools {
           const result = await (env.AI as any).run(visionModelId, {
             image: Array.from(imageBytes),
             prompt: question,
-            max_tokens: visionMaxTokens,
           });
           description = (result as any)?.description?.trim() || (result as any)?.response?.trim() || '';
         } else {
@@ -420,7 +417,6 @@ export class ContentTools {
         const result = await (env.AI as any).run(visionModelId, {
           image: Array.from(imageBytes),
           prompt: question,
-          max_tokens: visionMaxTokens,
         });
         description =
           typeof result === 'string'

@@ -37,25 +37,18 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
     apiEndpoint: model?.apiEndpoint || '',
     apiKey: '',
     capabilities: model?.capabilities || ['chat'],
-    maxTokens: model?.maxTokens || 4096,
     temperature: model?.temperature || 0.7,
     systemPrompt: model?.systemPrompt || '',
     isActive: model?.isActive || false,
-    contextLength: (model as any)?.contextLength || 4096,
-    maxOutputTokens: (model as any)?.maxOutputTokens || 4096,
-    supportsThinking: (model as any)?.supportsThinking || false,
-    supportsFunctionCalling: (model as any)?.supportsFunctionCalling ?? true,
-    supportsStreaming: (model as any)?.supportsStreaming ?? true,
-    supportsVision: (model as any)?.supportsVision || false,
-    thinkingParamFormat: (model as any)?.thinkingParamFormat || '',
-    thinkingParamName: (model as any)?.thinkingParamName || '',
-    thinkingEnabledValue: (model as any)?.thinkingEnabledValue || '',
-    thinkingDisabledValue: (model as any)?.thinkingDisabledValue || '',
-    thinkingNestedKey: (model as any)?.thinkingNestedKey || '',
+    supportsThinking: model?.supportsThinking || false,
+    thinkingParamFormat: model?.thinkingParamFormat || '',
+    thinkingParamName: model?.thinkingParamName || '',
+    thinkingEnabledValue: model?.thinkingEnabledValue || '',
+    thinkingDisabledValue: model?.thinkingDisabledValue || '',
+    thinkingNestedKey: model?.thinkingNestedKey || '',
     disableThinkingForFeatures:
-      (model as any)?.disableThinkingForFeatures || '["image_caption","image_tag","image_analysis","file_summary"]',
-    vendorSpecificConfig: (model as any)?.vendorSpecificConfig || '{}',
-    isReadonly: (model as any)?.isReadonly || false,
+      model?.disableThinkingForFeatures || '["image_caption","image_tag","image_analysis","file_summary"]',
+    isReadonly: model?.isReadonly || false,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -236,44 +229,6 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">上下文长度</label>
-                <input
-                  type="number"
-                  value={formData.contextLength}
-                  onChange={(e) => setFormData({ ...formData, contextLength: parseInt(e.target.value) || 4096 })}
-                  className="w-full px-3 py-2 border rounded-lg bg-background text-sm"
-                  min={512}
-                  max={2000000}
-                />
-                <p className="text-xs text-muted-foreground mt-1">模型支持的最大上下文Token数</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">最大输出Token</label>
-                <input
-                  type="number"
-                  value={formData.maxOutputTokens}
-                  onChange={(e) => setFormData({ ...formData, maxOutputTokens: parseInt(e.target.value) || 4096 })}
-                  className="w-full px-3 py-2 border rounded-lg bg-background text-sm"
-                  min={1}
-                  max={200000}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">最大 Token (K)</label>
-                <input
-                  type="number"
-                  value={Math.round(formData.maxTokens / 1000)}
-                  onChange={(e) => setFormData({ ...formData, maxTokens: (parseInt(e.target.value) || 4) * 1000 })}
-                  className="w-full px-3 py-2 border rounded-lg bg-background text-sm"
-                  min={1}
-                  max={128}
-                />
-                <p className="text-xs text-muted-foreground mt-1">输入值单位为 K，如 4 表示 4K tokens</p>
-              </div>
-              <div>
                 <label className="block text-sm font-medium mb-1">温度 (0-2)</label>
                 <input
                   type="number"
@@ -301,12 +256,9 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
             <div className="space-y-3 pt-4 border-t">
               <h3 className="font-medium text-sm sm:text-base">模型特性</h3>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {[
                   { key: 'supportsThinking', label: '思考模式', desc: '支持深度推理' },
-                  { key: 'supportsFunctionCalling', label: '函数调用', desc: '工具调用能力' },
-                  { key: 'supportsStreaming', label: '流式输出', desc: '实时响应' },
-                  { key: 'supportsVision', label: '视觉能力', desc: '图片理解' },
                 ].map((item) => (
                   <label
                     key={item.key}
@@ -325,6 +277,9 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
                   </label>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                💡 视觉能力和函数调用能力请在下方「模型能力」中选择
+              </p>
             </div>
 
             {formData.supportsThinking && (

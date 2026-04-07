@@ -39,7 +39,6 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
           role: msg.role,
           content: this.formatMessageContent(msg.content),
         })),
-        max_tokens: request.maxTokens || this.config.maxTokens,
         temperature: request.temperature ?? this.config.temperature,
         stream: false,
       };
@@ -118,7 +117,6 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
           role: msg.role,
           content: this.formatMessageContent(msg.content),
         })),
-        max_tokens: request.maxTokens || this.config.maxTokens,
         temperature: request.temperature ?? this.config.temperature,
         stream: true,
       };

@@ -257,7 +257,6 @@ async function handleNormalChat(
                 { role: 'system', content: '用 8-12 个中文字概括用户对话的主题。只输出标题，不加标点和解释。' },
                 { role: 'user', content: query },
               ],
-              maxTokens: 30,
               temperature: 0.5,
             });
             const generatedTitle = titleResponse.content.trim().slice(0, 20);
@@ -395,7 +394,6 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
                 { role: 'system', content: '用 8-12 个中文字概括用户对话的主题。只输出标题，不加标点和解释。' },
                 { role: 'user', content: query },
               ],
-              maxTokens: 30,
               temperature: 0.5,
             });
             const generatedTitle = titleResponse.content.trim().slice(0, 20);

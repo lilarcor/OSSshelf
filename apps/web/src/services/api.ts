@@ -1483,11 +1483,18 @@ export interface AiModel {
   hasApiKey?: boolean;
   isActive: boolean;
   capabilities: string[];
-  maxTokens: number;
   temperature: number;
   systemPrompt?: string;
   createdAt: string;
   updatedAt: string;
+  supportsThinking?: boolean;
+  thinkingParamFormat?: 'object' | 'boolean' | 'string' | '';
+  thinkingParamName?: string;
+  thinkingEnabledValue?: string;
+  thinkingDisabledValue?: string;
+  thinkingNestedKey?: string;
+  disableThinkingForFeatures?: string;
+  isReadonly?: boolean;
 }
 
 export interface CreateAiModelParams {
@@ -1497,10 +1504,16 @@ export interface CreateAiModelParams {
   apiEndpoint?: string;
   apiKey?: string;
   capabilities?: string[];
-  maxTokens?: number;
   temperature?: number;
   systemPrompt?: string;
   isActive?: boolean;
+  supportsThinking?: boolean;
+  thinkingParamFormat?: 'object' | 'boolean' | 'string' | '';
+  thinkingParamName?: string;
+  thinkingEnabledValue?: string;
+  thinkingDisabledValue?: string;
+  thinkingNestedKey?: string;
+  disableThinkingForFeatures?: string;
 }
 
 export interface AiProvider {

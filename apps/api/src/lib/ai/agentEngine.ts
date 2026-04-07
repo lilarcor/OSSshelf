@@ -40,10 +40,7 @@ import { getAiConfigNumber } from './aiConfigService';
 
 const DEFAULT_MAX_TOOL_CALLS = 20;
 const DEFAULT_MAX_IDLE_ROUNDS = 3;
-const DEFAULT_MAX_CONTEXT_TOKENS = 10000;
-const DEFAULT_RESERVE_TOKENS = 2500;
 const DEFAULT_MAX_TOOL_RESULT_CHARS = 15000;
-const DEFAULT_AGENT_MAX_TOKENS = 2048;
 const DEFAULT_AGENT_TEMPERATURE = 0.3;
 const DEFAULT_IMAGE_TIMEOUT_MS = 25000;
 const TOKENS_PER_CHAR = 0.5;
@@ -81,10 +78,7 @@ const INJECTION_GUARD = `
 interface AgentConfig {
   maxToolCalls: number;
   maxIdleRounds: number;
-  maxContextTokens: number;
-  reserveTokens: number;
   maxToolResultChars: number;
-  agentMaxTokens: number;
   agentTemperature: number;
   imageTimeoutMs: number;
 }
@@ -94,10 +88,7 @@ async function loadAgentConfig(env: Env): Promise<AgentConfig> {
     return {
       maxToolCalls: await getAiConfigNumber(env, 'ai.agent.max_tool_calls', DEFAULT_MAX_TOOL_CALLS),
       maxIdleRounds: await getAiConfigNumber(env, 'ai.agent.max_idle_rounds', DEFAULT_MAX_IDLE_ROUNDS),
-      maxContextTokens: await getAiConfigNumber(env, 'ai.agent.max_context_tokens', DEFAULT_MAX_CONTEXT_TOKENS),
-      reserveTokens: await getAiConfigNumber(env, 'ai.agent.reserve_tokens', DEFAULT_RESERVE_TOKENS),
       maxToolResultChars: await getAiConfigNumber(env, 'ai.agent.max_tool_result_chars', DEFAULT_MAX_TOOL_RESULT_CHARS),
-      agentMaxTokens: await getAiConfigNumber(env, 'ai.agent.max_tokens', DEFAULT_AGENT_MAX_TOKENS),
       agentTemperature: await getAiConfigNumber(env, 'ai.agent.temperature', DEFAULT_AGENT_TEMPERATURE),
       imageTimeoutMs: await getAiConfigNumber(env, 'ai.agent.image_timeout_ms', DEFAULT_IMAGE_TIMEOUT_MS),
     };
@@ -105,10 +96,7 @@ async function loadAgentConfig(env: Env): Promise<AgentConfig> {
     return {
       maxToolCalls: DEFAULT_MAX_TOOL_CALLS,
       maxIdleRounds: DEFAULT_MAX_IDLE_ROUNDS,
-      maxContextTokens: DEFAULT_MAX_CONTEXT_TOKENS,
-      reserveTokens: DEFAULT_RESERVE_TOKENS,
       maxToolResultChars: DEFAULT_MAX_TOOL_RESULT_CHARS,
-      agentMaxTokens: DEFAULT_AGENT_MAX_TOKENS,
       agentTemperature: DEFAULT_AGENT_TEMPERATURE,
       imageTimeoutMs: DEFAULT_IMAGE_TIMEOUT_MS,
     };
@@ -307,7 +295,6 @@ export class AgentEngine {
       config: {
         maxToolCalls: config.maxToolCalls,
         maxToolResultChars: config.maxToolResultChars,
-        agentMaxTokens: config.agentMaxTokens,
       },
     });
 
@@ -359,7 +346,6 @@ export class AgentEngine {
           userId,
           {
             messages: messages.map((m) => ({ role: m.role as any, content: m.content || '' })),
-            maxTokens: config.agentMaxTokens,
             temperature: config.agentTemperature,
             tools: TOOL_DEFINITIONS,
             toolChoice: 'auto',
@@ -543,7 +529,6 @@ export class AgentEngine {
           userId,
           {
             messages: messages.map((m) => ({ role: m.role as any, content: m.content })),
-            maxTokens: config.agentMaxTokens,
             temperature: config.agentTemperature,
           },
           (chunk: StreamChunk) => {
@@ -791,18 +776,7 @@ export class AgentEngine {
     const last = msgs[msgs.length - 1];
     const deduped = last?.role === 'user' && last.content === currentQuery ? msgs.slice(0, -1) : msgs;
 
-    const budget = config.maxContextTokens - config.reserveTokens;
-    const trimmed: Array<{ role: string; content: string }> = [];
-    let used = 0;
-
-    for (let i = deduped.length - 1; i >= 0; i--) {
-      const m = deduped[i];
-      const cost = Math.ceil(m.content.length * TOKENS_PER_CHAR);
-      if (used + cost > budget) break;
-      used += cost;
-      trimmed.unshift(m);
-    }
-    return trimmed;
+    return deduped;
   }
 }
 

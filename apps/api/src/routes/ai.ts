@@ -1030,7 +1030,6 @@ app.post('/chat', async (c) => {
           content: `用户问题：${query}\n\n相关文件信息：\n${context}`,
         },
       ],
-      maxTokens: 500,
     },
     chatModelId
   );
