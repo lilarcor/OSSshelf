@@ -1188,7 +1188,7 @@ services:
     const existing = await db
       .select()
       .from(files)
-      .where(and(eq(files.userId, userId), eq(files.path, path), eq(files.isFolder, true)))
+      .where(and(eq(files.userId, userId), eq(files.path, path), eq(files.isFolder, true), isNull(files.deletedAt)))
       .get();
 
     if (existing) {
@@ -1205,7 +1205,7 @@ services:
       const folder = await db
         .select()
         .from(files)
-        .where(and(eq(files.userId, userId), eq(files.path, currentPath), eq(files.isFolder, true)))
+        .where(and(eq(files.userId, userId), eq(files.path, currentPath), eq(files.isFolder, true), isNull(files.deletedAt)))
         .get();
 
       if (folder) {

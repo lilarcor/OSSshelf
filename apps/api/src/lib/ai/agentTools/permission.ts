@@ -147,7 +147,7 @@ export class PermissionTools {
     const file = await db
       .select()
       .from(files)
-      .where(and(eq(files.id, fileId), eq(files.userId, userId)))
+      .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
     if (!file) return { error: '文件不存在或无权访问' };
 
@@ -186,7 +186,7 @@ export class PermissionTools {
     const file = await db
       .select()
       .from(files)
-      .where(and(eq(files.id, fileId), eq(files.userId, userId)))
+      .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
     if (!file) return { error: '文件不存在或无权访问' };
 
@@ -242,9 +242,9 @@ export class PermissionTools {
     const folder = await db
       .select()
       .from(files)
-      .where(and(eq(files.id, folderId), eq(files.userId, userId), eq(files.isFolder, true)))
+      .where(and(eq(files.id, folderId), eq(files.userId, userId), eq(files.isFolder, true), isNull(files.deletedAt)))
       .get();
-    if (!folder) return { error: '文件夹不存在' };
+    if (!folder) return { error: '文件夹不存在或已被删除' };
 
     const levelDescriptions: Record<string, string> = {
       private: '仅自己可访问',

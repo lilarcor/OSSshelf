@@ -136,7 +136,7 @@ export class VersionTools {
       db
         .select()
         .from(files)
-        .where(and(eq(files.id, fileId), eq(files.userId, userId)))
+        .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
         .get(),
       db
         .select()
@@ -145,7 +145,7 @@ export class VersionTools {
         .get(),
     ]);
 
-    if (!file) return { error: '文件不存在' };
+    if (!file) return { error: '文件不存在或已被删除' };
     if (!targetVersion) return { error: '目标版本不存在' };
 
     try {
@@ -259,9 +259,9 @@ export class VersionTools {
     const file = await db
       .select()
       .from(files)
-      .where(and(eq(files.id, fileId), eq(files.userId, userId)))
+      .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get();
-    if (!file) return { error: '文件不存在' };
+    if (!file) return { error: '文件不存在或已被删除' };
 
     await db
       .update(files)

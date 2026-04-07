@@ -409,9 +409,9 @@ export class ShareTools {
     const folder = await db
       .select()
       .from(files)
-      .where(and(eq(files.id, folderId), eq(files.userId, userId), eq(files.isFolder, true)))
+      .where(and(eq(files.id, folderId), eq(files.userId, userId), eq(files.isFolder, true), isNull(files.deletedAt)))
       .get();
-    if (!folder) return { error: '文件夹不存在' };
+    if (!folder) return { error: '文件夹不存在或已被删除' };
 
     const uploadLinkId = crypto.randomUUID();
     const token = generateSecureToken(40);
