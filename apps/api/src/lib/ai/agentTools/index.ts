@@ -295,30 +295,13 @@ export class AgentToolExecutor {
 
       const isWriteOperation = WRITE_TOOLS.has(toolName);
 
-      if (isWriteOperation && !args._confirmed) {
+      if (isWriteOperation) {
         return {
           status: 'pending_confirm' as const,
           message: `此操作需要用户确认`,
           toolName,
           args,
         };
-      }
-
-      if (args._confirmed !== undefined) {
-        const safeArgs = { ...args };
-        delete safeArgs._confirmed;
-
-        const result = await executor(this.env, this.userId, safeArgs);
-        const duration = Date.now() - startTime;
-
-        logger.info('AgentTool', `Executed write tool [${toolName}]`, {
-          toolName,
-          userId: this.userId,
-          duration: `${duration}ms`,
-          success: true,
-        });
-
-        return result;
       }
 
       const result = await executor(this.env, this.userId, args);
@@ -352,6 +335,49 @@ export class AgentToolExecutor {
         error: `${toolName} 执行失败: ${errorMessage}`,
         toolName,
       };
+    }
+  }
+
+  async executeConfirmed(toolName: string, args: Record<string, unknown>): Promise<unknown> {
+    const startTime = Date.now();
+
+    try {
+      const executor = TOOL_EXECUTOR_MAP[toolName];
+      if (!executor) {
+        return { error: `未知工具: ${toolName}` };
+      }
+
+      const safeArgs = { ...args };
+      delete safeArgs._confirmed;
+
+      const result = await executor(this.env, this.userId, safeArgs);
+      const duration = Date.now() - startTime;
+
+      logger.info('AgentTool', `Executed confirmed write tool [${toolName}]`, {
+        toolName,
+        userId: this.userId,
+        duration: `${duration}ms`,
+        success: true,
+      });
+
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      logger.error(
+        'AgentTool',
+        `Confirmed tool execution failed [${toolName}]`,
+        {
+          toolName,
+          userId: this.userId,
+          duration: `${duration}ms`,
+          error: errorMessage,
+        },
+        error instanceof Error ? error : undefined
+      );
+
+      return { error: `${toolName} 执行失败: ${errorMessage}`, toolName };
     }
   }
 }

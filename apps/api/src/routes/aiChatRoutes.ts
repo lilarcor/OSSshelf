@@ -476,6 +476,17 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
                 if (chunk.type === 'done') {
                   finalSources = chunk.sources;
                   emitDone({ done: true, sessionId: actualSessionId, sources: chunk.sources });
+                } else if (chunk.type === 'confirm_request') {
+                  emitDone({
+                    done: true,
+                    confirmRequest: true,
+                    confirmId: chunk.confirmId,
+                    toolName: chunk.toolName,
+                    args: chunk.args,
+                    summary: chunk.summary,
+                    sessionId: actualSessionId,
+                    sources: [],
+                  });
                 } else {
                   emitDone({ done: true, error: (chunk as any).message, sessionId: actualSessionId, sources: [] });
                 }
@@ -504,7 +515,8 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
                 }
               }
             },
-            c.req.raw.signal
+            c.req.raw.signal,
+            actualSessionId
           );
 
           // Guard: agent finished without emitting done
@@ -570,3 +582,39 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
 }
 
 export default app;
+
+app.post('/confirm', async (c) => {
+  const userId = c.get('userId')!;
+
+  try {
+    const body = await c.req.json();
+    const { confirmId } = body as { confirmId: string };
+
+    if (!confirmId) {
+      return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '缺少 confirmId' } }, 400);
+    }
+
+    const agentEngine = new AgentEngine(c.env);
+    const result = await agentEngine.executeConfirmAction(confirmId, userId);
+
+    return c.json({
+      success: true,
+      data: {
+        result,
+        confirmedAt: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    logger.error('AI Chat', 'Confirm action failed', { userId }, error);
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ERROR_CODES.INTERNAL_ERROR,
+          message: error instanceof Error ? error.message : '确认执行失败',
+        },
+      },
+      500
+    );
+  }
+});

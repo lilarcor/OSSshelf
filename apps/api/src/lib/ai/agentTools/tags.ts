@@ -183,23 +183,37 @@ export class TagsTools {
 
   static async executeRemoveTag(env: Env, userId: string, args: Record<string, unknown>) {
     const fileId = args.fileId as string;
-    const tags = (args.tags as string[]) || [];
+    const tagNames = (args.tagNames as string[]) || (args.tags as string[]) || [];
     const db = getDb(env.DB);
 
+    const file = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
+      .get();
+    if (!file) return { error: `文件不存在或无权访问: ${fileId}` };
+
     let removedCount = 0;
-    for (const tagName of tags) {
-      await db
+    for (const tagName of tagNames) {
+      if (!tagName) continue;
+      const result = await db
         .delete(fileTags)
-        .where(and(eq(fileTags.fileId, fileId), eq(fileTags.name, tagName)))
+        .where(
+          and(
+            eq(fileTags.fileId, fileId),
+            eq(fileTags.name, tagName),
+            eq(fileTags.userId, userId)
+          )
+        )
         .run();
-      removedCount += 1;
+      if ((result as any).meta?.changes > 0) removedCount++;
     }
 
     return {
       success: true,
       message: `已移除 ${removedCount} 个标签`,
       fileId,
-      removedTags: tags.slice(0, removedCount),
+      removedTags: tagNames.slice(0, removedCount),
     };
   }
 

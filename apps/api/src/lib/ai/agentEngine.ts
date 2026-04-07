@@ -33,6 +33,8 @@ import { AgentToolExecutor, TOOL_DEFINITIONS } from './agentTools/index';
 import type { StreamChunk } from './types';
 import { logger } from '@osshelf/shared';
 import { getAiConfigNumber } from './aiConfigService';
+import { getDb, aiConfirmRequests } from '../../db';
+import { eq, and } from 'drizzle-orm';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 默认配置常量（当数据库配置不可用时使用）
@@ -103,6 +105,118 @@ async function loadAgentConfig(env: Env): Promise<AgentConfig> {
   }
 }
 
+const CONFIRM_TTL_MS = 5 * 60 * 1000;
+
+const TOOL_SUMMARY_MAP: Record<string, (args: Record<string, unknown>) => string> = {
+  create_text_file: (a) => `创建文件 "${a.fileName || '(未命名)'}"${a.folderPath ? ` 到 ${a.folderPath}` : ''}`,
+  create_code_file: (a) => `创建代码文件 "${a.fileName || '(未命名)'}"${a.targetFolder ? ` 到 ${a.targetFolder}` : ''}`,
+  create_file_from_template: (a) => `从模板 "${a.templateName}" 创建文件`,
+  edit_file_content: (a) => `编辑文件内容 (ID: ${a.fileId || '?'}, ${Array.isArray(a.edits) ? a.edits.length : 0} 处修改)`,
+  append_to_file: (a) => `追加内容到文件 (ID: ${a.fileId || '?'})`,
+  find_and_replace: (a) => `在文件中查找替换: "${a.find}" → "${a.replace}"`,
+  rename_file: (a) => `重命名: → "${a.newName || '?'}"`,
+  move_file: (a) => `移动文件到 ${a.targetFolderId || a.targetFolderPath || '?'}`,
+  copy_file: (a) => `复制文件${a.newName ? ` 为 "${a.newName}"` : ''}`,
+  delete_file: (a) => `删除文件 (原因: ${a.reason || '用户请求'})`,
+  restore_file: (a) => `从回收站恢复文件`,
+  create_folder: (a) => `创建文件夹 "${a.folderName || '?'}"`,
+  batch_rename: (a) => `批量重命名 ${Array.isArray(a.fileIds) ? a.fileIds.length : 0} 个文件 (模板: ${a.template || '?'})`,
+  star_file: (a) => `收藏文件`,
+  unstar_file: (a) => `取消收藏`,
+  add_tag: (a) => `添加标签 ${JSON.stringify(a.tagNames || a.tags || [])}`,
+  remove_tag: (a) => `移除标签 ${JSON.stringify(a.tagNames || a.tags || [])}`,
+  merge_tags: (a) => `合并标签 "${a.sourceTag}" → "${a.targetTag}"`,
+  auto_tag_files: (a) => `自动打标签 (${Array.isArray(a.fileIds) ? a.fileIds.length : 0} 个文件)`,
+  tag_folder: (a) => `为文件夹打标签`,
+  create_share: (a) => `创建分享链接`,
+  update_share: (a) => `更新分享设置`,
+  revoke_share: (a) => `撤销分享`,
+  create_direct_link: (a) => `创建直链`,
+  revoke_direct_link: (a) => `撤销直链`,
+  restore_version: (a) => `恢复版本`,
+  set_version_retention: (a) => `设置版本保留策略`,
+  write_note: (a) => `写入笔记`,
+  update_note: (a) => `更新笔记`,
+  delete_note: (a) => `删除笔记`,
+  grant_permission: (a) => `授权 ${a.permission || '?'}`,
+  revoke_permission: (a) => `撤销权限`,
+  set_folder_access_level: (a) => `设置文件夹访问级别`,
+  manage_group_members: (a) => `管理组成员`,
+  set_default_bucket: (a) => `设置默认存储桶`,
+  migrate_file_to_bucket: (a) => `迁移文件到存储桶`,
+  create_api_key: (a) => `创建 API Key`,
+  revoke_api_key: (a) => `撤销 API Key`,
+  create_webhook: (a) => `创建 Webhook`,
+};
+
+function buildConfirmSummary(toolName: string, args: Record<string, unknown>): string {
+  const generator = TOOL_SUMMARY_MAP[toolName];
+  if (generator) return generator(args);
+  return `执行操作: ${toolName}`;
+}
+
+async function savePendingConfirm(
+  env: Env,
+  userId: string,
+  sessionId: string | undefined,
+  toolName: string,
+  args: Record<string, unknown>,
+  summary: string
+): Promise<string> {
+  const confirmId = `confirm_${crypto.randomUUID().slice(0, 12)}`;
+  const now = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + CONFIRM_TTL_MS).toISOString();
+
+  const db = getDb(env.DB);
+  await db.insert(aiConfirmRequests).values({
+    id: confirmId,
+    userId,
+    sessionId: sessionId || null,
+    toolName,
+    args: JSON.stringify(args),
+    summary,
+    status: 'pending',
+    createdAt: now,
+    expiresAt,
+  });
+
+  logger.info('AgentEngine', 'Pending confirm saved', { confirmId, toolName, userId });
+  return confirmId;
+}
+
+async function consumePendingConfirm(env: Env, confirmId: string, userId: string): Promise<{
+  toolName: string;
+  args: Record<string, unknown>;
+} | null> {
+  const db = getDb(env.DB);
+
+  const record = await db
+    .select()
+    .from(aiConfirmRequests)
+    .where(and(eq(aiConfirmRequests.id, confirmId), eq(aiConfirmRequests.userId, userId), eq(aiConfirmRequests.status, 'pending')))
+    .get();
+
+  if (!record) {
+    logger.warn('AgentEngine', 'Confirm request not found or already consumed', { confirmId, userId });
+    return null;
+  }
+
+  await db
+    .update(aiConfirmRequests)
+    .set({ status: 'consumed' })
+    .where(eq(aiConfirmRequests.id, confirmId));
+
+  let parsedArgs: Record<string, unknown>;
+  try {
+    parsedArgs = JSON.parse(record.args);
+  } catch {
+    parsedArgs = {};
+  }
+
+  logger.info('AgentEngine', 'Confirm request consumed', { confirmId, toolName: record.toolName });
+  return { toolName: record.toolName, args: parsedArgs };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 类型
 // ─────────────────────────────────────────────────────────────────────────────
@@ -112,6 +226,7 @@ export type AgentChunk =
   | { type: 'reasoning'; content: string; done: false }
   | { type: 'tool_start'; toolName: string; toolCallId: string; args: Record<string, unknown>; done: false }
   | { type: 'tool_result'; toolCallId: string; toolName: string; result: unknown; done: false }
+  | { type: 'confirm_request'; confirmId: string; toolName: string; args: Record<string, unknown>; summary: string; done: true }
   | { type: 'done'; sessionId: string; sources: AgentSource[]; done: true }
   | { type: 'error'; message: string; done: true };
 
@@ -282,8 +397,9 @@ export class AgentEngine {
     conversationHistory: Array<{ role: string; content: string }>,
     modelId: string | undefined,
     onChunk: (chunk: AgentChunk) => void,
-    signal?: AbortSignal
-  ): Promise<{ fullText: string; sources: AgentSource[] }> {
+    signal?: AbortSignal,
+    sessionId?: string
+  ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string }> {
     this.executor.setUserId(userId);
 
     const [caps, config] = await Promise.all([this.getModelCapabilities(modelId, userId), loadAgentConfig(this.env)]);
@@ -299,9 +415,9 @@ export class AgentEngine {
     });
 
     if (caps.nativeToolCalling) {
-      return this.runNative(userId, query, conversationHistory, modelId, caps, config, onChunk, signal);
+      return this.runNative(userId, query, conversationHistory, modelId, caps, config, onChunk, signal, sessionId);
     }
-    return this.runPromptBased(userId, query, conversationHistory, modelId, config, onChunk, signal);
+    return this.runPromptBased(userId, query, conversationHistory, modelId, config, onChunk, signal, sessionId);
   }
 
   // ── Native Function Calling ───────────────────────────────────────────────
@@ -314,8 +430,9 @@ export class AgentEngine {
     caps: { nativeToolCalling: boolean; vision: boolean },
     config: AgentConfig,
     onChunk: (chunk: AgentChunk) => void,
-    signal?: AbortSignal
-  ): Promise<{ fullText: string; sources: AgentSource[] }> {
+    signal?: AbortSignal,
+    sessionId?: string
+  ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string }> {
     const messages: Array<{ role: string; content?: string; toolCalls?: any[]; toolCallId?: string }> = [
       { role: 'system', content: AGENT_SYSTEM_PROMPT },
       ...this.buildHistory(conversationHistory, query, config),
@@ -446,6 +563,21 @@ export class AgentEngine {
         let result: unknown;
         try {
           result = await this.executor.execute(tc.name, toolArgs);
+
+          if (result && typeof result === 'object' && (result as any).status === 'pending_confirm') {
+            const summary = buildConfirmSummary(tc.name, toolArgs);
+            const confirmId = await savePendingConfirm(this.env, userId, sessionId, tc.name, toolArgs, summary);
+            onChunk({
+              type: 'confirm_request',
+              confirmId,
+              toolName: tc.name,
+              args: toolArgs,
+              summary,
+              done: true,
+            });
+            return { fullText, sources, pendingConfirmId: confirmId };
+          }
+
           roundNewData = mergeSourcesFromResult(result, sources) || roundNewData;
         } catch (err) {
           result = { error: err instanceof Error ? err.message : '工具执行失败' };
@@ -478,9 +610,8 @@ export class AgentEngine {
         }
       }
 
-      // 空转检测：没有工具调用也没有文本输出，真正的空转
-      if (!roundNewData && collected.length === 0) {
-        // 没有工具调用也没有文本输出，真正的空转
+      // 空转检测：没有有效新数据时递增（包括全部被跳过的情况）
+      if (!roundNewData) {
         idleRounds++;
         if (idleRounds >= config.maxIdleRounds) break;
       } else {
@@ -500,8 +631,9 @@ export class AgentEngine {
     modelId: string | undefined,
     config: AgentConfig,
     onChunk: (chunk: AgentChunk) => void,
-    signal?: AbortSignal
-  ): Promise<{ fullText: string; sources: AgentSource[] }> {
+    signal?: AbortSignal,
+    sessionId?: string
+  ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string }> {
     const messages: Array<{ role: string; content: string }> = [
       { role: 'system', content: PROMPT_BASED_SYSTEM_PROMPT },
       ...this.buildHistory(conversationHistory, query, config),
@@ -619,6 +751,21 @@ export class AgentEngine {
       let roundNewData = false;
       try {
         result = await this.executor.execute(toolName, toolArgs);
+
+        if (result && typeof result === 'object' && (result as any).status === 'pending_confirm') {
+          const summary = buildConfirmSummary(toolName, toolArgs);
+          const confirmId = await savePendingConfirm(this.env, userId, sessionId, toolName, toolArgs, summary);
+          onChunk({
+            type: 'confirm_request',
+            confirmId,
+            toolName,
+            args: toolArgs,
+            summary,
+            done: true,
+          });
+          return { fullText, sources, pendingConfirmId: confirmId };
+        }
+
         roundNewData = mergeSourcesFromResult(result, sources);
       } catch (err) {
         result = { error: err instanceof Error ? err.message : '工具执行失败' };
@@ -765,6 +912,14 @@ export class AgentEngine {
   }
 
   // ── 历史消息裁剪 ─────────────────────────────────────────────────────────
+
+  async executeConfirmAction(confirmId: string, userId: string): Promise<unknown> {
+    const pending = await consumePendingConfirm(this.env, confirmId, userId);
+    if (!pending) {
+      throw new Error('确认请求不存在、已过期或已被消费');
+    }
+    return this.executor.executeConfirmed(pending.toolName, pending.args);
+  }
 
   private buildHistory(
     history: Array<{ role: string; content: string }>,

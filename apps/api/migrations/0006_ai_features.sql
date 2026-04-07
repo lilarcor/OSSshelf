@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS ai_models (
     api_key_encrypted TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
     capabilities TEXT NOT NULL DEFAULT '["chat","completion"]',
-    max_tokens INTEGER DEFAULT 4096,
     temperature REAL DEFAULT 0.7,
     system_prompt TEXT DEFAULT '你是OSSshelf文件管理系统的智能助手。你可以帮助用户查询、分析和管理他们的文件。',
     config_json TEXT DEFAULT '{}',
@@ -115,9 +114,7 @@ INSERT INTO ai_config (id, key, category, label, description, value_type, string
 
 -- 模型参数配置
 INSERT INTO ai_config (id, key, category, label, description, value_type, number_value, default_value, is_editable, sort_order) VALUES
-    ('cfg-param-max-tokens', 'ai.model.max_tokens', 'parameter', '最大Token数', '模型生成的最大token数量', 'number', 4096, '4096', 1, 10),
-    ('cfg-param-temperature', 'ai.model.temperature', 'parameter', '温度参数', '控制模型输出的随机性（0-2之间，越高越随机）', 'number', 0.7, '0.7', 1, 11),
-    ('cfg-param-vision-max-tokens', 'ai.vision.max_tokens', 'parameter', '视觉模型最大Token数', '视觉模型分析图片时的最大输出token数', 'number', 600, '600', 1, 12);
+    ('cfg-param-temperature', 'ai.model.temperature', 'parameter', '温度参数', '控制模型输出的随机性（0-2之间，越高越随机）', 'number', 0.7, '0.7', 1, 11);
 
 -- 内容限制配置
 INSERT INTO ai_config (id, key, category, label, description, value_type, number_value, default_value, is_editable, sort_order) VALUES

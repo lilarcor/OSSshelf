@@ -804,19 +804,16 @@ services:
       return { error: '文件不存在或无权访问' };
     }
 
-    let currentContent: string | null = null;
-    try {
-      const object = await env.FILES?.get(file.r2Key!);
-      if (object) {
-        currentContent = await object.text();
-      }
-    } catch (error) {
-      logger.warn('FileOpsTool', 'Failed to read file for find-replace', { fileId }, error);
+    const readResult = await readFileContent(env, file, userId);
+
+    if (!readResult.success || !readResult.content) {
+      return {
+        error: '无法读取文件内容',
+        details: { fileId, fileName: file.name, error: readResult.error },
+      };
     }
 
-    if (!currentContent) {
-      return { error: '无法读取文件内容' };
-    }
+    let currentContent = readResult.content;
 
     let matchCount = 0;
     let newContent: string;
@@ -846,19 +843,9 @@ services:
       };
     }
 
-    try {
-      await env.FILES?.put(file.r2Key!, new TextEncoder().encode(newContent));
-
-      await db
-        .update(files)
-        .set({
-          size: new TextEncoder().encode(newContent).length,
-          updatedAt: new Date().toISOString(),
-        })
-        .where(eq(files.id, fileId));
-    } catch (error) {
-      logger.error('FileOpsTool', 'Failed to save after find-replace', { fileId }, error);
-      return { error: '保存失败' };
+    const saveResult = await serviceUpdateContent(env, userId, fileId, newContent);
+    if (!saveResult.success) {
+      return { error: saveResult.error };
     }
 
     return {
@@ -921,7 +908,11 @@ services:
     const finalName = newName || file.name;
     const newFileId = crypto.randomUUID();
     const now = new Date().toISOString();
-    const newPath = `${targetFolder.path}/${finalName}`;
+    const parentPath = targetFolder.path || '';
+    const newPath = `${parentPath}/${finalName}`.replace('//', '/');
+
+    const r2KeyPrefix = file.r2Key?.substring(0, file.r2Key.lastIndexOf('/')) || `uploads/${userId}`;
+    const newR2Key = `${r2KeyPrefix}/${newFileId}/${finalName}`;
 
     await db.insert(files).values({
       id: newFileId,
@@ -930,7 +921,7 @@ services:
       name: finalName,
       path: newPath,
       size: file.size,
-      r2Key: `uploads/${userId}/${newFileId}/${finalName}`,
+      r2Key: newR2Key,
       mimeType: file.mimeType,
       isFolder: false,
       createdAt: now,
@@ -941,10 +932,11 @@ services:
       const sourceObject = await env.FILES?.get(file.r2Key!);
       if (sourceObject) {
         const body = await sourceObject.arrayBuffer();
-        await env.FILES?.put(`uploads/${userId}/${newFileId}/${finalName}`, new Uint8Array(body));
+        await env.FILES?.put(newR2Key, new Uint8Array(body));
       }
     } catch (error) {
       logger.error('FileOpsTool', 'Failed to copy file in R2', { sourceId: fileId, newFileId }, error);
+      try { await env.FILES?.delete(newR2Key); } catch {}
       await db.delete(files).where(eq(files.id, newFileId));
       return { error: '文件复制失败: 存储服务异常' };
     }
@@ -1071,10 +1063,11 @@ services:
     for (const preview of previews) {
       try {
         const row = rows.find((r) => r.id === preview.fileId)!;
-        const newPath = row.parentId
-          ? (await db.select({ path: files.path }).from(files).where(eq(files.id, row.parentId)).get())?.path +
-            '/' +
-            preview.newName
+        const parentPath = row.parentId
+          ? (await db.select({ path: files.path }).from(files).where(eq(files.id, row.parentId)).get())?.path
+          : undefined;
+        const newPath = parentPath
+          ? parentPath + '/' + preview.newName
           : preview.newName;
 
         await db
