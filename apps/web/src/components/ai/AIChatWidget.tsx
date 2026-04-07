@@ -447,29 +447,27 @@ export function AIChatWidget() {
             }
 
             if (raw.done) {
-              setMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, isLoading: false, sources: raw.sources || [] } : m))
-              );
+              if (raw.confirmRequest && raw.confirmId && raw.summary) {
+                const pendingConfirm: PendingConfirm = {
+                  confirmId: raw.confirmId,
+                  toolName: raw.toolName || '',
+                  summary: raw.summary,
+                  args: raw.args || {},
+                };
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId ? { ...m, isLoading: false, pendingConfirm } : m
+                  )
+                );
+              } else {
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === assistantId ? { ...m, isLoading: false, sources: raw.sources || [] } : m))
+                );
+              }
               if (raw.sessionId) {
                 setCurrentSessionId(raw.sessionId);
                 queryClient.invalidateQueries({ queryKey: ['ai-chat-sessions'] });
               }
-            }
-
-            if (raw.confirmRequest && raw.confirmId && raw.summary) {
-              const pendingConfirm: PendingConfirm = {
-                confirmId: raw.confirmId,
-                toolName: raw.toolName || '',
-                summary: raw.summary,
-                args: raw.args || {},
-              };
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId
-                    ? { ...m, isLoading: false, pendingConfirm }
-                    : m
-                )
-              );
             }
           },
           signal: abortRef.current.signal,
