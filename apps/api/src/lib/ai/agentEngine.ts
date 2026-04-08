@@ -80,7 +80,10 @@ interface AgentConfig {
   maxIdleRounds: number;
   agentTemperature: number;
   imageTimeoutMs: number;
+  maxContextTokens: number;
 }
+
+const DEFAULT_MAX_CONTEXT_TOKENS = 100000;
 
 async function loadAgentConfig(env: Env): Promise<AgentConfig> {
   try {
@@ -89,6 +92,7 @@ async function loadAgentConfig(env: Env): Promise<AgentConfig> {
       maxIdleRounds: await getAiConfigNumber(env, 'ai.agent.max_idle_rounds', DEFAULT_MAX_IDLE_ROUNDS),
       agentTemperature: await getAiConfigNumber(env, 'ai.agent.temperature', DEFAULT_AGENT_TEMPERATURE),
       imageTimeoutMs: await getAiConfigNumber(env, 'ai.agent.image_timeout_ms', DEFAULT_IMAGE_TIMEOUT_MS),
+      maxContextTokens: await getAiConfigNumber(env, 'ai.agent.max_context_tokens', DEFAULT_MAX_CONTEXT_TOKENS),
     };
   } catch {
     return {
@@ -96,6 +100,7 @@ async function loadAgentConfig(env: Env): Promise<AgentConfig> {
       maxIdleRounds: DEFAULT_MAX_IDLE_ROUNDS,
       agentTemperature: DEFAULT_AGENT_TEMPERATURE,
       imageTimeoutMs: DEFAULT_IMAGE_TIMEOUT_MS,
+      maxContextTokens: DEFAULT_MAX_CONTEXT_TOKENS,
     };
   }
 }
@@ -969,11 +974,24 @@ export class AgentEngine {
     config: AgentConfig
   ): Array<{ role: string; content: string }> {
     const msgs = history.filter((m) => m.role !== 'system');
-    // 去重：避免 currentQuery 已包含在 history 末尾
     const last = msgs[msgs.length - 1];
     const deduped = last?.role === 'user' && last.content === currentQuery ? msgs.slice(0, -1) : msgs;
 
-    return deduped;
+    const maxContextTokens = config.maxContextTokens || 8000;
+    let totalTokens = estimateTokens(currentQuery);
+    const result: Array<{ role: string; content: string }> = [];
+
+    for (let i = deduped.length - 1; i >= 0; i--) {
+      const msg = deduped[i];
+      const msgTokens = estimateTokens(msg.content);
+      if (totalTokens + msgTokens > maxContextTokens) {
+        break;
+      }
+      result.unshift(msg);
+      totalTokens += msgTokens;
+    }
+
+    return result;
   }
 }
 
@@ -985,6 +1003,10 @@ export class AgentEngine {
 function callSig(toolName: string, args: Record<string, unknown>): string {
   const sorted = Object.fromEntries(Object.entries(args).sort(([a], [b]) => a.localeCompare(b)));
   return `${toolName}::${JSON.stringify(sorted)}`;
+}
+
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 3.5);
 }
 
 /** 从工具结果中提取文件并合并到 sources，返回是否有新数据 */

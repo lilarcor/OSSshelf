@@ -107,6 +107,7 @@ export interface ChatCompletionResponse {
   role: 'assistant';
   model: string;
   finishReason?: 'stop' | 'length' | 'content_filter' | 'tool_calls';
+  reasoningContent?: string;
   toolCalls?: Array<{
     id: string;
     name: string;

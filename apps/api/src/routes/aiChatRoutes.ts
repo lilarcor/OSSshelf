@@ -184,6 +184,7 @@ app.delete('/sessions/:sessionId', async (c) => {
   }
 
   try {
+    await db.delete(aiChatMessages).where(eq(aiChatMessages.sessionId, sessionId));
     await db.delete(aiChatSessions).where(eq(aiChatSessions.id, sessionId));
 
     return c.json({ success: true, data: { message: '会话已删除' } });
@@ -291,6 +292,7 @@ async function handleNormalChat(
       .from(aiChatMessages)
       .where(eq(aiChatMessages.sessionId, actualSessionId))
       .orderBy(aiChatMessages.createdAt)
+      .limit(50)
       .all();
 
     const conversationHistory = existingMessages.map((m) => ({
