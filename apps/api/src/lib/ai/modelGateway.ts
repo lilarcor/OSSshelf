@@ -405,6 +405,7 @@ export class ModelGateway {
       userId: raw.userId as string,
       name: raw.name as string,
       provider: raw.provider as ModelProvider,
+      providerId: raw.providerId as string | undefined,
       modelId: raw.modelId as string,
       apiEndpoint: raw.apiEndpoint as string | undefined,
       apiKeyEncrypted: raw.apiKeyEncrypted as string | undefined,

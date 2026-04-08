@@ -236,7 +236,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
                       placeholder="@cf/deepseek/deepseek-r1 或 @cf/black-forest-labs/flux-2-klein-4b"
                       required
                     />
-                    <p className="mt-1 text-xs text-muted">
+                    <p className="mt-1 text-xs">
                       可在{' '}
                       <a
                         href="https://developers.cloudflare.com/workers-ai/models/"

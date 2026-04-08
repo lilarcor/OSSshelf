@@ -59,6 +59,7 @@ export interface ModelConfig {
   userId: string;
   name: string;
   provider: ModelProvider;
+  providerId?: string;
   modelId: string;
   apiEndpoint?: string;
   apiKeyEncrypted?: string;

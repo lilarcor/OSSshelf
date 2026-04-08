@@ -67,7 +67,7 @@ const createModelSchema = z
 const updateModelSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   provider: z.enum(['workers_ai', 'openai_compatible']).optional(),
-  providerId: z.string().optional(),
+  providerId: z.string().nullable().optional(),
   modelId: z.string().min(1).optional(),
   apiEndpoint: z.string().max(500).optional(),
   apiKey: z.union([z.string().min(1), z.literal('')]).optional(),
