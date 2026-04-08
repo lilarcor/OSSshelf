@@ -51,7 +51,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
     disableThinkingForFeatures:
       model?.disableThinkingForFeatures || '["image_caption","image_tag","image_analysis","file_summary"]',
     isReadonly: model?.isReadonly || false,
-    sortOrder: model?.sortOrder || 0,
+    sortOrder: model?.sortOrder ?? 0,
   });
 
   useEffect(() => {
@@ -227,7 +227,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
 
                 {formData.modelId === '__custom__' && (
                   <div className="mt-2">
-                    <label className="block block-xs text-muted mb-1">自定义模型 ID（@cf/ 开头）</label>
+                    <label className="block text-sm font-medium mb-1">自定义模型 ID（@cf/ 开头）</label>
                     <input
                       type="text"
                       value={formData.customModelId || ''}
