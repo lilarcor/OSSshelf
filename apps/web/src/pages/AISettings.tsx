@@ -29,7 +29,15 @@ import {
   Sliders,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { ModelCard, ModelFormModal, ProvidersSection, IndexProcessingTab, VectorsTable, TasksCenter, AdvancedConfigPanel } from '@/components/ai/settings';
+import {
+  ModelCard,
+  ModelFormModal,
+  ProvidersSection,
+  IndexProcessingTab,
+  VectorsTable,
+  TasksCenter,
+  AdvancedConfigPanel,
+} from '@/components/ai/settings';
 import {
   aiApi,
   type AiModel,

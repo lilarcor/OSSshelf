@@ -69,16 +69,16 @@ const updateModelSchema = z.object({
   apiEndpoint: z.string().max(500).optional(),
   apiKey: z.union([z.string().min(1), z.literal('')]).optional(),
   capabilities: z.array(z.enum(['chat', 'completion', 'embedding', 'vision', 'function_calling'])).optional(),
-    temperature: z.number().min(0).max(2).optional(),
-    systemPrompt: z.string().max(2000).optional(),
-    isActive: z.boolean().optional(),
-    supportsThinking: z.boolean().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  systemPrompt: z.string().max(2000).optional(),
+  isActive: z.boolean().optional(),
+  supportsThinking: z.boolean().optional(),
   thinkingParamFormat: z.enum(['object', 'boolean', 'string', '']).optional(),
   thinkingParamName: z.string().max(100).optional(),
   thinkingEnabledValue: z.string().max(100).optional(),
   thinkingDisabledValue: z.string().max(100).optional(),
   thinkingNestedKey: z.string().max(100).optional(),
-    disableThinkingForFeatures: z.string().max(500).optional(),
+  disableThinkingForFeatures: z.string().max(500).optional(),
 });
 
 app.get('/models', async (c) => {
@@ -263,7 +263,8 @@ app.put('/models/:modelId', async (c) => {
     if (data.thinkingEnabledValue !== undefined) updateData.thinkingEnabledValue = data.thinkingEnabledValue || null;
     if (data.thinkingDisabledValue !== undefined) updateData.thinkingDisabledValue = data.thinkingDisabledValue || null;
     if (data.thinkingNestedKey !== undefined) updateData.thinkingNestedKey = data.thinkingNestedKey || null;
-    if (data.disableThinkingForFeatures !== undefined) updateData.disableThinkingForFeatures = data.disableThinkingForFeatures || null;
+    if (data.disableThinkingForFeatures !== undefined)
+      updateData.disableThinkingForFeatures = data.disableThinkingForFeatures || null;
 
     await db.update(aiModels).set(updateData).where(eq(aiModels.id, modelId));
 

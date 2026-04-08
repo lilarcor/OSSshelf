@@ -658,6 +658,8 @@ export const aiChatMessages = sqliteTable(
     sources: text('sources'),
     modelUsed: text('model_used'),
     latencyMs: integer('latency_ms'),
+    toolCalls: text('tool_calls'),
+    reasoning: text('reasoning'),
     createdAt: text('created_at').notNull(),
   },
   (table) => ({

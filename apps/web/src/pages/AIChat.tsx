@@ -118,7 +118,11 @@ const TOOL_META: Record<string, { label: string; icon: React.ReactNode; category
   get_share_stats: { label: '分享统计', icon: <Copy className="h-3 w-3" />, category: '分享链接' },
   create_direct_link: { label: '创建直链', icon: <Code className="h-3 w-3" />, category: '分享链接' },
   revoke_direct_link: { label: '撤销直链', icon: <Code className="h-3 w-3" />, category: '分享链接' },
-  create_upload_link_for_folder: { label: '创建上传链接', icon: <Download className="h-3 w-3" />, category: '分享链接' },
+  create_upload_link_for_folder: {
+    label: '创建上传链接',
+    icon: <Download className="h-3 w-3" />,
+    category: '分享链接',
+  },
 
   // 版本管理
   get_file_versions: { label: '版本历史', icon: <RefreshCw className="h-3 w-3" />, category: '版本管理' },
@@ -286,6 +290,8 @@ export function AIChat() {
             role: m.role as 'user' | 'assistant',
             content: m.content,
             sources: m.sources,
+            toolCalls: m.toolCalls || [],
+            reasoning: m.reasoning || undefined,
             timestamp: new Date(m.createdAt),
           }))
         );
@@ -412,9 +418,7 @@ export function AIChat() {
                   args: raw.args || {},
                 };
                 setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantId ? { ...m, isLoading: false, pendingConfirm } : m
-                  )
+                  prev.map((m) => (m.id === assistantId ? { ...m, isLoading: false, pendingConfirm } : m))
                 );
               } else {
                 setMessages((prev) =>
@@ -457,54 +461,49 @@ export function AIChat() {
     [sendMessage]
   );
 
-  const handleConfirm = useCallback(
-    async (msgId: string, confirmId: string) => {
-      setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, isLoading: true } : m)));
-      try {
-        const res = await aiApi.chatSession.confirmAction(confirmId);
-        if (res.data.success && res.data.data) {
-          const resultData = res.data.data;
-          const resultStr =
-            typeof resultData.result === 'object'
-              ? JSON.stringify(resultData.result, null, 2)
-              : String(resultData.result ?? '操作已完成');
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === msgId
-                ? {
-                    ...m,
-                    isLoading: false,
-                    pendingConfirm: undefined,
-                    content: (m.content || '') + `\n\n✅ 操作执行成功:\n${resultStr}`,
-                    toolCalls: (m.toolCalls || []).map((tc) =>
-                      tc.result && typeof tc.result === 'object' && (tc.result as Record<string, unknown>).status === 'pending_confirm'
-                        ? { ...tc, result: resultData.result }
-                        : tc
-                    ),
-                  }
-                : m
-            )
-          );
-        }
-      } catch (e) {
+  const handleConfirm = useCallback(async (msgId: string, confirmId: string) => {
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, isLoading: true } : m)));
+    try {
+      const res = await aiApi.chatSession.confirmAction(confirmId);
+      if (res.data.success && res.data.data) {
+        const resultData = res.data.data;
+        const resultStr =
+          typeof resultData.result === 'object'
+            ? JSON.stringify(resultData.result, null, 2)
+            : String(resultData.result ?? '操作已完成');
         setMessages((prev) =>
           prev.map((m) =>
             m.id === msgId
-              ? { ...m, isLoading: false, content: (m.content || '') + '\n\n❌ 操作执行失败' }
+              ? {
+                  ...m,
+                  isLoading: false,
+                  pendingConfirm: undefined,
+                  content: (m.content || '') + `\n\n✅ 操作执行成功:\n${resultStr}`,
+                  toolCalls: (m.toolCalls || []).map((tc) =>
+                    tc.result &&
+                    typeof tc.result === 'object' &&
+                    (tc.result as Record<string, unknown>).status === 'pending_confirm'
+                      ? { ...tc, result: resultData.result }
+                      : tc
+                  ),
+                }
               : m
           )
         );
       }
-    },
-    []
-  );
+    } catch (e) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId ? { ...m, isLoading: false, content: (m.content || '') + '\n\n❌ 操作执行失败' } : m
+        )
+      );
+    }
+  }, []);
 
   const handleCancelConfirm = useCallback((msgId: string) => {
     setMessages((prev) =>
       prev.map((m) =>
-        m.id === msgId
-          ? { ...m, pendingConfirm: undefined, content: (m.content || '') + '\n\n⛔ 用户已取消操作' }
-          : m
+        m.id === msgId ? { ...m, pendingConfirm: undefined, content: (m.content || '') + '\n\n⛔ 用户已取消操作' } : m
       )
     );
   }, []);
@@ -616,7 +615,9 @@ export function AIChat() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-amber-800 dark:text-amber-200 mb-1">待确认操作</div>
-                          <div className="text-amber-700 dark:text-amber-300 break-words">{msg.pendingConfirm.summary}</div>
+                          <div className="text-amber-700 dark:text-amber-300 break-words">
+                            {msg.pendingConfirm.summary}
+                          </div>
                           <div className="text-xs text-amber-500/70 mt-1 font-mono">{msg.pendingConfirm.toolName}</div>
                         </div>
                       </div>

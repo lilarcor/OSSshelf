@@ -257,9 +257,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
               <h3 className="font-medium text-sm sm:text-base">模型特性</h3>
 
               <div className="grid grid-cols-2 gap-3">
-                {[
-                  { key: 'supportsThinking', label: '思考模式', desc: '支持深度推理' },
-                ].map((item) => (
+                {[{ key: 'supportsThinking', label: '思考模式', desc: '支持深度推理' }].map((item) => (
                   <label
                     key={item.key}
                     className="flex items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-accent/50 transition-colors"
@@ -277,9 +275,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
                   </label>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                💡 视觉能力和函数调用能力请在下方「模型能力」中选择
-              </p>
+              <p className="text-xs text-muted-foreground mt-2">💡 视觉能力和函数调用能力请在下方「模型能力」中选择</p>
             </div>
 
             {formData.supportsThinking && (

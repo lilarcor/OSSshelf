@@ -204,7 +204,8 @@ const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<
     get_share_stats: (env, userId, args) => ShareTools.executeGetShareDetails(env, userId, args),
     create_direct_link: (env, userId, args) => ShareTools.executeCreateDirectLink(env, userId, args),
     revoke_direct_link: (env, userId, args) => ShareTools.executeRevokeDirectLink(env, userId, args),
-    create_upload_link_for_folder: (env, userId, args) => ShareTools.executeCreateUploadLinkForFolder(env, userId, args),
+    create_upload_link_for_folder: (env, userId, args) =>
+      ShareTools.executeCreateUploadLinkForFolder(env, userId, args),
 
     // ════════════════════════════════════════════════════════════════
     // 📜 版本管理 (version.ts)
@@ -304,7 +305,8 @@ export class AgentToolExecutor {
         const similarTools = findSimilarTools(toolName, allTools);
         return {
           error: `未知工具: ${toolName}`,
-          hint: similarTools.length > 0 ? `您是否想使用: ${similarTools.join(', ')}?` : `可用工具共 ${allTools.length} 个`,
+          hint:
+            similarTools.length > 0 ? `您是否想使用: ${similarTools.join(', ')}?` : `可用工具共 ${allTools.length} 个`,
           similarTools,
         };
       }
@@ -414,7 +416,10 @@ function findSimilarTools(toolName: string, allTools: string[], maxResults: numb
       score = 100;
     } else if (lowerTarget.includes(lowerName) || lowerName.includes(lowerTarget)) {
       score = 80;
-    } else if (lowerTarget.split('_').some((part) => lowerName.includes(part)) || lowerName.split('_').some((part) => lowerTarget.includes(part))) {
+    } else if (
+      lowerTarget.split('_').some((part) => lowerName.includes(part)) ||
+      lowerName.split('_').some((part) => lowerTarget.includes(part))
+    ) {
       score = 60;
     } else {
       const commonChars = [...lowerName].filter((c) => lowerTarget.includes(c)).length;
@@ -426,7 +431,10 @@ function findSimilarTools(toolName: string, allTools: string[], maxResults: numb
     }
   }
 
-  return scores.sort((a, b) => b.score - a.score).slice(0, maxResults).map((s) => s.name);
+  return scores
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxResults)
+    .map((s) => s.name);
 }
 
 export function getAvailableToolNames(): string[] {

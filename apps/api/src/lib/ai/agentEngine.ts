@@ -106,7 +106,8 @@ const TOOL_SUMMARY_MAP: Record<string, (args: Record<string, unknown>) => string
   create_text_file: (a) => `创建文件 "${a.fileName || '(未命名)'}"${a.folderPath ? ` 到 ${a.folderPath}` : ''}`,
   create_code_file: (a) => `创建代码文件 "${a.fileName || '(未命名)'}"${a.targetFolder ? ` 到 ${a.targetFolder}` : ''}`,
   create_file_from_template: (a) => `从模板 "${a.templateName}" 创建文件`,
-  edit_file_content: (a) => `编辑文件内容 (ID: ${a.fileId || '?'}, ${Array.isArray(a.edits) ? a.edits.length : 0} 处修改)`,
+  edit_file_content: (a) =>
+    `编辑文件内容 (ID: ${a.fileId || '?'}, ${Array.isArray(a.edits) ? a.edits.length : 0} 处修改)`,
   append_to_file: (a) => `追加内容到文件 (ID: ${a.fileId || '?'})`,
   find_and_replace: (a) => `在文件中查找替换: "${a.find}" → "${a.replace}"`,
   rename_file: (a) => `重命名: → "${a.newName || '?'}"`,
@@ -115,7 +116,8 @@ const TOOL_SUMMARY_MAP: Record<string, (args: Record<string, unknown>) => string
   delete_file: (a) => `删除文件 (原因: ${a.reason || '用户请求'})`,
   restore_file: (a) => `从回收站恢复文件`,
   create_folder: (a) => `创建文件夹 "${a.folderName || '?'}"`,
-  batch_rename: (a) => `批量重命名 ${Array.isArray(a.fileIds) ? a.fileIds.length : 0} 个文件 (模板: ${a.template || '?'})`,
+  batch_rename: (a) =>
+    `批量重命名 ${Array.isArray(a.fileIds) ? a.fileIds.length : 0} 个文件 (模板: ${a.template || '?'})`,
   star_file: (a) => `收藏文件`,
   unstar_file: (a) => `取消收藏`,
   add_tag: (a) => `添加标签 ${JSON.stringify(a.tagNames || a.tags || [])}`,
@@ -179,7 +181,11 @@ async function savePendingConfirm(
   return confirmId;
 }
 
-async function consumePendingConfirm(env: Env, confirmId: string, userId: string): Promise<{
+async function consumePendingConfirm(
+  env: Env,
+  confirmId: string,
+  userId: string
+): Promise<{
   toolName: string;
   args: Record<string, unknown>;
 } | null> {
@@ -188,7 +194,13 @@ async function consumePendingConfirm(env: Env, confirmId: string, userId: string
   const record = await db
     .select()
     .from(aiConfirmRequests)
-    .where(and(eq(aiConfirmRequests.id, confirmId), eq(aiConfirmRequests.userId, userId), eq(aiConfirmRequests.status, 'pending')))
+    .where(
+      and(
+        eq(aiConfirmRequests.id, confirmId),
+        eq(aiConfirmRequests.userId, userId),
+        eq(aiConfirmRequests.status, 'pending')
+      )
+    )
     .get();
 
   if (!record) {
@@ -196,10 +208,7 @@ async function consumePendingConfirm(env: Env, confirmId: string, userId: string
     return null;
   }
 
-  await db
-    .update(aiConfirmRequests)
-    .set({ status: 'consumed' })
-    .where(eq(aiConfirmRequests.id, confirmId));
+  await db.update(aiConfirmRequests).set({ status: 'consumed' }).where(eq(aiConfirmRequests.id, confirmId));
 
   let parsedArgs: Record<string, unknown>;
   try {
@@ -221,7 +230,14 @@ export type AgentChunk =
   | { type: 'reasoning'; content: string; done: false }
   | { type: 'tool_start'; toolName: string; toolCallId: string; args: Record<string, unknown>; done: false }
   | { type: 'tool_result'; toolCallId: string; toolName: string; result: unknown; done: false }
-  | { type: 'confirm_request'; confirmId: string; toolName: string; args: Record<string, unknown>; summary: string; done: true }
+  | {
+      type: 'confirm_request';
+      confirmId: string;
+      toolName: string;
+      args: Record<string, unknown>;
+      summary: string;
+      done: true;
+    }
   | { type: 'done'; sessionId: string; sources: AgentSource[]; done: true }
   | { type: 'error'; message: string; done: true };
 

@@ -1584,6 +1584,14 @@ export interface AiChatMessage {
     mimeType: string | null;
     score: number;
   }>;
+  toolCalls?: Array<{
+    id: string;
+    toolName: string;
+    args: Record<string, unknown>;
+    result?: unknown;
+    status: 'running' | 'done' | 'error';
+  }>;
+  reasoning?: string;
   modelUsed?: string;
   latencyMs?: number;
   createdAt: string;

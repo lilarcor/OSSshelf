@@ -66,6 +66,7 @@ interface Message {
   content: string;
   sources?: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
   toolCalls?: ToolCallEvent[];
+  reasoning?: string;
   pendingConfirm?: PendingConfirm;
   timestamp: Date;
   isLoading?: boolean;
@@ -334,6 +335,8 @@ export function AIChatWidget() {
             role: m.role as 'user' | 'assistant',
             content: m.content,
             sources: m.sources,
+            toolCalls: m.toolCalls || [],
+            reasoning: m.reasoning || undefined,
             timestamp: new Date(m.createdAt),
           }))
         );
@@ -455,9 +458,7 @@ export function AIChatWidget() {
                   args: raw.args || {},
                 };
                 setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantId ? { ...m, isLoading: false, pendingConfirm } : m
-                  )
+                  prev.map((m) => (m.id === assistantId ? { ...m, isLoading: false, pendingConfirm } : m))
                 );
               } else {
                 setMessages((prev) =>
@@ -519,9 +520,7 @@ export function AIChatWidget() {
   };
 
   const handleConfirm = async (msgId: string, confirmId: string) => {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === msgId ? { ...m, isLoading: true } : m))
-    );
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, isLoading: true } : m)));
     try {
       const res = await aiApi.chatSession.confirmAction(confirmId);
       if (res.data.success && res.data.data) {
@@ -549,9 +548,7 @@ export function AIChatWidget() {
     } catch (e) {
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === msgId
-            ? { ...m, isLoading: false, content: (m.content || '') + '\n\n❌ 操作执行失败' }
-            : m
+          m.id === msgId ? { ...m, isLoading: false, content: (m.content || '') + '\n\n❌ 操作执行失败' } : m
         )
       );
     }
@@ -560,9 +557,7 @@ export function AIChatWidget() {
   const handleCancelConfirm = (msgId: string) => {
     setMessages((prev) =>
       prev.map((m) =>
-        m.id === msgId
-          ? { ...m, pendingConfirm: undefined, content: (m.content || '') + '\n\n⛔ 用户已取消操作' }
-          : m
+        m.id === msgId ? { ...m, pendingConfirm: undefined, content: (m.content || '') + '\n\n⛔ 用户已取消操作' } : m
       )
     );
   };

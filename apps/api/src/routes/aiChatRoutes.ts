@@ -127,6 +127,8 @@ app.get('/sessions/:sessionId', async (c) => {
       messages: messages.map((m) => ({
         ...m,
         sources: m.sources ? JSON.parse(m.sources) : undefined,
+        toolCalls: m.toolCalls ? JSON.parse(m.toolCalls) : undefined,
+        reasoning: m.reasoning || undefined,
       })),
     },
   });
@@ -439,6 +441,14 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
 
     let fullText = '';
     let finalSources: Array<{ id: string; name: string; mimeType: string | null; score: number }> = [];
+    const collectedToolCalls: Array<{
+      id: string;
+      toolName: string;
+      args: Record<string, unknown>;
+      result?: unknown;
+      status: 'running' | 'done' | 'error';
+    }> = [];
+    let collectedReasoning = '';
     let resolveStream!: () => void;
     let doneEmitted = false;
     const streamDone = new Promise<void>((r) => {
@@ -498,8 +508,15 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
                   fullText += chunk.content;
                   enqueue({ content: chunk.content, done: false });
                 } else if (chunk.type === 'reasoning') {
+                  collectedReasoning += chunk.content;
                   enqueue({ reasoning: true, content: chunk.content, done: false });
                 } else if (chunk.type === 'tool_start') {
+                  collectedToolCalls.push({
+                    id: chunk.toolCallId,
+                    toolName: chunk.toolName,
+                    args: chunk.args || {},
+                    status: 'running',
+                  });
                   enqueue({
                     toolStart: true,
                     toolName: chunk.toolName,
@@ -508,6 +525,11 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
                     done: false,
                   });
                 } else if (chunk.type === 'tool_result') {
+                  const tc = collectedToolCalls.find((t) => t.id === chunk.toolCallId);
+                  if (tc) {
+                    tc.result = chunk.result;
+                    tc.status = 'done';
+                  }
                   enqueue({
                     toolResult: true,
                     toolCallId: chunk.toolCallId,
@@ -551,6 +573,8 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
             role: 'assistant',
             content: fullText,
             sources: JSON.stringify(finalSources),
+            toolCalls: collectedToolCalls.length > 0 ? JSON.stringify(collectedToolCalls) : null,
+            reasoning: collectedReasoning || null,
             latencyMs,
             createdAt: new Date().toISOString(),
           });
