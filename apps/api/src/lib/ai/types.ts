@@ -79,6 +79,7 @@ export interface ModelConfig {
   thinkingNestedKey?: string;
   disableThinkingForFeatures?: string;
   isReadonly?: boolean;
+  sortOrder?: number;
 }
 
 export type AiFeatureType =

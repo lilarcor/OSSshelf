@@ -424,6 +424,7 @@ export class ModelGateway {
       thinkingNestedKey: raw.thinkingNestedKey as string | undefined,
       disableThinkingForFeatures: raw.disableThinkingForFeatures as string | undefined,
       isReadonly: Boolean(raw.isReadonly),
+      sortOrder: (raw.sortOrder as number) ?? 0,
     };
   }
 
