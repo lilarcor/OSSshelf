@@ -99,18 +99,18 @@ export function ModelCard({
         <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-primary rounded-full" />
       )}
 
-      <div className="p-4 flex flex-col h-full">
-        <div className="flex items-start gap-3">
+      <div className="p-3 flex flex-col h-full">
+        <div className="flex items-start gap-2.5">
           <div className={`
-            flex-shrink-0 h-10 w-10 rounded-xl flex items-center justify-center
+            flex-shrink-0 h-8 w-8 rounded-lg flex items-center justify-center
             ${model.provider === 'workers_ai'
               ? 'bg-orange-100 dark:bg-orange-900/30'
               : 'bg-blue-100 dark:bg-blue-900/30'
             }
           `}>
             {model.provider === 'workers_ai'
-              ? <Cloud className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-              : <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              ? <Cloud className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              : <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             }
           </div>
 

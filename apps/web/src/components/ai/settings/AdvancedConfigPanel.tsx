@@ -6,7 +6,7 @@
  * - 按分类展示系统配置项
  * - 支持布尔切换、模型选择、文本编辑
  * - 重置为默认值
- * - 移动端友好布局
+ * - PC端双列紧凑布局，移动端单列自适应
  */
 
 import { Sliders, RefreshCw, Save, RotateCcw, X, ChevronDown, ChevronUp } from 'lucide-react';
@@ -34,14 +34,14 @@ interface AdvancedConfigPanelProps {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  model: '🤖 默认模型',
-  parameter: '⚙️ 模型参数',
-  agent: '🤖 Agent 配置',
-  tool: '🔧 工具配置',
-  feature: '✨ 功能配置',
-  rag: '📚 RAG 配置',
-  retry: '🔄 重试策略',
-  prompt: '💬 提示词模板',
+  model: '默认模型',
+  parameter: '模型参数',
+  agent: 'Agent 配置',
+  tool: '工具配置',
+  feature: '功能配置',
+  rag: 'RAG 配置',
+  retry: '重试策略',
+  prompt: '提示词模板',
 };
 
 function ConfigItem({
@@ -82,7 +82,7 @@ function ConfigItem({
   const isModelConfig = config.key.startsWith('ai.default_model.');
   const isModified = config.defaultValue !== currentValue;
 
-  const renderInput = () => {
+  const renderValue = () => {
     if (config.valueType === 'boolean') {
       return (
         <button
@@ -92,14 +92,14 @@ function ConfigItem({
           }}
           disabled={!config.isEditable || isUpdatePending}
           className={cn(
-            'relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0',
+            'relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0',
             config.booleanValue ? 'bg-primary' : 'bg-muted'
           )}
         >
           <span
             className={cn(
-              'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-              config.booleanValue ? 'translate-x-6' : 'translate-x-1'
+              'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
+              config.booleanValue ? 'translate-x-5' : 'translate-x-0.5'
             )}
           />
         </button>
@@ -108,40 +108,27 @@ function ConfigItem({
 
     if (isModelConfig) {
       return (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full min-w-0">
           <select
             value={currentValue}
-            onChange={(e) => {
-              onUpdateMutation({ key: config.key, value: e.target.value });
-            }}
+            onChange={(e) => onUpdateMutation({ key: config.key, value: e.target.value })}
             disabled={!config.isEditable || isUpdatePending}
-            className="flex-1 sm:flex-initial sm:min-w-[200px] px-3 py-2 border rounded-lg bg-background text-sm"
+            className="flex-1 min-w-0 px-2 py-1 text-xs border rounded bg-background truncate"
           >
-            <option value={config.defaultValue}>{config.defaultValue} (系统默认)</option>
-            {models
-              .filter((m) => m.modelId !== config.defaultValue)
-              .map((m) => (
-                <option key={m.id} value={m.modelId}>
-                  {m.name} ({m.provider})
-                </option>
-              ))}
+            <option value={config.defaultValue}>{config.defaultValue}</option>
+            {models.filter((m) => m.modelId !== config.defaultValue).map((m) => (
+              <option key={m.id} value={m.modelId}>{m.name}</option>
+            ))}
           </select>
           {isModified && (
             <Button
               size="sm"
               variant="ghost"
-              onClick={() =>
-                onUpdateMutation({
-                  key: config.key,
-                  value: config.defaultValue,
-                })
-              }
+              onClick={() => onUpdateMutation({ key: config.key, value: config.defaultValue })}
               disabled={isUpdatePending}
-              title="重置为默认值"
-              className="self-end sm:self-auto"
+              className="h-6 px-2 flex-shrink-0"
             >
-              <RotateCcw className="h-3 w-3 mr-1" />
-              重置
+              <RotateCcw className="h-3 w-3" />
             </Button>
           )}
         </div>
@@ -150,106 +137,80 @@ function ConfigItem({
 
     if (isEditing) {
       return (
-        <div className="flex flex-col sm:flex-row gap-2 w-full">
+        <div className="flex items-center gap-1.5 w-full min-w-0">
           <input
             type={config.valueType === 'number' ? 'number' : 'text'}
             value={configEditValue}
             onChange={(e) => onSetConfigEditValue(e.target.value)}
-            className="flex-1 px-3 py-2 border rounded-lg bg-background text-sm font-mono"
+            className="flex-1 min-w-0 px-2 py-1 text-xs border rounded bg-background font-mono"
             autoFocus
             onKeyDown={(e) => {
               if (e.key === 'Enter') onSave(config);
               if (e.key === 'Escape') onSetEditingKey(null);
             }}
           />
-          <div className="flex gap-2">
-            <Button size="sm" onClick={() => onSave(config)} disabled={isUpdatePending} className="flex-1 sm:flex-initial">
-              <Save className="h-3 w-3 mr-1" />
-              保存
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => onSetEditingKey(null)} className="flex-1 sm:flex-initial">
-              <X className="h-3 w-3 mr-1" />
-              取消
-            </Button>
-          </div>
+          <Button size="sm" onClick={() => onSave(config)} disabled={isUpdatePending} className="h-6 px-2 flex-shrink-0">
+            <Save className="h-3 w-3" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => onSetEditingKey(null)} className="h-6 w-6 p-0 flex-shrink-0">
+            <X className="h-3 w-3" />
+          </Button>
         </div>
       );
     }
 
     return (
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
-        <code className="px-3 py-2 bg-muted rounded-lg text-sm font-mono flex-1 min-w-0 break-all">
+      <div className="flex items-center gap-1.5 w-full min-w-0">
+        <code className="flex-1 min-w-0 px-2 py-1 bg-muted rounded text-xs font-mono truncate">
           {currentValue || '(空)'}
         </code>
-        <div className="flex gap-2">
-          {config.isEditable && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                onSetEditingKey(config.key);
-                onSetConfigEditValue(currentValue);
-              }}
-              className="flex-1 sm:flex-initial"
-            >
-              编辑
-            </Button>
-          )}
-          {isModified && config.isEditable && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => onResetMutation(config.key)}
-              disabled={isResetPending}
-              title="重置为默认值"
-              className="flex-1 sm:flex-initial"
-            >
-              <RotateCcw className="h-3 w-3 mr-1" />
-              重置
-            </Button>
-          )}
-        </div>
+        {config.isEditable && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => { onSetEditingKey(config.key); onSetConfigEditValue(currentValue); }}
+            className="h-6 px-2 flex-shrink-0"
+          >
+            编辑
+          </Button>
+        )}
+        {isModified && config.isEditable && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onResetMutation(config.key)}
+            disabled={isResetPending}
+            className="h-6 w-6 p-0 flex-shrink-0"
+          >
+            <RotateCcw className="h-3 w-3" />
+          </Button>
+        )}
       </div>
     );
   };
 
   return (
     <div
-      key={config.key}
       className={cn(
-        'p-4 rounded-xl border space-y-3 transition-colors',
-        !config.isEditable && 'opacity-75 bg-muted/30',
-        isModified && 'border-primary/30 bg-primary/[0.02]'
+        'p-2.5 rounded-lg border transition-colors',
+        !config.isEditable && 'opacity-60 bg-muted/20',
+        isModified && 'border-primary/40 bg-primary/[0.02]'
       )}
     >
-      <div className="flex flex-col gap-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-medium text-sm">{config.label}</span>
-              {!config.isEditable && (
-                <span className="px-1.5 py-0.5 bg-muted text-[10px] rounded text-muted-foreground">
-                  系统只读
-                </span>
-              )}
-              {isModified && (
-                <span className="px-1.5 py-0.5 bg-primary/10 text-[10px] rounded text-primary">
-                  已修改
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{config.description}</p>
-          </div>
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          <span className="text-xs font-medium truncate">{config.label}</span>
+          {!config.isEditable && (
+            <span className="px-1 py-0.5 bg-muted text-[9px] rounded text-muted-foreground flex-shrink-0">只读</span>
+          )}
+          {isModified && (
+            <span className="px-1 py-0.5 bg-primary/10 text-[9px] rounded text-primary flex-shrink-0">已修改</span>
+          )}
         </div>
-
-        <div className="w-full">
-          {renderInput()}
-        </div>
-
-        <p className="text-[10px] text-muted-foreground font-mono truncate">
-          Key: {config.key}
-        </p>
+        {config.valueType === 'boolean' && renderValue()}
       </div>
+      {config.valueType !== 'boolean' && renderValue()}
+      <p className="text-[9px] text-muted-foreground mt-1 truncate">{config.description}</p>
     </div>
   );
 }
@@ -278,19 +239,16 @@ export function AdvancedConfigPanel({
   const toggleCategory = (category: string) => {
     setExpandedCategories((prev) => {
       const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
-      }
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
       return next;
     });
   };
 
   if (configLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <RefreshCw className="h-10 w-10 animate-spin text-muted-foreground mb-4" />
+      <div className="flex flex-col items-center justify-center py-12">
+        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground mb-3" />
         <p className="text-sm text-muted-foreground">加载配置中...</p>
       </div>
     );
@@ -298,16 +256,15 @@ export function AdvancedConfigPanel({
 
   if (systemConfigs.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg sm:text-xl font-semibold">AI 系统配置</h2>
-            <p className="text-sm text-muted-foreground mt-1">调整AI功能的核心参数和默认模型</p>
+            <h2 className="text-lg font-semibold">AI 系统配置</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">调整AI功能的核心参数</p>
           </div>
         </div>
-        <div className="text-center py-12 border-2 border-dashed rounded-xl">
-          <Sliders className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-base sm:text-lg font-medium mb-2">暂无配置项</h3>
+        <div className="text-center py-10 border-2 border-dashed rounded-lg">
+          <Sliders className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">系统配置尚未初始化</p>
         </div>
       </div>
@@ -317,19 +274,18 @@ export function AdvancedConfigPanel({
   const categories = ['model', 'parameter', 'agent', 'tool', 'feature', 'rag', 'retry', 'prompt'];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg sm:text-xl font-semibold">AI 系统配置</h2>
-          <p className="text-sm text-muted-foreground mt-1">调整AI功能的核心参数和默认模型</p>
+          <h2 className="text-lg font-semibold">AI 系统配置</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">调整AI功能的核心参数</p>
         </div>
         <Button variant="outline" size="sm" onClick={onRefetch} disabled={configLoading}>
-          {configLoading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-          刷新
+          {configLoading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
         </Button>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {categories.map((category) => {
           const categoryConfigs = systemConfigs.filter((c) => c.category === category);
           if (categoryConfigs.length === 0) return null;
@@ -337,16 +293,14 @@ export function AdvancedConfigPanel({
           const isExpanded = expandedCategories.has(category);
 
           return (
-            <section key={category} className="border rounded-xl overflow-hidden">
+            <div key={category} className="border rounded-lg overflow-hidden">
               <button
                 onClick={() => toggleCategory(category)}
-                className="w-full flex items-center justify-between p-4 bg-muted/30 hover:bg-muted/50 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 bg-muted/30 hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-sm sm:text-base">
-                    {CATEGORY_LABELS[category] || category}
-                  </h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-muted text-muted-foreground">
+                  <span className="text-sm font-medium">{CATEGORY_LABELS[category] || category}</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-muted text-muted-foreground">
                     {categoryConfigs.length}
                   </span>
                 </div>
@@ -358,7 +312,7 @@ export function AdvancedConfigPanel({
               </button>
 
               {isExpanded && (
-                <div className="p-3 sm:p-4 space-y-3">
+                <div className="p-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {categoryConfigs.map((config) => {
                     const requiredCapability = modelCapabilityMap[config.key];
                     const availableModels = requiredCapability === 'vision' ? visionModels : models;
@@ -382,13 +336,13 @@ export function AdvancedConfigPanel({
                   })}
                 </div>
               )}
-            </section>
+            </div>
           );
         })}
       </div>
 
-      <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-muted-foreground">
-        💡 提示：修改配置后立即生效。如遇问题可点击重置按钮恢复默认值。
+      <div className="p-3 bg-muted/50 rounded-lg text-xs text-muted-foreground">
+        💡 修改后立即生效，如遇问题可点击重置按钮恢复默认值
       </div>
     </div>
   );
