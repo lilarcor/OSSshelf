@@ -1,6 +1,6 @@
 /**
  * ModelCard.tsx
- * 模型配置卡片组件（重构版）
+ * 模型配置卡片组件（卡片式布局）
  */
 
 import {
@@ -25,8 +25,10 @@ import {
   Thermometer,
   SortAsc,
   Star,
+  MoreVertical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { useState } from 'react';
 import type { AiModel } from '@/services/api';
 
 interface ModelCardProps {
@@ -52,7 +54,7 @@ const CAPABILITY_CONFIG: Record<string, { label: string; icon: React.ReactNode; 
   chat: { label: '对话', icon: <MessageSquare className="h-3 w-3" />, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400' },
   vision: { label: '视觉', icon: <Eye className="h-3 w-3" />, color: 'text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400' },
   embedding: { label: '向量', icon: <BarChart2 className="h-3 w-3" />, color: 'text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400' },
-  function_calling: { label: '函数调用', icon: <Code2 className="h-3 w-3" />, color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/30 dark:text-orange-400' },
+  function_calling: { label: '函数', icon: <Code2 className="h-3 w-3" />, color: 'text-orange-600 bg-orange-50 dark:bg-orange-900/30 dark:text-orange-400' },
   completion: { label: '补全', icon: <Zap className="h-3 w-3" />, color: 'text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-400' },
 };
 
@@ -81,11 +83,12 @@ export function ModelCard({
   isTesting,
 }: ModelCardProps) {
   const currentTestResult = testResult?.modelId === model.id ? testResult : null;
+  const [showMenu, setShowMenu] = useState(false);
 
   return (
     <div
       className={`
-        group relative rounded-xl border transition-all duration-200
+        group relative rounded-xl border transition-all duration-200 flex flex-col
         ${model.isActive
           ? 'border-primary/60 bg-primary/[0.03] shadow-sm shadow-primary/10'
           : 'border-border bg-card hover:border-border/80 hover:shadow-sm'
@@ -96,24 +99,21 @@ export function ModelCard({
         <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-primary rounded-full" />
       )}
 
-      <div className="p-4">
-        {/* 主行 */}
-        <div className="flex items-center gap-3">
-          {/* Provider 图标 */}
+      <div className="p-4 flex flex-col h-full">
+        <div className="flex items-start gap-3">
           <div className={`
-            flex-shrink-0 h-9 w-9 rounded-lg flex items-center justify-center
+            flex-shrink-0 h-10 w-10 rounded-xl flex items-center justify-center
             ${model.provider === 'workers_ai'
               ? 'bg-orange-100 dark:bg-orange-900/30'
               : 'bg-blue-100 dark:bg-blue-900/30'
             }
           `}>
             {model.provider === 'workers_ai'
-              ? <Cloud className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-              : <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              ? <Cloud className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              : <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             }
           </div>
 
-          {/* 名称 + 模型ID */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-sm truncate">{model.name}</span>
@@ -134,83 +134,41 @@ export function ModelCard({
             </p>
           </div>
 
-          {/* 能力标签（桌面端） */}
-          <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
-            {model.supportsThinking && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400">
-                <Brain className="h-3 w-3" />
-                思考
-              </span>
-            )}
-            {model.capabilities.slice(0, 3).map((cap) => {
-              const cfg = CAPABILITY_CONFIG[cap];
-              if (!cfg) return null;
-              return (
-                <span key={cap} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium ${cfg.color}`}>
-                  {cfg.icon}
-                  {cfg.label}
-                </span>
-              );
-            })}
-          </div>
-
-          {/* 操作按钮 */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {!model.isActive && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onActivate}
-                disabled={isActivating}
-                className="h-7 px-2 text-xs gap-1"
-              >
-                {isActivating
-                  ? <Loader2 className="h-3 w-3 animate-spin" />
-                  : <Check className="h-3 w-3" />
-                }
-                <span className="hidden sm:inline">激活</span>
-              </Button>
-            )}
-            {onTest && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onTest(model.id)}
-                disabled={isTesting}
-                className="h-7 px-2 text-xs gap-1"
-              >
-                {isTesting
-                  ? <Loader2 className="h-3 w-3 animate-spin" />
-                  : <PlayCircle className="h-3 w-3" />
-                }
-                <span className="hidden sm:inline">测试</span>
-              </Button>
-            )}
-            <Button variant="ghost" size="icon" onClick={onEdit} className="h-7 w-7 opacity-60 hover:opacity-100">
-              <Edit2 className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onDelete}
-              className="h-7 w-7 opacity-60 hover:opacity-100 text-destructive hover:text-destructive"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+          <div className="relative flex-shrink-0">
             <button
-              onClick={onToggleExpand}
-              className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              onClick={() => setShowMenu(!showMenu)}
+              className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
-              {isExpanded
-                ? <ChevronUp className="h-3.5 w-3.5" />
-                : <ChevronDown className="h-3.5 w-3.5" />
-              }
+              <MoreVertical className="h-4 w-4" />
             </button>
+
+            {showMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 z-20 w-36 bg-popover border rounded-lg shadow-lg py-1">
+                  <button
+                    onClick={() => { onEdit(); setShowMenu(false); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                    编辑
+                  </button>
+                  {!model.isReadonly && (
+                    <button
+                      onClick={() => { onDelete(); setShowMenu(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      删除
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* 移动端能力标签 */}
-        <div className="flex sm:hidden items-center gap-1.5 mt-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-1.5 mt-3">
           {model.supportsThinking && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400">
               <Brain className="h-3 w-3" />
@@ -229,7 +187,6 @@ export function ModelCard({
           })}
         </div>
 
-        {/* 测试结果 */}
         {currentTestResult && (
           <div className={`
             mt-3 p-3 rounded-lg text-sm border
@@ -265,10 +222,51 @@ export function ModelCard({
           </div>
         )}
 
-        {/* 展开详情 */}
+        <div className="mt-auto pt-3 flex items-center gap-2">
+          {!model.isActive && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onActivate}
+              disabled={isActivating}
+              className="flex-1 h-8 text-xs gap-1"
+            >
+              {isActivating
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <Check className="h-3 w-3" />
+              }
+              激活
+            </Button>
+          )}
+          {onTest && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onTest(model.id)}
+              disabled={isTesting}
+              className="flex-1 h-8 text-xs gap-1"
+            >
+              {isTesting
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <PlayCircle className="h-3 w-3" />
+              }
+              测试
+            </Button>
+          )}
+          <button
+            onClick={onToggleExpand}
+            className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          >
+            {isExpanded
+              ? <ChevronUp className="h-4 w-4" />
+              : <ChevronDown className="h-4 w-4" />
+            }
+          </button>
+        </div>
+
         {isExpanded && (
-          <div className="mt-4 pt-4 border-t space-y-3">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="mt-3 pt-3 border-t space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               <DetailItem icon={<Thermometer className="h-3.5 w-3.5" />} label="温度" value={String(model.temperature)} />
               <DetailItem icon={<Key className="h-3.5 w-3.5" />} label="API Key" value={model.hasApiKey ? '已配置 ✓' : '未配置'} />
               <DetailItem icon={<SortAsc className="h-3.5 w-3.5" />} label="排序" value={String(model.sortOrder ?? 0)} />
