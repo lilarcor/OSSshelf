@@ -91,16 +91,16 @@ const updateModelSchema = z.object({
 
 const createProviderSchema = z.object({
   name: z.string().min(1).max(100),
+  type: z.enum(['workers_ai', 'openai_compatible']).default('openai_compatible'),
   apiEndpoint: z.string().max(500).optional(),
-  description: z.string().max(500).optional(),
   thinkingConfig: z.string().max(1000).optional(),
   isDefault: z.boolean().default(false),
 });
 
 const updateProviderSchema = z.object({
   name: z.string().min(1).max(100).optional(),
+  type: z.enum(['workers_ai', 'openai_compatible']).optional(),
   apiEndpoint: z.string().max(500).optional(),
-  description: z.string().max(500).optional(),
   thinkingConfig: z.string().max(1000).optional(),
   isDefault: z.boolean().optional(),
   isActive: z.boolean().optional(),
@@ -161,8 +161,8 @@ app.post('/ai-providers', async (c) => {
       id: crypto.randomUUID(),
       userId,
       name: data.name,
+      type: data.type,
       apiEndpoint: data.apiEndpoint || null,
-      description: data.description || null,
       thinkingConfig: data.thinkingConfig || null,
       isSystem: false,
       isDefault: data.isDefault,
@@ -255,8 +255,8 @@ app.put('/ai-providers/:providerId', async (c) => {
     };
 
     if (data.name !== undefined) updateData.name = data.name;
+    if (data.type !== undefined) updateData.type = data.type;
     if (data.apiEndpoint !== undefined) updateData.apiEndpoint = data.apiEndpoint || null;
-    if (data.description !== undefined) updateData.description = data.description || null;
     if (data.thinkingConfig !== undefined) updateData.thinkingConfig = data.thinkingConfig || null;
     if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;

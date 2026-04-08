@@ -75,6 +75,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
       const selectedProvider = customProviders.find((p) => p.id === providerId);
       setFormData({
         ...formData,
+        provider: selectedProvider?.type || 'openai_compatible',
         providerId: providerId,
         apiEndpoint: selectedProvider?.apiEndpoint || '',
       });
@@ -220,7 +221,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
 
                 {formData.modelId === '__custom__' && (
                   <div className="mt-2">
-                    <label className="block text-sm font-medium mb-1">自定义模型 ID（@cf/ 开头）</label>
+                    <label className="block block-xs text-muted mb-1">自定义模型 ID（@cf/ 开头）</label>
                     <input
                       type="text"
                       value={formData.customModelId || ''}
@@ -229,7 +230,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
                       placeholder="@cf/deepseek/deepseek-r1 或 @cf/black-forest-labs/flux-2-klein-4b"
                       required
                     />
-                    <p className="mt-1 text-xs">
+                    <p className="mt-1 text-xs text-muted">
                       可在{' '}
                       <a
                         href="https://developers.cloudflare.com/workers-ai/models/"

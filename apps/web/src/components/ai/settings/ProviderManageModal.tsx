@@ -20,8 +20,8 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<CreateAiProviderParams>({
     name: '',
+    type: 'openai_compatible',
     apiEndpoint: '',
-    description: '',
     isDefault: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,8 +62,8 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
       setEditingProvider(null);
       setFormData({
         name: '',
+        type: 'openai_compatible',
         apiEndpoint: '',
-        description: '',
         isDefault: false,
       });
     } catch (error) {
@@ -77,8 +77,8 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
     setEditingProvider(provider);
     setFormData({
       name: provider.name,
+      type: provider.type,
       apiEndpoint: provider.apiEndpoint || '',
-      description: provider.description || '',
       isDefault: provider.isDefault,
     });
     setShowForm(true);
@@ -114,8 +114,8 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
     setEditingProvider(null);
     setFormData({
       name: '',
+      type: 'openai_compatible',
       apiEndpoint: '',
-      description: '',
       isDefault: false,
     });
   };
@@ -145,18 +145,32 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
             </div>
           ) : showForm ? (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  提供商名称 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-1.5 border rounded bg-background text-sm"
-                  placeholder="如: 火山引擎、智谱AI"
-                  required
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    提供商名称 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-1.5 border rounded bg-background text-sm"
+                    placeholder="如: 火山引擎、智谱AI"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">类型</label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                    className="w-full px-3 py-1.5 border rounded bg-background text-sm"
+                  >
+                    <option value="openai_compatible">OpenAI 兼容 API</option>
+                    <option value="workers_ai">Cloudflare Workers AI</option>
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -171,17 +185,6 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
                 <p className="text-xs text-muted-foreground mt-1">
                   API基础URL，不包含 /chat/completions 等路径
                 </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">描述</label>
-                <textarea
-                  value={formData.description || ''}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-1.5 border rounded bg-background text-sm"
-                  rows={2}
-                  placeholder="提供商描述（可选）"
-                />
               </div>
 
               <div className="flex items-center gap-2">
