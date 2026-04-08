@@ -37,6 +37,7 @@ import {
   VectorsTable,
   TasksCenter,
   AdvancedConfigPanel,
+  ProviderManageModal,
 } from '@/components/ai/settings';
 import {
   aiApi,
@@ -58,6 +59,7 @@ export function AISettings() {
 
   const [activeTab, setActiveTab] = useState<TabType>('models');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showProviderModal, setShowProviderModal] = useState(false);
   const [editingModel, setEditingModel] = useState<AiModel | null>(null);
   const [expandedModelId, setExpandedModelId] = useState<string | null>(null);
 
@@ -505,10 +507,20 @@ export function AISettings() {
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h2 className="text-lg sm:text-xl font-semibold">已配置的模型</h2>
-              <Button onClick={() => setShowAddModal(true)} className="gap-2 w-full sm:w-auto">
-                <Plus className="h-4 w-4" />
-                添加模型
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowProviderModal(true)}
+                  className="gap-2 flex-1 sm:flex-initial"
+                >
+                  <Sliders className="h-4 w-4" />
+                  管理提供商
+                </Button>
+                <Button onClick={() => setShowAddModal(true)} className="gap-2 flex-1 sm:flex-initial">
+                  <Plus className="h-4 w-4" />
+                  添加模型
+                </Button>
+              </div>
             </div>
 
             {modelsLoading ? (
@@ -528,24 +540,60 @@ export function AISettings() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-3">
-                {models.map((model) => (
-                  <ModelCard
-                    key={model.id}
-                    model={model}
-                    isExpanded={expandedModelId === model.id}
-                    onToggleExpand={() => setExpandedModelId(expandedModelId === model.id ? null : model.id)}
-                    onEdit={() => setEditingModel(model)}
-                    onDelete={() => {
-                      if (confirm('确定要删除这个模型吗？')) deleteMutation.mutate(model.id);
-                    }}
-                    onActivate={() => activateMutation.mutate(model.id)}
-                    isActivating={activateMutation.isPending}
-                    onTest={(modelId) => testModelMutation.mutate({ modelId })}
-                    testResult={testResult}
-                    isTesting={testModelMutation.isPending && testModelMutation.variables?.modelId === model.id}
-                  />
-                ))}
+              <div className="space-y-6">
+                {(() => {
+                  const groupedModels = models.reduce(
+                    (acc, model) => {
+                      const provider = model.provider || 'custom';
+                      if (!acc[provider]) acc[provider] = [];
+                      acc[provider].push(model);
+                      return acc;
+                    },
+                    {} as Record<string, AiModel[]>
+                  );
+
+                  const providerNames: Record<string, string> = {
+                    workers_ai: 'Cloudflare Workers AI',
+                    openai_compatible: 'OpenAI 兼容 API',
+                    custom: '自定义',
+                  };
+
+                  return Object.entries(groupedModels).map(([provider, providerModels]) => (
+                    <div key={provider} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-medium text-muted-foreground">
+                          {providerNames[provider] || provider}
+                        </h3>
+                        <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                          {providerModels.length} 个模型
+                        </span>
+                      </div>
+                      <div className="space-y-3">
+                        {providerModels
+                          .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+                          .map((model) => (
+                            <ModelCard
+                              key={model.id}
+                              model={model}
+                              isExpanded={expandedModelId === model.id}
+                              onToggleExpand={() => setExpandedModelId(expandedModelId === model.id ? null : model.id)}
+                              onEdit={() => setEditingModel(model)}
+                              onDelete={() => {
+                                if (confirm('确定要删除这个模型吗？')) deleteMutation.mutate(model.id);
+                              }}
+                              onActivate={() => activateMutation.mutate(model.id)}
+                              isActivating={activateMutation.isPending}
+                              onTest={(modelId) => testModelMutation.mutate({ modelId })}
+                              testResult={testResult}
+                              isTesting={
+                                testModelMutation.isPending && testModelMutation.variables?.modelId === model.id
+                              }
+                            />
+                          ))}
+                      </div>
+                    </div>
+                  ));
+                })()}
               </div>
             )}
           </div>
@@ -683,6 +731,16 @@ export function AISettings() {
             </div>
           </div>
         </div>
+      )}
+
+      {showProviderModal && (
+        <ProviderManageModal
+          onClose={() => setShowProviderModal(false)}
+          onProviderChange={() => {
+            queryClient.invalidateQueries({ queryKey: ['ai-models'] });
+            queryClient.invalidateQueries({ queryKey: ['ai-providers'] });
+          }}
+        />
       )}
     </div>
   );

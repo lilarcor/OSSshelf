@@ -10,8 +10,8 @@
  */
 
 import { Hono } from 'hono';
-import { eq, and } from 'drizzle-orm';
-import { getDb, aiModels } from '../db';
+import { eq, and, desc } from 'drizzle-orm';
+import { getDb, aiModels, aiProviders } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { ERROR_CODES } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
@@ -29,6 +29,7 @@ const createModelSchema = z
   .object({
     name: z.string().min(1).max(100),
     provider: z.enum(['workers_ai', 'openai_compatible']),
+    providerId: z.string().optional(),
     modelId: z.string().min(1),
     apiEndpoint: z.string().max(500).optional(),
     apiKey: z.string().min(1).optional(),
@@ -43,6 +44,7 @@ const createModelSchema = z
     thinkingDisabledValue: z.string().max(100).optional(),
     thinkingNestedKey: z.string().max(100).optional(),
     disableThinkingForFeatures: z.string().max(500).optional(),
+    sortOrder: z.number().int().min(0).default(0),
   })
   .refine(
     (data) => {
@@ -65,6 +67,7 @@ const createModelSchema = z
 const updateModelSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   provider: z.enum(['workers_ai', 'openai_compatible']).optional(),
+  providerId: z.string().optional(),
   modelId: z.string().min(1).optional(),
   apiEndpoint: z.string().max(500).optional(),
   apiKey: z.union([z.string().min(1), z.literal('')]).optional(),
@@ -79,7 +82,251 @@ const updateModelSchema = z.object({
   thinkingDisabledValue: z.string().max(100).optional(),
   thinkingNestedKey: z.string().max(100).optional(),
   disableThinkingForFeatures: z.string().max(500).optional(),
+  sortOrder: z.number().int().min(0).optional(),
 });
+
+// ============================================================================
+// AI 提供商管理接口
+// ============================================================================
+
+const createProviderSchema = z.object({
+  name: z.string().min(1).max(100),
+  type: z.enum(['workers_ai', 'openai_compatible']).default('openai_compatible'),
+  apiEndpoint: z.string().max(500).optional(),
+  description: z.string().max(500).optional(),
+  isDefault: z.boolean().default(false),
+});
+
+const updateProviderSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  type: z.enum(['workers_ai', 'openai_compatible']).optional(),
+  apiEndpoint: z.string().max(500).optional(),
+  description: z.string().max(500).optional(),
+  isDefault: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).optional(),
+});
+
+app.get('/ai-providers', async (c) => {
+  const userId = c.get('userId')!;
+  const db = getDb(c.env.DB);
+
+  try {
+    const providers = await db
+      .select()
+      .from(aiProviders)
+      .where(eq(aiProviders.userId, userId))
+      .orderBy(desc(aiProviders.sortOrder), desc(aiProviders.createdAt));
+
+    return c.json({
+      success: true,
+      data: providers,
+    });
+  } catch (error) {
+    logger.error('AI Config', 'Failed to get providers', { userId }, error);
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '获取提供商列表失败' } }, 500);
+  }
+});
+
+app.post('/ai-providers', async (c) => {
+  const userId = c.get('userId')!;
+  const body = await c.req.json();
+  const result = createProviderSchema.safeParse(body);
+
+  if (!result.success) {
+    const firstError = result.error.errors[0];
+    const fieldPath = firstError.path.join('.') || 'unknown';
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: `${fieldPath}: ${firstError.message}`,
+        },
+      },
+      400
+    );
+  }
+
+  const data = result.data;
+  const db = getDb(c.env.DB);
+
+  try {
+    if (data.isDefault) {
+      await db.update(aiProviders).set({ isDefault: false }).where(eq(aiProviders.userId, userId));
+    }
+
+    const now = new Date().toISOString();
+    const newProvider = {
+      id: crypto.randomUUID(),
+      userId,
+      name: data.name,
+      type: data.type,
+      apiEndpoint: data.apiEndpoint || null,
+      description: data.description || null,
+      isDefault: data.isDefault,
+      isActive: true,
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.insert(aiProviders).values(newProvider);
+
+    logger.info('AI Config', 'Provider created', { userId, providerName: data.name });
+    return c.json({
+      success: true,
+      data: newProvider,
+    });
+  } catch (error) {
+    logger.error('AI Config', 'Failed to create provider', { userId }, error);
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '创建提供商失败' } }, 500);
+  }
+});
+
+app.get('/ai-providers/:providerId', async (c) => {
+  const userId = c.get('userId')!;
+  const providerId = c.req.param('providerId');
+  const db = getDb(c.env.DB);
+
+  try {
+    const provider = await db
+      .select()
+      .from(aiProviders)
+      .where(and(eq(aiProviders.id, providerId), eq(aiProviders.userId, userId)))
+      .get();
+
+    if (!provider) {
+      return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '提供商不存在' } }, 404);
+    }
+
+    return c.json({
+      success: true,
+      data: provider,
+    });
+  } catch (error) {
+    logger.error('AI Config', 'Failed to get provider', { userId, providerId }, error);
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '获取提供商失败' } }, 500);
+  }
+});
+
+app.put('/ai-providers/:providerId', async (c) => {
+  const userId = c.get('userId')!;
+  const providerId = c.req.param('providerId');
+  const body = await c.req.json();
+  const result = updateProviderSchema.safeParse(body);
+
+  if (!result.success) {
+    const firstError = result.error.errors[0];
+    const fieldPath = firstError.path.join('.') || 'unknown';
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: `${fieldPath}: ${firstError.message}`,
+        },
+      },
+      400
+    );
+  }
+
+  const data = result.data;
+  const db = getDb(c.env.DB);
+
+  const existingProvider = await db
+    .select()
+    .from(aiProviders)
+    .where(and(eq(aiProviders.id, providerId), eq(aiProviders.userId, userId)))
+    .get();
+
+  if (!existingProvider) {
+    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '提供商不存在' } }, 404);
+  }
+
+  try {
+    if (data.isDefault) {
+      await db.update(aiProviders).set({ isDefault: false }).where(eq(aiProviders.userId, userId));
+    }
+
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.type !== undefined) updateData.type = data.type;
+    if (data.apiEndpoint !== undefined) updateData.apiEndpoint = data.apiEndpoint || null;
+    if (data.description !== undefined) updateData.description = data.description || null;
+    if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
+    if (data.isActive !== undefined) updateData.isActive = data.isActive;
+    if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
+
+    await db.update(aiProviders).set(updateData).where(eq(aiProviders.id, providerId));
+    logger.info('AI Config', 'Provider updated', { userId, providerId });
+    return c.json({ success: true, data: { id: providerId, ...data } });
+  } catch (error) {
+    logger.error('AI Config', 'Failed to update provider', { userId, providerId }, error);
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '更新提供商失败' } }, 500);
+  }
+});
+
+app.delete('/ai-providers/:providerId', async (c) => {
+  const userId = c.get('userId')!;
+  const providerId = c.req.param('providerId');
+  const db = getDb(c.env.DB);
+
+  const existingProvider = await db
+    .select()
+    .from(aiProviders)
+    .where(and(eq(aiProviders.id, providerId), eq(aiProviders.userId, userId)))
+    .get();
+
+  if (!existingProvider) {
+    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '提供商不存在' } }, 404);
+  }
+
+  try {
+    await db.delete(aiProviders).where(eq(aiProviders.id, providerId));
+    logger.info('AI Config', 'Provider deleted', { userId, providerId });
+    return c.json({ success: true, data: { message: '提供商已删除' } });
+  } catch (error) {
+    logger.error('AI Config', 'Failed to delete provider', { userId, providerId }, error);
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '删除提供商失败' } }, 500);
+  }
+});
+
+app.post('/ai-providers/:providerId/set-default', async (c) => {
+  const userId = c.get('userId')!;
+  const providerId = c.req.param('providerId');
+  const db = getDb(c.env.DB);
+
+  const existingProvider = await db
+    .select()
+    .from(aiProviders)
+    .where(and(eq(aiProviders.id, providerId), eq(aiProviders.userId, userId)))
+    .get();
+
+  if (!existingProvider) {
+    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '提供商不存在' } }, 404);
+  }
+
+  try {
+    await db.update(aiProviders).set({ isDefault: false }).where(eq(aiProviders.userId, userId));
+    await db
+      .update(aiProviders)
+      .set({ isDefault: true, updatedAt: new Date().toISOString() })
+      .where(eq(aiProviders.id, providerId));
+    logger.info('AI Config', 'Provider set as default', { userId, providerId });
+    return c.json({ success: true, data: { message: '已设为默认提供商', providerId } });
+  } catch (error) {
+    logger.error('AI Config', 'Failed to set default provider', { userId, providerId }, error);
+    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '设置默认提供商失败' } }, 500);
+  }
+});
+
+// ============================================================================
+// 模型管理接口
+// ============================================================================
 
 app.get('/models', async (c) => {
   const userId = c.get('userId')!;
@@ -159,6 +406,7 @@ app.post('/models', async (c) => {
     const newModel = {
       id: crypto.randomUUID(),
       userId,
+      providerId: data.providerId || null,
       name: data.name,
       provider: data.provider,
       modelId: data.modelId,
@@ -177,6 +425,7 @@ app.post('/models', async (c) => {
       thinkingNestedKey: data.thinkingNestedKey || null,
       disableThinkingForFeatures: data.disableThinkingForFeatures || null,
       isReadonly: false,
+      sortOrder: data.sortOrder || 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -250,6 +499,7 @@ app.put('/models/:modelId', async (c) => {
 
     if (data.name !== undefined) updateData.name = data.name;
     if (data.provider !== undefined) updateData.provider = data.provider;
+    if (data.providerId !== undefined) updateData.providerId = data.providerId || null;
     if (data.modelId !== undefined) updateData.modelId = data.modelId;
     if (data.apiEndpoint !== undefined) updateData.apiEndpoint = data.apiEndpoint || null;
     if (data.apiKey !== undefined) updateData.apiKeyEncrypted = apiKeyEncrypted;
@@ -265,6 +515,7 @@ app.put('/models/:modelId', async (c) => {
     if (data.thinkingNestedKey !== undefined) updateData.thinkingNestedKey = data.thinkingNestedKey || null;
     if (data.disableThinkingForFeatures !== undefined)
       updateData.disableThinkingForFeatures = data.disableThinkingForFeatures || null;
+    if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
 
     await db.update(aiModels).set(updateData).where(eq(aiModels.id, modelId));
 

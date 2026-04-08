@@ -571,10 +571,16 @@ export function AIChat() {
         onCancelRename={() => setRenamingId(null)}
         onRenameValueChange={setRenameValue}
         onCloseMobile={() => setShowSidebar(false)}
+        onToggleSidebar={() => setShowSidebar(!showSidebar)}
       />
 
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
-        <ChatHeader toolCount={Object.keys(TOOL_META).length} onShowToolInfo={() => setShowToolInfo(true)} />
+        <ChatHeader 
+          toolCount={Object.keys(TOOL_META).length}
+          onShowToolInfo={() => setShowToolInfo(true)}
+          showSidebar={showSidebar}
+          onToggleSidebar={() => setShowSidebar(!showSidebar)}
+        />
 
         <div ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0">
           <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">

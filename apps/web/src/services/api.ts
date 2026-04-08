@@ -1338,6 +1338,20 @@ export const aiApi = {
         }>
       >('/api/ai-config/test', data),
 
+    getAiProviders: () => api.get<ApiResponse<AiProviderItem[]>>('/api/ai-config/ai-providers'),
+    getAiProvider: (providerId: string) =>
+      api.get<ApiResponse<AiProviderItem>>(`/api/ai-config/ai-providers/${providerId}`),
+    createAiProvider: (data: CreateAiProviderParams) =>
+      api.post<ApiResponse<AiProviderItem>>('/api/ai-config/ai-providers', data),
+    updateAiProvider: (providerId: string, data: Partial<CreateAiProviderParams>) =>
+      api.put<ApiResponse<AiProviderItem>>(`/api/ai-config/ai-providers/${providerId}`, data),
+    deleteAiProvider: (providerId: string) =>
+      api.delete<ApiResponse<{ message: string }>>(`/api/ai-config/ai-providers/${providerId}`),
+    setDefaultProvider: (providerId: string) =>
+      api.post<ApiResponse<{ message: string; providerId: string }>>(
+        `/api/ai-config/ai-providers/${providerId}/set-default`
+      ),
+
     // 功能级模型配置
     getFeatureConfig: () =>
       api.get<
@@ -1484,6 +1498,7 @@ export interface AiModel {
   userId: string;
   name: string;
   provider: 'workers_ai' | 'openai_compatible';
+  providerId?: string;
   modelId: string;
   apiEndpoint?: string;
   apiKeyEncrypted?: string;
@@ -1502,11 +1517,13 @@ export interface AiModel {
   thinkingNestedKey?: string;
   disableThinkingForFeatures?: string;
   isReadonly?: boolean;
+  sortOrder?: number;
 }
 
 export interface CreateAiModelParams {
   name: string;
   provider: 'workers_ai' | 'openai_compatible';
+  providerId?: string;
   modelId: string;
   apiEndpoint?: string;
   apiKey?: string;
@@ -1521,6 +1538,7 @@ export interface CreateAiModelParams {
   thinkingDisabledValue?: string;
   thinkingNestedKey?: string;
   disableThinkingForFeatures?: string;
+  sortOrder?: number;
 }
 
 export interface AiProvider {
@@ -1529,6 +1547,28 @@ export interface AiProvider {
   description: string;
   requiresApiKey: boolean;
   requiresEndpoint: boolean;
+}
+
+export interface AiProviderItem {
+  id: string;
+  userId: string;
+  name: string;
+  type: 'workers_ai' | 'openai_compatible';
+  apiEndpoint?: string;
+  description?: string;
+  isDefault: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAiProviderParams {
+  name: string;
+  type?: 'workers_ai' | 'openai_compatible';
+  apiEndpoint?: string;
+  description?: string;
+  isDefault?: boolean;
 }
 
 export interface AiWorkersAiModel {

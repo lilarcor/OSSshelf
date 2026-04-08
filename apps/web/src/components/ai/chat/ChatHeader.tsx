@@ -10,25 +10,38 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { PanelLeftClose, Sparkles, Settings, Info } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, Sparkles, Settings, Info } from 'lucide-react';
+
+import { cn } from '@/utils';
 
 interface ChatHeaderProps {
   toolCount: number;
   onShowToolInfo: () => void;
+  showSidebar: boolean;
+  onToggleSidebar: () => void;
 }
 
-export function ChatHeader({ toolCount, onShowToolInfo }: ChatHeaderProps) {
+export function ChatHeader({ toolCount, onShowToolInfo, showSidebar, onToggleSidebar }: ChatHeaderProps) {
   const navigate = useNavigate();
 
   return (
     <header className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
       <div className="flex items-center gap-2.5">
         <button
-          onClick={() => navigate('/files')}
-          className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          title="返回文件管理"
+          onClick={onToggleSidebar}
+          className={cn(
+            'h-8 w-8 rounded-lg flex items-center justify-center transition-colors',
+            showSidebar
+              ? 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+              : 'text-violet-600 bg-violet-50 dark:bg-violet-900/20'
+          )}
+          title={showSidebar ? '隐藏侧边栏' : '显示侧边栏'}
         >
-          <PanelLeftClose className="h-4 w-4" />
+          {showSidebar ? (
+            <PanelLeftClose className="h-4 w-4" />
+          ) : (
+            <PanelLeft className="h-4 w-4" />
+          )}
         </button>
         <div className="flex items-center gap-2">
           <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm">
