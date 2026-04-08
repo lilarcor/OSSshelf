@@ -33,7 +33,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
   const [formData, setFormData] = useState({
     name: model?.name || '',
     provider: model?.provider || 'workers_ai',
-    providerId: model?.providerId || '',
+    providerId: model?.providerId || null as string | null,
     modelId: model?.modelId || '',
     customModelId: undefined as string | undefined,
     apiEndpoint: model?.apiEndpoint || '',
@@ -113,14 +113,14 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
       setFormData({
         ...formData,
         provider: 'workers_ai',
-        providerId: '',
+        providerId: null,
         apiEndpoint: '',
       });
     } else {
       setFormData({
         ...formData,
         provider: 'openai_compatible',
-        providerId: '',
+        providerId: null,
         apiEndpoint: '',
       });
     }
@@ -133,9 +133,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
       submitData.modelId = formData.customModelId;
       submitData.name = formData.customModelId.split('/').pop() || formData.name;
     }
-    if (formData.providerId) {
-      submitData.providerId = formData.providerId;
-    }
+    submitData.providerId = formData.providerId || null;
     onSubmit(submitData);
   };
 
