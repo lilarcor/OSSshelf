@@ -577,6 +577,14 @@ export class AgentEngine {
           if (result && typeof result === 'object' && (result as any).status === 'pending_confirm') {
             const summary = buildConfirmSummary(tc.name, toolArgs);
             const confirmId = await savePendingConfirm(this.env, userId, sessionId, tc.name, toolArgs, summary);
+            // 先关闭 tool_start 的 running 状态，再发 confirm_request
+            onChunk({
+              type: 'tool_result',
+              toolCallId: tc.id,
+              toolName: tc.name,
+              result: { status: 'pending_confirm', confirmId, message: summary },
+              done: false,
+            });
             onChunk({
               type: 'confirm_request',
               confirmId,
@@ -765,6 +773,14 @@ export class AgentEngine {
         if (result && typeof result === 'object' && (result as any).status === 'pending_confirm') {
           const summary = buildConfirmSummary(toolName, toolArgs);
           const confirmId = await savePendingConfirm(this.env, userId, sessionId, toolName, toolArgs, summary);
+          // 先关闭 tool_start 的 running 状态，再发 confirm_request
+          onChunk({
+            type: 'tool_result',
+            toolCallId: tcId,
+            toolName,
+            result: { status: 'pending_confirm', confirmId, message: summary },
+            done: false,
+          });
           onChunk({
             type: 'confirm_request',
             confirmId,

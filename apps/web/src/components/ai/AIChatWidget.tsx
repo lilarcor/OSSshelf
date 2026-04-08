@@ -532,7 +532,16 @@ export function AIChatWidget() {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === msgId
-              ? { ...m, isLoading: false, pendingConfirm: undefined, content: (m.content || '') + `\n\n✅ 操作执行成功:\n${resultStr}` }
+              ? {
+                  ...m,
+                  isLoading: false,
+                  pendingConfirm: undefined,
+                  // 把所有 running 状态的工具卡片标为 done（兜底，防止服务端未发 tool_result）
+                  toolCalls: (m.toolCalls || []).map((tc) =>
+                    tc.status === 'running' ? { ...tc, status: 'done' as const } : tc
+                  ),
+                  content: (m.content || '') + `\n\n✅ 操作执行成功:\n${resultStr}`,
+                }
               : m
           )
         );
