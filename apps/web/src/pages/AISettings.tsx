@@ -43,6 +43,7 @@ import {
   aiApi,
   type AiModel,
   type AiProvider,
+  type AiProviderItem,
   type AiWorkersAiModel,
   type AiOpenAiModel,
   type AiSystemConfigItem,
@@ -116,6 +117,12 @@ export function AISettings() {
   const { data: providersData } = useQuery({
     queryKey: ['ai-providers'],
     queryFn: () => aiApi.config.getProviders().then((r) => r.data.data),
+    staleTime: 300000,
+  });
+
+  const { data: allProviders = [] } = useQuery<AiProviderItem[]>({
+    queryKey: ['ai-all-providers'],
+    queryFn: () => aiApi.config.getAiProviders().then((r) => r.data.data ?? []),
     staleTime: 300000,
   });
 
@@ -540,49 +547,73 @@ export function AISettings() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {(() => {
-                  const groupedModels = models.reduce(
-                    (acc, model) => {
-                      const provider = model.provider || 'custom';
-                      if (!acc[provider]) acc[provider] = [];
-                      acc[provider].push(model);
-                      return acc;
-                    },
-                    {} as Record<string, AiModel[]>
-                  );
-
-                  const providerNames: Record<string, string> = {
-                    workers_ai: 'Cloudflare Workers AI',
-                    openai_compatible: 'OpenAI 兼容 API',
-                    custom: '自定义',
-                  };
-
-                  const providerIds = Object.keys(groupedModels);
-                  const allProvidersList = providersData?.providers || [];
-                  
-                  const providerDisplayNames: Record<string, string> = {};
-                  providerIds.forEach((id) => {
-                    const providerInfo = allProvidersList.find((p: any) => p.id === id);
-                    if (providerInfo) {
-                      providerDisplayNames[id] = providerInfo.name;
+                  // 按 providerId 分组：workers_ai 单独组，有 providerId 的归属对应提供商，其余归 ungrouped
+                  const groups: Record<string, AiModel[]> = {};
+                  models.forEach((model) => {
+                    let key: string;
+                    if (model.provider === 'workers_ai') {
+                      key = 'workers_ai';
+                    } else if (model.providerId) {
+                      key = `provider_${model.providerId}`;
+                    } else {
+                      key = 'openai_compatible_ungrouped';
                     }
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(model);
                   });
 
-                  return Object.entries(groupedModels).map(([provider, providerModels]) => (
-                    <div key={provider} className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-medium text-muted-foreground">
-                          {providerDisplayNames[provider] || providerNames[provider] || provider}
-                        </h3>
-                        <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                          {providerModels.length} 个模型
-                        </span>
-                      </div>
-                      <div className="space-y-3">
-                        {providerModels
-                          .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
-                          .map((model) => (
+                  const getGroupMeta = (key: string): { name: string; description?: string; isSystem?: boolean } => {
+                    if (key === 'workers_ai') return { name: 'Cloudflare Workers AI', description: '免费额度，零配置', isSystem: true };
+                    if (key === 'openai_compatible_ungrouped') return { name: '其他 OpenAI 兼容 API', description: '手动配置端点' };
+                    const providerId = key.replace('provider_', '');
+                    const found = allProviders.find((p) => p.id === providerId);
+                    return found
+                      ? { name: found.name, description: found.description || found.apiEndpoint, isSystem: found.isSystem }
+                      : { name: '未知提供商' };
+                  };
+
+                  const sortedKeys = Object.keys(groups).sort((a, b) => {
+                    if (a === 'workers_ai') return -1;
+                    if (b === 'workers_ai') return 1;
+                    if (a === 'openai_compatible_ungrouped') return 1;
+                    if (b === 'openai_compatible_ungrouped') return -1;
+                    return getGroupMeta(a).name.localeCompare(getGroupMeta(b).name);
+                  });
+
+                  return sortedKeys.map((key) => {
+                    const groupModels = groups[key].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+                    const meta = getGroupMeta(key);
+                    const activeCount = groupModels.filter((m) => m.isActive).length;
+
+                    return (
+                      <div key={key}>
+                        <div className="flex items-center gap-3 mb-3 pb-2 border-b">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-sm font-semibold">{meta.name}</h3>
+                              {meta.isSystem && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500">
+                                  系统
+                                </span>
+                              )}
+                              {activeCount > 0 && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary font-medium">
+                                  {activeCount} 个激活
+                                </span>
+                              )}
+                            </div>
+                            {meta.description && (
+                              <p className="text-xs text-muted-foreground mt-0.5 truncate">{meta.description}</p>
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground flex-shrink-0">
+                            {groupModels.length} 个模型
+                          </span>
+                        </div>
+                        <div className="space-y-2.5">
+                          {groupModels.map((model) => (
                             <ModelCard
                               key={model.id}
                               model={model}
@@ -596,14 +627,13 @@ export function AISettings() {
                               isActivating={activateMutation.isPending}
                               onTest={(modelId) => testModelMutation.mutate({ modelId })}
                               testResult={testResult}
-                              isTesting={
-                                testModelMutation.isPending && testModelMutation.variables?.modelId === model.id
-                              }
+                              isTesting={testModelMutation.isPending && testModelMutation.variables?.modelId === model.id}
                             />
                           ))}
+                        </div>
                       </div>
-                    </div>
-                  ));
+                    );
+                  });
                 })()}
               </div>
             )}
