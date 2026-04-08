@@ -45,11 +45,7 @@ export function ChatHeader({ toolCount, onShowToolInfo, showSidebar, onToggleSid
           )}
           title={showSidebar ? '隐藏对话历史' : '显示对话历史'}
         >
-          {showSidebar ? (
-            <PanelLeftClose className="h-4 w-4" />
-          ) : (
-            <PanelLeft className="h-4 w-4" />
-          )}
+          {showSidebar ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
         </button>
         <div className="flex items-center gap-2">
           <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm">

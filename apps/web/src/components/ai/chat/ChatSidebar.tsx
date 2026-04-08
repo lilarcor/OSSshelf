@@ -9,7 +9,7 @@
  * - 移动端遮罩
  */
 
-import { Plus, Trash2, Pencil, X, Check, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { Plus, Trash2, Pencil, X, Check } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { formatDate } from '@/utils';
 
@@ -33,7 +33,6 @@ interface ChatSidebarProps {
   onCancelRename: () => void;
   onRenameValueChange: (value: string) => void;
   onCloseMobile: () => void;
-  onToggleSidebar?: () => void;
 }
 
 export function ChatSidebar({
@@ -50,7 +49,6 @@ export function ChatSidebar({
   onCancelRename,
   onRenameValueChange,
   onCloseMobile,
-  onToggleSidebar,
 }: ChatSidebarProps) {
   const renameRef = useRef<HTMLInputElement>(null);
 
@@ -76,24 +74,13 @@ export function ChatSidebar({
           <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             对话历史
           </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={onNewChat}
-              className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-violet-600 transition-colors"
-              title="新建对话"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-            {onToggleSidebar && (
-              <button
-                onClick={onToggleSidebar}
-                className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-violet-600 transition-colors"
-                title="隐藏侧边栏"
-              >
-                <PanelLeftClose className="h-4 w-4" />
-              </button>
-            )}
-          </div>
+          <button
+            onClick={onNewChat}
+            className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-violet-600 transition-colors"
+            title="新建对话"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto min-h-0 p-1.5 space-y-0.5">

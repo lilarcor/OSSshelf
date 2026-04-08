@@ -352,11 +352,7 @@ async function keywordSearch(env: Env, query: string, userId: string, limit: num
       .select({ id: files.id })
       .from(files)
       .where(
-        and(
-          eq(files.userId, userId),
-          isNull(files.deletedAt),
-          sql`lower(${files.name}) like ${'%' + queryLower + '%'}`
-        )
+        and(eq(files.userId, userId), isNull(files.deletedAt), sql`lower(${files.name}) like ${'%' + queryLower + '%'}`)
       )
       .limit(limit)
       .all();

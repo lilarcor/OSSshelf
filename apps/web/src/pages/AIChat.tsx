@@ -32,10 +32,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDate } from '@/utils';
 import { FilePreview } from '@/components/files/FilePreview';
 import { useAuthStore } from '@/stores/auth';
+import { useToast } from '@/components/ui/useToast';
 import type { FileItem } from '@osshelf/shared';
 import {
   ToolCallCard,
-  FileChip,
   ReasoningSection,
   AssistantContent,
   ToolInfoModal,
@@ -192,6 +192,7 @@ export function AIChat() {
   const { sessionId: urlSessionId } = useParams<{ sessionId: string }>();
   const queryClient = useQueryClient();
   const { token } = useAuthStore();
+  const { toast } = useToast();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -295,17 +296,39 @@ export function AIChat() {
             timestamp: new Date(m.createdAt),
           }))
         );
+      } else {
+        toast({
+          title: '加载失败',
+          description: '无法加载会话内容',
+          variant: 'destructive',
+        });
       }
     } catch (e) {
       console.error(e);
+      toast({
+        title: '加载会话出错',
+        description: e instanceof Error ? e.message : '网络错误，请重试',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const MAX_QUERY_LENGTH = 2000;
+
   const sendMessage = useCallback(
     async (query: string, regenerateFromId?: string) => {
       if (!query.trim() || isLoading) return;
+
+      if (query.length > MAX_QUERY_LENGTH) {
+        toast({
+          title: '输入过长',
+          description: `消息长度不能超过 ${MAX_QUERY_LENGTH} 字符，当前 ${query.length} 字符`,
+          variant: 'destructive',
+        });
+        return;
+      }
 
       if (regenerateFromId) {
         setMessages((prev) => {
@@ -453,14 +476,6 @@ export function AIChat() {
     [isLoading, currentSessionId, urlSessionId, navigate, queryClient]
   );
 
-  const handleToolConfirm = useCallback(
-    (toolName: string, args: Record<string, unknown>) => {
-      const confirmMessage = `确认执行 ${TOOL_META[toolName]?.label || toolName}`;
-      sendMessage(confirmMessage);
-    },
-    [sendMessage]
-  );
-
   const handleConfirm = useCallback(async (msgId: string, confirmId: string) => {
     setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, isLoading: true } : m)));
     try {
@@ -530,9 +545,21 @@ export function AIChat() {
 
   const handleDeleteSession = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    await aiApi.chatSession.deleteSession(id);
-    queryClient.invalidateQueries({ queryKey: ['ai-chat-sessions'] });
-    if (currentSessionId === id) handleNewChat();
+    try {
+      await aiApi.chatSession.deleteSession(id);
+      queryClient.invalidateQueries({ queryKey: ['ai-chat-sessions'] });
+      if (currentSessionId === id) handleNewChat();
+      toast({
+        title: '删除成功',
+        description: '会话已删除',
+      });
+    } catch (error) {
+      toast({
+        title: '删除失败',
+        description: error instanceof Error ? error.message : '无法删除会话',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleConfirmRename = async (id: string) => {
@@ -571,11 +598,10 @@ export function AIChat() {
         onCancelRename={() => setRenamingId(null)}
         onRenameValueChange={setRenameValue}
         onCloseMobile={() => setShowSidebar(false)}
-        onToggleSidebar={() => setShowSidebar(!showSidebar)}
       />
 
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
-        <ChatHeader 
+        <ChatHeader
           toolCount={Object.keys(TOOL_META).length}
           onShowToolInfo={() => setShowToolInfo(true)}
           showSidebar={showSidebar}
@@ -605,8 +631,10 @@ export function AIChat() {
                         <ToolCallCard
                           key={tc.id}
                           tc={tc}
+                          msgId={msg.id}
                           onFileClick={handleToolFileClick}
-                          onConfirm={handleToolConfirm}
+                          onConfirmAction={handleConfirm}
+                          onCancelConfirm={handleCancelConfirm}
                           toolMeta={TOOL_META}
                         />
                       ))}

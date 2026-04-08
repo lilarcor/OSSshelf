@@ -215,7 +215,7 @@ general（与文件无关的通用问题）`,
           ],
           max_tokens: 10,
         }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 500)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000)),
       ]);
 
       const label = ((result as any)?.response || '').trim().toLowerCase() as QueryIntent;
@@ -346,16 +346,19 @@ export class RagEngine {
 
     const byType = typeRows
       .map((r) => ({ type: getMimeTypeCategory(r.mimeType), count: r.count, size: r.size }))
-      .reduce((acc, item) => {
-        const existing = acc.find((a) => a.type === item.type);
-        if (existing) {
-          existing.count += item.count;
-          existing.size += item.size;
-        } else {
-          acc.push({ ...item });
-        }
-        return acc;
-      }, [] as Array<{ type: string; count: number; size: number }>)
+      .reduce(
+        (acc, item) => {
+          const existing = acc.find((a) => a.type === item.type);
+          if (existing) {
+            existing.count += item.count;
+            existing.size += item.size;
+          } else {
+            acc.push({ ...item });
+          }
+          return acc;
+        },
+        [] as Array<{ type: string; count: number; size: number }>
+      )
       .sort((a, b) => b.count - a.count);
 
     const recentFiles = await db

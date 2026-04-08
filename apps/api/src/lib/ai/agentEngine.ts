@@ -33,7 +33,7 @@ import type { StreamChunk } from './types';
 import { logger } from '@osshelf/shared';
 import { getAiConfigNumber } from './aiConfigService';
 import { getDb, aiConfirmRequests } from '../../db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, gte } from 'drizzle-orm';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 默认配置常量（当数据库配置不可用时使用）
@@ -195,6 +195,7 @@ async function consumePendingConfirm(
   args: Record<string, unknown>;
 } | null> {
   const db = getDb(env.DB);
+  const now = new Date().toISOString();
 
   const record = await db
     .select()
@@ -203,12 +204,29 @@ async function consumePendingConfirm(
       and(
         eq(aiConfirmRequests.id, confirmId),
         eq(aiConfirmRequests.userId, userId),
-        eq(aiConfirmRequests.status, 'pending')
+        eq(aiConfirmRequests.status, 'pending'),
+        gte(aiConfirmRequests.expiresAt, now)
       )
     )
     .get();
 
   if (!record) {
+    const expiredRecord = await db
+      .select()
+      .from(aiConfirmRequests)
+      .where(and(eq(aiConfirmRequests.id, confirmId), eq(aiConfirmRequests.userId, userId)))
+      .get();
+
+    if (expiredRecord && expiredRecord.status === 'pending' && expiredRecord.expiresAt < now) {
+      await db.update(aiConfirmRequests).set({ status: 'expired' }).where(eq(aiConfirmRequests.id, confirmId));
+      logger.warn('AgentEngine', 'Confirm request has expired', {
+        confirmId,
+        userId,
+        expiresAt: expiredRecord.expiresAt,
+      });
+      return null;
+    }
+
     logger.warn('AgentEngine', 'Confirm request not found or already consumed', { confirmId, userId });
     return null;
   }

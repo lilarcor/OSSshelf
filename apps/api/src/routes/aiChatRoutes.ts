@@ -553,11 +553,30 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
           }
         } catch (error) {
           logger.error('AI Agent', 'Stream failed', { userId }, error);
-          enqueue({ done: true, error: 'AI 响应出错', sessionId: actualSessionId, sources: [] });
+          const errorMessage = error instanceof Error ? error.message : 'AI 响应出错';
+          enqueue({ done: true, error: errorMessage, sessionId: actualSessionId, sources: finalSources });
           try {
             controller.close();
           } catch {}
           resolveStream();
+          if (actualSessionId && (fullText.trim() || collectedToolCalls.length > 0 || finalSources.length > 0)) {
+            try {
+              await db.insert(aiChatMessages).values({
+                id: crypto.randomUUID(),
+                sessionId: actualSessionId,
+                role: 'assistant',
+                content: fullText || '(响应中断)',
+                sources: JSON.stringify(finalSources),
+                toolCalls: collectedToolCalls.length > 0 ? JSON.stringify(collectedToolCalls) : null,
+                reasoning: collectedReasoning || null,
+                latencyMs: Date.now() - startTime,
+                createdAt: new Date().toISOString(),
+              });
+              logger.info('AI Agent', 'Partial message saved after error', { sessionId: actualSessionId });
+            } catch (saveError) {
+              logger.error('AI Agent', 'Failed to save partial message', { userId }, saveError);
+            }
+          }
         }
       },
     });
@@ -567,20 +586,24 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
       (async () => {
         await streamDone;
         try {
-          if (!fullText.trim()) return;
+          const hasContent = fullText.trim().length > 0;
+          const hasToolCalls = collectedToolCalls.length > 0;
+          const hasSources = finalSources.length > 0;
+          const hasReasoning = collectedReasoning.trim().length > 0;
+          if (!hasContent && !hasToolCalls && !hasSources && !hasReasoning) return;
           const latencyMs = Date.now() - startTime;
           await db.insert(aiChatMessages).values({
             id: crypto.randomUUID(),
             sessionId: actualSessionId!,
             role: 'assistant',
-            content: fullText,
+            content: fullText || '(执行了工具操作)',
             sources: JSON.stringify(finalSources),
-            toolCalls: collectedToolCalls.length > 0 ? JSON.stringify(collectedToolCalls) : null,
+            toolCalls: hasToolCalls ? JSON.stringify(collectedToolCalls) : null,
             reasoning: collectedReasoning || null,
             latencyMs,
             createdAt: new Date().toISOString(),
           });
-          logger.info('AI Agent', 'Message saved', { sessionId: actualSessionId, latencyMs });
+          logger.info('AI Agent', 'Message saved', { sessionId: actualSessionId, latencyMs, hasToolCalls, hasSources });
         } catch (error) {
           logger.error('AI Agent', 'Failed to save message', { userId }, error);
         }

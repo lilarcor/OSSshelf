@@ -94,11 +94,7 @@ function VectorCard({
           onClick={() => onDelete(vector.id, vector.name)}
           disabled={isDeleting}
         >
-          {isDeleting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Trash2 className="h-4 w-4" />
-          )}
+          {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
         </Button>
       </div>
     </div>
@@ -123,9 +119,7 @@ export function VectorsTable({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg sm:text-xl font-semibold">向量索引库</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            共 {totalRecords} 条记录
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">共 {totalRecords} 条记录</p>
         </div>
         <Button variant="outline" size="sm" onClick={onRefresh} disabled={isLoadingVectors}>
           {isLoadingVectors ? (

@@ -1381,19 +1381,17 @@ export const aiApi = {
   // 新增：AI会话管理（增强版）
   chatSession: {
     getSessions: () => api.get<ApiResponse<AiChatSession[]>>('/api/ai-chat/sessions'),
-    getSession: (sessionId: string) =>
-      api.get<ApiResponse<AiChatSessionDetail>>('/api/ai-chat/sessions/:sessionId'.replace(':sessionId', sessionId)),
+    getSession: (sessionId: string) => api.get<ApiResponse<AiChatSessionDetail>>(`/api/ai-chat/sessions/${sessionId}`),
     createSession: (data?: { title?: string; modelId?: string }) =>
       api.post<ApiResponse<AiChatSession>>('/api/ai-chat/sessions', data),
     updateSession: (sessionId: string, data: { title: string }) =>
-      api.put<ApiResponse<AiChatSession>>('/api/ai-chat/sessions/:sessionId'.replace(':sessionId', sessionId), data),
+      api.put<ApiResponse<AiChatSession>>(`/api/ai-chat/sessions/${sessionId}`, data),
     deleteSession: (sessionId: string) =>
-      api.delete<ApiResponse<{ message: string }>>('/api/ai-chat/sessions/:sessionId'.replace(':sessionId', sessionId)),
+      api.delete<ApiResponse<{ message: string }>>(`/api/ai-chat/sessions/${sessionId}`),
 
     confirmAction: (confirmId: string) =>
       api.post<ApiResponse<{ result: unknown; confirmedAt: string }>>('/api/ai-chat/confirm', { confirmId }),
 
-    // 流式聊天
     chatStream: async (
       query: string,
       options: {
@@ -1416,6 +1414,7 @@ export const aiApi = {
           confirmRequest?: boolean;
           confirmId?: string;
           summary?: string;
+          reasoning?: boolean;
         }) => void;
         onError?: (error: Error) => void;
         signal?: AbortSignal;
@@ -1423,51 +1422,98 @@ export const aiApi = {
     ) => {
       const token = useAuthStore.getState().token;
       const baseUrl = import.meta.env.VITE_API_URL || '';
+      const MAX_RETRIES = 3;
+      const RETRY_DELAY = 1000;
 
-      const response = await fetch(`${baseUrl}/api/ai-chat/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          query,
-          ...options,
-          stream: true,
-        }),
-        signal: options.signal,
-      });
+      let retryCount = 0;
+      let lastError: Error | null = null;
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      while (retryCount <= MAX_RETRIES) {
+        try {
+          const response = await fetch(`${baseUrl}/api/ai-chat/chat`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              query,
+              ...options,
+              stream: true,
+            }),
+            signal: options.signal,
+          });
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No reader available');
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
-
-          try {
-            const data = JSON.parse(trimmedLine.slice(6));
-            options.onChunk(data);
-            if (data.done) return;
-          } catch {
-            continue;
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage = `HTTP error! status: ${response.status}`;
+            try {
+              const errorJson = JSON.parse(errorText);
+              errorMessage = errorJson.error || errorJson.message || errorMessage;
+            } catch {
+              if (errorText) errorMessage = errorText;
+            }
+            throw new Error(errorMessage);
           }
+
+          const reader = response.body?.getReader();
+          if (!reader) throw new Error('No reader available');
+
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let streamDone = false;
+
+          while (!streamDone) {
+            const { done, value } = await reader.read();
+            if (done) {
+              streamDone = true;
+              break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              const trimmedLine = line.trim();
+              if (!trimmedLine || !trimmedLine.startsWith('data: ')) continue;
+
+              try {
+                const data = JSON.parse(trimmedLine.slice(6));
+                options.onChunk(data);
+                if (data.done) return;
+                if (data.error) {
+                  lastError = new Error(data.error);
+                  if (retryCount < MAX_RETRIES && !data.error.includes('认证') && !data.error.includes('权限')) {
+                    retryCount++;
+                    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY * retryCount));
+                    continue;
+                  }
+                  throw lastError;
+                }
+              } catch (parseError) {
+                if (parseError instanceof SyntaxError) continue;
+                throw parseError;
+              }
+            }
+          }
+          return;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          if (options.signal?.aborted) {
+            throw lastError;
+          }
+          if (retryCount >= MAX_RETRIES) {
+            options.onError?.(lastError);
+            throw lastError;
+          }
+          retryCount++;
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY * retryCount));
         }
+      }
+      if (lastError) {
+        options.onError?.(lastError);
+        throw lastError;
       }
     },
   },

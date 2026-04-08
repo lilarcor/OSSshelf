@@ -116,9 +116,13 @@ function ConfigItem({
             className="flex-1 min-w-0 px-2 py-1 text-xs border rounded bg-background truncate"
           >
             <option value={config.defaultValue}>{config.defaultValue}</option>
-            {models.filter((m) => m.modelId !== config.defaultValue).map((m) => (
-              <option key={m.id} value={m.modelId}>{m.name}</option>
-            ))}
+            {models
+              .filter((m) => m.modelId !== config.defaultValue)
+              .map((m) => (
+                <option key={m.id} value={m.modelId}>
+                  {m.name}
+                </option>
+              ))}
           </select>
           {isModified && (
             <Button
@@ -149,7 +153,12 @@ function ConfigItem({
               if (e.key === 'Escape') onSetEditingKey(null);
             }}
           />
-          <Button size="sm" onClick={() => onSave(config)} disabled={isUpdatePending} className="h-6 px-2 flex-shrink-0">
+          <Button
+            size="sm"
+            onClick={() => onSave(config)}
+            disabled={isUpdatePending}
+            className="h-6 px-2 flex-shrink-0"
+          >
             <Save className="h-3 w-3" />
           </Button>
           <Button size="sm" variant="ghost" onClick={() => onSetEditingKey(null)} className="h-6 w-6 p-0 flex-shrink-0">
@@ -168,7 +177,10 @@ function ConfigItem({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => { onSetEditingKey(config.key); onSetConfigEditValue(currentValue); }}
+            onClick={() => {
+              onSetEditingKey(config.key);
+              onSetConfigEditValue(currentValue);
+            }}
             className="h-6 px-2 flex-shrink-0"
           >
             编辑
@@ -232,9 +244,7 @@ export function AdvancedConfigPanel({
   isUpdatePending,
   isResetPending,
 }: AdvancedConfigPanelProps) {
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(['model', 'parameter'])
-  );
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['model', 'parameter']));
 
   const toggleCategory = (category: string) => {
     setExpandedCategories((prev) => {

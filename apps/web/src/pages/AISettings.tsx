@@ -565,12 +565,18 @@ export function AISettings() {
                   });
 
                   const getGroupMeta = (key: string): { name: string; description?: string; isSystem?: boolean } => {
-                    if (key === 'workers_ai') return { name: 'Cloudflare Workers AI', description: '免费额度，零配置', isSystem: true };
-                    if (key === 'openai_compatible_ungrouped') return { name: '其他 OpenAI 兼容 API', description: '手动配置端点' };
+                    if (key === 'workers_ai')
+                      return { name: 'Cloudflare Workers AI', description: '免费额度，零配置', isSystem: true };
+                    if (key === 'openai_compatible_ungrouped')
+                      return { name: '其他 OpenAI 兼容 API', description: '手动配置端点' };
                     const providerId = key.replace('provider_', '');
                     const found = allProviders.find((p) => p.id === providerId);
                     return found
-                      ? { name: found.name, description: found.description || found.apiEndpoint, isSystem: found.isSystem }
+                      ? {
+                          name: found.name,
+                          description: found.description || found.apiEndpoint,
+                          isSystem: found.isSystem,
+                        }
                       : { name: '未知提供商' };
                   };
 
@@ -583,7 +589,9 @@ export function AISettings() {
                   });
 
                   return sortedKeys.map((key) => {
-                    const groupModels = (groups[key] as AiModel[]).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+                    const groupModels = (groups[key] as AiModel[]).sort(
+                      (a, b) => (a.sortOrder || 0) - (b.sortOrder || 0)
+                    );
                     const meta = getGroupMeta(key);
                     const activeCount = groupModels.filter((m) => m.isActive).length;
 
@@ -627,7 +635,9 @@ export function AISettings() {
                               isActivating={activateMutation.isPending}
                               onTest={(modelId) => testModelMutation.mutate({ modelId })}
                               testResult={testResult}
-                              isTesting={testModelMutation.isPending && testModelMutation.variables?.modelId === model.id}
+                              isTesting={
+                                testModelMutation.isPending && testModelMutation.variables?.modelId === model.id
+                              }
                             />
                           ))}
                         </div>

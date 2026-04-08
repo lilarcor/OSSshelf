@@ -137,9 +137,7 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg sm:text-xl font-semibold">管理提供商</h2>
-              <p className="text-xs text-muted-foreground mt-1">
-                添加和管理您的AI服务提供商（使用OpenAI兼容API）
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">添加和管理您的AI服务提供商（使用OpenAI兼容API）</p>
             </div>
             <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
               <X className="h-5 w-5" />
@@ -156,7 +154,8 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg text-xs">
                 <p className="text-blue-700 dark:text-blue-300">
-                  <strong>提示：</strong>提供商使用OpenAI兼容API格式。添加后，创建模型时可以直接选择此提供商，自动填入API端点。
+                  <strong>提示：</strong>
+                  提供商使用OpenAI兼容API格式。添加后，创建模型时可以直接选择此提供商，自动填入API端点。
                 </p>
               </div>
 
@@ -183,9 +182,7 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
                   className="w-full px-3 py-1.5 border rounded bg-background text-sm font-mono"
                   placeholder="如: https://api.deepseek.com/v1"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  API的基础URL地址，不包含 /chat/completions 等路径
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">API的基础URL地址，不包含 /chat/completions 等路径</p>
               </div>
 
               <div>
@@ -236,8 +233,10 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       保存中...
                     </>
+                  ) : editingProvider ? (
+                    '更新'
                   ) : (
-                    editingProvider ? '更新' : '创建'
+                    '创建'
                   )}
                 </Button>
               </div>
