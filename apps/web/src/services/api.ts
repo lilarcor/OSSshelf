@@ -1553,9 +1553,12 @@ export interface AiProviderItem {
   id: string;
   userId?: string;
   name: string;
+  nameEn?: string;
   type: 'workers_ai' | 'openai_compatible';
   apiEndpoint?: string;
+  description?: string;
   thinkingConfig?: string;
+  features?: string;
   isSystem?: boolean;
   isDefault: boolean;
   isActive: boolean;
@@ -1566,9 +1569,12 @@ export interface AiProviderItem {
 
 export interface CreateAiProviderParams {
   name: string;
+  nameEn?: string;
   type?: 'workers_ai' | 'openai_compatible';
   apiEndpoint?: string;
+  description?: string;
   thinkingConfig?: string;
+  features?: string;
   isDefault?: boolean;
 }
 

@@ -1,10 +1,15 @@
 /**
  * ProviderManageModal.tsx
  * 提供商管理弹窗组件
+ *
+ * 功能:
+ * - 显示所有自定义提供商列表
+ * - 添加/编辑/删除提供商
+ * - 设置默认提供商
  */
 
 import { useState, useEffect } from 'react';
-import { X, Plus, Edit2, Trash2, Star, Loader2, Building2, Link } from 'lucide-react';
+import { X, Plus, Edit2, Trash2, Star, Loader2, Building2, Link, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { aiApi, type AiProviderItem, type CreateAiProviderParams } from '@/services/api';
 
@@ -22,6 +27,7 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
     name: '',
     type: 'openai_compatible',
     apiEndpoint: '',
+    description: '',
     isDefault: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,6 +70,7 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
         name: '',
         type: 'openai_compatible',
         apiEndpoint: '',
+        description: '',
         isDefault: false,
       });
     } catch (error) {
@@ -78,9 +85,10 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
     setFormData({
       name: provider.name,
       type: provider.type,
-      apiEndpoint: provider.apiEndpoint || '',
-      isDefault: provider.isDefault,
-    });
+    apiEndpoint: provider.apiEndpoint || '',
+    description: provider.description || '',
+    isDefault: provider.isDefault,
+  });
     setShowForm(true);
   };
 
@@ -116,6 +124,7 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
       name: '',
       type: 'openai_compatible',
       apiEndpoint: '',
+      description: '',
       isDefault: false,
     });
   };
@@ -129,7 +138,7 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
             <div>
               <h2 className="text-lg sm:text-xl font-semibold">管理提供商</h2>
               <p className="text-xs text-muted-foreground mt-1">
-                添加和管理AI服务提供商（OpenAI兼容API）
+                添加和管理您的AI服务提供商（使用OpenAI兼容API）
               </p>
             </div>
             <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
@@ -145,6 +154,12 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
             </div>
           ) : showForm ? (
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg text-xs">
+                <p className="text-blue-700 dark:text-blue-300">
+                  <strong>提示：</strong>提供商使用OpenAI兼容API格式。添加后，创建模型时可以直接选择此提供商，自动填入API端点。
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">
@@ -155,7 +170,7 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-3 py-1.5 border rounded bg-background text-sm"
-                    placeholder="如: 火山引擎、智谱AI"
+                    placeholder="如: 火山引擎、智谱AI、DeepSeek"
                     required
                   />
                 </div>
@@ -183,8 +198,19 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
                   placeholder="如: https://api.deepseek.com/v1"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  API基础URL，不包含 /chat/completions 等路径
+                  API的基础URL地址，不包含 /chat/completions 等路径
                 </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">描述</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-3 py-1.5 border rounded bg-background text-sm"
+                  rows={2}
+                  placeholder="可选的描述信息"
+                />
               </div>
 
               <div className="flex items-center gap-2">
@@ -219,9 +245,7 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
           ) : (
             <>
               <div className="flex justify-between items-center mb-4">
-                <span className="text-sm text-muted-foreground">
-                  共 {providers.length} 个提供商（蓝色为系统内置）
-                </span>
+                <span className="text-sm text-muted-foreground">共 {providers.length} 个提供商</span>
                 <Button size="sm" onClick={() => setShowForm(true)}>
                   <Plus className="h-4 w-4 mr-1" />
                   添加提供商
@@ -232,9 +256,10 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
                 <div className="text-center py-8 text-muted-foreground">
                   <Building2 className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p className="text-sm">暂无提供商</p>
+                  <p className="text-xs mt-1">点击上方按钮添加您的AI服务提供商</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {providers.map((provider) => (
                     <div
                       key={provider.id}
@@ -244,58 +269,76 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
                           : 'border-slate-200 dark:border-slate-700'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="font-medium">{provider.name}</span>
-                          {provider.isSystem && (
-                            <span className="px-1.5 py-0.5 text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
-                              系统
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{provider.name}</span>
+                            {provider.isDefault && (
+                              <span className="px-1.5 py-0.5 text-[10px] bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 rounded">
+                                默认
+                              </span>
+                            )}
+                            {provider.isSystem && (
+                              <span className="px-1.5 py-0.5 text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
+                                系统
+                              </span>
+                            )}
+                            {provider.nameEn && (
+                              <span className="text-xs text-slate-400">{provider.nameEn}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Building2 className="h-3 w-3" />
+                              {provider.type === 'workers_ai' ? 'Workers AI' : 'OpenAI 兼容'}
                             </span>
-                          )}
-                          {provider.isDefault && (
-                            <span className="px-1.5 py-0.5 text-[10px] bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 rounded">
-                              默认
-                            </span>
+                            {provider.apiEndpoint && (
+                              <span className="flex items-center gap-1 truncate max-w-[200px]">
+                                <Link className="h-3 w-3 flex-shrink-0" />
+                                <span className="truncate font-mono">{provider.apiEndpoint}</span>
+                              </span>
+                            )}
+                          </div>
+                          {provider.description && (
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                              <FileText className="h-3 w-3" />
+                              {provider.description}
+                            </p>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          {provider.apiEndpoint && (
-                            <span className="text-xs text-muted-foreground font-mono truncate max-w-[150px]">
-                              {provider.apiEndpoint}
-                            </span>
-                          )}
+                        <div className="flex items-center gap-1 ml-2">
                           {!provider.isSystem && (
                             <>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6"
+                                className="h-7 w-7"
                                 onClick={() => handleSetDefault(provider.id)}
                                 title="设为默认"
                               >
-                                <Star className="h-3.5 w-3.5" />
+                                <Star className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6"
+                                className="h-7 w-7"
                                 onClick={() => handleEdit(provider)}
                                 title="编辑"
                               >
-                                <Edit2 className="h-3.5 w-3.5" />
+                                <Edit2 className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 text-red-500 hover:text-red-600"
+                                className="h-7 w-7 text-red-500 hover:text-red-600"
                                 onClick={() => handleDelete(provider.id)}
                                 disabled={deletingId === provider.id}
                                 title="删除"
                               >
                                 {deletingId === provider.id ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <Trash2 className="h-4 w-4" />
                                 )}
                               </Button>
                             </>
@@ -306,6 +349,16 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
                   ))}
                 </div>
               )}
+
+              <div className="mt-6 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-xs text-muted-foreground">
+                <p className="font-medium mb-1">使用说明：</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>蓝色背景为系统内置提供商，不可编辑或删除</li>
+                  <li>添加提供商后，创建模型时可以直接选择，自动填入API端点</li>
+                  <li>所有提供商都使用OpenAI兼容API格式</li>
+                  <li>删除提供商不会删除关联的模型，模型将变为自定义类型</li>
+                </ul>
+              </div>
             </>
           )}
         </div>
