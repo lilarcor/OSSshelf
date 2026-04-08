@@ -42,15 +42,11 @@ import {
 import {
   aiApi,
   type AiModel,
-  type AiProvider,
   type AiProviderItem,
-  type AiWorkersAiModel,
-  type AiOpenAiModel,
   type AiSystemConfigItem,
 } from '@/services/api';
 import type { AIIndexTask, AISummarizeTask, AITagsTask, AIIndexStats } from '@/services/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { cn } from '@/utils';
 
 type TabType = 'models' | 'providers' | 'index' | 'vectors' | 'tasks' | 'advanced';
 

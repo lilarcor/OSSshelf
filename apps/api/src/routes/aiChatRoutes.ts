@@ -11,14 +11,13 @@
 
 import { Hono } from 'hono';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
-import { getDb, aiChatSessions, aiChatMessages, files } from '../db';
+import { getDb, aiChatSessions, aiChatMessages } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { ERROR_CODES } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
 import { z } from 'zod';
 import { ModelGateway, RagEngine } from '../lib/ai';
 import { AgentEngine, type AgentChunk } from '../lib/ai/agentEngine';
-import type { StreamChunk } from '../lib/ai/types';
 import { logger } from '@osshelf/shared';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();

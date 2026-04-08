@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, Key, Loader2, Save, Brain } from 'lucide-react';
+import { X, Key, Loader2, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import {
   aiApi,

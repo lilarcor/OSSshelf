@@ -10,7 +10,7 @@
  */
 
 import { Hono } from 'hono';
-import { eq, and, desc, or, sql } from 'drizzle-orm';
+import { eq, and, desc, or } from 'drizzle-orm';
 import { getDb, aiModels, aiProviders } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { ERROR_CODES } from '@osshelf/shared';
@@ -697,14 +697,6 @@ function formatModelForSelect(m: ModelConfig) {
   };
 }
 
-// 各功能所需的模型能力映射
-const FEATURE_CAPABILITY_REQUIREMENTS: Record<string, ModelCapability[]> = {
-  summary: ['chat'],
-  imageCaption: ['vision'],
-  imageTag: ['chat'],
-  rename: ['chat'],
-};
-
 function validateWorkersAiModel(
   modelId: string,
   requiredCapability: ModelCapability
@@ -968,7 +960,7 @@ async function decryptApiKey(encrypted: string, env: Env): Promise<string> {
   return decryptCredential(encrypted, secret);
 }
 
-export function decryptModelApiKey(model: ModelConfig, env: Env): ModelConfig {
+export function decryptModelApiKey(model: ModelConfig, _env: Env): ModelConfig {
   if (model.apiKeyEncrypted && isAesGcmFormat(model.apiKeyEncrypted)) {
     return {
       ...model,

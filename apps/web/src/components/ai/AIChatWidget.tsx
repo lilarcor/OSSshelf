@@ -8,7 +8,7 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Sparkles } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 
 export function AIChatWidget() {
   const navigate = useNavigate();
