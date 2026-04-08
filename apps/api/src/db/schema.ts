@@ -597,13 +597,12 @@ export const aiProviders = sqliteTable(
   'ai_providers',
   {
     id: text('id').primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    type: text('type').notNull().default('openai_compatible'),
     apiEndpoint: text('api_endpoint'),
     description: text('description'),
+    thinkingConfig: text('thinking_config'),
+    isSystem: integer('is_system', { mode: 'boolean' }).notNull().default(false),
     isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
     isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
@@ -611,8 +610,7 @@ export const aiProviders = sqliteTable(
     updatedAt: text('updated_at').notNull(),
   },
   (table) => ({
-    userActiveIdx: index('idx_ai_providers_user_active').on(table.userId, table.isActive),
-    userDefaultIdx: index('idx_ai_providers_user_default').on(table.userId, table.isDefault),
+    systemIdx: index('idx_ai_providers_system').on(table.isSystem),
   })
 );
 

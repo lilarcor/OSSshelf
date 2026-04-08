@@ -70,12 +70,11 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
   };
 
   const handleProviderChange = (providerValue: string) => {
-    if (providerValue.startsWith('custom_')) {
-      const providerId = providerValue.replace('custom_', '');
+    if (providerValue.startsWith('vendor_')) {
+      const providerId = providerValue;
       const selectedProvider = customProviders.find((p) => p.id === providerId);
       setFormData({
         ...formData,
-        provider: 'openai_compatible',
         providerId: providerId,
         apiEndpoint: selectedProvider?.apiEndpoint || '',
       });
@@ -87,6 +86,33 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
         apiEndpoint: '',
       });
     }
+  };
+
+  const handleThinkingModeToggle = (enabled: boolean) => {
+    if (enabled && formData.providerId) {
+      const selectedProvider = customProviders.find((p) => p.id === formData.providerId);
+      if (selectedProvider?.thinkingConfig) {
+        try {
+          const config = JSON.parse(selectedProvider.thinkingConfig);
+          setFormData({
+            ...formData,
+            supportsThinking: true,
+            thinkingParamFormat: config.paramFormat || '',
+            thinkingParamName: config.paramName || '',
+            thinkingEnabledValue: String(config.enabledValue ?? ''),
+            thinkingDisabledValue: String(config.disabledValue ?? ''),
+            thinkingNestedKey: config.nestedKey || '',
+          });
+          return;
+        } catch {
+          // 解析失败，使用默认值
+        }
+      }
+    }
+    setFormData({
+      ...formData,
+      supportsThinking: enabled,
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -133,23 +159,34 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
               <div>
                 <label className="block text-sm font-medium mb-1">提供商 *</label>
                 <select
-                  value={formData.providerId ? `custom_${formData.providerId}` : formData.provider}
+                  value={formData.providerId || formData.provider}
                   onChange={(e) => handleProviderChange(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg bg-background text-sm"
                 >
-                  <option value="workers_ai">Cloudflare Workers AI</option>
-                  <optgroup label="自定义提供商 (OpenAI 兼容)">
-                    {customProviders.map((p) => (
-                      <option key={p.id} value={`custom_${p.id}`}>
-                        {p.name} {p.isDefault ? '(默认)' : ''}
-                      </option>
-                    ))}
+                  <optgroup label="系统内置提供商">
+                    {customProviders
+                      .filter((p) => p.isSystem)
+                      .sort((a, b) => (b.sortOrder || 0) - (a.sortOrder || 0))
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
                   </optgroup>
-                  <option value="openai_compatible">其他 (OpenAI 兼容 API)</option>
+                  <optgroup label="自定义提供商">
+                    {customProviders
+                      .filter((p) => !p.isSystem)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} {p.isDefault ? '(默认)' : ''}
+                        </option>
+                      ))}
+                  </optgroup>
+                  <option value="openai_compatible">其他 (手动配置)</option>
                 </select>
-                {customProviders.length > 0 && (
+                {formData.providerId && (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    选择自定义提供商将自动填入对应的API端点
+                    已自动填入API端点，如需思考模式请勾选下方选项
                   </p>
                 )}
               </div>
@@ -183,7 +220,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
 
                 {formData.modelId === '__custom__' && (
                   <div className="mt-2">
-                    <label className="block block-xs text-muted mb-1">自定义模型 ID（@cf/ 开头）</label>
+                    <label className="block text-sm font-medium mb-1">自定义模型 ID（@cf/ 开头）</label>
                     <input
                       type="text"
                       value={formData.customModelId || ''}
@@ -192,7 +229,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
                       placeholder="@cf/deepseek/deepseek-r1 或 @cf/black-forest-labs/flux-2-klein-4b"
                       required
                     />
-                    <p className="mt-1 text-xs text-muted">
+                    <p className="mt-1 text-xs">
                       可在{' '}
                       <a
                         href="https://developers.cloudflare.com/workers-ai/models/"
@@ -330,7 +367,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
                     <input
                       type="checkbox"
                       checked={formData[item.key as keyof typeof formData] as boolean}
-                      onChange={(e) => setFormData({ ...formData, [item.key]: e.target.checked })}
+                      onChange={(e) => handleThinkingModeToggle(e.target.checked)}
                       className="rounded"
                     />
                     <div>
