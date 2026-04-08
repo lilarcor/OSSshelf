@@ -561,7 +561,7 @@ export function AISettings() {
                       key = 'openai_compatible_ungrouped';
                     }
                     if (!groups[key]) groups[key] = [];
-                    groups[key].push(model);
+                    (groups[key] as AiModel[]).push(model);
                   });
 
                   const getGroupMeta = (key: string): { name: string; description?: string; isSystem?: boolean } => {
@@ -583,7 +583,7 @@ export function AISettings() {
                   });
 
                   return sortedKeys.map((key) => {
-                    const groupModels = groups[key].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+                    const groupModels = (groups[key] as AiModel[]).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
                     const meta = getGroupMeta(key);
                     const activeCount = groupModels.filter((m) => m.isActive).length;
 
