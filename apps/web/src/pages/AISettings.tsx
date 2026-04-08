@@ -558,11 +558,22 @@ export function AISettings() {
                     custom: '自定义',
                   };
 
+                  const providerIds = Object.keys(groupedModels);
+                  const allProvidersList = providersData?.providers || [];
+                  
+                  const providerDisplayNames: Record<string, string> = {};
+                  providerIds.forEach((id) => {
+                    const providerInfo = allProvidersList.find((p: any) => p.id === id);
+                    if (providerInfo) {
+                      providerDisplayNames[id] = providerInfo.name;
+                    }
+                  });
+
                   return Object.entries(groupedModels).map(([provider, providerModels]) => (
                     <div key={provider} className="space-y-3">
                       <div className="flex items-center gap-2">
                         <h3 className="text-sm font-medium text-muted-foreground">
-                          {providerNames[provider] || provider}
+                          {providerDisplayNames[provider] || providerNames[provider] || provider}
                         </h3>
                         <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                           {providerModels.length} 个模型

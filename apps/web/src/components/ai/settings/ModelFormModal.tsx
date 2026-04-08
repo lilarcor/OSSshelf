@@ -29,7 +29,7 @@ interface ModelFormModalProps {
 }
 
 export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoading }: ModelFormModalProps) {
-  const [customProviders, setCustomProviders] = useState<AiProviderItem[]>([]);
+  const [allProviders, setAllProviders] = useState<AiProviderItem[]>([]);
   const [formData, setFormData] = useState({
     name: model?.name || '',
     provider: model?.provider || 'workers_ai',
@@ -55,34 +55,71 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
   });
 
   useEffect(() => {
-    loadCustomProviders();
+    loadAllProviders();
   }, []);
 
-  const loadCustomProviders = async () => {
+  const loadAllProviders = async () => {
     try {
       const res = await aiApi.config.getAiProviders();
       if (res.data.success && res.data.data) {
-        setCustomProviders(res.data.data);
+        setAllProviders(res.data.data);
       }
     } catch (error) {
-      console.error('Failed to load custom providers:', error);
+      console.error('Failed to load providers:', error);
     }
   };
 
+  const systemProviders = allProviders.filter((p) => p.isSystem);
+  const customProviders = allProviders.filter((p) => !p.isSystem);
+
   const handleProviderChange = (providerValue: string) => {
-    if (providerValue.startsWith('custom_')) {
-      const providerId = providerValue.replace('custom_', '');
-      const selectedProvider = customProviders.find((p) => p.id === providerId);
+    if (providerValue.startsWith('provider_')) {
+      const providerId = providerValue.replace('provider_', '');
+      const selectedProvider = allProviders.find((p) => p.id === providerId);
+      
+      let thinkingConfig: {
+        supportsThinking?: boolean;
+        thinkingParamFormat?: string;
+        thinkingParamName?: string;
+        thinkingEnabledValue?: string;
+        thinkingDisabledValue?: string;
+        thinkingNestedKey?: string;
+      } = {};
+      
+      if (selectedProvider?.thinkingConfig) {
+        try {
+          const config = JSON.parse(selectedProvider.thinkingConfig);
+          thinkingConfig = {
+            supportsThinking: true,
+            thinkingParamFormat: config.paramFormat || '',
+            thinkingParamName: config.paramName || '',
+            thinkingEnabledValue: config.enabledValue?.toString() || '',
+            thinkingDisabledValue: config.disabledValue?.toString() || '',
+            thinkingNestedKey: config.nestedKey || '',
+          };
+        } catch (e) {
+          console.error('Failed to parse thinking config:', e);
+        }
+      }
+      
       setFormData({
         ...formData,
         provider: 'openai_compatible',
         providerId: providerId,
         apiEndpoint: selectedProvider?.apiEndpoint || '',
+        ...thinkingConfig,
+      });
+    } else if (providerValue === 'workers_ai') {
+      setFormData({
+        ...formData,
+        provider: 'workers_ai',
+        providerId: '',
+        apiEndpoint: '',
       });
     } else {
       setFormData({
         ...formData,
-        provider: providerValue as 'workers_ai' | 'openai_compatible',
+        provider: 'openai_compatible',
         providerId: '',
         apiEndpoint: '',
       });
@@ -133,25 +170,34 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
               <div>
                 <label className="block text-sm font-medium mb-1">提供商 *</label>
                 <select
-                  value={formData.providerId ? `custom_${formData.providerId}` : formData.provider}
+                  value={formData.providerId ? `provider_${formData.providerId}` : formData.provider}
                   onChange={(e) => handleProviderChange(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg bg-background text-sm"
                 >
                   <option value="workers_ai">Cloudflare Workers AI</option>
-                  <optgroup label="自定义提供商 (OpenAI 兼容)">
-                    {customProviders.map((p) => (
-                      <option key={p.id} value={`custom_${p.id}`}>
-                        {p.name} {p.isDefault ? '(默认)' : ''}
-                      </option>
-                    ))}
-                  </optgroup>
+                  {systemProviders.length > 0 && (
+                    <optgroup label="系统内置提供商 (OpenAI 兼容)">
+                      {systemProviders.map((p) => (
+                        <option key={p.id} value={`provider_${p.id}`}>
+                          {p.name} {p.isDefault ? '(默认)' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {customProviders.length > 0 && (
+                    <optgroup label="自定义提供商 (OpenAI 兼容)">
+                      {customProviders.map((p) => (
+                        <option key={p.id} value={`provider_${p.id}`}>
+                          {p.name} {p.isDefault ? '(默认)' : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                   <option value="openai_compatible">其他 (OpenAI 兼容 API)</option>
                 </select>
-                {customProviders.length > 0 && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    选择自定义提供商将自动填入对应的API端点
-                  </p>
-                )}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  选择提供商将自动填入对应的API端点和思考模式配置
+                </p>
               </div>
             </div>
 
@@ -497,7 +543,7 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
 
                 <div className="p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg text-xs">
                   <p className="font-medium text-blue-800 dark:text-blue-200 mb-2">📋 各平台配置示例：</p>
-                  <div className="space-y-3 text-blue-700 dark:text-blue-300">
+                  <div className="space-y-3 text-blue-700 dark:text-blue-300 max-h-64 overflow-y-auto">
                     <div>
                       <p className="font-medium">火山引擎豆包 / 字节跳动：</p>
                       <ul className="list-disc list-inside ml-2 space-y-0.5">
@@ -518,12 +564,22 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
                       </ul>
                     </div>
                     <div>
-                      <p className="font-medium">OpenAI o1/o3 系列：</p>
+                      <p className="font-medium">百度文心一言：</p>
                       <ul className="list-disc list-inside ml-2 space-y-0.5">
-                        <li>参数格式: String</li>
-                        <li>参数名称: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">reasoning_effort</code></li>
-                        <li>启用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">medium</code> 或 <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">high</code></li>
-                        <li>禁用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">low</code></li>
+                        <li>参数格式: Boolean</li>
+                        <li>参数名称: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">enable_thinking</code></li>
+                        <li>启用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">true</code></li>
+                        <li>禁用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">false</code></li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-medium">腾讯混元：</p>
+                      <ul className="list-disc list-inside ml-2 space-y-0.5">
+                        <li>参数格式: Object</li>
+                        <li>参数名称: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">thinking</code></li>
+                        <li>嵌套键名: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">type</code></li>
+                        <li>启用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">enabled</code></li>
+                        <li>禁用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">disabled</code></li>
                       </ul>
                     </div>
                     <div>
@@ -544,6 +600,44 @@ export function ModelFormModal({ model, providersData, onClose, onSubmit, isLoad
                         <li>嵌套键名: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">type</code></li>
                         <li>启用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">enabled</code></li>
                         <li>禁用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">disabled</code></li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-medium">月之暗面 Kimi：</p>
+                      <ul className="list-disc list-inside ml-2 space-y-0.5">
+                        <li>参数格式: Object</li>
+                        <li>参数名称: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">thinking</code></li>
+                        <li>嵌套键名: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">type</code></li>
+                        <li>启用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">enabled</code></li>
+                        <li>禁用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">disabled</code></li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-medium">xAI Grok：</p>
+                      <ul className="list-disc list-inside ml-2 space-y-0.5">
+                        <li>参数格式: Object</li>
+                        <li>参数名称: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">thinking</code></li>
+                        <li>嵌套键名: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">type</code></li>
+                        <li>启用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">enabled</code></li>
+                        <li>禁用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">disabled</code></li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-medium">OpenAI o1/o3 系列：</p>
+                      <ul className="list-disc list-inside ml-2 space-y-0.5">
+                        <li>参数格式: String</li>
+                        <li>参数名称: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">reasoning_effort</code></li>
+                        <li>启用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">medium</code> 或 <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">high</code></li>
+                        <li>禁用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">low</code></li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-medium">Google Gemini：</p>
+                      <ul className="list-disc list-inside ml-2 space-y-0.5">
+                        <li>参数格式: String</li>
+                        <li>参数名称: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">thinking_level</code></li>
+                        <li>启用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">high</code></li>
+                        <li>禁用值: <code className="text-primary bg-blue-100 dark:bg-blue-900/50 px-1 rounded">low</code></li>
                       </ul>
                     </div>
                     <div>

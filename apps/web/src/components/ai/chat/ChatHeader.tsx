@@ -3,14 +3,15 @@
  * 聊天页面顶部导航栏组件
  *
  * 功能:
- * - 返回按钮
+ * - 返回文件管理页面按钮
+ * - 侧边栏切换按钮
  * - 标题展示
  * - 工具信息按钮（带角标）
  * - 设置入口
  */
 
 import { useNavigate } from 'react-router-dom';
-import { PanelLeftClose, PanelLeft, Sparkles, Settings, Info } from 'lucide-react';
+import { ArrowLeft, PanelLeftClose, PanelLeft, Sparkles, Settings, Info } from 'lucide-react';
 
 import { cn } from '@/utils';
 
@@ -28,6 +29,13 @@ export function ChatHeader({ toolCount, onShowToolInfo, showSidebar, onToggleSid
     <header className="flex items-center justify-between px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
       <div className="flex items-center gap-2.5">
         <button
+          onClick={() => navigate('/files')}
+          className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          title="返回文件管理"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <button
           onClick={onToggleSidebar}
           className={cn(
             'h-8 w-8 rounded-lg flex items-center justify-center transition-colors',
@@ -35,7 +43,7 @@ export function ChatHeader({ toolCount, onShowToolInfo, showSidebar, onToggleSid
               ? 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
               : 'text-violet-600 bg-violet-50 dark:bg-violet-900/20'
           )}
-          title={showSidebar ? '隐藏侧边栏' : '显示侧边栏'}
+          title={showSidebar ? '隐藏对话历史' : '显示对话历史'}
         >
           {showSidebar ? (
             <PanelLeftClose className="h-4 w-4" />

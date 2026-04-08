@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, Plus, Edit2, Trash2, Star, Loader2, Building2, Link, FileText } from 'lucide-react';
+import { X, Plus, Edit2, Trash2, Star, Loader2, Link, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { aiApi, type AiProviderItem, type CreateAiProviderParams } from '@/services/api';
 
@@ -25,9 +25,9 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<CreateAiProviderParams>({
     name: '',
-    type: 'openai_compatible',
     apiEndpoint: '',
     description: '',
+    thinkingConfig: '',
     isDefault: false,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,9 +68,9 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
       setEditingProvider(null);
       setFormData({
         name: '',
-        type: 'openai_compatible',
         apiEndpoint: '',
         description: '',
+        thinkingConfig: '',
         isDefault: false,
       });
     } catch (error) {
@@ -84,11 +84,11 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
     setEditingProvider(provider);
     setFormData({
       name: provider.name,
-      type: provider.type,
-    apiEndpoint: provider.apiEndpoint || '',
-    description: provider.description || '',
-    isDefault: provider.isDefault,
-  });
+      apiEndpoint: provider.apiEndpoint || '',
+      description: provider.description || '',
+      thinkingConfig: provider.thinkingConfig || '',
+      isDefault: provider.isDefault,
+    });
     setShowForm(true);
   };
 
@@ -122,9 +122,9 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
     setEditingProvider(null);
     setFormData({
       name: '',
-      type: 'openai_compatible',
       apiEndpoint: '',
       description: '',
+      thinkingConfig: '',
       isDefault: false,
     });
   };
@@ -160,32 +160,18 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    提供商名称 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-1.5 border rounded bg-background text-sm"
-                    placeholder="如: 火山引擎、智谱AI、DeepSeek"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">类型</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                    className="w-full px-3 py-1.5 border rounded bg-background text-sm"
-                  >
-                    <option value="openai_compatible">OpenAI 兼容 API</option>
-                    <option value="workers_ai">Cloudflare Workers AI</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  提供商名称 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-1.5 border rounded bg-background text-sm"
+                  placeholder="如: 火山引擎、智谱AI、DeepSeek"
+                  required
+                />
               </div>
 
               <div>
@@ -211,6 +197,20 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
                   rows={2}
                   placeholder="可选的描述信息"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">思考模式配置</label>
+                <textarea
+                  value={formData.thinkingConfig}
+                  onChange={(e) => setFormData({ ...formData, thinkingConfig: e.target.value })}
+                  className="w-full px-3 py-1.5 border rounded bg-background text-sm font-mono"
+                  rows={3}
+                  placeholder='{"paramFormat":"object","paramName":"thinking","nestedKey":"type","enabledValue":"enabled","disabledValue":"disabled"}'
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  JSON格式的思考模式配置，包含参数格式、参数名称等。可选字段。
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -254,7 +254,7 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
 
               {providers.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  <Building2 className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <Link className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p className="text-sm">暂无提供商</p>
                   <p className="text-xs mt-1">点击上方按钮添加您的AI服务提供商</p>
                 </div>
@@ -274,7 +274,7 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{provider.name}</span>
                             {provider.isDefault && (
-                              <span className="px-1.5 py-0.5 text-[10px] bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 rounded">
+                              <span className="px-1.5 py-0.5 text-[10px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded">
                                 默认
                               </span>
                             )}
@@ -283,17 +283,10 @@ export function ProviderManageModal({ onClose, onProviderChange }: ProviderManag
                                 系统
                               </span>
                             )}
-                            {provider.nameEn && (
-                              <span className="text-xs text-slate-400">{provider.nameEn}</span>
-                            )}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Building2 className="h-3 w-3" />
-                              {provider.type === 'workers_ai' ? 'Workers AI' : 'OpenAI 兼容'}
-                            </span>
                             {provider.apiEndpoint && (
-                              <span className="flex items-center gap-1 truncate max-w-[200px]">
+                              <span className="flex items-center gap-1 truncate max-w-[300px]">
                                 <Link className="h-3 w-3 flex-shrink-0" />
                                 <span className="truncate font-mono">{provider.apiEndpoint}</span>
                               </span>

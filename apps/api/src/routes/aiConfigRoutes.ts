@@ -91,23 +91,17 @@ const updateModelSchema = z.object({
 
 const createProviderSchema = z.object({
   name: z.string().min(1).max(100),
-  nameEn: z.string().max(100).optional(),
-  type: z.enum(['workers_ai', 'openai_compatible']).default('openai_compatible'),
   apiEndpoint: z.string().max(500).optional(),
   description: z.string().max(500).optional(),
   thinkingConfig: z.string().max(1000).optional(),
-  features: z.string().max(500).optional(),
   isDefault: z.boolean().default(false),
 });
 
 const updateProviderSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  nameEn: z.string().max(100).optional(),
-  type: z.enum(['workers_ai', 'openai_compatible']).optional(),
   apiEndpoint: z.string().max(500).optional(),
   description: z.string().max(500).optional(),
   thinkingConfig: z.string().max(1000).optional(),
-  features: z.string().max(500).optional(),
   isDefault: z.boolean().optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
@@ -167,12 +161,9 @@ app.post('/ai-providers', async (c) => {
       id: crypto.randomUUID(),
       userId,
       name: data.name,
-      nameEn: data.nameEn || null,
-      type: data.type,
       apiEndpoint: data.apiEndpoint || null,
       description: data.description || null,
       thinkingConfig: data.thinkingConfig || null,
-      features: data.features || null,
       isSystem: false,
       isDefault: data.isDefault,
       isActive: true,
@@ -264,12 +255,9 @@ app.put('/ai-providers/:providerId', async (c) => {
     };
 
     if (data.name !== undefined) updateData.name = data.name;
-    if (data.nameEn !== undefined) updateData.nameEn = data.nameEn;
-    if (data.type !== undefined) updateData.type = data.type;
     if (data.apiEndpoint !== undefined) updateData.apiEndpoint = data.apiEndpoint || null;
     if (data.description !== undefined) updateData.description = data.description || null;
     if (data.thinkingConfig !== undefined) updateData.thinkingConfig = data.thinkingConfig || null;
-    if (data.features !== undefined) updateData.features = data.features || null;
     if (data.isDefault !== undefined) updateData.isDefault = data.isDefault;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
