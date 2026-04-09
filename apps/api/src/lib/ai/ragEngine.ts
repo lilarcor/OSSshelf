@@ -204,22 +204,37 @@ export async function classifyIntent(env: Env, query: string): Promise<QueryInte
           messages: [
             {
               role: 'system',
-              content: `将用户问题分类为以下之一，只输出分类词，不输出其他内容：
-file_stats（询问文件数量/存储统计）
-file_search（寻找特定文件）
-content_qa（基于文件内容的问答）
-image_visual（通过图片视觉内容找图）
-general（与文件无关的通用问题）`,
+              content: `你是文件管理系统的意图分类器。将用户问题分类为以下之一，只输出分类词，不输出任何其他内容：
+
+file_stats    - 询问文件数量、存储用量、配额、类型分布等统计信息
+file_search   - 寻找、定位、列出特定文件或文件夹
+content_qa    - 阅读文件内容、问答、对比、摘要、分析文件内容
+image_visual  - 通过图片的视觉外观（颜色、场景、物体）查找图片
+general       - 与文件系统无关的通用问题（如解释概念、闲聊）
+
+示例（按格式严格输出）：
+用户: 我有多少文件？ → file_stats
+用户: 存储空间还剩多少？ → file_stats
+用户: 帮我找上周的会议纪要 → file_search
+用户: 把所有PDF列出来 → file_search
+用户: 这个合同里写了什么交货日期？ → content_qa
+用户: 对比这两份报告的差异 → content_qa
+用户: 帮我找一张有猫的照片 → image_visual
+用户: 找颜色偏蓝的图片 → image_visual
+用户: 什么是WebDAV协议？ → general
+用户: 帮我删除这个文件 → file_search`,
             },
             { role: 'user', content: query },
           ],
-          max_tokens: 10,
+          max_tokens: 15,
         }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000)),
       ]);
 
-      const label = ((result as any)?.response || '').trim().toLowerCase() as QueryIntent;
-      intent = VALID_INTENTS.includes(label) ? label : 'file_search';
+      const raw = ((result as any)?.response || '').trim().toLowerCase();
+      // 从输出中提取有效分类词（兼容模型输出多余内容的情况）
+      const matched = VALID_INTENTS.find((v) => raw.includes(v));
+      intent = matched ?? 'file_search';
     } catch {
       intent = 'file_search';
     }
