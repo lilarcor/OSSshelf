@@ -127,90 +127,146 @@ export const TOOL_GROUPS = {
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 写意图检测模式（中英文）
+// 子意图关键词快速检测（在 classifyIntent LLM 结果之上叠加）
+// 覆盖原先 selectTools 映射中从未注入的工具组
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * 写意图检测正则表达式
- * 
- * 分类覆盖：
- * 1. 文件操作：创建/新建/编辑/删除/移动/重命名/复制/恢复
- * 2. 标签操作：打标签/添加标签/设置标签/移除标签
- * 3. 分享操作：分享/共享/创建链接
- * 4. 收藏操作：收藏/取消收藏/加星
- * 5. 备注操作：备注/添加备注/写备注
- * 6. 权限操作：授权/设置权限
- * 
- * 特点：
- * - 支持中文口语化表达（"打个标签"、"帮我创建"等）
- * - 支持英文表达
- * - 使用宽松匹配，避免遗漏
- */
-const WRITE_INTENT_PATTERNS = new RegExp([
-  // ════════════════════════════════════════════════════════════════
-  // 文件操作类（中文）
-  // ════════════════════════════════════════════════════════════════
-  '创建', '新建', '建立', '生成', '制作',
-  '编辑', '修改', '更改', '更新', '改一下',
-  '删除', '移除', '清除', '删掉', '去掉',
-  '移动', '转移', '搬到',
-  '重命名', '改名', '修改名',
-  '复制', '拷贝', '克隆',
-  '恢复', '还原', '撤销删除',
-  
-  // ════════════════════════════════════════════════════════════════
-  // 标签操作类（中文）- 使用宽松匹配
-  // ════════════════════════════════════════════════════════════════
-  '打.*标签', '加.*标签', '添加.*标签', '设置.*标签', '标记',
-  '移除.*标签', '删除.*标签', '去掉.*标签', '取消.*标签',
-  '贴.*标签', '标.*记',
-  
-  // ════════════════════════════════════════════════════════════════
-  // 分享操作类（中文）
-  // ════════════════════════════════════════════════════════════════
-  '分享', '共享', '创建.*链接', '生成.*链接', '发.*链接',
-  '公开', '对外分享',
-  
-  // ════════════════════════════════════════════════════════════════
-  // 收藏操作类（中文）
-  // ════════════════════════════════════════════════════════════════
-  '收藏', '加.*收藏', '加入收藏', '标.*星', '加星', '星标',
-  '取消.*收藏', '取消.*星标', '移出收藏',
-  
-  // ════════════════════════════════════════════════════════════════
-  // 备注操作类（中文）
-  // ════════════════════════════════════════════════════════════════
-  '备注', '添加.*备注', '写.*备注', '加.*备注', '添加.*说明',
-  '注释', '说明',
-  
-  // ════════════════════════════════════════════════════════════════
-  // 权限操作类（中文）
-  // ════════════════════════════════════════════════════════════════
-  '授权', '取消.*授权', '设置.*权限', '修改.*权限', '开放.*权限',
-  
-  // ════════════════════════════════════════════════════════════════
-  // 通用写操作词（中文）
-  // ════════════════════════════════════════════════════════════════
-  '写入', '保存', '存储', '上传',
-  
-  // ════════════════════════════════════════════════════════════════
-  // 英文表达
-  // ════════════════════════════════════════════════════════════════
-  'create', 'new', 'make', 'generate', 'build',
-  'edit', 'modify', 'change', 'update', 'alter',
-  'delete', 'remove', 'erase', 'drop', 'clear',
-  'move', 'transfer', 'relocate',
-  'rename', 'rename',
-  'copy', 'duplicate', 'clone',
-  'share', 'sharing',
-  'add', 'append', 'insert', 'put',
-  'write', 'save', 'store',
-  'tag', 'label', 'mark',
-  'star', 'favorite', 'bookmark',
-  'note', 'comment',
-  'grant', 'revoke', 'permission',
-  'restore', 'recover', 'undo',
-].join('|'), 'i'); // 'i' 标志表示不区分大小写
+const VERSION_PATTERNS =
+  /版本|历史版本|上.*版|回滚|版本记录|restore version|version history|rollback|revert|older version/i;
+
+const STORAGE_MANAGE_PATTERNS =
+  /桶|bucket|迁移.*文件|文件.*迁移|清理.*建议|大文件.*列表|哪些文件.*大|cleanup suggestion|list bucket|bucket info|set.*default.*bucket/i;
+
+const PERMISSION_PATTERNS =
+  /权限|谁能.*访问|谁有权|授权.*给|设置.*权限|访问控制|用户组|分组成员|permission|access control|user group|grant access|who can/i;
+
+const AI_ENHANCE_PATTERNS =
+  /向量索引|重建索引|rebuild.*index|rag.*问答|语义.*重建|ai.*批量.*标签|smart.*rename.*suggest/i;
+
+/** 纯查询型分享意图（不含"创建分享"等写操作） */
+const SHARE_READ_PATTERNS =
+  /分享了哪些|我的分享列表|查看.*分享|分享统计|list.*share|shared files|sharing stats|who.*shared/i;
+
+/** 纯查询型标签意图（不含写标签） */
+const TAG_READ_PATTERNS =
+  /所有标签|标签列表|有哪些标签|标签管理|list.*tag|all tags|tag.*list/i;
+
+/** 笔记/备注查询意图 */
+const NOTES_READ_PATTERNS =
+  /查看.*备注|我的备注|备注.*列表|搜索.*备注|note.*list|get.*note|search.*note/i;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 写意图检测
+//
+// Fix 2：精确化英文模式，消除高假阳性单词
+// 删除了独立使用时假阳性极高的词：
+//   'new', 'add', 'note', 'tag', 'mark', 'clear', 'save', 'store', 'put'
+// 改为动词+对象的上下文组合模式
+// 中文部分保持不变（中文语境下歧义较少）
+// ─────────────────────────────────────────────────────────────────────────────
+const WRITE_INTENT_PATTERNS = new RegExp(
+  [
+    // ════════════════════════════════════════════════════════════════
+    // 文件操作类（中文）
+    // ════════════════════════════════════════════════════════════════
+    '创建', '新建', '建立', '生成.*文件', '制作.*文件',
+    '编辑', '修改', '更改', '更新', '改一下',
+    '删除', '移除', '清除', '删掉', '去掉',
+    '移动', '转移', '搬到',
+    '重命名', '改名', '修改名',
+    '复制', '拷贝', '克隆',
+    '恢复文件', '还原文件', '撤销删除',
+
+    // ════════════════════════════════════════════════════════════════
+    // 标签操作类（中文）
+    // ════════════════════════════════════════════════════════════════
+    '打.*标签', '加.*标签', '添加.*标签', '设置.*标签', '标记.*文件',
+    '移除.*标签', '删除.*标签', '去掉.*标签', '取消.*标签',
+    '贴.*标签', '给.*打标',
+
+    // ════════════════════════════════════════════════════════════════
+    // 分享操作类（中文）
+    // ════════════════════════════════════════════════════════════════
+    '分享.*文件', '共享.*文件', '创建.*链接', '生成.*链接', '发.*链接',
+    '公开.*文件', '对外分享',
+
+    // ════════════════════════════════════════════════════════════════
+    // 收藏操作类（中文）
+    // ════════════════════════════════════════════════════════════════
+    '收藏', '加.*收藏', '加入收藏', '标.*星', '加星', '星标',
+    '取消.*收藏', '取消.*星标', '移出收藏',
+
+    // ════════════════════════════════════════════════════════════════
+    // 备注操作类（中文）
+    // ════════════════════════════════════════════════════════════════
+    '添加.*备注', '写.*备注', '加.*备注', '添加.*说明',
+
+    // ════════════════════════════════════════════════════════════════
+    // 权限操作类（中文）
+    // ════════════════════════════════════════════════════════════════
+    '授权给', '取消.*授权', '设置.*权限', '修改.*权限', '开放.*权限',
+
+    // ════════════════════════════════════════════════════════════════
+    // 通用写操作词（中文）
+    // ════════════════════════════════════════════════════════════════
+    '写入', '上传',
+
+    // ════════════════════════════════════════════════════════════════
+    // 英文表达（上下文组合模式，避免单词假阳性）
+    // ════════════════════════════════════════════════════════════════
+    // 创建类
+    'create (a |the |new )?(file|folder|note|document|link|share|webhook|api key)',
+    'new (file|folder|document|note)',
+    'make (a |the )?(file|folder|copy)',
+    'generate (a |the )?(file|summary|tags)',
+    // 编辑类
+    'edit (the |a |this )?(file|content|note|document)',
+    'modify (the |a |this )?(file|content|name|permission)',
+    'change (the |a |this )?(name|content|permission|folder)',
+    'update (the |a |this )?(file|note|permission|tag)',
+    'append (to|content)',
+    'find and replace',
+    'find & replace',
+    // 删除类
+    'delete (the |a |this )?(file|folder|note|tag|share|version)',
+    'remove (the |a |this )?(file|folder|tag|note|share|permission)',
+    'erase (the |a |this )?(file|folder)',
+    // 移动/重命名/复制
+    'move (the |a |this )?(file|folder)',
+    'transfer (the |a |this )?file',
+    'relocate (the |a |this )?(file|folder)',
+    'rename (the |a |this )?(file|folder)',
+    'copy (the |a |this )?(file|folder)',
+    'duplicate (the |a |this )?(file|folder)',
+    'clone (the |a |this )?(file|folder)',
+    // 分享类
+    'share (the |a |this )?(file|folder)',
+    'create.*share link',
+    'revoke.*share',
+    // 写入类
+    'write (to|into|a |the )?(file|document)',
+    'save (the |a |this )?file',
+    'save as',
+    // 标签/收藏/备注（需要上下文）
+    'add (a |the )?(tag|note|comment|label) (to|for)',
+    'tag (this|the|a) (file|folder)',
+    'label (this|the|a) (file|folder)',
+    'mark (this|the|a) (file|folder) as',
+    'star (this|the|a) (file|folder)',
+    'favorite (this|the|a) (file|folder)',
+    'add.*to favorites',
+    // 权限类
+    'grant (permission|access)',
+    'revoke (permission|access)',
+    'set.*permission',
+    // 恢复类
+    'restore (the |a |this )?(file|folder|version)',
+    'recover (the |a |this )?(file|folder)',
+    'undo delete',
+    'undelete',
+  ].join('|'),
+  'i'
+);
 
 /**
  * 检测是否需要写操作工具
@@ -220,23 +276,78 @@ export function needsWriteTools(query: string): boolean {
 }
 
 /**
- * 根据意图选择工具名称集合
+ * 根据意图 + 查询关键词选择工具名称集合
+ *
+ * Fix 1 变更：
+ * - 新增子意图关键词补充注入，覆盖原先从未注入的工具组：
+ *   version / storage / permission / ai_enhance / share(只读) / tags(只读) / notes(只读)
+ * - file_stats 意图同时注入 storage（统计类查询通常也需要桶信息）
+ * - general 意图的 system 组精简为只读工具，去掉 create_api_key / create_webhook 等写操作
  */
 export function selectTools(intent: string, query: string): string[] {
   const base = [...TOOL_GROUPS.search, ...TOOL_GROUPS.nav];
 
-  switch (intent) {
-    case 'file_stats':
-      return [...base, ...TOOL_GROUPS.stats];
-    case 'image_visual':
-      return [...base, ...TOOL_GROUPS.content];
-    case 'content_qa':
-      return [...base, ...TOOL_GROUPS.content, ...TOOL_GROUPS.notes];
-    case 'file_search':
-      return [...base, ...TOOL_GROUPS.content];
-    default:
-      return [...base, ...TOOL_GROUPS.stats, ...TOOL_GROUPS.system];
+  // ── 子意图补充注入（与 intent 叠加，不替换）────────────────────────────
+  const extras: string[] = [];
+
+  if (VERSION_PATTERNS.test(query)) {
+    extras.push(...TOOL_GROUPS.version);
   }
+  if (STORAGE_MANAGE_PATTERNS.test(query)) {
+    extras.push(...TOOL_GROUPS.storage);
+  }
+  if (PERMISSION_PATTERNS.test(query)) {
+    extras.push(...TOOL_GROUPS.permission);
+  }
+  if (AI_ENHANCE_PATTERNS.test(query)) {
+    extras.push(...TOOL_GROUPS.ai_enhance);
+  }
+  if (SHARE_READ_PATTERNS.test(query)) {
+    extras.push('list_shares', 'get_share_stats');
+  }
+  if (TAG_READ_PATTERNS.test(query)) {
+    extras.push('get_file_tags', 'list_all_tags_for_management');
+  }
+  if (NOTES_READ_PATTERNS.test(query)) {
+    extras.push(...TOOL_GROUPS.notes);
+  }
+
+  // ── 按 classifyIntent 意图选主工具集 ────────────────────────────────────
+  const byIntent = (() => {
+    switch (intent) {
+      case 'file_stats':
+        return [...base, ...TOOL_GROUPS.stats, ...TOOL_GROUPS.storage];
+
+      case 'image_visual':
+        return [...base, ...TOOL_GROUPS.content];
+
+      case 'content_qa':
+        return [...base, ...TOOL_GROUPS.content, ...TOOL_GROUPS.notes];
+
+      case 'file_search':
+        return [...base, ...TOOL_GROUPS.content];
+
+      case 'general':
+        // 只注入只读系统工具，去掉写类（create_api_key / create_webhook / revoke_api_key）
+        return [
+          ...base,
+          ...TOOL_GROUPS.stats,
+          'get_system_status',
+          'get_help',
+          'get_version_info',
+          'get_faq',
+          'get_user_profile',
+          'list_api_keys',
+          'list_webhooks',
+          'get_audit_logs',
+        ];
+
+      default:
+        return [...base, ...TOOL_GROUPS.stats, 'get_system_status', 'get_help', 'get_version_info', 'get_faq'];
+    }
+  })();
+
+  return [...new Set([...byIntent, ...extras])];
 }
 
 /**
