@@ -373,6 +373,14 @@ export function AIChat() {
           maxFiles: 8,
           includeFileContent: false,
           onChunk: (raw: SseChunk) => {
+            // 处理 reset 信号：清空当前 assistant 消息的已渲染内容
+            if (raw.type === 'reset') {
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantId ? { ...m, content: '', reasoning: '' } : m))
+              );
+              return;
+            }
+
             if (raw.toolStart && raw.toolCallId && raw.toolName) {
               const tc: ToolCallEvent = {
                 id: raw.toolCallId,

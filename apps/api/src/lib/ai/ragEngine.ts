@@ -181,7 +181,7 @@ async function getUserSearchPreferences(env: Env, userId: string): Promise<UserS
   }
 }
 
-async function classifyIntent(env: Env, query: string): Promise<QueryIntent> {
+export async function classifyIntent(env: Env, query: string): Promise<QueryIntent> {
   const cacheKey = query.trim().toLowerCase();
   const intentCache = getIntentCache(env);
   const cached = intentCache.get(cacheKey);

@@ -41,6 +41,7 @@ export interface Message {
 }
 
 export interface SseChunk {
+  type?: 'reset';
   content?: string;
   done?: boolean;
   sessionId?: string;

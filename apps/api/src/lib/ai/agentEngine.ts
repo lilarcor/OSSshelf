@@ -34,6 +34,8 @@ import { logger } from '@osshelf/shared';
 import { getAiConfigNumber } from './aiConfigService';
 import { getDb, aiConfirmRequests } from '../../db';
 import { eq, and, gte } from 'drizzle-orm';
+import { classifyIntent } from './ragEngine';
+import { selectTools, needsWriteTools, TOOL_GROUPS } from './agentTools/toolSelector';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 默认配置常量（当数据库配置不可用时使用）
@@ -85,15 +87,43 @@ interface AgentConfig {
 
 const DEFAULT_MAX_CONTEXT_TOKENS = 100000;
 
+// Agent 配置缓存（进程级，与 ragEngine 的 intentCache 模式一致）
+const agentConfigCacheMap = new WeakMap<object, { data: AgentConfig; expiresAt: number }>();
+const AGENT_CONFIG_TTL_MS = 5 * 60 * 1000; // 5 分钟缓存
+
 async function loadAgentConfig(env: Env): Promise<AgentConfig> {
+  // 检查缓存
+  const cached = agentConfigCacheMap.get(env);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   try {
-    return {
-      maxToolCalls: await getAiConfigNumber(env, 'ai.agent.max_tool_calls', DEFAULT_MAX_TOOL_CALLS),
-      maxIdleRounds: await getAiConfigNumber(env, 'ai.agent.max_idle_rounds', DEFAULT_MAX_IDLE_ROUNDS),
-      agentTemperature: await getAiConfigNumber(env, 'ai.agent.temperature', DEFAULT_AGENT_TEMPERATURE),
-      imageTimeoutMs: await getAiConfigNumber(env, 'ai.agent.image_timeout_ms', DEFAULT_IMAGE_TIMEOUT_MS),
-      maxContextTokens: await getAiConfigNumber(env, 'ai.agent.max_context_tokens', DEFAULT_MAX_CONTEXT_TOKENS),
+    // 并发查询所有配置项
+    const [maxToolCalls, maxIdleRounds, agentTemperature, imageTimeoutMs, maxContextTokens] =
+      await Promise.all([
+        getAiConfigNumber(env, 'ai.agent.max_tool_calls', DEFAULT_MAX_TOOL_CALLS),
+        getAiConfigNumber(env, 'ai.agent.max_idle_rounds', DEFAULT_MAX_IDLE_ROUNDS),
+        getAiConfigNumber(env, 'ai.agent.temperature', DEFAULT_AGENT_TEMPERATURE),
+        getAiConfigNumber(env, 'ai.agent.image_timeout_ms', DEFAULT_IMAGE_TIMEOUT_MS),
+        getAiConfigNumber(env, 'ai.agent.max_context_tokens', DEFAULT_MAX_CONTEXT_TOKENS),
+      ]);
+
+    const config: AgentConfig = {
+      maxToolCalls,
+      maxIdleRounds,
+      agentTemperature,
+      imageTimeoutMs,
+      maxContextTokens,
     };
+
+    // 写入缓存
+    agentConfigCacheMap.set(env, {
+      data: config,
+      expiresAt: Date.now() + AGENT_CONFIG_TTL_MS,
+    });
+
+    return config;
   } catch {
     return {
       maxToolCalls: DEFAULT_MAX_TOOL_CALLS,
@@ -197,9 +227,10 @@ async function consumePendingConfirm(
   const db = getDb(env.DB);
   const now = new Date().toISOString();
 
-  const record = await db
-    .select()
-    .from(aiConfirmRequests)
+  // 原子操作：UPDATE + RETURNING，消除 SELECT + UPDATE 的竞态条件
+  const result = await db
+    .update(aiConfirmRequests)
+    .set({ status: 'consumed' })
     .where(
       and(
         eq(aiConfirmRequests.id, confirmId),
@@ -208,40 +239,44 @@ async function consumePendingConfirm(
         gte(aiConfirmRequests.expiresAt, now)
       )
     )
+    .returning();
+
+  // 如果更新成功（返回了记录），则消费成功
+  if (result && result.length > 0) {
+    const record = result[0];
+    let parsedArgs: Record<string, unknown>;
+    try {
+      parsedArgs = JSON.parse(record.args);
+    } catch {
+      parsedArgs = {};
+    }
+    logger.info('AgentEngine', 'Confirm request consumed', { confirmId, toolName: record.toolName });
+    return { toolName: record.toolName, args: parsedArgs };
+  }
+
+  // 消费失败，检查是否已过期（用于日志记录和状态更新）
+  const existingRecord = await db
+    .select()
+    .from(aiConfirmRequests)
+    .where(and(eq(aiConfirmRequests.id, confirmId), eq(aiConfirmRequests.userId, userId)))
     .get();
 
-  if (!record) {
-    const expiredRecord = await db
-      .select()
-      .from(aiConfirmRequests)
-      .where(and(eq(aiConfirmRequests.id, confirmId), eq(aiConfirmRequests.userId, userId)))
-      .get();
-
-    if (expiredRecord && expiredRecord.status === 'pending' && expiredRecord.expiresAt < now) {
+  if (existingRecord) {
+    if (existingRecord.status === 'pending' && existingRecord.expiresAt < now) {
       await db.update(aiConfirmRequests).set({ status: 'expired' }).where(eq(aiConfirmRequests.id, confirmId));
       logger.warn('AgentEngine', 'Confirm request has expired', {
         confirmId,
         userId,
-        expiresAt: expiredRecord.expiresAt,
+        expiresAt: existingRecord.expiresAt,
       });
-      return null;
+    } else if (existingRecord.status === 'consumed') {
+      logger.warn('AgentEngine', 'Confirm request already consumed', { confirmId, userId });
     }
-
-    logger.warn('AgentEngine', 'Confirm request not found or already consumed', { confirmId, userId });
-    return null;
+  } else {
+    logger.warn('AgentEngine', 'Confirm request not found', { confirmId, userId });
   }
 
-  await db.update(aiConfirmRequests).set({ status: 'consumed' }).where(eq(aiConfirmRequests.id, confirmId));
-
-  let parsedArgs: Record<string, unknown>;
-  try {
-    parsedArgs = JSON.parse(record.args);
-  } catch {
-    parsedArgs = {};
-  }
-
-  logger.info('AgentEngine', 'Confirm request consumed', { confirmId, toolName: record.toolName });
-  return { toolName: record.toolName, args: parsedArgs };
+  return null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -253,6 +288,7 @@ export type AgentChunk =
   | { type: 'reasoning'; content: string; done: false }
   | { type: 'tool_start'; toolName: string; toolCallId: string; args: Record<string, unknown>; done: false }
   | { type: 'tool_result'; toolCallId: string; toolName: string; result: unknown; done: false }
+  | { type: 'reset'; done: false }
   | {
       type: 'confirm_request';
       confirmId: string;
@@ -449,19 +485,40 @@ export class AgentEngine {
 
     const [caps, config] = await Promise.all([this.getModelCapabilities(modelId, userId), loadAgentConfig(this.env)]);
 
+    // 意图预判并过滤工具集
+    const intent = await classifyIntent(this.env, query);
+    const selectedNames = new Set([
+      ...selectTools(intent, query),
+      ...(needsWriteTools(query) ? [...TOOL_GROUPS.write, ...TOOL_GROUPS.tags, ...TOOL_GROUPS.share] : []),
+    ]);
+    const filteredTools = TOOL_DEFINITIONS.filter((t) => selectedNames.has(t.function.name));
+
     logger.info('AgentEngine', 'Run', {
       mode: caps.nativeToolCalling ? 'native' : 'prompt',
       vision: caps.vision,
       modelId: modelId || 'default',
+      intent,
+      toolCount: filteredTools.length,
       config: {
         maxToolCalls: config.maxToolCalls,
       },
     });
 
     if (caps.nativeToolCalling) {
-      return this.runNative(userId, query, conversationHistory, modelId, caps, config, onChunk, signal, sessionId);
+      return this.runNative(
+        userId,
+        query,
+        conversationHistory,
+        modelId,
+        caps,
+        config,
+        onChunk,
+        signal,
+        sessionId,
+        filteredTools
+      );
     }
-    return this.runPromptBased(userId, query, conversationHistory, modelId, config, onChunk, signal, sessionId);
+    return this.runPromptBased(userId, query, conversationHistory, modelId, config, onChunk, signal, sessionId, filteredTools);
   }
 
   // ── Native Function Calling ───────────────────────────────────────────────
@@ -475,7 +532,8 @@ export class AgentEngine {
     config: AgentConfig,
     onChunk: (chunk: AgentChunk) => void,
     signal?: AbortSignal,
-    sessionId?: string
+    sessionId?: string,
+    filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string }> {
     const messages: Array<{ role: string; content?: string; toolCalls?: any[]; toolCallId?: string }> = [
       { role: 'system', content: AGENT_SYSTEM_PROMPT },
@@ -513,7 +571,7 @@ export class AgentEngine {
               toolCallId: m.toolCallId,
             })),
             temperature: config.agentTemperature,
-            tools: TOOL_DEFINITIONS,
+            tools: filteredTools,
             toolChoice: 'auto',
           },
           (chunk: StreamChunk) => {
@@ -554,9 +612,19 @@ export class AgentEngine {
           /* ok */
         } else if (!isAbortError(err)) {
           logger.error('AgentEngine', 'LLM stream error (native)', {}, err);
-          // native 模式失败时自动 fallback 到 prompt-based，而不是直接报错
-          logger.warn('AgentEngine', 'Native tool calling failed, falling back to prompt-based');
-          return this.runPromptBased(userId, query, conversationHistory, modelId, config, onChunk, signal);
+          // 仅在第 0 轮（尚未产生任何工具调用）才允许 fallback
+          if (toolCallCount === 0) {
+            if (fullText.length > 0) {
+              onChunk({ type: 'reset', done: false }); // 通知前端清空已渲染内容
+              fullText = '';
+            }
+            logger.warn('AgentEngine', 'Native tool calling failed, falling back to prompt-based');
+            return this.runPromptBased(userId, query, conversationHistory, modelId, config, onChunk, signal, sessionId, filteredTools);
+          } else {
+            // 已有工具调用轮次，不 fallback，直接报错
+            onChunk({ type: 'error', message: 'AI 模型调用失败', done: true });
+            return { fullText, sources };
+          }
         }
       }
 
@@ -689,7 +757,8 @@ export class AgentEngine {
     config: AgentConfig,
     onChunk: (chunk: AgentChunk) => void,
     signal?: AbortSignal,
-    sessionId?: string
+    sessionId?: string,
+    _filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string }> {
     const messages: Array<{ role: string; content: string }> = [
       { role: 'system', content: PROMPT_BASED_SYSTEM_PROMPT },
@@ -849,10 +918,8 @@ export class AgentEngine {
         content: `[工具 ${toolName} 结果]\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n${INJECTION_GUARD}${hintText}\n\n请根据以上结果继续回答用户问题。`,
       });
 
-      // idleRounds 只在工具结果是 error（无效执行）时累加
-      // 正常执行的工具调用（不管有没有新 source）都不算空转
-      const isErrorResult = (result as any)?.error !== undefined;
-      if (isErrorResult) {
+      // 空转检测：与 Native 模式保持一致，使用 mergeSourcesFromResult 判断是否有新数据
+      if (!roundNewData) {
         idleRounds++;
         if (idleRounds >= config.maxIdleRounds) break;
       } else {
