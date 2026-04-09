@@ -12,7 +12,7 @@
 import { Hono } from 'hono';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
 import { getDb, aiChatSessions, aiChatMessages } from '../db';
-import { authMiddleware, csrfProtection } from '../middleware';
+import { authMiddleware } from '../middleware';
 import { ERROR_CODES, logger } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
 import { z } from 'zod';
@@ -21,7 +21,6 @@ import { AgentEngine, type AgentChunk } from '../lib/ai/agentEngine';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use('/*', authMiddleware);
-app.use('/*', csrfProtection);
 
 app.get('/sessions', async (c) => {
   const userId = c.get('userId')!;
