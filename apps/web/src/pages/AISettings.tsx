@@ -375,16 +375,6 @@ export function AISettings() {
     }
   };
 
-  const handleForceResetTask = async (taskType: 'index' | 'summarize' | 'tags') => {
-    try {
-      if (taskType === 'index') await aiApi.cancelIndexTask();
-      else if (taskType === 'summarize') await aiApi.cancelSummarizeTask();
-      else await aiApi.cancelTagsTask();
-      await fetchAllTaskStatus();
-    } catch (e: any) {
-      console.error('Failed to reset task:', e);
-    }
-  };
 
   const handleSaveConfig = (config: AiSystemConfigItem) => {
     let value: string | number | boolean = configEditValue;
@@ -415,7 +405,7 @@ export function AISettings() {
               <div>
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">AI 配置中心</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
-                  模型管理 · 索引配置 · 任务监控
+                  模型管理 · 索引配置 · 向量搜索 · 高级配置
                 </p>
               </div>
             </div>
@@ -672,7 +662,6 @@ export function AISettings() {
             onStartTags={handleStartTags}
             onStartIndex={handleStartIndex}
             onFeatureConfigChange={handleFeatureConfigChange}
-            onCancelTask={handleForceResetTask}
           />
         )}
 
