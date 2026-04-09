@@ -16,7 +16,7 @@
 import { eq, and, isNull, isNotNull, desc, asc, like, or, inArray, count, gte, lte, sql } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
 import { getDb, files, fileTags, shares, userStars } from '../../../db';
-import { searchAndFetchFiles } from '../../vectorIndex';
+import { searchAndFetchFiles } from '../vectorIndex';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
 import type { ToolDefinition, AgentFile, ToolResultBase } from './types';

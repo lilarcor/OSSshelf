@@ -10,7 +10,7 @@
  */
 
 import type { Env } from '../../types/env';
-import { searchAndFetchFiles, buildFileTextForVector } from '../vectorIndex';
+import { searchAndFetchFiles, buildFileTextForVector } from './vectorIndex';
 import { getDb, files, searchHistory } from '../../db';
 import { eq, and, isNull, desc, sql, gte } from 'drizzle-orm';
 import { logger } from '@osshelf/shared';

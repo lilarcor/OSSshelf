@@ -26,7 +26,7 @@ import { s3Put } from './s3client';
 import { createVersionSnapshot, shouldCreateVersion } from './versionManager';
 import { dispatchWebhook } from './webhook';
 import { readFileContent, writeFileContent } from './fileContentHelper';
-import { deleteFileVector } from './vectorIndex';
+import { deleteFileVector } from './ai/vectorIndex';
 
 export interface CreateTextFileInput {
   name: string;

@@ -60,10 +60,10 @@
 
 **提供商支持（16 个系统内置）**：
 
-| 类型 | 提供商 |
-|------|--------|
+| 类型     | 提供商                                                                                            |
+| -------- | ------------------------------------------------------------------------------------------------- |
 | 国内厂商 | 百度文心一言、腾讯混元、阿里通义千问、字节火山引擎、智谱AI、MiniMax、月之暗面、硅基流动、DeepSeek |
-| 国际厂商 | OpenAI、Anthropic Claude、Google Gemini、Mistral AI、xAI Grok、Groq、Perplexity、OpenRouter |
+| 国际厂商 | OpenAI、Anthropic Claude、Google Gemini、Mistral AI、xAI Grok、Groq、Perplexity、OpenRouter       |
 
 **推理模式支持**：
 
@@ -501,37 +501,37 @@ ossshelf/
 
 ### API 路由概览
 
-| 路由前缀             | 说明                                        |
-| -------------------- | ------------------------------------------- |
-| `/api/auth`          | 用户认证、邮箱验证、密码重置                |
-| `/api/files`         | 文件管理                                    |
-| `/api/buckets`       | 存储桶管理                                  |
-| `/api/share`         | 文件分享                                    |
-| `/api/direct`        | 文件直链                                    |
-| `/api/presign`       | 预签名 URL                                  |
-| `/api/tasks`         | 上传任务                                    |
-| `/api/downloads`     | 离线下载                                    |
-| `/api/batch`         | 批量操作                                    |
-| `/api/search`        | 文件搜索                                    |
-| `/api/permissions`   | 权限与标签                                  |
-| `/api/preview`       | 文件预览                                    |
-| `/api/versions`      | 版本控制                                    |
-| `/api/notes`         | 文件笔记                                    |
-| `/api/api-keys`      | API Keys 管理                               |
-| `/api/groups`        | 用户组管理                                  |
-| `/api/webhooks`      | Webhook 管理                                |
-| `/api/ai`            | AI 文件处理功能 (v4.3.0 增强)               |
-| `/api/ai-config`     | AI 配置管理、系统配置 (v4.3.0 增强)         |
-| `/api/ai-chat`       | AI 对话系统、Agent 引擎 (v4.3.0 增强)       |
-| `/api/analytics`     | 存储分析                                    |
-| `/api/notifications` | 通知系统                                    |
-| `/api/v1`            | RESTful v1 API                              |
-| `/api/v1/docs`       | OpenAPI 文档                                |
-| `/api/admin`         | 管理员接口、邮件配置                        |
-| `/api/migrate`       | 存储桶迁移                                  |
-| `/api/telegram`      | Telegram 存储                               |
-| `/cron`              | 定时任务                                    |
-| `/dav`               | WebDAV                                      |
+| 路由前缀             | 说明                                  |
+| -------------------- | ------------------------------------- |
+| `/api/auth`          | 用户认证、邮箱验证、密码重置          |
+| `/api/files`         | 文件管理                              |
+| `/api/buckets`       | 存储桶管理                            |
+| `/api/share`         | 文件分享                              |
+| `/api/direct`        | 文件直链                              |
+| `/api/presign`       | 预签名 URL                            |
+| `/api/tasks`         | 上传任务                              |
+| `/api/downloads`     | 离线下载                              |
+| `/api/batch`         | 批量操作                              |
+| `/api/search`        | 文件搜索                              |
+| `/api/permissions`   | 权限与标签                            |
+| `/api/preview`       | 文件预览                              |
+| `/api/versions`      | 版本控制                              |
+| `/api/notes`         | 文件笔记                              |
+| `/api/api-keys`      | API Keys 管理                         |
+| `/api/groups`        | 用户组管理                            |
+| `/api/webhooks`      | Webhook 管理                          |
+| `/api/ai`            | AI 文件处理功能 (v4.3.0 增强)         |
+| `/api/ai-config`     | AI 配置管理、系统配置 (v4.3.0 增强)   |
+| `/api/ai-chat`       | AI 对话系统、Agent 引擎 (v4.3.0 增强) |
+| `/api/analytics`     | 存储分析                              |
+| `/api/notifications` | 通知系统                              |
+| `/api/v1`            | RESTful v1 API                        |
+| `/api/v1/docs`       | OpenAPI 文档                          |
+| `/api/admin`         | 管理员接口、邮件配置                  |
+| `/api/migrate`       | 存储桶迁移                            |
+| `/api/telegram`      | Telegram 存储                         |
+| `/cron`              | 定时任务                              |
+| `/dav`               | WebDAV                                |
 
 ---
 

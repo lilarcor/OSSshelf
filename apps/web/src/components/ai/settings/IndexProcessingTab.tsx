@@ -56,7 +56,8 @@ interface IndexProcessingTabProps {
   onFeatureConfigChange: (feature: string, value: string) => void;
 }
 
-export function IndexProcessingTab({  isAIAvailable,
+export function IndexProcessingTab({
+  isAIAvailable,
   onSwitchToModels,
   stats,
   featureConfig,
