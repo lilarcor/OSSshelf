@@ -65,15 +65,20 @@ export const definitions: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'smart_search',
-      description: `【万能搜索】当不确定用哪个工具时，直接调用此工具即可。
-它会自动判断最佳策略并返回结果。
+      description: `【智能路由搜索】当查询语义复杂、需要跨策略融合时使用。
 
-适合场景：
-• 用户需求模糊时："帮我找点东西"
-• 需要综合多个条件时："找最近的PPT或Word"
-• 快速试探性搜索
+✅ 适合场景：
+• 查询意图混合多个维度："最近上传的超过5MB的视频"
+• 语义模糊难以提炼关键词："帮我找那个关于项目进展的东西"
+• 需要向量语义+全文+过滤三路并行时
 
-⚠️ 此工具会根据 query 内容自动选择最优搜索方式`,
+❌ 不适合（请优先使用更精准的工具）：
+• 有明确关键词 → 用 search_files（更快、更精准）
+• 有明确过滤条件（类型/大小/日期）→ 用 filter_files
+• 按标签查找 → 用 search_by_tag
+• 浏览文件夹内容 → 用 list_folder
+
+⚠️ 此工具资源消耗较多，在上述工具无法满足时再使用`,
       parameters: {
         type: 'object',
         properties: {
