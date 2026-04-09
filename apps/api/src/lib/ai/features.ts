@@ -736,7 +736,11 @@ async function extractTextFromFile(env: Env, file: typeof files.$inferSelect): P
     if (!content) return '';
 
     const decoder = new TextDecoder('utf-8');
-    return decoder.decode(content);
+    const text = decoder.decode(content);
+    // 截断超长文本，避免大文件（如小说）token 爆炸导致超时
+    // 8000字符 ≈ 2000~3000 tokens，足够生成高质量摘要
+    const MAX_CHARS = 8000;
+    return text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text;
   } catch (error) {
     logger.error('AI', '提取文件文本失败', { fileId: file.id }, error);
     return '';
