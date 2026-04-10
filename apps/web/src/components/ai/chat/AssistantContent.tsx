@@ -7,6 +7,7 @@
  * - [FILE:id:name] / [FOLDER:id:name] 文件引用解析为可点击元素
  * - 优化的代码块、列表、表格样式
  * - 美观的文件引用按钮设计
+ * - 完美的列表序号对齐
  */
 
 import React from 'react';
@@ -57,8 +58,151 @@ function FileRefButton({
   );
 }
 
+function getMarkdownComponents() {
+  return {
+    p: ({ children }: { children: React.ReactNode }) => (
+      <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>
+    ),
+    h1: ({ children }: { children: React.ReactNode }) => (
+      <h1 className="text-xl font-bold mb-4 mt-6 first:mt-0 text-slate-900 dark:text-slate-100 pb-2 border-b border-slate-200 dark:border-slate-700">
+        {children}
+      </h1>
+    ),
+    h2: ({ children }: { children: React.ReactNode }) => (
+      <h2 className="text-lg font-bold mb-3 mt-5 first:mt-0 text-slate-800 dark:text-slate-200">
+        {children}
+      </h2>
+    ),
+    h3: ({ children }: { children: React.ReactNode }) => (
+      <h3 className="text-base font-semibold mb-2 mt-4 first:mt-0 text-slate-800 dark:text-slate-200">
+        {children}
+      </h3>
+    ),
+    ul: ({ children }: { children: React.ReactNode }) => (
+      <ul className="my-3 pl-6 space-y-1.5 [&>li]:marker:text-violet-400 dark:[&>li]:marker:text-violet-500 [&>li]:marker:text-sm">
+        {children}
+      </ul>
+    ),
+    ol: ({ children }: { children: React.ReactNode }) => (
+      <ol className="my-3 pl-6 space-y-1.5 [&>li]:marker:text-violet-400 dark:[&>li]:marker:text-violet-500 [&>li]:marker:font-semibold [&>li]:marker:text-[13px] list-decimal">
+        {children}
+      </ol>
+    ),
+    li: ({ children }: { children: React.ReactNode }) => (
+      <li className="pl-1.5 leading-relaxed text-slate-700 dark:text-slate-300 relative before:content-[''] before:absolute before:left-0 before:top-[0.6em] before:w-1.5 before:h-1.5 before:rounded-full before:bg-violet-400 dark:before:bg-violet-500 before:-ml-4 [ol_&]:before:hidden">
+        {children}
+      </li>
+    ),
+    code: ({
+      className,
+      children,
+      ...props
+    }: {
+      className?: string;
+      children: React.ReactNode;
+      [key: string]: unknown;
+    }) => {
+      const isInline = !className;
+      if (isInline) {
+        return (
+          <code
+            className="px-1.5 py-0.5 mx-0.5 rounded-md bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 text-violet-600 dark:text-violet-400 text-[13px] font-mono font-medium border border-slate-200/60 dark:border-slate-700/50"
+            {...props}
+          >
+            {children}
+          </code>
+        );
+      }
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    },
+    pre: ({ children }: { children: React.ReactNode }) => (
+      <div className="relative group/my-3 mb-4 last:mb-0">
+        <pre className="relative overflow-x-auto rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 p-4 text-[13px] leading-relaxed border border-slate-700/50 shadow-lg shadow-slate-900/20">
+          {children}
+        </pre>
+        <div className="absolute top-2 right-2 opacity-0 group-hover/my:opacity-100 transition-opacity">
+          <button
+            onClick={() => navigator.clipboard.writeText(children?.toString() || '')}
+            className="p-1.5 rounded-lg bg-slate-700/80 hover:bg-slate-600 text-slate-300 text-xs transition-colors"
+          >
+            复制
+          </button>
+        </div>
+      </div>
+    ),
+    blockquote: ({ children }: { children: React.ReactNode }) => (
+      <blockquote className="border-l-4 border-violet-400 dark:border-violet-500 pl-4 py-2 my-3 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-950/20 rounded-r-lg italic text-slate-600 dark:text-slate-400">
+        {children}
+      </blockquote>
+    ),
+    table: ({ children }: { children: React.ReactNode }) => (
+      <div className="overflow-x-auto my-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <table className="w-full text-sm">{children}</table>
+      </div>
+    ),
+    thead: ({ children }: { children: React.ReactNode }) => (
+      <thead className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
+        {children}
+      </thead>
+    ),
+    th: ({ children }: { children: React.ReactNode }) => (
+      <th className="px-4 py-2.5 text-left font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">
+        {children}
+      </th>
+    ),
+    td: ({ children }: { children: React.ReactNode }) => (
+      <td className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">
+        {children}
+      </td>
+    ),
+    a: ({
+      href,
+      children,
+    }: {
+      href?: string;
+      children: React.ReactNode;
+    }) => (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-violet-600 dark:text-violet-400 underline decoration-violet-300 dark:decoration-violet-600 underline-offset-2 hover:decoration-violet-500 dark:hover:decoration-violet-400 transition-colors font-medium"
+      >
+        {children}
+      </a>
+    ),
+    strong: ({ children }: { children: React.ReactNode }) => (
+      <strong className="font-bold text-slate-900 dark:text-slate-100">{children}</strong>
+    ),
+    em: ({ children }: { children: React.ReactNode }) => (
+      <em className="italic text-slate-700 dark:text-slate-300">{children}</em>
+    ),
+    hr: () => <hr className="my-6 border-t-2 border-slate-200 dark:border-slate-700" />,
+    img: ({
+      src,
+      alt,
+    }: {
+      src?: string;
+      alt?: string;
+    }) => (
+      <img
+        src={src}
+        alt={alt || ''}
+        className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-md max-w-full my-4"
+        loading="lazy"
+      />
+    ),
+  };
+}
+
 export function AssistantContent({ content, onFileClick }: AssistantContentProps) {
   const cleanedContent = content.replace(/```tool_call\s*[\s\S]*?```/g, '').trim();
+
+  const components = getMarkdownComponents();
 
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -75,94 +219,7 @@ export function AssistantContent({ content, onFileClick }: AssistantContentProps
           key={`md-${keyIndex++}`}
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeHighlight]}
-          components={{
-            p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>,
-            h1: ({ children }) => <h1 className="text-xl font-bold mb-4 mt-6 first:mt-0 text-slate-900 dark:text-slate-100 pb-2 border-b border-slate-200 dark:border-slate-700">{children}</h1>,
-            h2: ({ children }) => <h2 className="text-lg font-bold mb-3 mt-5 first:mt-0 text-slate-800 dark:text-slate-200">{children}</h2>,
-            h3: ({ children }) => <h3 className="text-base font-semibold mb-2 mt-4 first:mt-0 text-slate-800 dark:text-slate-200">{children}</h3>,
-            ul: ({ children }) => <ul className="list-disc list-outside ml-5 mb-3 space-y-1.5 marker:text-violet-400 dark:marker:text-violet-500">{children}</ul>,
-            ol: ({ children }) => <ol className="list-decimal list-outside ml-5 mb-3 space-y-1.5 marker:text-violet-400 dark:marker:text-violet-500 marker:font-semibold">{children}</ol>,
-            li: ({ children }) => <li className="pl-1 leading-relaxed text-slate-700 dark:text-slate-300">{children}</li>,
-            code: ({ className, children, ...props }) => {
-              const isInline = !className;
-              if (isInline) {
-                return (
-                  <code
-                    className="px-1.5 py-0.5 mx-0.5 rounded-md bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 text-violet-600 dark:text-violet-400 text-[13px] font-mono font-medium border border-slate-200/60 dark:border-slate-700/50"
-                    {...props}
-                  >
-                    {children}
-                  </code>
-                );
-              }
-              return (
-                <code className={className} {...props}>
-                  {children}
-                </code>
-              );
-            },
-            pre: ({ children }) => (
-              <div className="relative group/my-3 mb-4 last:mb-0">
-                <pre className="relative overflow-x-auto rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 p-4 text-[13px] leading-relaxed border border-slate-700/50 shadow-lg shadow-slate-900/20">
-                  {children}
-                </pre>
-                <div className="absolute top-2 right-2 opacity-0 group-hover/my:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => navigator.clipboard.writeText(children?.toString() || '')}
-                    className="p-1.5 rounded-lg bg-slate-700/80 hover:bg-slate-600 text-slate-300 text-xs transition-colors"
-                  >
-                    复制
-                  </button>
-                </div>
-              </div>
-            ),
-            blockquote: ({ children }) => (
-              <blockquote className="border-l-4 border-violet-400 dark:border-violet-500 pl-4 py-2 my-3 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-950/20 rounded-r-lg italic text-slate-600 dark:text-slate-400">
-                {children}
-              </blockquote>
-            ),
-            table: ({ children }) => (
-              <div className="overflow-x-auto my-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                <table className="w-full text-sm">{children}</table>
-              </div>
-            ),
-            thead: ({ children }) => (
-              <thead className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
-                {children}
-              </thead>
-            ),
-            th: ({ children }) => (
-              <th className="px-4 py-2.5 text-left font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">
-                {children}
-              </th>
-            ),
-            td: ({ children }) => (
-              <td className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">
-                {children}
-              </td>
-            ),
-            a: ({ href, children }) => (
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-violet-600 dark:text-violet-400 underline decoration-violet-300 dark:decoration-violet-600 underline-offset-2 hover:decoration-violet-500 dark:hover:decoration-violet-400 transition-colors font-medium"
-              >
-                {children}
-              </a>
-            ),
-            strong: ({ children }) => <strong className="font-bold text-slate-900 dark:text-slate-100">{children}</strong>,
-            em: ({ children }) => <em className="italic text-slate-700 dark:text-slate-300">{children}</em>,
-            hr: () => <hr className="my-6 border-t-2 border-slate-200 dark:border-slate-700" />,
-            img: ({ src, alt }) => (
-              <img
-                src={src}
-                alt={alt || ''}
-                className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-md max-w-full my-4"
-                loading="lazy"
-              />
-            ),
-          }}
+          components={components}
         >
           {textPart}
         </ReactMarkdown>
@@ -184,94 +241,7 @@ export function AssistantContent({ content, onFileClick }: AssistantContentProps
         key={`md-${keyIndex++}`}
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
-        components={{
-          p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>,
-          h1: ({ children }) => <h1 className="text-xl font-bold mb-4 mt-6 first:mt-0 text-slate-900 dark:text-slate-100 pb-2 border-b border-slate-200 dark:border-slate-700">{children}</h1>,
-          h2: ({ children }) => <h2 className="text-lg font-bold mb-3 mt-5 first:mt-0 text-slate-800 dark:text-slate-200">{children}</h2>,
-          h3: ({ children }) => <h3 className="text-base font-semibold mb-2 mt-4 first:mt-0 text-slate-800 dark:text-slate-200">{children}</h3>,
-          ul: ({ children }) => <ul className="list-disc list-outside ml-5 mb-3 space-y-1.5 marker:text-violet-400 dark:marker:text-violet-500">{children}</ul>,
-          ol: ({ children }) => <ol className="list-decimal list-outside ml-5 mb-3 space-y-1.5 marker:text-violet-400 dark:marker:text-violet-500 marker:font-semibold">{children}</ol>,
-          li: ({ children }) => <li className="pl-1 leading-relaxed text-slate-700 dark:text-slate-300">{children}</li>,
-          code: ({ className, children, ...props }) => {
-            const isInline = !className;
-            if (isInline) {
-              return (
-                <code
-                  className="px-1.5 py-0.5 mx-0.5 rounded-md bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 text-violet-600 dark:text-violet-400 text-[13px] font-mono font-medium border border-slate-200/60 dark:border-slate-700/50"
-                  {...props}
-                >
-                  {children}
-                </code>
-              );
-            }
-            return (
-              <code className={className} {...props}>
-                {children}
-              </code>
-            );
-          },
-          pre: ({ children }) => (
-            <div className="relative group/my-3 mb-4 last:mb-0">
-              <pre className="relative overflow-x-auto rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 p-4 text-[13px] leading-relaxed border border-slate-700/50 shadow-lg shadow-slate-900/20">
-                {children}
-              </pre>
-              <div className="absolute top-2 right-2 opacity-0 group-hover/my:opacity-100 transition-opacity">
-                <button
-                  onClick={() => navigator.clipboard.writeText(children?.toString() || '')}
-                  className="p-1.5 rounded-lg bg-slate-700/80 hover:bg-slate-600 text-slate-300 text-xs transition-colors"
-                >
-                  复制
-                </button>
-              </div>
-            </div>
-          ),
-          blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-violet-400 dark:border-violet-500 pl-4 py-2 my-3 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-950/20 rounded-r-lg italic text-slate-600 dark:text-slate-400">
-              {children}
-            </blockquote>
-          ),
-          table: ({ children }) => (
-            <div className="overflow-x-auto my-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-              <table className="w-full text-sm">{children}</table>
-            </div>
-          ),
-          thead: ({ children }) => (
-            <thead className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
-              {children}
-            </thead>
-          ),
-          th: ({ children }) => (
-            <th className="px-4 py-2.5 text-left font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">
-              {children}
-            </th>
-          ),
-          td: ({ children }) => (
-            <td className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">
-              {children}
-            </td>
-          ),
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-violet-600 dark:text-violet-400 underline decoration-violet-300 dark:decoration-violet-600 underline-offset-2 hover:decoration-violet-500 dark:hover:decoration-violet-400 transition-colors font-medium"
-            >
-              {children}
-            </a>
-          ),
-          strong: ({ children }) => <strong className="font-bold text-slate-900 dark:text-slate-100">{children}</strong>,
-          em: ({ children }) => <em className="italic text-slate-700 dark:text-slate-300">{children}</em>,
-          hr: () => <hr className="my-6 border-t-2 border-slate-200 dark:border-slate-700" />,
-          img: ({ src, alt }) => (
-            <img
-              src={src}
-              alt={alt || ''}
-              className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-md max-w-full my-4"
-              loading="lazy"
-            />
-          ),
-        }}
+        components={components}
       >
         {textPart}
       </ReactMarkdown>
@@ -284,94 +254,7 @@ export function AssistantContent({ content, onFileClick }: AssistantContentProps
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeHighlight]}
-          components={{
-            p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>,
-            h1: ({ children }) => <h1 className="text-xl font-bold mb-4 mt-6 first:mt-0 text-slate-900 dark:text-slate-100 pb-2 border-b border-slate-200 dark:border-slate-700">{children}</h1>,
-            h2: ({ children }) => <h2 className="text-lg font-bold mb-3 mt-5 first:mt-0 text-slate-800 dark:text-slate-200">{children}</h2>,
-            h3: ({ children }) => <h3 className="text-base font-semibold mb-2 mt-4 first:mt-0 text-slate-800 dark:text-slate-200">{children}</h3>,
-            ul: ({ children }) => <ul className="list-disc list-outside ml-5 mb-3 space-y-1.5 marker:text-violet-400 dark:marker:text-violet-500">{children}</ul>,
-            ol: ({ children }) => <ol className="list-decimal list-outside ml-5 mb-3 space-y-1.5 marker:text-violet-400 dark:marker:text-violet-500 marker:font-semibold">{children}</ol>,
-            li: ({ children }) => <li className="pl-1 leading-relaxed text-slate-700 dark:text-slate-300">{children}</li>,
-            code: ({ className, children, ...props }) => {
-              const isInline = !className;
-              if (isInline) {
-                return (
-                  <code
-                    className="px-1.5 py-0.5 mx-0.5 rounded-md bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 text-violet-600 dark:text-violet-400 text-[13px] font-mono font-medium border border-slate-200/60 dark:border-slate-700/50"
-                    {...props}
-                  >
-                    {children}
-                  </code>
-                );
-              }
-              return (
-                <code className={className} {...props}>
-                  {children}
-                </code>
-              );
-            },
-            pre: ({ children }) => (
-              <div className="relative group/my-3 mb-4 last:mb-0">
-                <pre className="relative overflow-x-auto rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 p-4 text-[13px] leading-relaxed border border-slate-700/50 shadow-lg shadow-slate-900/20">
-                  {children}
-                </pre>
-                <div className="absolute top-2 right-2 opacity-0 group-hover/my:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => navigator.clipboard.writeText(children?.toString() || '')}
-                    className="p-1.5 rounded-lg bg-slate-700/80 hover:bg-slate-600 text-slate-300 text-xs transition-colors"
-                  >
-                    复制
-                  </button>
-                </div>
-              </div>
-            ),
-            blockquote: ({ children }) => (
-              <blockquote className="border-l-4 border-violet-400 dark:border-violet-500 pl-4 py-2 my-3 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-950/20 rounded-r-lg italic text-slate-600 dark:text-slate-400">
-                {children}
-              </blockquote>
-            ),
-            table: ({ children }) => (
-              <div className="overflow-x-auto my-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                <table className="w-full text-sm">{children}</table>
-              </div>
-            ),
-            thead: ({ children }) => (
-              <thead className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
-                {children}
-              </thead>
-            ),
-            th: ({ children }) => (
-              <th className="px-4 py-2.5 text-left font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">
-                {children}
-              </th>
-            ),
-            td: ({ children }) => (
-              <td className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">
-                {children}
-              </td>
-            ),
-            a: ({ href, children }) => (
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-violet-600 dark:text-violet-400 underline decoration-violet-300 dark:decoration-violet-600 underline-offset-2 hover:decoration-violet-500 dark:hover:decoration-violet-400 transition-colors font-medium"
-              >
-                {children}
-              </a>
-            ),
-            strong: ({ children }) => <strong className="font-bold text-slate-900 dark:text-slate-100">{children}</strong>,
-            em: ({ children }) => <em className="italic text-slate-700 dark:text-slate-300">{children}</em>,
-            hr: () => <hr className="my-6 border-t-2 border-slate-200 dark:border-slate-700" />,
-            img: ({ src, alt }) => (
-              <img
-                src={src}
-                alt={alt || ''}
-                className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-md max-w-full my-4"
-                loading="lazy"
-              />
-            ),
-          }}
+          components={components}
         >
           {cleanedContent}
         </ReactMarkdown>
