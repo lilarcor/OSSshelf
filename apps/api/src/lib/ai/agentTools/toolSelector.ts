@@ -212,6 +212,16 @@ const WRITE_INTENT_PATTERNS = new RegExp(
     '写入', '上传',
 
     // ════════════════════════════════════════════════════════════════
+    // 口语化整理类（中文）—— 高频但原先未覆盖
+    // ════════════════════════════════════════════════════════════════
+    '整理.*文件', '整理.*文件夹', '整理一下', '帮.*整理',
+    '归类', '分类.*文件', '文件.*归类',
+    '清理.*文件', '清理.*重复', '清理.*垃圾',
+    '合并.*文件夹', '文件夹.*合并',
+    '批量.*重命名', '批量.*移动', '批量.*删除', '批量.*打标',
+    '排序.*文件', '文件.*排序',
+
+    // ════════════════════════════════════════════════════════════════
     // 英文表达（上下文组合模式，避免单词假阳性）
     // ════════════════════════════════════════════════════════════════
     // 创建类
@@ -316,7 +326,7 @@ export function selectTools(intent: string, query: string): string[] {
   const byIntent = (() => {
     switch (intent) {
       case 'file_stats':
-        return [...base, ...TOOL_GROUPS.stats, ...TOOL_GROUPS.storage];
+        return [...base, ...TOOL_GROUPS.stats, ...TOOL_GROUPS.storage, 'search_duplicates'];
 
       case 'image_visual':
         return [...base, ...TOOL_GROUPS.content];

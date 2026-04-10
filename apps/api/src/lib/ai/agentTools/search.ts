@@ -96,17 +96,30 @@ export const definitions: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'filter_files',
-      description: `【高级筛选】按多个条件精确过滤文件列表。
+      description: `【高级筛选】按类型、大小、时间等条件精确过滤文件列表。
 适用场景：
-• "找出所有超过100MB的文件"
-• "本月创建的PDF文档"
-• "未加标签的文件"
-• "已分享的图片"
+• "找出所有图片" → mimeTypePrefix: "image/"
+• "找出超过100MB的文件" → minSize: 104857600
+• "本月创建的PDF" → mimeTypePrefix: "application/pdf", dateFrom: "2024-XX-01"
+• "找未加标签的文件" → isStarred / conditions
 
-适合在已有大量结果后进一步精确筛选`,
+💡 常用类型前缀：image/ | video/ | audio/ | application/pdf | text/`,
       parameters: {
         type: 'object',
         properties: {
+          mimeTypePrefix: {
+            type: 'string',
+            description: '文件类型前缀过滤，如 image/、video/、application/pdf、text/ 等',
+          },
+          minSize: { type: 'number', description: '最小文件大小（字节），如 1048576=1MB' },
+          maxSize: { type: 'number', description: '最大文件大小（字节）' },
+          dateFrom: { type: 'string', description: '创建时间起始（ISO格式：2025-01-01）' },
+          dateTo: { type: 'string', description: '创建时间截止（ISO格式：2025-12-31）' },
+          isStarred: { type: 'boolean', description: '只返回已收藏的文件' },
+          folderId: { type: 'string', description: '限定在某个文件夹内过滤' },
+          limit: { type: 'number', description: '返回数量（默认50）' },
+          sortBy: { type: 'string', enum: ['name', 'size', 'updated_at', 'created_at'], description: '排序字段' },
+          sortOrder: { type: 'string', enum: ['asc', 'desc'], description: '排序方向' },
           conditions: {
             type: 'array',
             items: {
@@ -125,11 +138,8 @@ export const definitions: ToolDefinition[] = [
                 value: { type: 'string', description: '值' },
               },
             },
-            description: '筛选条件数组',
+            description: '高级筛选条件数组（复杂场景使用）',
           },
-          limit: { type: 'number', description: '返回数量（默认50）' },
-          sortBy: { type: 'string', enum: ['name', 'size', 'updated_at', 'created_at'], description: '排序字段' },
-          sortOrder: { type: 'string', enum: ['asc', 'desc'], description: '排序方向' },
         },
       },
     },
@@ -320,10 +330,15 @@ export class SearchTools {
     if (args.hasAiSummary === true) conditions.push(isNotNull(files.aiSummary));
     if (args.hasVectorIndex === true) conditions.push(isNotNull(files.vectorIndexedAt));
     if (args.isStarred === true) conditions.push(eq(files.isStarred, true));
-    if (args.minSizeBytes) conditions.push(gte(files.size, args.minSizeBytes as number));
-    if (args.maxSizeBytes) conditions.push(lte(files.size, args.maxSizeBytes as number));
-    if (args.createdAfter) conditions.push(gte(files.createdAt, args.createdAfter as string));
-    if (args.createdBefore) conditions.push(lte(files.createdAt, args.createdBefore as string));
+    // 支持两套参数名（definition用minSize/maxSize/dateFrom/dateTo，兼容旧的minSizeBytes等）
+    const minSize = (args.minSize ?? args.minSizeBytes) as number | undefined;
+    const maxSize = (args.maxSize ?? args.maxSizeBytes) as number | undefined;
+    const dateFrom = (args.dateFrom ?? args.createdAfter) as string | undefined;
+    const dateTo = (args.dateTo ?? args.createdBefore) as string | undefined;
+    if (minSize) conditions.push(gte(files.size, minSize));
+    if (maxSize) conditions.push(lte(files.size, maxSize));
+    if (dateFrom) conditions.push(gte(files.createdAt, dateFrom));
+    if (dateTo) conditions.push(lte(files.createdAt, dateTo));
     if (args.folderId) conditions.push(eq(files.parentId, args.folderId as string));
 
     const orderMap: Record<string, any> = {
@@ -669,6 +684,8 @@ function toAgentFile(f: InferSelectModel<typeof files>): AgentFile {
   return {
     id: f.id,
     name: f.name,
+    // 直接提供引用格式，AI复制即可，无需自行拼接
+    _ref: f.isFolder ? `[FOLDER:${f.id}:${f.name}]` : `[FILE:${f.id}:${f.name}]`,
     path: f.path,
     isFolder: f.isFolder,
     mimeType: f.mimeType,

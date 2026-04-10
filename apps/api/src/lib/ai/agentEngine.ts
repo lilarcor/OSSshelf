@@ -796,9 +796,16 @@ export class AgentEngine {
 
         onChunk({ type: 'tool_result', toolCallId: tc.id, toolName: tc.name, result, done: false });
 
+        // 提取 _next_actions，native 模式同样注入规划提示（与 prompt-based 对齐）
+        const nativeNextActions = (result as any)?._next_actions as string[] | undefined;
+        const nativeResultContent = JSON.stringify(result, null, 2) + INJECTION_GUARD
+          + (nativeNextActions?.length
+            ? `\n\n💡 系统建议下一步：\n${nativeNextActions.map((a) => `- ${a}`).join('\n')}`
+            : '');
+
         messages.push({
           role: 'tool',
-          content: JSON.stringify(result, null, 2) + INJECTION_GUARD,
+          content: nativeResultContent,
           toolCallId: tc.id,
         });
 
@@ -848,7 +855,11 @@ export class AgentEngine {
     _filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS,
     contextPrompt: string = ''
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
-    const systemContent = PROMPT_BASED_SYSTEM_PROMPT + contextPrompt;
+    // 动态注入当前可用工具列表，让 AI 明确知道能调用哪些工具
+    const toolListHint = filteredTools.length > 0
+      ? `\n\n## 当前可用工具（只能调用以下工具，工具名必须完全匹配）\n${filteredTools.map(t => `- **${t.function.name}**：${t.function.description}`).join('\n')}`
+      : '';
+    const systemContent = PROMPT_BASED_SYSTEM_PROMPT + contextPrompt + toolListHint;
     const messages: Array<{ role: string; content: string }> = [
       { role: 'system', content: systemContent },
       ...this.buildHistory(conversationHistory, query, config),
@@ -1160,7 +1171,9 @@ export class AgentEngine {
     const last = msgs[msgs.length - 1];
     const deduped = last?.role === 'user' && last.content === currentQuery ? msgs.slice(0, -1) : msgs;
 
-    const maxContextTokens = config.maxContextTokens || 8000;
+    const maxContextTokens = (config.maxContextTokens && config.maxContextTokens > 0)
+      ? config.maxContextTokens
+      : DEFAULT_MAX_CONTEXT_TOKENS;
     let totalTokens = estimateTokens(currentQuery);
     const result: Array<{ role: string; content: string }> = [];
 
