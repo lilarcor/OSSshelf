@@ -41,6 +41,17 @@ import { selectTools, needsWriteTools, TOOL_GROUPS } from './agentTools/toolSele
 // 默认配置常量（当数据库配置不可用时使用）
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Token 估算（与 ragEngine 相同算法，中文 0.67 tokens/char，英文 0.25 tokens/char）
+// ─────────────────────────────────────────────────────────────────────────────
+function estimateTokens(text: string): number {
+  if (!text) return 0;
+  const chineseChars = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+  const chineseRatio = text.length > 0 ? chineseChars / text.length : 0;
+  const tokensPerChar = chineseRatio > 0.3 ? 0.67 : 0.25;
+  return Math.ceil(text.length * tokensPerChar);
+}
+
 const DEFAULT_MAX_TOOL_CALLS = 20;
 const DEFAULT_MAX_IDLE_ROUNDS = 3;
 const DEFAULT_AGENT_TEMPERATURE = 0.3;
@@ -307,6 +318,13 @@ export interface AgentSource {
   score: number;
 }
 
+export interface AgentRunMeta {
+  toolCallCount: number;
+  modelId: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 系统提示词（完全重写）
 // ─────────────────────────────────────────────────────────────────────────────
@@ -480,7 +498,7 @@ export class AgentEngine {
     onChunk: (chunk: AgentChunk) => void,
     signal?: AbortSignal,
     sessionId?: string
-  ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string }> {
+  ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
     this.executor.setUserId(userId);
 
     const [caps, config] = await Promise.all([this.getModelCapabilities(modelId, userId), loadAgentConfig(this.env)]);
@@ -504,8 +522,10 @@ export class AgentEngine {
       },
     });
 
+    const resolvedModelId = modelId || 'default';
+
     if (caps.nativeToolCalling) {
-      return this.runNative(
+      const result = await this.runNative(
         userId,
         query,
         conversationHistory,
@@ -517,8 +537,16 @@ export class AgentEngine {
         sessionId,
         filteredTools
       );
+      return {
+        ...result,
+        meta: result.meta ?? { toolCallCount: 0, modelId: resolvedModelId, inputTokens: 0, outputTokens: 0 },
+      };
     }
-    return this.runPromptBased(userId, query, conversationHistory, modelId, config, onChunk, signal, sessionId, filteredTools);
+    const result = await this.runPromptBased(userId, query, conversationHistory, modelId, config, onChunk, signal, sessionId, filteredTools);
+    return {
+      ...result,
+      meta: result.meta ?? { toolCallCount: 0, modelId: resolvedModelId, inputTokens: 0, outputTokens: 0 },
+    };
   }
 
   // ── Native Function Calling ───────────────────────────────────────────────
@@ -534,7 +562,7 @@ export class AgentEngine {
     signal?: AbortSignal,
     sessionId?: string,
     filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS
-  ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string }> {
+  ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
     const messages: Array<{ role: string; content?: string; toolCalls?: any[]; toolCallId?: string }> = [
       { role: 'system', content: AGENT_SYSTEM_PROMPT },
       ...this.buildHistory(conversationHistory, query, config),
@@ -548,6 +576,11 @@ export class AgentEngine {
     const callSignatures = new Set<string>();
     let toolCallCount = 0;
     let idleRounds = 0;
+
+    // token 累计（估算）
+    const resolvedModelId = modelId || 'default';
+    let inputTokens = estimateTokens(AGENT_SYSTEM_PROMPT + query);
+    let outputTokens = 0;
 
     while (toolCallCount < config.maxToolCalls) {
       if (signal?.aborted) break;
@@ -603,6 +636,7 @@ export class AgentEngine {
               streamContent += chunk.content;
               onChunk({ type: 'text', content: chunk.content, done: false });
               fullText += chunk.content;
+              outputTokens += estimateTokens(chunk.content);
             }
           },
           { modelId, signal: combinedSignal }
@@ -623,7 +657,7 @@ export class AgentEngine {
           } else {
             // 已有工具调用轮次，不 fallback，直接报错
             onChunk({ type: 'error', message: 'AI 模型调用失败', done: true });
-            return { fullText, sources };
+            return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
           }
         }
       }
@@ -700,10 +734,12 @@ export class AgentEngine {
               summary,
               done: true,
             });
-            return { fullText, sources, pendingConfirmId: confirmId };
+            return { fullText, sources, pendingConfirmId: confirmId, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
           }
 
           roundNewData = mergeSourcesFromResult(result, sources) || roundNewData;
+          // 工具结果注入估算（工具名 + 结果 JSON）
+          inputTokens += estimateTokens(tc.name + JSON.stringify(result));
         } catch (err) {
           result = { error: err instanceof Error ? err.message : '工具执行失败' };
         }
@@ -744,7 +780,7 @@ export class AgentEngine {
       }
     }
 
-    return { fullText, sources };
+    return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
   }
 
   // ── Prompt-Based Fallback ──────────────────────────────────────────────────
@@ -759,7 +795,7 @@ export class AgentEngine {
     signal?: AbortSignal,
     sessionId?: string,
     _filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS
-  ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string }> {
+  ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
     const messages: Array<{ role: string; content: string }> = [
       { role: 'system', content: PROMPT_BASED_SYSTEM_PROMPT },
       ...this.buildHistory(conversationHistory, query, config),
@@ -771,6 +807,11 @@ export class AgentEngine {
     const callSignatures = new Set<string>();
     let toolCallCount = 0;
     let idleRounds = 0;
+
+    // token 累计（估算）
+    const resolvedModelId = modelId || 'default';
+    let inputTokens = estimateTokens(PROMPT_BASED_SYSTEM_PROMPT + query);
+    let outputTokens = 0;
 
     while (toolCallCount < config.maxToolCalls) {
       if (signal?.aborted) break;
@@ -805,6 +846,7 @@ export class AgentEngine {
                 const txt = buffer.slice(forwardedUpTo, safe);
                 onChunk({ type: 'text', content: txt, done: false });
                 fullText += txt;
+                outputTokens += estimateTokens(txt);
                 forwardedUpTo = safe;
               }
             }
@@ -817,7 +859,7 @@ export class AgentEngine {
         } else if (!isAbortError(err)) {
           logger.error('AgentEngine', 'LLM stream error (prompt)', {}, err);
           onChunk({ type: 'error', message: 'AI 模型调用失败，请检查模型配置', done: true });
-          return { fullText, sources };
+          return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
         }
       }
 
@@ -827,6 +869,7 @@ export class AgentEngine {
           const tail = buffer.slice(forwardedUpTo);
           onChunk({ type: 'text', content: tail, done: false });
           fullText += tail;
+          outputTokens += estimateTokens(tail);
         }
         messages.push({ role: 'assistant', content: buffer });
         break;
@@ -897,10 +940,12 @@ export class AgentEngine {
             summary,
             done: true,
           });
-          return { fullText, sources, pendingConfirmId: confirmId };
+          return { fullText, sources, pendingConfirmId: confirmId, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
         }
 
         roundNewData = mergeSourcesFromResult(result, sources);
+        // 工具结果注入估算
+        inputTokens += estimateTokens(toolName + JSON.stringify(result));
       } catch (err) {
         result = { error: err instanceof Error ? err.message : '工具执行失败' };
       }
@@ -927,7 +972,7 @@ export class AgentEngine {
       }
     }
 
-    return { fullText, sources };
+    return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
   }
 
   // ── 自动链式调用（图片搜索结果 → analyze_image）────────────────────────────

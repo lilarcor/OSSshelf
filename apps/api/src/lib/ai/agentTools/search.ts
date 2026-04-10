@@ -483,41 +483,100 @@ export class SearchTools {
 
   static async executeSmartSearch(env: Env, userId: string, args: Record<string, unknown>) {
     const query = args.query as string;
-    const intent = (args.intent as string) || 'auto';
-    const limit = (args.limit as number) || 10;
+    const context = (args.context as string) || '';
+    const limit = Math.min((args.limit as number) || 10, 30);
+    const db = getDb(env.DB);
 
-    const detectedIntent = intent === 'auto' ? detectSearchIntent(query) : intent;
+    const effectiveQuery = context ? `${context} ${query}` : query;
+    const splitResult = splitKeywords(query);
+    const keywords = splitResult.keywords.length > 0 ? splitResult.keywords : [query];
 
-    switch (detectedIntent) {
-      case 'filename':
-        return await SearchTools.executeFilterFiles(env, userId, {
-          ...args,
-          namePattern: query,
-          limit,
-        });
-      case 'semantic':
-        return await SearchTools.executeSearchFiles(env, userId, {
-          query,
-          limit,
-        });
-      case 'tag':
-        const tags = extractTagsFromQuery(query);
-        return await SearchTools.executeSearchByTag(env, userId, {
-          tags: tags.length > 0 ? tags : [query],
-          limit,
-        });
-      case 'path':
-        return await SearchTools.executeFilterFiles(env, userId, {
-          ...args,
-          pathPattern: query,
-          limit,
-        });
-      default:
-        return await SearchTools.executeSearchFiles(env, userId, {
-          query,
-          limit,
-        });
+    // ── 方案A：向量 + FTS 双路并行，合并去重 ────────────────────────────
+    const [vectorResults, kwRows] = await Promise.allSettled([
+      // 路径1：向量语义搜索（保持原始查询语义完整性）
+      searchAndFetchFiles(env, effectiveQuery, userId, {
+        limit: limit * 2,
+        threshold: 0.2,
+      }),
+      // 路径2：FTS 关键词搜索
+      db
+        .select()
+        .from(files)
+        .where(
+          and(
+            eq(files.userId, userId),
+            isNull(files.deletedAt),
+            or(
+              ...keywords.flatMap((w) => [
+                like(files.name, `%${w}%`),
+                like(files.description, `%${w}%`),
+                like(files.aiSummary, `%${w}%`),
+                like(files.aiTags, `%${w}%`),
+              ])
+            )
+          )
+        )
+        .orderBy(desc(files.updatedAt))
+        .limit(limit * 2)
+        .all(),
+    ]);
+
+    // 向量结果：按得分加权（权重 1.2）
+    const vectorFiles: Array<AgentFile & { _score: number }> =
+      vectorResults.status === 'fulfilled'
+        ? vectorResults.value.map((f: InferSelectModel<typeof files>) => ({
+            ...toAgentFile(f),
+            _score: 1.2,
+          }))
+        : [];
+
+    // FTS 结果：按时间排序，基础得分 0.8
+    const kwFiles: Array<AgentFile & { _score: number }> =
+      kwRows.status === 'fulfilled'
+        ? kwRows.value.map((f: InferSelectModel<typeof files>) => ({
+            ...toAgentFile(f),
+            _score: 0.8,
+          }))
+        : [];
+
+    if (vectorResults.status === 'rejected') {
+      logger.warn('AgentTool', 'smart_search vector failed', { query }, vectorResults.reason);
     }
+
+    // 合并去重：向量结果优先，FTS 补充不重叠的结果
+    const seen = new Set<string>();
+    const merged: AgentFile[] = [];
+    for (const f of [...vectorFiles, ...kwFiles]) {
+      if (!seen.has(f.id) && merged.length < limit) {
+        seen.add(f.id);
+        const { _score, ...file } = f;
+        merged.push(file);
+      }
+    }
+
+    logger.info('AgentTool', 'smart_search 双路并行完成', {
+      query,
+      vectorCount: vectorFiles.length,
+      kwCount: kwFiles.length,
+      mergedCount: merged.length,
+    });
+
+    const imageCount = merged.filter((f) => f.mimeType?.startsWith('image/')).length;
+    const textCount = merged.filter((f) => isTextFile(f.mimeType) && !f.isFolder).length;
+
+    const nextActions: string[] = [];
+    if (merged.length === 0) nextActions.push('try_different_keywords');
+    if (imageCount > 0) nextActions.push('analyze_images');
+    if (textCount > 0) nextActions.push('read_content');
+
+    return createSuccessResponse({
+      files: merged,
+      total: merged.length,
+      strategy: 'parallel_merge',
+      vectorHits: vectorFiles.length,
+      keywordHits: kwFiles.length,
+      nextActions,
+    });
   }
 
   static async executeGetSimilarFiles(env: Env, userId: string, args: Record<string, unknown>) {

@@ -567,6 +567,7 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
                 sources: JSON.stringify(finalSources),
                 toolCalls: collectedToolCalls.length > 0 ? JSON.stringify(collectedToolCalls) : null,
                 reasoning: collectedReasoning || null,
+                modelUsed: modelId || null,
                 latencyMs: Date.now() - startTime,
                 createdAt: new Date().toISOString(),
               });
@@ -598,10 +599,20 @@ async function handleStreamChat(c: any, userId: string, query: string, sessionId
             sources: JSON.stringify(finalSources),
             toolCalls: hasToolCalls ? JSON.stringify(collectedToolCalls) : null,
             reasoning: collectedReasoning || null,
+            modelUsed: result.meta?.modelId || modelId || null,
             latencyMs,
             createdAt: new Date().toISOString(),
           });
-          logger.info('AI Agent', 'Message saved', { sessionId: actualSessionId, latencyMs, hasToolCalls, hasSources });
+          logger.info('AI Agent', 'Message saved', {
+            sessionId: actualSessionId,
+            latencyMs,
+            hasToolCalls,
+            hasSources,
+            toolCallCount: result.meta?.toolCallCount ?? 0,
+            inputTokens: result.meta?.inputTokens ?? 0,
+            outputTokens: result.meta?.outputTokens ?? 0,
+            modelId: result.meta?.modelId,
+          });
         } catch (error) {
           logger.error('AI Agent', 'Failed to save message', { userId }, error);
         }
