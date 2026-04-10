@@ -475,19 +475,21 @@ export class AgentEngine {
   ): Promise<{
     nativeToolCalling: boolean;
     vision: boolean;
+    resolvedModelId: string | undefined;
   }> {
     try {
       const config = modelId
         ? await this.gateway.getModelById(modelId, userId)
         : await this.gateway.getActiveModel(userId);
-      if (!config) return { nativeToolCalling: false, vision: false };
+      if (!config) return { nativeToolCalling: false, vision: false, resolvedModelId: modelId };
       const caps: string[] = config.capabilities || [];
       return {
         nativeToolCalling: config.provider === 'openai_compatible' && caps.includes('function_calling'),
         vision: caps.includes('vision'),
+        resolvedModelId: config.modelId || modelId,
       };
     } catch {
-      return { nativeToolCalling: false, vision: false };
+      return { nativeToolCalling: false, vision: false, resolvedModelId: modelId };
     }
   }
 
@@ -552,7 +554,7 @@ export class AgentEngine {
     logger.info('AgentEngine', 'Run', {
       mode: caps.nativeToolCalling ? 'native' : 'prompt',
       vision: caps.vision,
-      modelId: modelId || 'default',
+      modelId: caps.resolvedModelId || modelId || 'default',
       intent,
       toolCount: filteredTools.length,
       hasContext: !!contextPrompt,
@@ -561,7 +563,7 @@ export class AgentEngine {
       },
     });
 
-    const resolvedModelId = modelId || 'default';
+    const resolvedModelId = caps.resolvedModelId || modelId || 'default';
 
     if (caps.nativeToolCalling) {
       const result = await this.runNative(
@@ -620,7 +622,7 @@ export class AgentEngine {
     let idleRounds = 0;
 
     // token 累计（估算）
-    const resolvedModelId = modelId || 'default';
+    const resolvedModelId = caps.resolvedModelId || modelId || 'default';
     let inputTokens = estimateTokens(AGENT_SYSTEM_PROMPT + query);
     let outputTokens = 0;
 
@@ -853,7 +855,7 @@ export class AgentEngine {
     let idleRounds = 0;
 
     // token 累计（估算）
-    const resolvedModelId = modelId || 'default';
+    const resolvedModelId = caps.resolvedModelId || modelId || 'default';
     let inputTokens = estimateTokens(PROMPT_BASED_SYSTEM_PROMPT + query);
     let outputTokens = 0;
 

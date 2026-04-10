@@ -582,6 +582,8 @@ async function handleStreamChat(
                 reasoning: collectedReasoning || null,
                 modelUsed: agentResult?.meta?.modelId || modelId || null,
                 latencyMs: Date.now() - startTime,
+                inputTokens: 0,
+                outputTokens: 0,
                 createdAt: new Date().toISOString(),
               });
               logger.info('AI Agent', 'Partial message saved after error', { sessionId: actualSessionId });
@@ -614,6 +616,8 @@ async function handleStreamChat(
             reasoning: collectedReasoning || null,
             modelUsed: agentResult?.meta?.modelId || modelId || null,
             latencyMs,
+            inputTokens: agentResult?.meta?.inputTokens ?? 0,
+            outputTokens: agentResult?.meta?.outputTokens ?? 0,
             createdAt: new Date().toISOString(),
           });
           logger.info('AI Agent', 'Message saved', {
