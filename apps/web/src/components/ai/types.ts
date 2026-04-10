@@ -21,6 +21,12 @@ export interface ToolCallEvent {
   status: 'running' | 'done' | 'error' | 'pending_confirm';
 }
 
+export interface PreviewDiff {
+  before: string;
+  after: string;
+  totalChanges: number;
+}
+
 export interface PendingConfirm {
   confirmId: string;
   toolName: string;

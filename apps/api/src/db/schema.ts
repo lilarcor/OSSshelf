@@ -667,6 +667,8 @@ export const aiChatSessions = sqliteTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     title: text('title').notNull().default('新对话'),
     modelId: text('model_id'),
+    lastToolCallCount: integer('last_tool_call_count').default(0),
+    totalTokensUsed: integer('total_tokens_used').default(0),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },

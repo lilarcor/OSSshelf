@@ -32,10 +32,11 @@ import { AgentToolExecutor, TOOL_DEFINITIONS } from './agentTools/index';
 import type { StreamChunk } from './types';
 import { logger } from '@osshelf/shared';
 import { getAiConfigNumber } from './aiConfigService';
-import { getDb, aiConfirmRequests } from '../../db';
-import { eq, and, gte } from 'drizzle-orm';
+import { getDb, aiConfirmRequests, files } from '../../db';
+import { eq, and, gte, isNull, inArray } from 'drizzle-orm';
 import { classifyIntent } from './ragEngine';
 import { selectTools, needsWriteTools, TOOL_GROUPS } from './agentTools/toolSelector';
+import { buildFolderPath } from '../../lib/utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 默认配置常量（当数据库配置不可用时使用）
@@ -497,7 +498,9 @@ export class AgentEngine {
     modelId: string | undefined,
     onChunk: (chunk: AgentChunk) => void,
     signal?: AbortSignal,
-    sessionId?: string
+    sessionId?: string,
+    contextFolderId?: string,
+    contextFileIds?: string[]
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
     this.executor.setUserId(userId);
 
@@ -511,12 +514,48 @@ export class AgentEngine {
     ]);
     const filteredTools = TOOL_DEFINITIONS.filter((t) => selectedNames.has(t.function.name));
 
+    // 构建目录上下文
+    let contextPrompt = '';
+    if (contextFolderId || (contextFileIds && contextFileIds.length > 0)) {
+      const db = getDb(this.env.DB);
+      const ctxParts: string[] = [];
+
+      if (contextFolderId) {
+        const folder = await db.select().from(files)
+          .where(and(eq(files.id, contextFolderId), eq(files.userId, userId), isNull(files.deletedAt)))
+          .get();
+        if (folder) {
+          const folderPath = await buildFolderPath(db, userId, folder.parentId);
+          ctxParts.push(`当前工作目录：${folderPath}${folder.name}`);
+        }
+      }
+
+      if (contextFileIds && contextFileIds.length > 0) {
+        const ctxFiles = await db.select({ id: files.id, name: files.name, path: files.path })
+          .from(files)
+          .where(and(
+            inArray(files.id, contextFileIds),
+            eq(files.userId, userId),
+            isNull(files.deletedAt)
+          )).all();
+        if (ctxFiles.length > 0) {
+          const fileList = ctxFiles.map(f => `- ${f.name} (${f.path})`).join('\n');
+          ctxParts.push(`用户选中的文件：\n${fileList}`);
+        }
+      }
+
+      if (ctxParts.length > 0) {
+        contextPrompt = `\n\n[目录上下文]\n${ctxParts.join('\n\n')}\n搜索和列出操作应优先在指定目录内进行，除非用户明确要求全局搜索。`;
+      }
+    }
+
     logger.info('AgentEngine', 'Run', {
       mode: caps.nativeToolCalling ? 'native' : 'prompt',
       vision: caps.vision,
       modelId: modelId || 'default',
       intent,
       toolCount: filteredTools.length,
+      hasContext: !!contextPrompt,
       config: {
         maxToolCalls: config.maxToolCalls,
       },
@@ -535,14 +574,15 @@ export class AgentEngine {
         onChunk,
         signal,
         sessionId,
-        filteredTools
+        filteredTools,
+        contextPrompt
       );
       return {
         ...result,
         meta: result.meta ?? { toolCallCount: 0, modelId: resolvedModelId, inputTokens: 0, outputTokens: 0 },
       };
     }
-    const result = await this.runPromptBased(userId, query, conversationHistory, modelId, config, onChunk, signal, sessionId, filteredTools);
+    const result = await this.runPromptBased(userId, query, conversationHistory, modelId, config, onChunk, signal, sessionId, filteredTools, contextPrompt);
     return {
       ...result,
       meta: result.meta ?? { toolCallCount: 0, modelId: resolvedModelId, inputTokens: 0, outputTokens: 0 },
@@ -561,10 +601,12 @@ export class AgentEngine {
     onChunk: (chunk: AgentChunk) => void,
     signal?: AbortSignal,
     sessionId?: string,
-    filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS
+    filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS,
+    contextPrompt: string = ''
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
+    const systemContent = AGENT_SYSTEM_PROMPT + contextPrompt;
     const messages: Array<{ role: string; content?: string; toolCalls?: any[]; toolCallId?: string }> = [
-      { role: 'system', content: AGENT_SYSTEM_PROMPT },
+      { role: 'system', content: systemContent },
       ...this.buildHistory(conversationHistory, query, config),
       { role: 'user', content: query },
     ];
@@ -794,10 +836,12 @@ export class AgentEngine {
     onChunk: (chunk: AgentChunk) => void,
     signal?: AbortSignal,
     sessionId?: string,
-    _filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS
+    _filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS,
+    contextPrompt: string = ''
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
+    const systemContent = PROMPT_BASED_SYSTEM_PROMPT + contextPrompt;
     const messages: Array<{ role: string; content: string }> = [
-      { role: 'system', content: PROMPT_BASED_SYSTEM_PROMPT },
+      { role: 'system', content: systemContent },
       ...this.buildHistory(conversationHistory, query, config),
       { role: 'user', content: query },
     ];

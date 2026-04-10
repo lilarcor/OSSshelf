@@ -11,7 +11,8 @@
 
 import { useState } from 'react';
 import { Sparkles, ChevronDown, Loader2, File } from 'lucide-react';
-import type { ToolCallEvent, AgentFile } from '../types';
+import type { ToolCallEvent, AgentFile, PreviewDiff } from '../types';
+import { DiffPreview } from './DiffPreview';
 
 interface ToolCallCardProps {
   tc: ToolCallEvent;
@@ -43,6 +44,7 @@ export function ToolCallCard({
   const isPendingConfirm = resultObj?.status === 'pending_confirm';
   const confirmMessage = resultObj?.message as string | undefined;
   const confirmId = resultObj?.confirmId as string | undefined;
+  const previewDiff = resultObj?.previewDiff as PreviewDiff | undefined;
 
   const resultFiles: AgentFile[] = (() => {
     if (!tc.result || typeof tc.result !== 'object') return [];
@@ -199,6 +201,11 @@ export function ToolCallCard({
                   {confirmMessage || '此操作需要您的确认才能执行'}
                 </p>
               </div>
+
+              {previewDiff && (
+                <DiffPreview diff={previewDiff} />
+              )}
+
               <div className="flex gap-2">
                 <button
                   onClick={() => {

@@ -10,7 +10,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Send,
   FileText,
@@ -26,6 +26,8 @@ import {
   Zap,
   Code,
   Loader2,
+  FolderOpen,
+  X,
 } from 'lucide-react';
 import { aiApi, filesApi, type AiChatMessage } from '@/services/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -190,6 +192,8 @@ const SUGGESTED = [
 export function AIChat() {
   const navigate = useNavigate();
   const { sessionId: urlSessionId } = useParams<{ sessionId: string }>();
+  const [searchParams] = useSearchParams();
+  const contextFolderId = searchParams.get('folderId') || undefined;
   const queryClient = useQueryClient();
   const { token } = useAuthStore();
   const { toast } = useToast();
@@ -372,6 +376,7 @@ export function AIChat() {
           sessionId: currentSessionId || undefined,
           maxFiles: 8,
           includeFileContent: false,
+          contextFolderId,
           onChunk: (raw: SseChunk) => {
             // 处理 reset 信号：清空当前 assistant 消息的已渲染内容
             if (raw.type === 'reset') {
@@ -618,6 +623,20 @@ export function AIChat() {
 
         <div ref={messagesContainerRef} className="flex-1 overflow-y-auto min-h-0">
           <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
+            {contextFolderId && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-700 dark:text-blue-300">
+                <FolderOpen className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate">当前上下文：已选定文件夹，AI 将优先在此目录内操作</span>
+                <button
+                  onClick={() => navigate('/ai-chat', { replace: true })}
+                  className="ml-auto flex-shrink-0 text-blue-500 hover:text-blue-700 dark:hover:text-blue-200"
+                  title="清除上下文"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
             {messages.length === 0 && !isLoading && (
               <WelcomeScreen suggestedQuestions={SUGGESTED} onSelectQuestion={setInput} />
             )}
