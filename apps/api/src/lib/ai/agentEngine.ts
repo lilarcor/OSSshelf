@@ -852,12 +852,12 @@ export class AgentEngine {
     onChunk: (chunk: AgentChunk) => void,
     signal?: AbortSignal,
     sessionId?: string,
-    _filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS,
+    filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS,
     contextPrompt: string = ''
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
-    // 动态注入当前可用工具列表，让 AI 明确知道能调用哪些工具
+    // 只注入工具名列表，不加完整描述，避免token暴增导致LLM失效
     const toolListHint = filteredTools.length > 0
-      ? `\n\n## 当前可用工具（只能调用以下工具，工具名必须完全匹配）\n${filteredTools.map(t => `- **${t.function.name}**：${t.function.description}`).join('\n')}`
+      ? `\n\n## 当前可用工具（只能调用以下工具名，工具名必须完全匹配）\n${filteredTools.map(t => `- ${t.function.name}`).join('\n')}`
       : '';
     const systemContent = PROMPT_BASED_SYSTEM_PROMPT + contextPrompt + toolListHint;
     const messages: Array<{ role: string; content: string }> = [
