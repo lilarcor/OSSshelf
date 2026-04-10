@@ -276,6 +276,10 @@ const FILE_LIST_PATTERNS = [
   /总共.*文件/,
   /全部.*文件/,
   /所有.*文件/,
+  /收藏(了|的)?(哪些|什么|哪些文件|哪些东西)/,
+  /星标(文件|夹)?/,
+  /(我的)?收藏(夹|列表|有哪些|有什么)/,
+  /重要(的)?(文件|文档|资料)/,
   // 英文
   /how many files/i,
   /list (all |my )?files/i,
@@ -285,6 +289,8 @@ const FILE_LIST_PATTERNS = [
   /storage (usage|space|stats|status)/i,
   /recent(ly)? (uploaded|added|modified)/i,
   /all my files/i,
+  /(my )?(favorites|starred|bookmarked) files/i,
+  /which files (did|i )?(star|favorite|bookmark)/i,
 ];
 
 const SYSTEM_PROMPTS = {
