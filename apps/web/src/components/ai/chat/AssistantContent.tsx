@@ -60,73 +60,63 @@ function FileRefButton({
 
 function getMarkdownComponents() {
   return {
-    p: ({ children }: { children: React.ReactNode }) => (
-      <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>
-    ),
-    h1: ({ children }: { children: React.ReactNode }) => (
+    p: (props: any) => <p className="mb-3 last:mb-0 leading-relaxed">{props.children}</p>,
+    h1: (props: any) => (
       <h1 className="text-xl font-bold mb-4 mt-6 first:mt-0 text-slate-900 dark:text-slate-100 pb-2 border-b border-slate-200 dark:border-slate-700">
-        {children}
+        {props.children}
       </h1>
     ),
-    h2: ({ children }: { children: React.ReactNode }) => (
+    h2: (props: any) => (
       <h2 className="text-lg font-bold mb-3 mt-5 first:mt-0 text-slate-800 dark:text-slate-200">
-        {children}
+        {props.children}
       </h2>
     ),
-    h3: ({ children }: { children: React.ReactNode }) => (
+    h3: (props: any) => (
       <h3 className="text-base font-semibold mb-2 mt-4 first:mt-0 text-slate-800 dark:text-slate-200">
-        {children}
+        {props.children}
       </h3>
     ),
-    ul: ({ children }: { children: React.ReactNode }) => (
+    ul: (props: any) => (
       <ul className="my-3 pl-6 space-y-1.5 [&>li]:marker:text-violet-400 dark:[&>li]:marker:text-violet-500 [&>li]:marker:text-sm">
-        {children}
+        {props.children}
       </ul>
     ),
-    ol: ({ children }: { children: React.ReactNode }) => (
+    ol: (props: any) => (
       <ol className="my-3 pl-6 space-y-1.5 [&>li]:marker:text-violet-400 dark:[&>li]:marker:text-violet-500 [&>li]:marker:font-semibold [&>li]:marker:text-[13px] list-decimal">
-        {children}
+        {props.children}
       </ol>
     ),
-    li: ({ children }: { children: React.ReactNode }) => (
+    li: (props: any) => (
       <li className="pl-1.5 leading-relaxed text-slate-700 dark:text-slate-300 relative before:content-[''] before:absolute before:left-0 before:top-[0.6em] before:w-1.5 before:h-1.5 before:rounded-full before:bg-violet-400 dark:before:bg-violet-500 before:-ml-4 [ol_&]:before:hidden">
-        {children}
+        {props.children}
       </li>
     ),
-    code: ({
-      className,
-      children,
-      ...props
-    }: {
-      className?: string;
-      children: React.ReactNode;
-      [key: string]: unknown;
-    }) => {
-      const isInline = !className;
+    code: (props: any) => {
+      const isInline = !props.className;
       if (isInline) {
         return (
           <code
             className="px-1.5 py-0.5 mx-0.5 rounded-md bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 text-violet-600 dark:text-violet-400 text-[13px] font-mono font-medium border border-slate-200/60 dark:border-slate-700/50"
             {...props}
           >
-            {children}
+            {props.children}
           </code>
         );
       }
       return (
-        <code className={className} {...props}>
-          {children}
+        <code className={props.className} {...props}>
+          {props.children}
         </code>
       );
     },
-    pre: ({ children }: { children: React.ReactNode }) => (
+    pre: (props: any) => (
       <div className="relative group/my-3 mb-4 last:mb-0">
         <pre className="relative overflow-x-auto rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 p-4 text-[13px] leading-relaxed border border-slate-700/50 shadow-lg shadow-slate-900/20">
-          {children}
+          {props.children}
         </pre>
         <div className="absolute top-2 right-2 opacity-0 group-hover/my:opacity-100 transition-opacity">
           <button
-            onClick={() => navigator.clipboard.writeText(children?.toString() || '')}
+            onClick={() => navigator.clipboard.writeText(props.children?.toString() || '')}
             className="p-1.5 rounded-lg bg-slate-700/80 hover:bg-slate-600 text-slate-300 text-xs transition-colors"
           >
             复制
@@ -134,68 +124,62 @@ function getMarkdownComponents() {
         </div>
       </div>
     ),
-    blockquote: ({ children }: { children: React.ReactNode }) => (
+    blockquote: (props: any) => (
       <blockquote className="border-l-4 border-violet-400 dark:border-violet-500 pl-4 py-2 my-3 bg-gradient-to-r from-violet-50/50 to-transparent dark:from-violet-950/20 rounded-r-lg italic text-slate-600 dark:text-slate-400">
-        {children}
+        {props.children}
       </blockquote>
     ),
-    table: ({ children }: { children: React.ReactNode }) => (
+    table: (props: any) => (
       <div className="overflow-x-auto my-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-        <table className="w-full text-sm">{children}</table>
+        <table className="w-full text-sm">{props.children}</table>
       </div>
     ),
-    thead: ({ children }: { children: React.ReactNode }) => (
+    thead: (props: any) => (
       <thead className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
-        {children}
+        {props.children}
       </thead>
     ),
-    th: ({ children }: { children: React.ReactNode }) => (
+    th: (props: any) => (
       <th className="px-4 py-2.5 text-left font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">
-        {children}
+        {props.children}
       </th>
     ),
-    td: ({ children }: { children: React.ReactNode }) => (
+    td: (props: any) => (
       <td className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">
-        {children}
+        {props.children}
       </td>
     ),
-    a: ({
-      href,
-      children,
-    }: {
-      href?: string;
-      children: React.ReactNode;
-    }) => (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-violet-600 dark:text-violet-400 underline decoration-violet-300 dark:decoration-violet-600 underline-offset-2 hover:decoration-violet-500 dark:hover:decoration-violet-400 transition-colors font-medium"
-      >
-        {children}
-      </a>
+    a: (props: any) => {
+      const { href, children } = props;
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-violet-600 dark:text-violet-400 underline decoration-violet-300 dark:decoration-violet-600 underline-offset-2 hover:decoration-violet-500 dark:hover:decoration-violet-400 transition-colors font-medium"
+        >
+          {children}
+        </a>
+      );
+    },
+    strong: (props: any) => (
+      <strong className="font-bold text-slate-900 dark:text-slate-100">{props.children}</strong>
     ),
-    strong: ({ children }: { children: React.ReactNode }) => (
-      <strong className="font-bold text-slate-900 dark:text-slate-100">{children}</strong>
-    ),
-    em: ({ children }: { children: React.ReactNode }) => (
-      <em className="italic text-slate-700 dark:text-slate-300">{children}</em>
+    em: (props: any) => (
+      <em className="italic text-slate-700 dark:text-slate-300">{props.children}</em>
     ),
     hr: () => <hr className="my-6 border-t-2 border-slate-200 dark:border-slate-700" />,
-    img: ({
-      src,
-      alt,
-    }: {
-      src?: string;
-      alt?: string;
-    }) => (
-      <img
-        src={src}
-        alt={alt || ''}
-        className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-md max-w-full my-4"
-        loading="lazy"
-      />
-    ),
+    img: (props: any) => {
+      const { src, alt } = props;
+      return (
+        <img
+          src={src}
+          alt={alt || ''}
+          className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-md max-w-full my-4"
+          loading="lazy"
+        />
+      );
+    },
   };
 }
 
