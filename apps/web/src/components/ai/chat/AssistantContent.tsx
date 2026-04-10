@@ -8,6 +8,7 @@
  * - 优化的代码块、列表、表格样式
  * - 美观的文件引用按钮设计
  * - 完美的列表序号对齐
+ * - 智能识别并修复非标准列表格式
  */
 
 import React from 'react';
@@ -58,6 +59,49 @@ function FileRefButton({
   );
 }
 
+function normalizeListFormat(content: string): string {
+  let normalized = content;
+
+  normalized = normalized.replace(/(\S)\s+(\d+)\.\s*\n/g, '$1\n\n$2. ');
+
+  normalized = normalized.replace(/(\d+)\.\s*$/gm, '$1.');
+
+  const lines = normalized.split('\n');
+  const processedLines: string[] = [];
+  let inList = false;
+  let listIndent = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line: string = lines[i] ?? '';
+    const trimmedLine: string = line.trim();
+
+    if (/^\d+\.\s/.test(trimmedLine)) {
+      if (!inList) {
+        inList = true;
+        listIndent = line.length - line.trimStart().length;
+        processedLines.push(trimmedLine);
+      } else {
+        processedLines.push(' '.repeat(listIndent + 2) + trimmedLine);
+      }
+    } else if (/^\d+\.$/.test(trimmedLine) && inList) {
+      const nextLine: string = lines[i + 1] ?? '';
+      const trimmedNextLine: string = nextLine.trim();
+      if (trimmedNextLine && !/^\d+[\.\)]\s/.test(trimmedNextLine)) {
+        processedLines.push(' '.repeat(listIndent + 2) + trimmedLine);
+      } else {
+        processedLines.push(line);
+      }
+    } else if (trimmedLine === '') {
+      inList = false;
+      processedLines.push(line);
+    } else {
+      processedLines.push(line);
+    }
+  }
+
+  return processedLines.join('\n');
+}
+
 function getMarkdownComponents() {
   return {
     p: (props: any) => <p className="mb-3 last:mb-0 leading-relaxed">{props.children}</p>,
@@ -77,17 +121,17 @@ function getMarkdownComponents() {
       </h3>
     ),
     ul: (props: any) => (
-      <ul className="my-3 pl-6 space-y-1.5 [&>li]:marker:text-violet-400 dark:[&>li]:marker:text-violet-500 [&>li]:marker:text-sm">
+      <ul className="my-3 pl-6 space-y-2 [&>li]:marker:text-violet-400 dark:[&>li]:marker:text-violet-500 [&>li]:marker:text-sm">
         {props.children}
       </ul>
     ),
     ol: (props: any) => (
-      <ol className="my-3 pl-6 space-y-1.5 [&>li]:marker:text-violet-400 dark:[&>li]:marker:text-violet-500 [&>li]:marker:font-semibold [&>li]:marker:text-[13px] list-decimal">
+      <ol className="my-3 pl-6 space-y-2 [&>li]:marker:text-violet-400 dark:[&>li]:marker:text-violet-500 [&>li]:marker:font-semibold [&>li]:marker:text-[13px] list-decimal">
         {props.children}
       </ol>
     ),
     li: (props: any) => (
-      <li className="pl-1.5 leading-relaxed text-slate-700 dark:text-slate-300 relative before:content-[''] before:absolute before:left-0 before:top-[0.6em] before:w-1.5 before:h-1.5 before:rounded-full before:bg-violet-400 dark:before:bg-violet-500 before:-ml-4 [ol_&]:before:hidden">
+      <li className="pl-2 py-0.5 leading-relaxed text-slate-700 dark:text-slate-300">
         {props.children}
       </li>
     ),
@@ -185,6 +229,7 @@ function getMarkdownComponents() {
 
 export function AssistantContent({ content, onFileClick }: AssistantContentProps) {
   const cleanedContent = content.replace(/```tool_call\s*[\s\S]*?```/g, '').trim();
+  const normalizedContent = normalizeListFormat(cleanedContent);
 
   const components = getMarkdownComponents();
 
@@ -195,9 +240,9 @@ export function AssistantContent({ content, onFileClick }: AssistantContentProps
 
   FILE_REF_REGEX.lastIndex = 0;
 
-  while ((match = FILE_REF_REGEX.exec(cleanedContent)) !== null) {
+  while ((match = FILE_REF_REGEX.exec(normalizedContent)) !== null) {
     if (match.index > lastIndex) {
-      const textPart = cleanedContent.slice(lastIndex, match.index);
+      const textPart = normalizedContent.slice(lastIndex, match.index);
       parts.push(
         <ReactMarkdown
           key={`md-${keyIndex++}`}
@@ -218,8 +263,8 @@ export function AssistantContent({ content, onFileClick }: AssistantContentProps
     lastIndex = match.index + match[0].length;
   }
 
-  if (lastIndex < cleanedContent.length) {
-    const textPart = cleanedContent.slice(lastIndex);
+  if (lastIndex < normalizedContent.length) {
+    const textPart = normalizedContent.slice(lastIndex);
     parts.push(
       <ReactMarkdown
         key={`md-${keyIndex++}`}
@@ -240,7 +285,7 @@ export function AssistantContent({ content, onFileClick }: AssistantContentProps
           rehypePlugins={[rehypeHighlight]}
           components={components}
         >
-          {cleanedContent}
+          {normalizedContent}
         </ReactMarkdown>
       </div>
     );
