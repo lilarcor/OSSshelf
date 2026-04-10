@@ -580,7 +580,7 @@ async function handleStreamChat(
                 sources: JSON.stringify(finalSources),
                 toolCalls: collectedToolCalls.length > 0 ? JSON.stringify(collectedToolCalls) : null,
                 reasoning: collectedReasoning || null,
-                modelUsed: modelId || null,
+                modelUsed: agentResult?.meta?.modelId || modelId || null,
                 latencyMs: Date.now() - startTime,
                 createdAt: new Date().toISOString(),
               });
@@ -612,7 +612,7 @@ async function handleStreamChat(
             sources: JSON.stringify(finalSources),
             toolCalls: hasToolCalls ? JSON.stringify(collectedToolCalls) : null,
             reasoning: collectedReasoning || null,
-            modelUsed: modelId || null,
+            modelUsed: agentResult?.meta?.modelId || modelId || null,
             latencyMs,
             createdAt: new Date().toISOString(),
           });
@@ -631,7 +631,7 @@ async function handleStreamChat(
             await db.update(aiChatSessions).set({
               modelId: agentResult.meta.modelId || modelId || null,
               lastToolCallCount: agentResult.meta.toolCallCount,
-              totalTokensUsed: sql`${aiChatSessions.totalTokensUsed} + ${agentResult.meta.inputTokens + agentResult.meta.outputTokens}`,
+              totalTokensUsed: sql`total_tokens_used + ${agentResult.meta.inputTokens + agentResult.meta.outputTokens}`,
               updatedAt: new Date().toISOString(),
             }).where(eq(aiChatSessions.id, actualSessionId));
           }
