@@ -1135,10 +1135,6 @@ function callSig(toolName: string, args: Record<string, unknown>): string {
   return `${toolName}::${JSON.stringify(sorted)}`;
 }
 
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 3.5);
-}
-
 /** 从工具结果中提取文件并合并到 sources，返回是否有新数据 */
 function mergeSourcesFromResult(result: unknown, sources: AgentSource[]): boolean {
   if (!result || typeof result !== 'object') return false;
