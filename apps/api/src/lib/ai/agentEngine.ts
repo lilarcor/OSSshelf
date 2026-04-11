@@ -60,269 +60,7 @@ const DEFAULT_IMAGE_TIMEOUT_MS = 25000;
 const TOKENS_PER_CHAR = 0.5;
 const TOOL_CALL_REGEX = /```tool(?:_call)?\s*([\s\S]*?)```/;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 全局工具分类体系（用于检测模型是否跳过了必须调用的工具）
-// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * 必须调用工具集合（数据查询类）
- * 
- * 特征：不调用这些工具，模型无法获取真实数据，只能编造或猜测
- * 
- * 分类标准：
- * - 返回用户私有实时数据（文件列表、收藏、统计等）
- * - 查询数据库中的动态信息（分享记录、标签、权限等）
- * - 读取实际文件内容或元数据
- */
-const MANDATORY_QUERY_TOOLS = new Set([
-  // 🔍 搜索与发现 (7个) - 必须查询数据库
-  'search_files',
-  'smart_search',
-  'filter_files',
-  'search_by_tag',
-  'get_similar_files',
-  'get_file_details',
-  'search_duplicates',
-
-  // 📄 内容理解 (7个) - 必须读取真实内容
-  'read_file_text',
-  'analyze_image',
-  'compare_files',
-  'extract_metadata',
-  'generate_summary',
-  'generate_tags',
-  'content_preview',
-
-  // 📂 导航与浏览 (7个) - 必须查询文件系统
-  'navigate_path',
-  'list_folder',
-  'get_recent_files',
-  'get_starred_files',
-  'get_parent_chain',
-  'get_folder_tree',
-  'get_storage_overview',
-
-  // 📊 统计分析 (5个) - 必须计算实时数据
-  'get_storage_stats',
-  'get_activity_stats',
-  'get_user_quota_info',
-  'get_file_type_distribution',
-  'get_sharing_stats',
-
-  // 🔗 分享管理 (2个只读) - 必须查询分享状态
-  'list_shares',
-  'get_share_stats',
-
-  // 🏷️ 标签管理 (2个只读) - 必须查询标签数据
-  'get_file_tags',
-  'list_all_tags_for_management',
-
-  // 📜 版本管理 (1个只读) - 必须查询版本历史
-  'get_file_versions',
-
-  // 📝 笔记备注 (2个只读) - 必须查询笔记内容
-  'get_notes',
-  'search_notes',
-
-  // 🔐 权限管理 (1个只读) - 必须查询权限设置
-  'get_file_permissions',
-
-  // 💾 存储管理 (5个只读) - 必须查询存储数据
-  'get_storage_usage',
-  'get_large_files',
-  'get_folder_sizes',
-  'get_cleanup_suggestions',
-  'get_bucket_info',
-
-  // ⚙️ 系统管理 (6个只读) - 必须查询系统/用户数据
-  'get_system_status',
-  'get_user_profile',
-  'list_api_keys',
-  'list_webhooks',
-  'get_audit_logs',
-  'list_buckets',
-
-  // 🤖 AI增强 (1个只读) - 必须查询知识库
-  'ask_rag_question',
-]);
-
-/**
- * 可选调用工具集合（操作执行类）
- * 
- * 特征：模型可以基于已有信息决定是否调用，或者这些工具本身是写操作
- * 
- * 分类标准：
- * - 写操作（创建/编辑/删除）- 有确认机制保护
- * - 执行确定性操作（不需要查询未知数据）
- */
-const OPTIONAL_TOOLS = new Set([
-  // 📁 文件操作 (15个) - 全部为写操作，有确认机制
-  'create_text_file',
-  'create_code_file',
-  'create_file_from_template',
-  'edit_file_content',
-  'append_to_file',
-  'find_and_replace',
-  'rename_file',
-  'move_file',
-  'copy_file',
-  'delete_file',
-  'restore_file',
-  'create_folder',
-  'batch_rename',
-  'star_file',
-  'unstar_file',
-
-  // 🏷️ 标签管理 (5个写操作)
-  'add_tag',
-  'remove_tag',
-  'merge_tags',
-  'tag_folder',
-  'auto_tag_files',
-
-  // 🔗 分享管理 (6个写操作)
-  'create_share_link',
-  'revoke_share',
-  'update_share_settings',
-  'create_direct_link',
-  'revoke_direct_link',
-  'create_upload_link_for_folder',
-
-  // 📜 版本管理 (3个操作)
-  'restore_version',
-  'compare_versions',
-  'set_version_retention',
-
-  // 📝 笔记备注 (3个写操作)
-  'add_note',
-  'update_note',
-  'delete_note',
-
-  // 🔐 权限管理 (5个写操作)
-  'grant_permission',
-  'revoke_permission',
-  'set_folder_access_level',
-  'list_user_groups',
-  'manage_group_members',
-
-  // 💾 存储管理 (3个操作)
-  'set_default_bucket',
-  'migrate_file_to_bucket',
-
-  // ⚙️ 系统管理 (5个操作/通用知识)
-  'get_help',
-  'get_version_info',
-  'get_faq',
-  'create_api_key',
-  'revoke_api_key',
-  'create_webhook',
-
-  // 🤖 AI增强 (4个触发类)
-  'trigger_ai_summary',
-  'trigger_ai_tags',
-  'rebuild_vector_index',
-  'smart_rename_suggest',
-]);
-
-/**
- * 工具关键词映射（用于检测模型是否提到了某个工具但没调用）
- * 格式: { toolName: [关键词列表] }
- */
-const TOOL_KEYWORD_MAP: Record<string, RegExp[]> = {
-  // ═══════════════════════════════════════════════════════════════
-  // 🔍 搜索与发现模块（7/7 已覆盖）
-  // ═══════════════════════════════════════════════════════════════
-  'search_files': [/搜索|查找|找.*文件|search file|find file/i],
-  'smart_search': [/智能.*搜索|复杂.*搜索|语义.*搜索|smart search/i],
-  'filter_files': [/过滤|筛选|filter file|按.*条件/i],
-  'search_by_tag': [/按.*标签.*搜索|search by tag|tag.*search/i],
-  'get_similar_files': [/相似.*文件|类似.*文件|similar file|related file/i],
-  'get_file_details': [/文件(详情|信息|属性)|file detail|file info|metadata/i],
-  'search_duplicates': [/重复(文件|检测)|duplicate file|same file/i],
-
-  // ═══════════════════════════════════════════════════════════════
-  // 📄 内容理解模块（7/7 已覆盖）
-  // ═══════════════════════════════════════════════════════════════
-  'read_file_text': [/读取.*内容|查看.*内容|read content|打开.*文件|文件内容/i],
-  'analyze_image': [/分析.*图片|看图|analyze image|图片内容|看.*照片/i],
-  'compare_files': [/对比.*文件|比较.*差异|compare file|diff|区别/i],
-  'extract_metadata': [/元数据|metadata|隐藏信息|文件属性|exif/i],
-  'generate_summary': [/(生成|创建).*摘要|summary|总结|概括/i],
-  'generate_tags': [/(生成|推荐|智能).*标签|auto tag|suggest tag/i],
-  'content_preview': [/预览|preview|快速.*浏览|瞥一眼/i],
-
-  // ═══════════════════════════════════════════════════════════════
-  // 📂 导航与浏览模块（7/7 已覆盖）
-  // ═══════════════════════════════════════════════════════════════
-  'navigate_path': [/导航|定位|找到.*路径|navigate|locate path/i],
-  'list_folder': [/文件夹.*(内容|里面有什么|里有什么|有什么)|列出.*文件|有哪些文件|根目录|browse folder/i],
-  'get_recent_files': [/最近(上传|添加|修改|的文件)|上传了(什么|哪些)|recent(ly)?( uploaded| added| modified)?|latest file/i],
-  'get_starred_files': [/收藏|星标|starred|favorite|bookmark|重要.*文件/i],
-  'get_parent_chain': [/父级|上级目录|parent|路径链|breadcrumb/i],
-  'get_folder_tree': [/目录(结构|树)|folder tree|目录树/i],
-  'get_storage_overview': [/存储概览|storage overview|总览/i],
-
-  // ═══════════════════════════════════════════════════════════════
-  // 📊 统计分析模块（5/5 已覆盖）
-  // ═══════════════════════════════════════════════════════════════
-  'get_storage_stats': [/存储(统计|空间|用量)|storage stats|多少空间|用了多少|总空间/i],
-  'get_activity_stats': [/活动(趋势|统计)|activity stats|upload.*trend|操作记录/i],
-  'get_user_quota_info': [/配额|quota|额度|限制/i],
-  'get_file_type_distribution': [/文件类型.*分布|type distribution|格式统计/i],
-  'get_sharing_stats': [/分享(统计|情况)|sharing stats|share.*usage/i],
-
-  // ═══════════════════════════════════════════════════════════════
-  // 🔗 分享管理模块（2/2 已覆盖）
-  // ═══════════════════════════════════════════════════════════════
-  'list_shares': [/分享(列表|的文件|链接|了哪些|了什么|情况)|我.*分享|shared files|my shares|i share/i],
-  'get_share_stats': [/分享(统计|详情|情况)|sharing stats|share.*detail/i],
-
-  // ═══════════════════════════════════════════════════════════════
-  // 🏷️ 标签管理模块（2/2 只读已覆盖）
-  // ═══════════════════════════════════════════════════════════════
-  'list_all_tags_for_management': [/标签(列表|库|有哪些|所有|管理)|有哪些.*标签|我.*标签|all tags|tag list/i],
-  'get_file_tags': [/(这个|该|指定).*文件.*标签|file.*tags|查看.*标签/i],
-
-  // ═══════════════════════════════════════════════════════════════
-  // 📜 版本管理模块（1/1 只读已覆盖）
-  // ═══════════════════════════════════════════════════════════════
-  'get_file_versions': [/版本(历史|记录|列表)|version history|历史版本|旧版本/i],
-
-  // ═══════════════════════════════════════════════════════════════
-  // 📝 笔记备注模块（2/2 只读已覆盖）
-  // ═══════════════════════════════════════════════════════════════
-  'get_notes': [/笔记(列表|备注|内容)|notes list|查看.*笔记|my notes/i],
-  'search_notes': [/搜索.*笔记|search notes|找.*笔记/i],
-
-  // ═══════════════════════════════════════════════════════════════
-  // 🔐 权限管理模块（1/1 只读已覆盖）
-  // ═══════════════════════════════════════════════════════════════
-  'get_file_permissions': [/权限(设置|信息|查看)|permission|谁能访问|共享设置/i],
-
-  // ═══════════════════════════════════════════════════════════════
-  // 💾 存储管理模块（5/5 只读已覆盖）
-  // ═══════════════════════════════════════════════════════════════
-  'get_storage_usage': [/空间(概况|使用|详情)|storage usage|用了多少空间/i],
-  'get_large_files': [/大文件|large file|占用.*最多|最大.*文件/i],
-  'get_folder_sizes': [/文件夹(大小|占用)|folder size|哪个.*大/i],
-  'get_cleanup_suggestions': [/清理(建议|推荐)|cleanup|释放空间|删除建议/i],
-  'get_bucket_info': [/存储桶(信息|详情)|bucket info|bucket.*detail/i],
-
-  // ═══════════════════════════════════════════════════════════════
-  // ⚙️ 系统管理模块（6/6 只读已覆盖）
-  // ═══════════════════════════════════════════════════════════════
-  'get_system_status': [/系统状态|system status|运行状况|健康/i],
-  'get_user_profile': [/我的(信息|资料|profile)|user profile|个人信息/i],
-  'list_api_keys': [/API密钥|api key|密钥列表/i],
-  'list_webhooks': [/webhook(列表|配置)|回调/i],
-  'get_audit_logs': [/操作日志|audit log|历史记录|操作记录/i],
-  'list_buckets': [/存储桶(列表|所有)|all buckets|bucket list/i],
-
-  // ═══════════════════════════════════════════════════════════════
-  // 🤖 AI增强模块（1/1 只读已覆盖）
-  // ═══════════════════════════════════════════════════════════════
-  'ask_rag_question': [/RAG问答|知识库|rag question|基于.*文件.*问答|semantic search/i],
-};
 
 /**
  * 视觉意图检测模式（中英文）
@@ -1010,42 +748,32 @@ export class AgentEngine {
       const collected = Array.from(collectedMap.values()).filter((tc) => tc.name);
 
       if (!hasToolCalls) {
-        // 检测模型是否应该调用工具但没有调用（针对"自作聪明"的模型）
-        const shouldHaveCalledTool = detectMissingToolCall(query, streamContent);
-        if (shouldHaveCalledTool && toolCallCount === 0) {
-          // 检查降级次数限制，防止无限循环
+        // native模式第一轮无工具调用：除非是明确的闲聊，否则直接降级到prompt-based
+        // 原因：native模型有能力调工具，第一轮没调说明模型跳过了，不需要猜测意图
+        if (toolCallCount === 0 && !isPureChitchat(query)) {
           if (fallbackCount >= MAX_FALLBACK_ATTEMPTS) {
-            logger.error('AgentEngine', 'Max fallback attempts reached, returning current result', {
+            logger.warn('AgentEngine', 'Max fallback attempts reached, accepting response without tool call', {
               modelId: resolvedModelId,
-              maxAttempts: MAX_FALLBACK_ATTEMPTS,
-              currentAttempt: fallbackCount + 1,
-              suggestedTool: shouldHaveCalledTool,
+              query: query.slice(0, 100),
             });
-            // 达到上限，返回当前结果（即使不完美）
             messages.push({ role: 'assistant', content: streamContent });
             break;
           }
 
-          logger.warn('AgentEngine', 'Model should have called tool but did not (native mode)', {
+          logger.warn('AgentEngine', 'Native model skipped tool call, falling back to prompt-based', {
             modelId: resolvedModelId,
             query: query.slice(0, 100),
-            responsePreview: streamContent.slice(0, 200),
-            suggestedTool: shouldHaveCalledTool,
-            fallbackAttempt: fallbackCount + 1,
-            maxAttempts: MAX_FALLBACK_ATTEMPTS,
+            responsePreview: streamContent.slice(0, 150),
           });
 
-          // 清空已发送的内容，通知前端重置
           if (fullText.length > 0) {
             onChunk({ type: 'reset', done: false });
             fullText = '';
           }
 
-          // 降级到 Prompt-Based 模式重试（提示词更强），递增降级计数
-          logger.info('AgentEngine', `Falling back to prompt-based mode (attempt ${fallbackCount + 1}/${MAX_FALLBACK_ATTEMPTS})`);
           return this.runPromptBased(userId, query, conversationHistory, modelId, caps, config, onChunk, signal, sessionId, filteredTools, contextPrompt, fallbackCount + 1);
         }
-        
+
         messages.push({ role: 'assistant', content: streamContent });
         break;
       }
@@ -1261,38 +989,29 @@ export class AgentEngine {
       }
 
       if (!foundToolCall) {
-        // 先检测是否应该调用工具而没调用（prompt-based模式同样需要保护）
-        if (toolCallCount === 0) {
-          const finalText = buffer.length > forwardedUpTo ? buffer.slice(forwardedUpTo) : '';
-          const fullBuffer = (fullText + finalText).trim();
-          const shouldHaveCalledTool = detectMissingToolCall(query, fullBuffer);
+        // prompt-based第一轮无工具调用：非闲聊则注入强制提示重试一次
+        if (toolCallCount === 0 && !isPureChitchat(query) && !hasInjectedForcedHint) {
+          logger.warn('AgentEngine', 'Prompt-based model skipped tool call, injecting forced hint', {
+            modelId: resolvedModelId,
+            query: query.slice(0, 100),
+          });
 
-          if (shouldHaveCalledTool && fallbackCount < MAX_FALLBACK_ATTEMPTS && !hasInjectedForcedHint) {
-            logger.warn('AgentEngine', 'Model should have called tool but did not (prompt-based mode)', {
-              modelId: resolvedModelId,
-              query: query.slice(0, 100),
-              responsePreview: fullBuffer.slice(0, 200),
-              suggestedTool: shouldHaveCalledTool,
-            });
-
-            if (fullText.length > 0) {
-              onChunk({ type: 'reset', done: false });
-              fullText = '';
-              forwardedUpTo = 0;
-            }
-
-            // 注入强制提示，让模型重新生成工具调用
-            messages.push({ role: 'assistant', content: buffer });
-            messages.push({
-              role: 'user',
-              content: `[系统强制提示] 你刚才直接回答了问题，但这个问题需要查询真实数据。\n必须先调用工具 ${shouldHaveCalledTool} 获取数据，再基于真实数据回答。\n请立即输出工具调用代码块：\n\`\`\`tool_call\n{"name": "${shouldHaveCalledTool}", "arguments": {}}\n\`\`\``,
-            });
-
-            buffer = '';
+          if (fullText.length > 0) {
+            onChunk({ type: 'reset', done: false });
+            fullText = '';
             forwardedUpTo = 0;
-            hasInjectedForcedHint = true; // 标记已注入，防止下轮再触发
-            continue;
           }
+
+          messages.push({ role: 'assistant', content: buffer });
+          messages.push({
+            role: 'user',
+            content: `[系统提示] 这个问题需要查询真实数据，请调用合适的工具获取后再回答。直接输出工具调用代码块，不要解释。`,
+          });
+
+          buffer = '';
+          forwardedUpTo = 0;
+          hasInjectedForcedHint = true;
+          continue;
         }
 
         // 真正的最终回答
@@ -1631,85 +1350,20 @@ function randomId(): string {
 }
 
 /**
- * 全局检测：模型是否应该调用工具但没有调用
- *
- * 适用范围：所有模型、所有提供商、所有必须调用的数据查询类工具
- *
- * 检测策略：
- * 1. 分析用户查询意图（匹配 TOOL_KEYWORD_MAP）
- * 2. 检查模型回复是否包含真实数据标记
- * 3. 判断模型是否在编造数据或跳过工具调用
- *
- * 设计原则：
- * - 保守策略：宁可漏检，不可误判
- * - 多维度综合判断，避免单一维度误触发
- * - 高置信度才触发降级，保证用户体验
- *
- * @param query 用户原始查询
- * @param responseText 模型生成的回复文本
- * @returns 应该调用的工具名（优先级最高的），如果不需要则返回 undefined
+ * 判断是否是不需要工具的纯闲聊
+ * 用于 native 模式：第一轮无工具调用时，只有明确是闲聊才放行，否则直接降级
  */
-function detectMissingToolCall(query: string, responseText: string): string | undefined {
-  const lowerQuery = query.toLowerCase();
-  const lowerResponse = responseText.toLowerCase();
-
-  // 快速检查1：回复包含真实文件/文件夹引用，说明已调用工具
-  const hasRealDataMarkers = /\[FILE:|\[FOLDER:|https?:\/\/[^\s]+\.(pdf|doc|txt|jpg|png)/i.test(responseText);
-
-  // 快速检查2：回复很短，可能是简单确认或错误信息
-  if (responseText.length < 50) return undefined;
-
-  // 快速检查3：回复明确表示无法完成或请求澄清
-  const isRefusalOrClarification = /无法|不能|需要(更多|具体|额外)信息|请提供|不清楚|不知道|抱歉/i.test(lowerResponse);
-  if (isRefusalOrClarification && !hasRealDataMarkers) return undefined;
-
-  // 快速检查4：有真实数据标记且回复适中
-  if (hasRealDataMarkers && responseText.length < 800) return undefined;
-
-  let bestMatch: { toolName: string; confidence: number } | null = null;
-
-  for (const [toolName, patterns] of Object.entries(TOOL_KEYWORD_MAP)) {
-    // 必要条件：用户查询匹配该工具意图
-    const queryMatches = patterns.some(p => p.test(lowerQuery));
-    if (!queryMatches) continue;
-
-    let confidence = 0;
-
-    // 维度1：回复长度
-    if (responseText.length > 150) confidence += 1;
-    if (responseText.length > 400) confidence += 1;
-
-    // 维度2：回复也提到了相关词（加分项，不再是必要条件）
-    // 弱模型可能用不同词汇，不强制要求
-    if (patterns.some(p => p.test(lowerResponse))) confidence += 2;
-
-    // 维度3：具体数字+单位（高风险）
-    if (/\d{2,}(\.\d+)?\s*(个|项|文件|GB|MB|KB|TB|%|次|字节)/i.test(responseText)) confidence += 3;
-
-    // 维度4：模糊词汇
-    if (/大约|大概|可能|估计|around|about|一些|多个/i.test(lowerResponse)) confidence += 1;
-
-    // 维度5：说要做但没做
-    if (/让我|我来|帮您|我将|可以.*(查看|查询|搜索|找|列出|获取)/i.test(lowerResponse) && !hasRealDataMarkers) confidence += 2;
-
-    // 维度6：列举≥3项但无真实引用
-    const listItems = responseText.match(/(\d+\.|-|\*)\s*[^\n]+/g);
-    if (listItems && listItems.length >= 3 && !hasRealDataMarkers) confidence += 2;
-
-    // 维度7：提到工具名但无tool_call格式（极高风险）
-    if (new RegExp(`\\b${toolName.replace('_', '[ _-]')}\\b`, 'i').test(lowerResponse) && !hasRealDataMarkers) confidence += 3;
-
-    // 维度8：query命中必须查询的工具且无真实数据——基础加分
-    // 覆盖弱模型"用词完全不同但直接回答"的场景
-    if (!hasRealDataMarkers && MANDATORY_QUERY_TOOLS.has(toolName)) confidence += 2;
-
-    // 阈值7（之前是8，因为维度2不再是必要条件，整体分值结构调整）
-    if (confidence >= 7 && (!bestMatch || confidence > bestMatch.confidence)) {
-      bestMatch = { toolName, confidence };
-    }
+function isPureChitchat(query: string): boolean {
+  const q = query.trim();
+  // 极短的问候/感谢/确认
+  if (q.length < 15 && /^(你好|hi|hello|谢谢|感谢|好的|明白|知道了|ok|okay|嗯|哦|是的|对的|没事|不用了)[\s!！。.]*$/i.test(q)) {
+    return true;
   }
-
-  return bestMatch?.toolName;
+  // 明确的通用知识问题（不涉及文件系统）
+  if (/^(什么是|怎么理解|帮我解释|介绍一下|讲讲)\S/.test(q) && !/文件|文档|目录|存储|上传|分享|收藏|标签/.test(q)) {
+    return true;
+  }
+  return false;
 }
 
 /** 从回复文本中提取文件引用（前端渲染卡片用） */
