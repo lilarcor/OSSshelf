@@ -255,8 +255,8 @@ const TOOL_KEYWORD_MAP: Record<string, RegExp[]> = {
   // 📂 导航与浏览模块（7/7 已覆盖）
   // ═══════════════════════════════════════════════════════════════
   'navigate_path': [/导航|定位|找到.*路径|navigate|locate path/i],
-  'list_folder': [/文件夹.*(内容|里面有什么)|列出.*文件|有哪些文件|browse folder/i],
-  'get_recent_files': [/最近(上传|添加|修改)|recent(ly)?|latest file/i],
+  'list_folder': [/文件夹.*(内容|里面有什么|里有什么|有什么)|列出.*文件|有哪些文件|根目录|browse folder/i],
+  'get_recent_files': [/最近(上传|添加|修改|的文件)|上传了(什么|哪些)|recent(ly)?( uploaded| added| modified)?|latest file/i],
   'get_starred_files': [/收藏|星标|starred|favorite|bookmark|重要.*文件/i],
   'get_parent_chain': [/父级|上级目录|parent|路径链|breadcrumb/i],
   'get_folder_tree': [/目录(结构|树)|folder tree|目录树/i],
@@ -274,13 +274,13 @@ const TOOL_KEYWORD_MAP: Record<string, RegExp[]> = {
   // ═══════════════════════════════════════════════════════════════
   // 🔗 分享管理模块（2/2 已覆盖）
   // ═══════════════════════════════════════════════════════════════
-  'list_shares': [/分享(列表|的文件|链接)|shared files|my shares|i share/i],
+  'list_shares': [/分享(列表|的文件|链接|了哪些|了什么|情况)|我.*分享|shared files|my shares|i share/i],
   'get_share_stats': [/分享(统计|详情|情况)|sharing stats|share.*detail/i],
 
   // ═══════════════════════════════════════════════════════════════
   // 🏷️ 标签管理模块（2/2 只读已覆盖）
   // ═══════════════════════════════════════════════════════════════
-  'list_all_tags_for_management': [/标签(列表|库|有哪些|所有|管理)/i, /all tags|tag list/i],
+  'list_all_tags_for_management': [/标签(列表|库|有哪些|所有|管理)|有哪些.*标签|我.*标签|all tags|tag list/i],
   'get_file_tags': [/(这个|该|指定).*文件.*标签|file.*tags|查看.*标签/i],
 
   // ═══════════════════════════════════════════════════════════════
