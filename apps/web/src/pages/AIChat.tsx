@@ -329,7 +329,7 @@ export function AIChat() {
     }
   };
 
-  const MAX_QUERY_LENGTH = 2000;
+  const MAX_QUERY_LENGTH = 15000;
 
   const sendMessage = useCallback(
     async (query: string, regenerateFromId?: string) => {
