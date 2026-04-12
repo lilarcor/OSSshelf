@@ -330,7 +330,9 @@ export class AgentToolExecutor {
             const fileId = args.fileId as string;
             if (fileId) {
               const db = getDb(this.env.DB);
-              const file = await db.select().from(files)
+              const file = await db
+                .select()
+                .from(files)
                 .where(and(eq(files.id, fileId), eq(files.userId, this.userId), isNull(files.deletedAt)))
                 .get();
               if (file) {
@@ -341,17 +343,27 @@ export class AgentToolExecutor {
                   let changeCount = 0;
 
                   if (toolName === 'edit_file_content') {
-                    const edits = args.edits as Array<{ operation: string; oldValue?: string; newValue?: string; position?: number }>;
+                    const edits = args.edits as Array<{
+                      operation: string;
+                      oldValue?: string;
+                      newValue?: string;
+                      position?: number;
+                    }>;
                     for (const edit of edits || []) {
                       if (edit.operation === 'replace' && edit.oldValue && edit.newValue !== undefined) {
-                        if (newContent.includes(edit.oldValue)) { changeCount++; }
+                        if (newContent.includes(edit.oldValue)) {
+                          changeCount++;
+                        }
                         newContent = newContent.replace(edit.oldValue, edit.newValue);
                       } else if (edit.operation === 'append' && edit.newValue) {
                         changeCount++;
                         newContent += '\n' + edit.newValue;
                       } else if (edit.operation === 'insert' && edit.newValue !== undefined) {
                         changeCount++;
-                        newContent = newContent.slice(0, edit.position ?? 0) + edit.newValue + newContent.slice(edit.position ?? 0);
+                        newContent =
+                          newContent.slice(0, edit.position ?? 0) +
+                          edit.newValue +
+                          newContent.slice(edit.position ?? 0);
                       } else if (edit.operation === 'delete' && edit.oldValue) {
                         changeCount++;
                         newContent = newContent.replace(edit.oldValue, '');
@@ -365,13 +377,16 @@ export class AgentToolExecutor {
                       const regex = new RegExp(findStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
                       const matches = originalContent.match(regex);
                       changeCount = matches ? matches.length : 0;
-                      newContent = replaceAll ? originalContent.replace(regex, replaceStr) : originalContent.replace(regex, replaceStr);
+                      newContent = replaceAll
+                        ? originalContent.replace(regex, replaceStr)
+                        : originalContent.replace(regex, replaceStr);
                     }
                   } else if (toolName === 'append_to_file') {
                     const content = args.content as string;
                     if (content) {
                       changeCount = 1;
-                      newContent = args.addNewline === false ? originalContent + content : originalContent + '\n' + content;
+                      newContent =
+                        args.addNewline === false ? originalContent + content : originalContent + '\n' + content;
                     }
                   }
 

@@ -3,7 +3,7 @@
  * 移动端文件页面底部操作栏
  *
  * 功能:
- * - 视图切换
+ * - 视图切换（list/grid）
  * - 排序选项
  * - 浮动操作按钮
  */
@@ -13,8 +13,6 @@ import { Button } from '@/components/ui/Button';
 import {
   Grid,
   List,
-  Columns,
-  Image as ImageIcon,
   SortAsc,
   SortDesc,
   Plus,
@@ -34,12 +32,10 @@ import type { AdvancedSearchCondition, AdvancedSearchLogic } from '@/types/files
 
 interface MobileFilesToolbarProps {
   viewMode: ViewMode;
-  galleryMode: boolean;
   hasImages: boolean;
   sortBy: SortField;
   sortOrder: 'asc' | 'desc';
   onViewModeChange: (mode: ViewMode) => void;
-  onGalleryModeChange: (mode: boolean) => void;
   onSort: (field: SortField) => void;
   onNewFile: () => void;
   onNewFolder: () => void;
@@ -50,17 +46,14 @@ interface MobileFilesToolbarProps {
 const viewModes: { mode: ViewMode; icon: typeof List; label: string }[] = [
   { mode: 'list', icon: List, label: '列表' },
   { mode: 'grid', icon: Grid, label: '网格' },
-  { mode: 'masonry', icon: Columns, label: '瀑布流' },
 ];
 
 export function MobileFilesToolbar({
   viewMode,
-  galleryMode,
   hasImages,
   sortBy,
   sortOrder,
   onViewModeChange,
-  onGalleryModeChange,
   onSort,
   onNewFile,
   onNewFolder,
@@ -78,29 +71,14 @@ export function MobileFilesToolbar({
               key={mode}
               className={cn(
                 'p-2 rounded-lg transition-colors touch-target-sm',
-                viewMode === mode && !galleryMode ? 'bg-accent text-foreground' : 'text-muted-foreground'
+                viewMode === mode ? 'bg-accent text-foreground' : 'text-muted-foreground'
               )}
-              onClick={() => {
-                onViewModeChange(mode);
-                onGalleryModeChange(false);
-              }}
+              onClick={() => onViewModeChange(mode)}
               title={label}
             >
               <Icon className="h-4 w-4" />
             </button>
           ))}
-          {hasImages && (
-            <button
-              className={cn(
-                'p-2 rounded-lg transition-colors touch-target-sm',
-                galleryMode ? 'bg-accent text-foreground' : 'text-muted-foreground'
-              )}
-              onClick={() => onGalleryModeChange(true)}
-              title="图库"
-            >
-              <ImageIcon className="h-4 w-4" />
-            </button>
-          )}
         </div>
 
         <button

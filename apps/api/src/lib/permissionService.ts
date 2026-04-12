@@ -93,8 +93,7 @@ export async function checkFilePermission(
 
   const permissionLevels = { read: 1, write: 2, admin: 3 };
   const hasAccess =
-    permissionLevels[permission.permission as keyof typeof permissionLevels] >=
-    permissionLevels[requiredPermission];
+    permissionLevels[permission.permission as keyof typeof permissionLevels] >= permissionLevels[requiredPermission];
 
   return { hasAccess, permission: permission.permission, isOwner: false };
 }
@@ -177,7 +176,9 @@ export async function setFolderAccessLevel(
   userId: string,
   folderId: string,
   input: SetFolderAccessLevelInput
-): Promise<{ success: true; message: string; folderName: string; accessLevel: string } | { success: false; error: string }> {
+): Promise<
+  { success: true; message: string; folderName: string; accessLevel: string } | { success: false; error: string }
+> {
   const db = getDb(env.DB);
   const { accessLevel } = input;
 
@@ -200,10 +201,7 @@ export async function setFolderAccessLevel(
     public_write: '所有人可读写',
   };
 
-  await db
-    .update(files)
-    .set({ updatedAt: new Date().toISOString() })
-    .where(eq(files.id, folderId));
+  await db.update(files).set({ updatedAt: new Date().toISOString() }).where(eq(files.id, folderId));
 
   logger.info('PermissionService', '设置文件夹访问级别', { folderId, folderName: folder.name, accessLevel });
 
@@ -279,7 +277,12 @@ export async function manageGroupMembers(
         createdAt: now,
       });
 
-      logger.info('PermissionService', '添加组成员', { groupId, groupName: group.name, targetUserId, role: role || 'member' });
+      logger.info('PermissionService', '添加组成员', {
+        groupId,
+        groupName: group.name,
+        targetUserId,
+        role: role || 'member',
+      });
       return {
         success: true,
         message: `已将用户添加到 "${group.name}"`,

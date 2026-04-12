@@ -127,6 +127,35 @@ export const definitions: ToolDefinition[] = [
       },
     },
   },
+
+  // ── Phase 8: 智能整理建议工具 ────────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'smart_organize_suggest',
+      description: `【智能整理建议】分析文件系统并提供整理建议。
+适用场景："帮我整理文件"、"文件太乱了"、"有什么整理建议"、"哪些文件需要重命名"、"怎么整理文件夹"
+
+四维度分析：
+1. 命名问题：检测不规范命名的文件（IMG_xxx、Screenshot、未命名等）
+2. 标签缺失：有AI摘要但无标签的文件
+3. 归类建议：根目录下的文件归类建议
+4. 结构问题：文件夹过深或子文件过多`,
+      parameters: {
+        type: 'object',
+        properties: {
+          scope: {
+            type: 'string',
+            enum: ['all', 'folder', 'untagged'],
+            description: '分析范围：all=全部, folder=指定文件夹, untagged=未打标签的文件',
+          },
+          folderId: { type: 'string', description: '文件夹ID（scope=folder时必填）' },
+          limit: { type: 'number', description: '最大扫描数量（默认200）' },
+        },
+        required: [],
+      },
+    },
+  },
 ];
 
 export class AiEnhanceTools {
@@ -283,6 +312,141 @@ export class AiEnhanceTools {
         generateSuggestionName(file.name, 'date_prefix', file.mimeType),
       ].filter(Boolean),
       _next_actions: ['选择一个建议的名称后，可调用 rename_file 执行重命名', '也可以基于这些建议自定义名称'],
+    };
+  }
+
+  // ── Phase 8: 智能整理建议执行方法 ───────────────────────
+  static async executeSmartOrganizeSuggest(env: Env, userId: string, args: Record<string, unknown>) {
+    const scope = (args.scope as string) || 'all';
+    const folderId = args.folderId as string | undefined;
+    const limit = Math.min((args.limit as number) || 200, 500);
+
+    const db = getDb(env.DB);
+
+    // 构建查询条件
+    const conditions = [isNull(files.deletedAt), eq(files.userId, userId)];
+    if (scope === 'folder' && folderId) {
+      conditions.push(eq(files.parentId, folderId));
+    }
+    if (scope === 'untagged') {
+      conditions.push(/* aiTags 为空或 NULL 的条件 */);
+    }
+
+    // 查询文件列表
+    const fileList = await db
+      .select({
+        id: files.id,
+        name: files.name,
+        mimeType: files.mimeType,
+        path: files.path,
+        parentId: files.parentId,
+        aiTags: files.aiTags,
+        aiSummary: files.aiSummary,
+        size: files.size,
+        isFolder: files.isFolder,
+        createdAt: files.createdAt,
+      })
+      .from(files)
+      .where(and(...conditions))
+      .limit(limit)
+      .all();
+
+    // ── 四维度分析 ───────────────────────────────────────
+
+    // 1. 命名问题
+    const namingPattern = /^(IMG|DSC|截图|Screenshot|未命名|Untitled|New )/i;
+    const numericPattern = /^\d+$/;
+    const namingIssues = fileList
+      .filter((f) => !f.isFolder && (namingPattern.test(f.name) || numericPattern.test(f.name.replace(/\..*$/, ''))))
+      .slice(0, 20)
+      .map((f) => ({
+        fileId: f.id,
+        currentName: f.name,
+        issue: namingPattern.test(f.name) ? '不规范命名' : '纯数字文件名',
+      }));
+
+    // 2. 标签缺失
+    const missingTags = fileList
+      .filter((f) => !f.isFolder && (!f.aiTags || f.aiTags === '[]') && f.aiSummary)
+      .slice(0, 20)
+      .map((f) => ({
+        fileId: f.id,
+        fileName: f.name,
+      }));
+
+    // 3. 归类建议（根目录文件）
+    const rootFiles = fileList.filter((f) => !f.isFolder && !f.parentId);
+    const mimeTypeGroups: Record<string, typeof rootFiles> = {};
+    rootFiles.forEach((f) => {
+      const category = f.mimeType?.split('/')[0] || 'other';
+      if (!mimeTypeGroups[category]) mimeTypeGroups[category] = [];
+      mimeTypeGroups[category].push(f);
+    });
+
+    const relocateSuggestions = Object.entries(mimeTypeGroups)
+      .filter(([, files]) => files.length > 3)
+      .slice(0, 10)
+      .flatMap(([category, files]) =>
+        files.slice(0, 3).map((f) => ({
+          fileId: f.id,
+          fileName: f.name,
+          suggestedFolderName: `${category}文件`,
+          reason: `与 ${files.length} 个同类型文件散落在根目录`,
+        }))
+      );
+
+    // 4. 结构问题
+    const structureIssues: Array<{ folderId: string; folderName: string; issue: string; suggestion: string }> = [];
+
+    // 单文件夹子文件过多
+    const folderFileCounts = new Map<string, number>();
+    fileList.filter((f) => f.isFolder).forEach((f) => folderFileCounts.set(f.id, 0));
+    fileList
+      .filter((f) => !f.isFolder && f.parentId)
+      .forEach((f) => {
+        folderFileCounts.set(f.parentId!, (folderFileCounts.get(f.parentId!) || 0) + 1);
+      });
+    folderFileCounts.forEach((count, folderId) => {
+      if (count > 100) {
+        const folder = fileList.find((f) => f.id === folderId);
+        if (folder) {
+          structureIssues.push({
+            folderId,
+            folderName: folder.name,
+            issue: `子文件数过多 (${count})`,
+            suggestion: '建议拆分为多个子文件夹',
+          });
+        }
+      }
+    });
+
+    // 路径层级过深
+    fileList
+      .filter((f) => f.path && f.path.split('/').length > 5)
+      .slice(0, 5)
+      .forEach((f) => {
+        if (!structureIssues.find((s) => s.folderId === f.id)) {
+          structureIssues.push({
+            folderId: f.id,
+            folderName: f.name,
+            issue: '路径层级过深',
+            suggestion: '建议平铺或重组目录结构',
+          });
+        }
+      });
+
+    return {
+      scannedCount: fileList.length,
+      scope,
+      namingIssues,
+      missingTags,
+      relocateSuggestions,
+      structureIssues,
+      _next_actions: [
+        '可调用 batch_rename 处理命名问题',
+        '可调用 auto_tag_files 补全标签',
+        '可调用 move_file 执行归类',
+      ],
     };
   }
 }

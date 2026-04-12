@@ -266,7 +266,10 @@ export async function moveFile(
   userId: string,
   fileId: string,
   input: MoveFileInput
-): Promise<{ success: true; message: string } | { success: false; error: string }> {
+): Promise<
+  | { success: true; message: string }
+  | { success: false; error: string; sourceBucketId?: string; targetBucketId?: string }
+> {
   const db = getDb(env.DB);
   const { targetParentId } = input;
 
@@ -283,6 +286,25 @@ export async function moveFile(
     const { hasAccess: targetAccess } = await checkFilePermission(db, targetParentId, userId, 'write', env);
     if (!targetAccess) return { success: false, error: '无权向目标目录移动文件' };
   }
+
+  // ── 跨桶移动检测 ────────────────────────────────────────────────
+  if (targetParentId) {
+    const targetFolder = await db
+      .select({ bucketId: files.bucketId })
+      .from(files)
+      .where(eq(files.id, targetParentId))
+      .get();
+
+    if (targetFolder?.bucketId && file.bucketId && targetFolder.bucketId !== file.bucketId) {
+      return {
+        success: false,
+        error: 'CROSS_BUCKET',
+        sourceBucketId: file.bucketId,
+        targetBucketId: targetFolder.bucketId,
+      };
+    }
+  }
+  // ────────────────────────────────────────────────────────────────
 
   // 文件夹循环检测
   if (file.isFolder && targetParentId) {
@@ -571,15 +593,21 @@ export async function copyFile(
   userId: string,
   fileId: string,
   input: CopyFileInput
-): Promise<{ success: true; message: string; newFileId: string; fileName: string } | { success: false; error: string }> {
+): Promise<
+  { success: true; message: string; newFileId: string; fileName: string } | { success: false; error: string }
+> {
   const db = getDb(env.DB);
   const { targetFolderId, newName } = input;
 
   const [file, targetFolder] = await Promise.all([
-    db.select().from(files)
+    db
+      .select()
+      .from(files)
       .where(and(eq(files.id, fileId), eq(files.userId, userId), isNull(files.deletedAt)))
       .get(),
-    db.select().from(files)
+    db
+      .select()
+      .from(files)
       .where(and(eq(files.id, targetFolderId), eq(files.userId, userId)))
       .get(),
   ]);
@@ -619,7 +647,11 @@ export async function copyFile(
     }
   } catch (error) {
     logger.error('FileService', '复制文件存储失败', { sourceId: fileId, newFileId }, error);
-    try { await env.FILES?.delete(newR2Key); } catch { /* ignore */ }
+    try {
+      await env.FILES?.delete(newR2Key);
+    } catch {
+      /* ignore */
+    }
     await db.delete(files).where(eq(files.id, newFileId));
     return { success: false, error: '文件复制失败: 存储服务异常' };
   }
@@ -669,11 +701,7 @@ export async function restoreFile(
   return { success: true, message: `"${file.name}" 已从回收站恢复`, fileName: file.name };
 }
 
-export async function findOrCreateFolder(
-  env: Env,
-  userId: string,
-  path: string
-): Promise<string | null> {
+export async function findOrCreateFolder(env: Env, userId: string, path: string): Promise<string | null> {
   const db = getDb(env.DB);
 
   const existing = await db
@@ -694,7 +722,9 @@ export async function findOrCreateFolder(
     const folder = await db
       .select()
       .from(files)
-      .where(and(eq(files.userId, userId), eq(files.path, currentPath), eq(files.isFolder, true), isNull(files.deletedAt)))
+      .where(
+        and(eq(files.userId, userId), eq(files.path, currentPath), eq(files.isFolder, true), isNull(files.deletedAt))
+      )
       .get();
 
     if (folder) {

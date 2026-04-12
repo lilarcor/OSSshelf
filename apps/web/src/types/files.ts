@@ -30,14 +30,6 @@ export interface ItemProps {
   onVersionHistory?: (f: FileItem) => void;
 }
 
-export interface GalleryItemProps {
-  file: FileItem;
-  token?: string;
-  onClick: () => void;
-  onDelete: () => void;
-  onContextMenu: (e: React.MouseEvent) => void;
-}
-
 export interface AdvancedSearchCondition {
   field: 'name' | 'mimeType' | 'size' | 'createdAt' | 'updatedAt' | 'tags';
   operator: 'contains' | 'equals' | 'startsWith' | 'endsWith' | 'gt' | 'gte' | 'lt' | 'lte' | 'in';
@@ -59,8 +51,10 @@ export interface FileContextMenuCallbacks {
   onFolderSettings: (file: FileItem) => void;
   onRename: (file: FileItem) => void;
   onMove: (file: FileItem) => void;
-  onCopy: (file: FileItem) => void;
-  onCut: (file: FileItem) => void;
+  /** 文件详情（功能4） */
+  onDetail?: (file: FileItem) => void;
+  /** 换桶操作（功能5） */
+  onMigrateBucket?: (file: FileItem) => void;
   onDelete: (file: FileItem) => void;
   /** 收藏/取消收藏 */
   onStar?: (file: FileItem) => void;
@@ -70,6 +64,8 @@ export interface FileContextMenuCallbacks {
   onDirectLink?: (file: FileItem) => void;
   /** 仅文件可用：版本历史 */
   onVersionHistory?: (file: FileItem) => void;
+  /** 桶数量（用于判断是否显示换桶入口） */
+  bucketsCount?: number;
 }
 
 export interface BackgroundContextMenuCallbacks {
@@ -78,7 +74,4 @@ export interface BackgroundContextMenuCallbacks {
   onUpload: () => void;
   onNewFolder: () => void;
   onNewFile?: () => void;
-  onPaste: () => void;
-  hasClipboard: boolean;
-  clipboardCount: number;
 }

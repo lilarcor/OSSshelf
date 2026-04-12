@@ -53,6 +53,7 @@ export interface AgentFile {
   isStarred: boolean;
   currentVersion: number | null;
   vectorIndexedAt: string | null;
+  _ref?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

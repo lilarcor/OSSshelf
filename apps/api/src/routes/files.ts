@@ -10,7 +10,7 @@
  */
 
 import { Hono, type Context } from 'hono';
-import { eq, and, isNull, isNotNull, like, or, inArray, sql } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, like, or, inArray, sql, count, gt } from 'drizzle-orm';
 import {
   getDb,
   files,
@@ -21,6 +21,7 @@ import {
   fileVersions,
   groupMembers,
   userStars,
+  shares,
 } from '../db';
 import { checkFilePermission } from './permissions';
 import { inheritParentPermissions } from './permissions';
@@ -1152,6 +1153,131 @@ app.get('/:id', async (c) => {
   return c.json({ success: true, data: { ...file, bucket: bucketInfo, owner: ownerInfo, isOwner } });
 });
 
+// ── File Detail (完整详情) - Phase 4 ──────────────────────────────────────
+app.get('/:id/detail', async (c) => {
+  const userId = c.get('userId')!;
+  const fileId = c.req.param('id');
+  const db = getDb(c.env.DB);
+
+  // 权限检查
+  const { hasAccess } = await checkFilePermission(db, fileId, userId, 'read', c.env);
+  if (!hasAccess) {
+    throwAppError('FILE_ACCESS_DENIED', '无权访问此文件');
+  }
+
+  const file = await db.select().from(files).where(eq(files.id, fileId)).get();
+  if (!file) throwAppError('FILE_NOT_FOUND');
+
+  // 获取桶名称
+  let bucketName: string | null = null;
+  if (file.bucketId) {
+    const b = await db
+      .select({ name: storageBuckets.name })
+      .from(storageBuckets)
+      .where(eq(storageBuckets.id, file.bucketId))
+      .get();
+    if (b) bucketName = b.name;
+  }
+
+  // 解析 AI 标签
+  let aiTagsArray: string[] = [];
+  try {
+    aiTagsArray = file.aiTags ? JSON.parse(file.aiTags as string) : [];
+  } catch (e) {
+    aiTagsArray = [];
+  }
+
+  // 活跃分享数
+  const activeShareCountResult = await db
+    .select({ count: count() })
+    .from(shares)
+    .where(and(eq(shares.fileId, fileId), or(isNull(shares.expiresAt), gt(shares.expiresAt, new Date().toISOString()))))
+    .get();
+
+  const activeShareCount = activeShareCountResult?.count ?? 0;
+
+  // 文件夹专属信息（WITH RECURSIVE）
+  let folderStats = null;
+  if (file.isFolder) {
+    // 直接子文件数和文件夹数
+    const childFiles = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.parentId, fileId), isNull(files.deletedAt), eq(files.isFolder, false)))
+      .all();
+
+    const childFolders = await db
+      .select()
+      .from(files)
+      .where(and(eq(files.parentId, fileId), isNull(files.deletedAt), eq(files.isFolder, true)))
+      .all();
+
+    // WITH RECURSIVE 递归统计所有子文件
+    const recursiveResult = await db.run(sql`
+      WITH RECURSIVE file_tree AS (
+        SELECT id, isFolder, size, parentId
+        FROM files
+        WHERE id = ${fileId} AND deletedAt IS NULL AND userId = ${userId}
+        UNION ALL
+        SELECT f.id, f.isFolder, f.size, f.parentId
+        FROM files f
+        INNER JOIN file_tree ft ON f.parentId = ft.id
+        WHERE f.deletedAt IS NULL AND f.userId = ${userId}
+      )
+      SELECT COUNT(*) as totalFileCount, COALESCE(SUM(size), 0) as totalSize
+      FROM file_tree WHERE isFolder = 0
+    `);
+
+    const recursiveStats = recursiveResult as unknown as Array<{ totalFileCount: number; totalSize: number }>;
+
+    folderStats = {
+      childFileCount: childFiles.length,
+      childFolderCount: childFolders.length,
+      totalFileCount: recursiveStats[0]?.totalFileCount ?? 0,
+      totalSize: recursiveStats[0]?.totalSize ?? 0,
+    };
+  }
+
+  return c.json({
+    success: true,
+    data: {
+      // 基础信息
+      id: file.id,
+      name: file.name,
+      path: file.path || '',
+      size: Number(file.size),
+      mimeType: file.mimeType,
+      isFolder: file.isFolder,
+      createdAt: file.createdAt,
+      updatedAt: file.updatedAt,
+      description: file.description,
+
+      // 存储信息
+      bucketId: file.bucketId,
+      bucketName,
+      r2Key: file.r2Key,
+
+      // 版本信息
+      currentVersion: file.currentVersion ?? 1,
+      maxVersions: file.maxVersions ?? 10,
+      versionRetentionDays: file.versionRetentionDays ?? 30,
+
+      // AI 信息
+      aiSummary: file.aiSummary,
+      aiTags: aiTagsArray,
+      vectorIndexedAt: file.vectorIndexedAt,
+      aiSummaryAt: file.aiSummaryAt,
+      aiTagsAt: file.aiTagsAt,
+
+      // 分享状态
+      activeShareCount,
+
+      // 文件夹专属
+      ...folderStats,
+    },
+  });
+});
+
 // ── Update (rename / move) ───────────────────────────────────────────────
 app.put('/:id', async (c) => {
   const userId = c.get('userId')!;
@@ -1177,13 +1303,16 @@ app.put('/:id', async (c) => {
     const moveResult = await serviceMoveFile(c.env, userId, fileId, { targetParentId: parentId });
     if (!moveResult.success) {
       const errorMap: Record<string, string> = {
-        '目标位置已存在同名文件': 'FILE_NAME_CONFLICT',
-        '不能将文件夹移动到自身或其子文件夹中': 'CANNOT_MOVE_TO_SUBFOLDER',
-        '无权向目标目录移动文件': 'FORBIDDEN',
+        目标位置已存在同名文件: 'FILE_NAME_CONFLICT',
+        不能将文件夹移动到自身或其子文件夹中: 'CANNOT_MOVE_TO_SUBFOLDER',
+        无权向目标目录移动文件: 'FORBIDDEN',
       };
       const errorCode = errorMap[moveResult.error] ?? 'VALIDATION_ERROR';
       return c.json(
-        { success: false, error: { code: ERROR_CODES[errorCode as keyof typeof ERROR_CODES] || errorCode, message: moveResult.error } },
+        {
+          success: false,
+          error: { code: ERROR_CODES[errorCode as keyof typeof ERROR_CODES] || errorCode, message: moveResult.error },
+        },
         errorCode === 'FORBIDDEN' ? 403 : errorCode === 'FILE_NAME_CONFLICT' ? 409 : 400
       );
     }
@@ -1471,15 +1600,35 @@ app.post('/:id/move', async (c) => {
   const moveResult = await serviceMoveFile(c.env, userId, fileId, { targetParentId });
 
   if (!moveResult.success) {
+    // ── 跨桶移动特殊处理 ──────────────────────────────────────
+    if (moveResult.error === 'CROSS_BUCKET') {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'CROSS_BUCKET',
+            message: '目标文件夹位于不同存储桶，需要迁移文件内容',
+            sourceBucketId: moveResult.sourceBucketId,
+            targetBucketId: moveResult.targetBucketId,
+          },
+        },
+        409
+      );
+    }
+    // ─────────────────────────────────────────────────────────
+
     const errorMap: Record<string, string> = {
-      '文件不存在或无权访问': 'FILE_NOT_FOUND',
-      '目标位置已存在同名文件': 'FILE_NAME_CONFLICT',
-      '不能将文件夹移动到自身或其子文件夹中': 'CANNOT_MOVE_TO_SUBFOLDER',
-      '无权向目标目录移动文件': 'FORBIDDEN',
+      文件不存在或无权访问: 'FILE_NOT_FOUND',
+      目标位置已存在同名文件: 'FILE_NAME_CONFLICT',
+      不能将文件夹移动到自身或其子文件夹中: 'CANNOT_MOVE_TO_SUBFOLDER',
+      无权向目标目录移动文件: 'FORBIDDEN',
     };
     const errorCode = errorMap[moveResult.error] ?? 'VALIDATION_ERROR';
     return c.json(
-      { success: false, error: { code: ERROR_CODES[errorCode as keyof typeof ERROR_CODES] || errorCode, message: moveResult.error } },
+      {
+        success: false,
+        error: { code: ERROR_CODES[errorCode as keyof typeof ERROR_CODES] || errorCode, message: moveResult.error },
+      },
       errorCode === 'FORBIDDEN' ? 403 : errorCode === 'FILE_NAME_CONFLICT' ? 409 : 400
     );
   }

@@ -12,15 +12,11 @@ import type { FileItem } from '@osshelf/shared';
 import type { ViewMode } from '@/stores/files';
 import { ListItem } from './items';
 import { GridItem } from './items';
-import { MasonryItem } from './items';
-import { GalleryItem } from './items';
 import { decodeFileName } from '@/utils';
 
 interface FileListContainerProps {
   viewMode: ViewMode;
-  galleryMode: boolean;
   displayFiles: FileItem[];
-  imageFiles: FileItem[];
   isLoading: boolean;
   searchQuery: string;
   selectedFiles: string[];
@@ -43,9 +39,7 @@ interface FileListContainerProps {
 
 export function FileListContainer({
   viewMode,
-  galleryMode,
   displayFiles,
-  imageFiles,
   isLoading,
   searchQuery,
   selectedFiles,
@@ -65,8 +59,6 @@ export function FileListContainer({
   onDirectLink,
   onVersionHistory,
 }: FileListContainerProps) {
-  const hasImages = imageFiles.length > 0;
-
   if (isLoading) {
     return <div className="text-center py-16 text-muted-foreground">加载中...</div>;
   }
@@ -77,23 +69,6 @@ export function FileListContainer({
         <div className="text-6xl opacity-20">📂</div>
         <p className="font-medium">{searchQuery ? `没有找到 "${searchQuery}"` : '暂无文件'}</p>
         <p className="text-sm">{searchQuery ? '换个关键词试试' : '拖放文件或整个文件夹到这里上传'}</p>
-      </div>
-    );
-  }
-
-  if (galleryMode && hasImages) {
-    return (
-      <div className="masonry-grid">
-        {imageFiles.map((file) => (
-          <GalleryItem
-            key={file.id}
-            file={file}
-            token={token}
-            onClick={() => onPreview(file)}
-            onDelete={() => confirm(`删除 "${decodeFileName(file.name)}"？`) && onDelete(file)}
-            onContextMenu={(e) => onContextMenu(e, file)}
-          />
-        ))}
       </div>
     );
   }
@@ -126,39 +101,10 @@ export function FileListContainer({
     );
   }
 
-  if (viewMode === 'grid') {
-    return (
-      <div className="file-grid" onContextMenu={(e) => onContextMenu(e)}>
-        {displayFiles.map((file) => (
-          <GridItem
-            key={file.id}
-            file={file}
-            token={token}
-            isSelected={selectedFiles.includes(file.id)}
-            tags={fileTagsMap[file.id]}
-            onClick={onFileClick}
-            onToggleSelect={onToggleSelect}
-            onDownload={onDownload}
-            onShare={onShare}
-            onDelete={(f) => confirm(`将 "${decodeFileName(f.name)}" 移入回收站？`) && onDelete(f)}
-            onRename={onRename}
-            onPreview={onPreview}
-            onMove={onMove}
-            onContextMenu={onContextMenu}
-            onTagClick={onTagClick}
-            onUploadLink={onUploadLink}
-            onDirectLink={onDirectLink}
-            onVersionHistory={onVersionHistory}
-          />
-        ))}
-      </div>
-    );
-  }
-
   return (
-    <div className="masonry-grid" onContextMenu={(e) => onContextMenu(e)}>
+    <div className="file-grid" onContextMenu={(e) => onContextMenu(e)}>
       {displayFiles.map((file) => (
-        <MasonryItem
+        <GridItem
           key={file.id}
           file={file}
           token={token}
@@ -176,6 +122,7 @@ export function FileListContainer({
           onTagClick={onTagClick}
           onUploadLink={onUploadLink}
           onDirectLink={onDirectLink}
+          onVersionHistory={onVersionHistory}
         />
       ))}
     </div>

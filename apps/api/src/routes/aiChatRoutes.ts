@@ -215,7 +215,8 @@ app.post('/chat', async (c) => {
     );
   }
 
-  const { query, sessionId, modelId, maxFiles, includeFileContent, stream, contextFolderId, contextFileIds } = result.data;
+  const { query, sessionId, modelId, maxFiles, includeFileContent, stream, contextFolderId, contextFileIds } =
+    result.data;
 
   if (stream) {
     return handleStreamChat(c, userId, query, sessionId, modelId, contextFolderId, contextFileIds);
@@ -632,12 +633,15 @@ async function handleStreamChat(
           });
 
           if (actualSessionId && agentResult?.meta) {
-            await db.update(aiChatSessions).set({
-              modelId: agentResult.meta.modelId || modelId || null,
-              lastToolCallCount: agentResult.meta.toolCallCount,
-              totalTokensUsed: sql`total_tokens_used + ${agentResult.meta.inputTokens + agentResult.meta.outputTokens}`,
-              updatedAt: new Date().toISOString(),
-            }).where(eq(aiChatSessions.id, actualSessionId));
+            await db
+              .update(aiChatSessions)
+              .set({
+                modelId: agentResult.meta.modelId || modelId || null,
+                lastToolCallCount: agentResult.meta.toolCallCount,
+                totalTokensUsed: sql`total_tokens_used + ${agentResult.meta.inputTokens + agentResult.meta.outputTokens}`,
+                updatedAt: new Date().toISOString(),
+              })
+              .where(eq(aiChatSessions.id, actualSessionId));
           }
         } catch (error) {
           logger.error('AI Agent', 'Failed to save message', { userId }, error);

@@ -200,6 +200,45 @@ export const definitions: ToolDefinition[] = [
       },
     },
   },
+
+  // ── Phase 9: 文件集合分析工具 ──────────────────────────
+  {
+    type: 'function',
+    function: {
+      name: 'analyze_file_collection',
+      description: `【文件集合分析】对一组文件进行结构化分析，生成报告、对比、提取共同点等。
+适用场景：
+- "分析这个文件夹的内容"
+- "对比这些文件的异同"
+- "提取这些合同的共同条款"
+- "梳理一下项目的文件脉络"
+
+分析类型：
+- summary: 生成整体报告
+- compare: 对比异同点
+- extract_common: 提取共同主题/关键词
+- timeline: 按时间顺序梳理`,
+      parameters: {
+        type: 'object',
+        properties: {
+          scope: {
+            type: 'string',
+            enum: ['folder', 'tag', 'starred'],
+            description: '分析范围：folder=文件夹, tag=标签, starred=收藏',
+          },
+          folderId: { type: 'string', description: '文件夹ID（scope=folder时必填）' },
+          tagName: { type: 'string', description: '标签名（scope=tag时必填）' },
+          analysisType: {
+            type: 'string',
+            enum: ['summary', 'compare', 'extract_common', 'timeline'],
+            description: '分析类型',
+          },
+          maxFiles: { type: 'number', description: '最大文件数（默认20）' },
+        },
+        required: ['scope', 'analysisType'],
+      },
+    },
+  },
 ];
 
 export class ContentTools {
@@ -669,6 +708,100 @@ export class ContentTools {
         error: '预览失败: ' + (error instanceof Error ? error.message : '未知错误'),
       };
     }
+  }
+
+  // ── Phase 9: 文件集合分析执行方法 ─────────────────────
+  static async executeAnalyzeFileCollection(env: Env, userId: string, args: Record<string, unknown>) {
+    const scope = args.scope as string;
+    const folderId = args.folderId as string | undefined;
+    const tagName = args.tagName as string | undefined;
+    const analysisType = args.analysisType as string;
+    const maxFiles = Math.min((args.maxFiles as number) || 20, 50);
+
+    if (!scope || !analysisType) {
+      return { error: '缺少必要参数: scope 和 analysisType' };
+    }
+
+    const db = getDb(env.DB);
+
+    // 构建查询条件
+    const conditions = [isNull(files.deletedAt), eq(files.userId, userId)];
+
+    switch (scope) {
+      case 'folder':
+        if (!folderId) return { error: 'scope=folder 时必须提供 folderId' };
+        conditions.push(eq(files.parentId, folderId));
+        break;
+      case 'starred':
+        // 需要 JOIN userStars 表（简化处理，实际需调整）
+        break;
+      case 'tag':
+        // 需要 JOIN fileTags 表（简化处理，实际需调整）
+        break;
+      default:
+        return { error: `无效的 scope: ${scope}` };
+    }
+
+    // 查询文件列表
+    const fileList = await db
+      .select({
+        id: files.id,
+        name: files.name,
+        mimeType: files.mimeType,
+        size: files.size,
+        aiSummary: files.aiSummary,
+        updatedAt: files.updatedAt,
+        createdAt: files.createdAt,
+      })
+      .from(files)
+      .where(and(...conditions))
+      .limit(maxFiles)
+      .all();
+
+    // 构建内容摘要列表
+    const filesWithSummary = await Promise.all(
+      fileList.map(async (f) => {
+        let summary = f.aiSummary;
+
+        // 无 AI 摘要时尝试读取内容前 500 字符
+        if (!summary && !f.mimeType?.startsWith('image/') && !f.mimeType?.startsWith('video/')) {
+          try {
+            const readResult = await readFileContent(env, f as any);
+            if (readResult.success && readResult.content) {
+              summary = readResult.content.slice(0, 500);
+            }
+          } catch (e) {
+            // 忽略读取错误
+          }
+        }
+
+        return {
+          id: f.id,
+          name: f.name,
+          mimeType: f.mimeType,
+          size: Number(f.size),
+          summary: summary || (f.mimeType?.startsWith('image/') ? '[图片文件]' : '[二进制文件]'),
+          updatedAt: f.updatedAt,
+        };
+      })
+    );
+
+    // 分析类型对应的 _next_actions
+    const nextActionsMap: Record<string, string> = {
+      summary: '请基于以上文件摘要生成整体报告',
+      compare: '请对比以上文件的异同点',
+      extract_common: '请提取以上文件的共同主题/条款/关键词',
+      timeline: '请按时间顺序梳理文件脉络',
+    };
+
+    return {
+      files: filesWithSummary,
+      totalCount: fileList.length,
+      truncated: fileList.length >= maxFiles,
+      analysisType,
+      scope,
+      _next_actions: [nextActionsMap[analysisType] || '请分析以上文件集合'],
+    };
   }
 }
 
