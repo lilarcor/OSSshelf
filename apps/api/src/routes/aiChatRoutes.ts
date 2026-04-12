@@ -192,7 +192,7 @@ app.delete('/sessions/:sessionId', async (c) => {
 });
 
 const chatSchema = z.object({
-  query: z.string().min(1).max(2000),
+  query: z.string().min(1).max(15000),
   sessionId: z.string().optional(),
   modelId: z.string().optional(),
   maxFiles: z.number().int().min(1).max(10).default(5),
