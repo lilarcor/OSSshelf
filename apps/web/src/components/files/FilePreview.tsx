@@ -103,6 +103,7 @@ export function FilePreview({ file, token, onClose, onDownload, onShare, onEdit,
   // 移动端全屏时底部操作栏显示状态（Phase 3）
   const [showMobileBar, setShowMobileBar] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   // 移动端全屏判断（Phase 3）
   const isMobileFullscreen = windowSize === 'fullscreen' && typeof window !== 'undefined' && window.innerWidth < 768;
@@ -309,14 +310,22 @@ export function FilePreview({ file, token, onClose, onDownload, onShare, onEdit,
   }, []);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+    window.addEventListener('keydown', handleKeyDown);
+
+    if (isMobile && file) {
+      document.body.classList.add('preview-fullscreen');
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.classList.remove('preview-fullscreen');
+    };
+  }, [onClose, isMobile, file]);
 
   const sizeConfig = WINDOW_SIZE_CONFIG[windowSize];
   const showZoomControls = isText || isMarkdown || isExcel || isWord || isCsv || isFont || isEpub || isPpt;

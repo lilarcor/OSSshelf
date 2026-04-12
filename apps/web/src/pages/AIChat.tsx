@@ -31,6 +31,9 @@ import {
   X,
   AlertTriangle,
   ExternalLink,
+  Clock,
+  Lightbulb,
+  FilePlus,
 } from 'lucide-react';
 import { aiApi, filesApi, type AiChatMessage } from '@/services/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -74,6 +77,8 @@ const TOOL_META: Record<string, { label: string; icon: React.ReactNode; category
   generate_summary: { label: '生成摘要', icon: <Sparkles className="h-3 w-3" />, category: '内容理解' },
   generate_tags: { label: '生成标签', icon: <Tag className="h-3 w-3" />, category: '内容理解' },
   content_preview: { label: '内容预览', icon: <Code className="h-3 w-3" />, category: '内容理解' },
+  smart_organize_suggest: { label: '智能整理建议', icon: <Lightbulb className="h-3 w-3" />, category: 'AI增强' },
+  analyze_file_collection: { label: '文件集合分析', icon: <Sparkles className="h-3 w-3" />, category: 'AI增强' },
 
   // 目录导航
   list_folder: { label: '浏览文件夹', icon: <FileText className="h-3 w-3" />, category: '目录导航' },
@@ -102,6 +107,7 @@ const TOOL_META: Record<string, { label: string; icon: React.ReactNode; category
   delete_file: { label: '删除文件', icon: <FileText className="h-3 w-3" />, category: '文件操作' },
   restore_file: { label: '恢复文件', icon: <RefreshCw className="h-3 w-3" />, category: '文件操作' },
   create_folder: { label: '创建文件夹', icon: <FileText className="h-3 w-3" />, category: '文件操作' },
+  draft_and_create_file: { label: '草稿创建文件', icon: <FilePlus className="h-3 w-3" />, category: '文件操作' },
   batch_rename: { label: '批量重命名', icon: <Code className="h-3 w-3" />, category: '文件操作' },
   star_file: { label: '收藏文件', icon: <Sparkles className="h-3 w-3" />, category: '文件操作' },
   unstar_file: { label: '取消收藏', icon: <Sparkles className="h-3 w-3" />, category: '文件操作' },
@@ -149,6 +155,7 @@ const TOOL_META: Record<string, { label: string; icon: React.ReactNode; category
   set_folder_access_level: { label: '设置访问级别', icon: <Code className="h-3 w-3" />, category: '权限管理' },
   list_user_groups: { label: '用户组列表', icon: <Code className="h-3 w-3" />, category: '权限管理' },
   manage_group_members: { label: '管理组成员', icon: <Code className="h-3 w-3" />, category: '权限管理' },
+  list_expired_permissions: { label: '过期权限列表', icon: <Clock className="h-3 w-3" />, category: '权限管理' },
 
   // 存储管理
   list_buckets: { label: '列出存储桶', icon: <Download className="h-3 w-3" />, category: '存储管理' },

@@ -12,9 +12,10 @@ import { useState, useEffect } from 'react';
 import type { FileItem } from '@osshelf/shared';
 import { MobileDialog } from '@/components/ui/MobileDialog';
 import { Button } from '@/components/ui/Button';
-import { Copy, Check, Folder, FileText, Tag, Brain, Share2, HardDrive, Clock, Hash, Info } from 'lucide-react';
+import { Copy, Check, Folder, FileText, Tag, Brain, Share2, HardDrive, Clock, Hash, Info, Database, ArrowRightLeft } from 'lucide-react';
 import { formatBytes, formatDate, decodeFileName } from '@/utils';
-import { filesApi } from '@/services/api';
+import { filesApi, bucketsApi } from '@/services/api';
+import { useQuery } from '@tanstack/react-query';
 
 interface FileDetailPanelProps {
   file: FileItem;
@@ -53,6 +54,19 @@ export function FileDetailPanel({ file, onClose }: FileDetailPanelProps) {
   const [detail, setDetail] = useState<FileDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [changingBucket, setChangingBucket] = useState(false);
+  const [selectedBucketId, setSelectedBucketId] = useState<string | null>(null);
+
+  const { data: bucketsData } = useQuery({
+    queryKey: ['buckets-for-change'],
+    queryFn: async () => {
+      try {
+        const res = await bucketsApi.list();
+        return (res.data?.data as Array<{ id: string; name: string }>) || [];
+      } catch { return []; }
+    },
+    enabled: file.isFolder,
+  });
 
   useEffect(() => {
     loadDetail();
@@ -75,7 +89,23 @@ export function FileDetailPanel({ file, onClose }: FileDetailPanelProps) {
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
     setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 2000);
+    setTimeout(() => setCopiedField(null), 1500);
+  };
+
+  const handleChangeBucket = async (targetBucketId: string) => {
+    if (!detail) return;
+    setChangingBucket(true);
+    try {
+      const res = await filesApi.changeFolderBucket(detail.id, targetBucketId);
+      if (res.data.success) {
+        loadDetail();
+        setSelectedBucketId(null);
+      }
+    } catch (error) {
+      console.error('更改存储桶失败:', error);
+    } finally {
+      setChangingBucket(false);
+    }
   };
 
   return (
@@ -85,7 +115,7 @@ export function FileDetailPanel({ file, onClose }: FileDetailPanelProps) {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
       ) : detail ? (
-        <div className="space-y-6 mt-4">
+        <div className="space-y-6 mt-4 overflow-y-auto max-h-[calc(80vh-8rem)] pr-1">
           {/* 基础信息 */}
           <section>
             <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
@@ -123,7 +153,54 @@ export function FileDetailPanel({ file, onClose }: FileDetailPanelProps) {
               存储信息
             </h3>
             <div className="space-y-2 text-sm bg-muted/30 rounded-lg p-3">
-              <DetailRow label="存储桶" value={detail.bucketName || '-'} />
+              <div className="flex justify-between items-center py-1">
+                <span className="text-muted-foreground">存储桶</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-medium text-xs">{detail.bucketName || '-'}</span>
+                  {detail.isFolder && bucketsData && bucketsData.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 flex-shrink-0"
+                      onClick={() => setSelectedBucketId(selectedBucketId === detail.bucketId ? null : detail.bucketId)}
+                      title="更改存储桶"
+                    >
+                      <ArrowRightLeft className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* 更改存储桶选择器 */}
+              {detail.isFolder && selectedBucketId !== null && bucketsData && bucketsData.length > 1 && (
+                <div className="pt-2 border-t space-y-2">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Database className="h-3 w-3" />
+                    选择新存储桶（子文件夹将级联更新）
+                  </p>
+                  <select
+                    className="w-full h-8 px-2 text-xs border rounded-lg bg-background"
+                    defaultValue=""
+                    onChange={(e) => {
+                      if (e.target.value) handleChangeBucket(e.target.value);
+                    }}
+                  >
+                    <option value="" disabled>请选择目标存储桶...</option>
+                    {bucketsData
+                      .filter((b) => b.id !== detail.bucketId)
+                      .map((b) => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))
+                    }
+                  </select>
+                  {changingBucket && (
+                    <div className="flex items-center gap-1.5 text-xs text-primary">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b border-primary" />
+                      正在更新...
+                    </div>
+                  )}
+                </div>
+              )}
               {detail.r2Key && (
                 <div className="flex justify-between items-center py-1">
                   <span className="text-muted-foreground">R2 Key</span>

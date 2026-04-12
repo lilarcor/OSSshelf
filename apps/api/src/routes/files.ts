@@ -42,6 +42,7 @@ import { s3Put, s3Get, s3Delete, decryptSecret } from '../lib/s3client';
 import { resolveBucketConfig, updateBucketStats, updateUserStorage, checkBucketQuota } from '../lib/bucketResolver';
 import { checkFolderMimeTypeRestriction } from '../lib/folderPolicy';
 import { getEncryptionKey } from '../lib/crypto';
+import { createAuditLog, getClientIp, getUserAgent } from '../lib/audit';
 import {
   tgUploadFile,
   tgDownloadFile,
@@ -1213,28 +1214,38 @@ app.get('/:id/detail', async (c) => {
       .all();
 
     // WITH RECURSIVE 递归统计所有子文件
-    const recursiveResult = await db.run(sql`
-      WITH RECURSIVE file_tree AS (
-        SELECT id, isFolder, size, parentId
-        FROM files
-        WHERE id = ${fileId} AND deletedAt IS NULL AND userId = ${userId}
-        UNION ALL
-        SELECT f.id, f.isFolder, f.size, f.parentId
-        FROM files f
-        INNER JOIN file_tree ft ON f.parentId = ft.id
-        WHERE f.deletedAt IS NULL AND f.userId = ${userId}
-      )
-      SELECT COUNT(*) as totalFileCount, COALESCE(SUM(size), 0) as totalSize
-      FROM file_tree WHERE isFolder = 0
-    `);
+    let totalFileCount = childFiles.length;
+    let totalSize = childFiles.reduce((sum, f) => sum + Number(f.size || 0), 0);
+    try {
+      const recursiveResult = await db.run(sql`
+        WITH RECURSIVE file_tree AS (
+          SELECT id, isFolder, size, parentId
+          FROM files
+          WHERE id = ${fileId} AND deletedAt IS NULL AND userId = ${userId}
+          UNION ALL
+          SELECT f.id, f.isFolder, f.size, f.parentId
+          FROM files f
+          INNER JOIN file_tree ft ON f.parentId = ft.id
+          WHERE f.deletedAt IS NULL AND f.userId = ${userId}
+        )
+        SELECT COUNT(*) as totalFileCount, COALESCE(SUM(size), 0) as totalSize
+        FROM file_tree WHERE isFolder = 0
+      `);
 
-    const recursiveStats = recursiveResult as unknown as Array<{ totalFileCount: number; totalSize: number }>;
+      const recursiveStats = recursiveResult as unknown as Array<{ totalFileCount: number; totalSize: number }>;
+      if (recursiveStats && recursiveStats.length > 0) {
+        totalFileCount = recursiveStats[0].totalFileCount ?? totalFileCount;
+        totalSize = recursiveStats[0].totalSize ?? totalSize;
+      }
+    } catch (e) {
+      // WITH RECURSIVE 可能失败，使用直接子文件统计作为降级
+    }
 
     folderStats = {
       childFileCount: childFiles.length,
       childFolderCount: childFolders.length,
-      totalFileCount: recursiveStats[0]?.totalFileCount ?? 0,
-      totalSize: recursiveStats[0]?.totalSize ?? 0,
+      totalFileCount,
+      totalSize,
     };
   }
 
@@ -1784,6 +1795,82 @@ app.post('/:id/star', async (c) => {
   });
 
   return c.json({ success: true, data: { message: '已收藏', isStarred: true } });
+});
+
+// ── 更改文件夹存储桶（级联子文件夹）────────────────────────────────────────
+app.put('/:id/bucket', async (c) => {
+  const userId = c.get('userId')!;
+  const folderId = c.req.param('id');
+  const db = getDb(c.env.DB);
+  const body = await c.req.json();
+
+  const targetBucketId = body?.bucketId as string | undefined;
+  if (!targetBucketId) {
+    return c.json({ success: false, error: { code: 'VALIDATION_ERROR', message: '缺少 targetBucketId' } }, 400);
+  }
+
+  // 验证文件夹存在且是文件夹
+  const folder = await db
+    .select()
+    .from(files)
+    .where(and(eq(files.id, folderId), eq(files.userId, userId), eq(files.isFolder, true), isNull(files.deletedAt)))
+    .get();
+  if (!folder) {
+    throwAppError('FILE_NOT_FOUND', '文件夹不存在');
+  }
+  if (folder.bucketId === targetBucketId) {
+    return c.json({ success: true, data: { message: '已是目标存储桶，无需更改', updatedCount: 0 } });
+  }
+
+  // 验证目标桶存在
+  const targetBucket = await db
+    .select()
+    .from(storageBuckets)
+    .where(and(eq(storageBuckets.id, targetBucketId), eq(storageBuckets.userId, userId)))
+    .get();
+  if (!targetBucket) {
+    return c.json({ success: false, error: { code: 'BUCKET_NOT_FOUND', message: '目标存储桶不存在' } }, 404);
+  }
+
+  const now = new Date().toISOString();
+  let updatedCount = 0;
+
+  // 递归收集所有子文件夹 ID（含自身）
+  async function collectSubfolderIds(parentId: string): Promise<string[]> {
+    const collected = [parentId];
+    const children = await db
+      .select({ id: files.id })
+      .from(files)
+      .where(and(eq(files.parentId, parentId), eq(files.isFolder, true), eq(files.userId, userId), isNull(files.deletedAt)))
+      .all();
+    for (const child of children) {
+      collected.push(...(await collectSubfolderIds(child.id)));
+    }
+    return collected;
+  }
+
+  const allFolderIds = await collectSubfolderIds(folderId);
+
+  // 批量更新所有子文件夹的 bucketId
+  for (const fid of allFolderIds) {
+    await db.update(files).set({ bucketId: targetBucketId, updatedAt: now }).where(eq(files.id, fid));
+    updatedCount++;
+  }
+
+  createAuditLog({
+    env: c.env,
+    userId,
+    action: 'file.update',
+    resourceType: 'folder',
+    details: { action: 'change_bucket', folderId, oldBucketId: folder.bucketId, newBucketId: targetBucketId, updatedFolderCount: updatedCount },
+    ipAddress: getClientIp(c),
+    userAgent: getUserAgent(c),
+  });
+
+  return c.json({
+    success: true,
+    data: { message: `已将 ${updatedCount} 个文件夹的存储桶更改为 ${targetBucket.name}`, updatedCount },
+  });
 });
 
 app.delete('/:id/star', async (c) => {

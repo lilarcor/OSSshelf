@@ -80,6 +80,7 @@ export function FileListContainer({
           <ListItem
             key={file.id}
             file={file}
+            token={token}
             isSelected={selectedFiles.includes(file.id)}
             tags={fileTagsMap[file.id]}
             onClick={onFileClick}
