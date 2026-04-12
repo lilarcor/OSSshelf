@@ -88,15 +88,18 @@ interface FilePreviewProps {
 }
 
 export function FilePreview({ file, token, onClose, onDownload, onShare, onEdit, onVersionHistory }: FilePreviewProps) {
+  // isMobile 必须最先声明，其内部通过 window.matchMedia 同步读取，后续 state 初始值依赖它
+  const isMobile = useIsMobile();
+
   const [textContent, setTextContent] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [previewInfo, setPreviewInfo] = useState<PreviewInfo | null>(null);
   const [zoomLevel, setZoomLevel] = useState(() =>
-    typeof window !== 'undefined' && window.innerWidth < 768 ? 75 : 100
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches ? 75 : 100
   );
   const [windowSize, setWindowSize] = useState<WindowSize>(() =>
-    typeof window !== 'undefined' && window.innerWidth < 768 ? 'fullscreen' : 'medium'
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches ? 'fullscreen' : 'medium'
   );
   const [showNotes, setShowNotes] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
@@ -105,10 +108,9 @@ export function FilePreview({ file, token, onClose, onDownload, onShare, onEdit,
   // 移动端全屏时底部操作栏显示状态（Phase 3）
   const [showMobileBar, setShowMobileBar] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const isMobile = useIsMobile();
 
   // 移动端全屏判断（Phase 3）
-  const isMobileFullscreen = windowSize === 'fullscreen' && typeof window !== 'undefined' && window.innerWidth < 768;
+  const isMobileFullscreen = windowSize === 'fullscreen' && isMobile;
   const toggleMobileBar = useCallback(() => {
     setShowMobileBar((prev) => !prev);
   }, []);

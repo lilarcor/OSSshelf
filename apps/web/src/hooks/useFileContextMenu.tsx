@@ -33,6 +33,7 @@ import {
   Star,
   Info,
   Database,
+  HardDrive,
 } from 'lucide-react';
 
 export function useFileContextMenu() {
@@ -133,6 +134,13 @@ export function useFileContextMenu() {
           icon: <Database className="h-4 w-4" />,
           action: () => callbacks.onMigrateBucket?.(file),
           disabled: (callbacks as any).bucketsCount <= 1,
+        },
+        {
+          id: 'change-folder-bucket',
+          label: '改默认桶',
+          icon: <HardDrive className="h-4 w-4" />,
+          action: () => callbacks.onChangeFolderBucket?.(file),
+          disabled: !file.isFolder || (callbacks as any).bucketsCount <= 1,
         },
         { id: 'divider3', label: '', divider: true },
         {

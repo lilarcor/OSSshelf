@@ -53,8 +53,10 @@ export interface FileContextMenuCallbacks {
   onMove: (file: FileItem) => void;
   /** 文件详情（功能4） */
   onDetail?: (file: FileItem) => void;
-  /** 换桶操作（功能5） */
+  /** 换桶操作（功能5）— 迁移实体文件 */
   onMigrateBucket?: (file: FileItem) => void;
+  /** 仅文件夹：修改文件夹默认存储桶（不迁移文件） */
+  onChangeFolderBucket?: (file: FileItem) => void;
   onDelete: (file: FileItem) => void;
   /** 收藏/取消收藏 */
   onStar?: (file: FileItem) => void;

@@ -493,6 +493,10 @@ export default function Files() {
 
   // ── 换桶对话框状态（功能5）────────────────────────────────────────
   const [migrateBucketFile, setMigrateBucketFile] = useState<FileItem | null>(null);
+  // ── 改默认桶对话框状态────────────────────────────────────────────
+  const [changeFolderBucketFile, setChangeFolderBucketFile] = useState<FileItem | null>(null);
+  const [changeFolderBucketTargetId, setChangeFolderBucketTargetId] = useState('');
+  const [changingFolderBucket, setChangingFolderBucket] = useState(false);
 
   const handleBatchDelete = useCallback(() => {
     if (!selectedFiles.length) return;
@@ -536,6 +540,10 @@ export default function Files() {
     onMove: (file: FileItem) => setMoveFile(file),
     onDetail: (file: FileItem) => setDetailFile(file),
     onMigrateBucket: (file: FileItem) => setMigrateBucketFile(file),
+    onChangeFolderBucket: (file: FileItem) => {
+      setChangeFolderBucketTargetId('');
+      setChangeFolderBucketFile(file);
+    },
     onDelete: (file: FileItem) => {
       if (confirm(`将 "${decodeFileName(file.name)}" 移入回收站？`)) {
         deleteMutation.mutate(file.id);
@@ -1371,6 +1379,63 @@ export default function Files() {
 
       {/* 换桶对话框（功能5）- Phase 5 实现 */}
       {migrateBucketFile && <MigrateBucketDialog file={migrateBucketFile} onClose={() => setMigrateBucketFile(null)} />}
+
+      {/* 改默认桶对话框 — 仅修改文件夹的 bucketId，不迁移实体文件 */}
+      {changeFolderBucketFile && (
+        <MobileDialog
+          open={!!changeFolderBucketFile}
+          onClose={() => setChangeFolderBucketFile(null)}
+          title="改默认桶"
+          mode="sheet"
+          className="sm:max-w-sm"
+        >
+          <div className="space-y-4 mt-2">
+            <p className="text-sm text-muted-foreground">
+              修改文件夹 <span className="font-medium text-foreground">「{decodeFileName(changeFolderBucketFile.name)}」</span> 的默认存储桶。
+              新上传到此文件夹的文件将使用新桶，<span className="font-medium">已有文件不会移动</span>。
+            </p>
+            <select
+              className="w-full h-9 px-3 text-sm border rounded-lg bg-background"
+              value={changeFolderBucketTargetId}
+              onChange={(e) => setChangeFolderBucketTargetId(e.target.value)}
+            >
+              <option value="">请选择目标存储桶...</option>
+              {allBuckets
+                .filter((b) => b.id !== (changeFolderBucketFile as any).bucketId)
+                .map((b) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+            </select>
+          </div>
+          <MobileDialogFooter>
+            <MobileDialogAction variant="default" onClick={() => setChangeFolderBucketFile(null)}>
+              取消
+            </MobileDialogAction>
+            <MobileDialogAction
+              variant="primary"
+              disabled={!changeFolderBucketTargetId || changingFolderBucket}
+              onClick={async () => {
+                if (!changeFolderBucketTargetId) return;
+                setChangingFolderBucket(true);
+                try {
+                  const res = await filesApi.changeFolderBucket(changeFolderBucketFile.id, changeFolderBucketTargetId);
+                  if (res.data.success) {
+                    toast({ title: '默认桶已更新', description: res.data.data?.message });
+                    queryClient.invalidateQueries({ queryKey: ['files'] });
+                    setChangeFolderBucketFile(null);
+                  }
+                } catch {
+                  toast({ title: '更新失败', variant: 'destructive' });
+                } finally {
+                  setChangingFolderBucket(false);
+                }
+              }}
+            >
+              {changingFolderBucket ? '更新中...' : '确认'}
+            </MobileDialogAction>
+          </MobileDialogFooter>
+        </MobileDialog>
+      )}
 
       {/* 跨桶移动确认对话框（功能1）*/}
       {crossBucketMove && (
