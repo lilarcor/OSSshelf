@@ -157,7 +157,7 @@ export function FileDetailPanel({ file, onClose }: FileDetailPanelProps) {
                 <span className="text-muted-foreground">存储桶</span>
                 <div className="flex items-center gap-1.5">
                   <span className="font-medium text-xs">{detail.bucketName || '-'}</span>
-                  {detail.isFolder && bucketsData && bucketsData.length > 1 && (
+                  {detail.isFolder && bucketsData && bucketsData.length >= 1 && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -172,27 +172,31 @@ export function FileDetailPanel({ file, onClose }: FileDetailPanelProps) {
               </div>
 
               {/* 更改存储桶选择器 */}
-              {detail.isFolder && selectedBucketId !== null && bucketsData && bucketsData.length > 1 && (
+              {detail.isFolder && selectedBucketId !== null && bucketsData && bucketsData.length >= 1 && (
                 <div className="pt-2 border-t space-y-2">
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <Database className="h-3 w-3" />
                     选择新存储桶（子文件夹将级联更新）
                   </p>
-                  <select
-                    className="w-full h-8 px-2 text-xs border rounded-lg bg-background"
-                    defaultValue=""
-                    onChange={(e) => {
-                      if (e.target.value) handleChangeBucket(e.target.value);
-                    }}
-                  >
-                    <option value="" disabled>请选择目标存储桶...</option>
-                    {bucketsData
-                      .filter((b) => b.id !== detail.bucketId)
-                      .map((b) => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                      ))
-                    }
-                  </select>
+                  {bucketsData.length <= 1 ? (
+                    <p className="text-xs text-muted-foreground py-2">当前仅有 1 个存储桶，请先创建更多存储桶后再更改。</p>
+                  ) : (
+                    <select
+                      className="w-full h-8 px-2 text-xs border rounded-lg bg-background"
+                      defaultValue=""
+                      onChange={(e) => {
+                        if (e.target.value) handleChangeBucket(e.target.value);
+                      }}
+                    >
+                      <option value="" disabled>请选择目标存储桶...</option>
+                      {bucketsData
+                        .filter((b) => b.id !== detail.bucketId)
+                        .map((b) => (
+                          <option key={b.id} value={b.id}>{b.name}</option>
+                        ))
+                      }
+                    </select>
+                  )}
                   {changingBucket && (
                     <div className="flex items-center gap-1.5 text-xs text-primary">
                       <div className="animate-spin rounded-full h-3 w-3 border-b border-primary" />

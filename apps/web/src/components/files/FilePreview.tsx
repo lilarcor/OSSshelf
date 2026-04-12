@@ -92,7 +92,9 @@ export function FilePreview({ file, token, onClose, onDownload, onShare, onEdit,
   const [loadError, setLoadError] = useState(false);
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [previewInfo, setPreviewInfo] = useState<PreviewInfo | null>(null);
-  const [zoomLevel, setZoomLevel] = useState(100);
+  const [zoomLevel, setZoomLevel] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 75 : 100
+  );
   const [windowSize, setWindowSize] = useState<WindowSize>(() =>
     typeof window !== 'undefined' && window.innerWidth < 768 ? 'fullscreen' : 'medium'
   );
