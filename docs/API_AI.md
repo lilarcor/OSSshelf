@@ -1,7 +1,7 @@
 # OSSshelf AI API 文档
 
-**版本**: v4.4.0
-**更新日期**: 2026-04-08
+**版本**: v4.5.0
+**更新日期**: 2026-04-12
 
 ---
 
@@ -132,6 +132,26 @@ DELETE /api/ai-config/ai-providers/:id
 ```
 
 > 注意：系统内置提供商无法删除
+
+### 设置默认提供商
+
+```http
+POST /api/ai-config/ai-providers/:providerId/set-default
+```
+
+**响应**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "已设为默认提供商",
+    "providerId": "uuid"
+  }
+}
+```
+
+> 注意：会将该用户的其他提供商的 isDefault 设为 false
 
 ---
 
