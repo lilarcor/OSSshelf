@@ -547,7 +547,21 @@ export function AIChat() {
     }
   }, []);
 
-  const handleCancelConfirm = useCallback((msgId: string) => {
+  const handleCancelConfirm = useCallback(async (msgId: string, confirmId?: string) => {
+    const message = messages.find((m) => m.id === msgId);
+    const tc = message?.toolCalls?.find(
+      (t) => t.confirmStatus === 'pending' || (t.result && typeof t.result === 'object' && (t.result as Record<string, unknown>).status === 'pending_confirm' && !t.confirmStatus)
+    );
+    const actualConfirmId = confirmId || (tc?.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>).confirmId as string | undefined : undefined);
+
+    if (actualConfirmId) {
+      try {
+        await aiApi.chatSession.cancelAction(actualConfirmId);
+      } catch (e) {
+        console.error('Failed to cancel action:', e);
+      }
+    }
+
     setMessages((prev) =>
       prev.map((m) =>
         m.id === msgId
@@ -568,7 +582,7 @@ export function AIChat() {
           : m
       )
     );
-  }, []);
+  }, [messages]);
 
   const handleRegenerate = (msgId: string) => {
     const idx = messages.findIndex((m) => m.id === msgId);
@@ -729,7 +743,7 @@ export function AIChat() {
                       </div>
                       <div className="flex gap-2.5 mt-3 justify-end">
                         <button
-                          onClick={() => handleCancelConfirm(msg.id)}
+                          onClick={() => handleCancelConfirm(msg.id, msg.pendingConfirm?.confirmId)}
                           disabled={msg.isLoading}
                           className="px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 transition-all duration-200 border border-slate-200 dark:border-slate-600 disabled:opacity-50 active:scale-95"
                         >

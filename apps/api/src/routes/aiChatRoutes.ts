@@ -11,7 +11,7 @@
 
 import { Hono } from 'hono';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
-import { getDb, aiChatSessions, aiChatMessages } from '../db';
+import { getDb, aiChatSessions, aiChatMessages, aiConfirmRequests } from '../db';
 import { authMiddleware } from '../middleware';
 import { ERROR_CODES, logger } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
@@ -118,16 +118,42 @@ app.get('/sessions/:sessionId', async (c) => {
     .orderBy(aiChatMessages.createdAt)
     .all();
 
+  const confirmRequests = await db
+    .select()
+    .from(aiConfirmRequests)
+    .where(eq(aiConfirmRequests.sessionId, sessionId))
+    .all();
+
+  const confirmStatusMap = new Map(
+    confirmRequests.map((cr) => [cr.id, cr.status as 'pending' | 'consumed' | 'cancelled' | 'expired'])
+  );
+
   return c.json({
     success: true,
     data: {
       ...session,
-      messages: messages.map((m) => ({
-        ...m,
-        sources: m.sources ? JSON.parse(m.sources) : undefined,
-        toolCalls: m.toolCalls ? JSON.parse(m.toolCalls) : undefined,
-        reasoning: m.reasoning || undefined,
-      })),
+      messages: messages.map((m) => {
+        let toolCalls = m.toolCalls ? JSON.parse(m.toolCalls) : undefined;
+        if (toolCalls && Array.isArray(toolCalls)) {
+          toolCalls = toolCalls.map((tc: any) => {
+            if (tc.result && typeof tc.result === 'object' && (tc.result as any).status === 'pending_confirm') {
+              const confirmId = (tc.result as any).confirmId;
+              if (confirmId && confirmStatusMap.has(confirmId)) {
+                const dbStatus = confirmStatusMap.get(confirmId);
+                const confirmStatus = dbStatus === 'consumed' ? 'confirmed' : dbStatus === 'cancelled' ? 'cancelled' : 'pending';
+                return { ...tc, confirmStatus };
+              }
+            }
+            return tc;
+          });
+        }
+        return {
+          ...m,
+          sources: m.sources ? JSON.parse(m.sources) : undefined,
+          toolCalls,
+          reasoning: m.reasoning || undefined,
+        };
+      }),
     },
   });
 });
@@ -703,6 +729,51 @@ app.post('/confirm', async (c) => {
         error: {
           code: ERROR_CODES.INTERNAL_ERROR,
           message: error instanceof Error ? error.message : '确认执行失败',
+        },
+      },
+      500
+    );
+  }
+});
+
+app.post('/cancel', async (c) => {
+  const userId = c.get('userId')!;
+
+  try {
+    const body = await c.req.json();
+    const { confirmId } = body as { confirmId: string };
+
+    if (!confirmId) {
+      return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '缺少 confirmId' } }, 400);
+    }
+
+    const db = getDb(c.env.DB);
+    const now = new Date().toISOString();
+
+    const result = await db
+      .update(aiConfirmRequests)
+      .set({ status: 'cancelled' })
+      .where(and(eq(aiConfirmRequests.id, confirmId), eq(aiConfirmRequests.userId, userId), eq(aiConfirmRequests.status, 'pending')))
+      .returning();
+
+    if (!result || result.length === 0) {
+      return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '确认请求不存在或已处理' } }, 404);
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        cancelledAt: now,
+      },
+    });
+  } catch (error) {
+    logger.error('AI Chat', 'Cancel action failed', { userId }, error);
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: ERROR_CODES.INTERNAL_ERROR,
+          message: error instanceof Error ? error.message : '取消操作失败',
         },
       },
       500

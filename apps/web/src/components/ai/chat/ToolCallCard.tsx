@@ -21,7 +21,7 @@ interface ToolCallCardProps {
   onFileClick: (id: string) => void;
   onConfirm?: (toolName: string, args: Record<string, unknown>) => void;
   onConfirmAction?: (msgId: string, confirmId: string) => void;
-  onCancelConfirm?: (msgId: string) => void;
+  onCancelConfirm?: (msgId: string, confirmId?: string) => void;
   msgId?: string;
   toolMeta?: Record<string, { label: string; icon: React.ReactNode }>;
 }
@@ -295,7 +295,7 @@ export function ToolCallCard({
                 <button
                   onClick={() => {
                     if (onCancelConfirm && msgId) {
-                      onCancelConfirm(msgId);
+                      onCancelConfirm(msgId, confirmId);
                     }
                     setExpanded(false);
                   }}

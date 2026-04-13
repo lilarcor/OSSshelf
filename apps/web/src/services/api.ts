@@ -1397,6 +1397,9 @@ export const aiApi = {
     confirmAction: (confirmId: string) =>
       api.post<ApiResponse<{ result: unknown; confirmedAt: string }>>('/api/ai-chat/confirm', { confirmId }),
 
+    cancelAction: (confirmId: string) =>
+      api.post<ApiResponse<{ cancelledAt: string }>>('/api/ai-chat/cancel', { confirmId }),
+
     chatStream: async (
       query: string,
       options: {

@@ -528,8 +528,10 @@ export class AgentEngine {
         : await this.gateway.getActiveModel(userId);
       if (!config) return { nativeToolCalling: false, vision: false, resolvedModelId: modelId };
       const caps: string[] = config.capabilities || [];
+      const supportsFunctionCalling = caps.includes('function_calling');
+      const isSupportedProvider = config.provider === 'openai_compatible' || config.provider === 'workers_ai';
       return {
-        nativeToolCalling: config.provider === 'openai_compatible' && caps.includes('function_calling'),
+        nativeToolCalling: isSupportedProvider && supportsFunctionCalling,
         vision: caps.includes('vision'),
         resolvedModelId: config.modelId || modelId,
       };

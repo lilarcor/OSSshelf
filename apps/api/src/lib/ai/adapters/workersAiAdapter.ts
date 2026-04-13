@@ -43,23 +43,46 @@ export class WorkersAiAdapter implements IModelAdapter {
 
     try {
       const modelConfig = this.getModelConfig(request);
-      const response = await (this.env.AI as any).run(modelConfig.modelId, {
+      const requestBody: Record<string, unknown> = {
         messages: request.messages.map((m) => ({
           role: m.role,
           content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
         })),
         temperature: request.temperature ?? 0.7,
-      });
+      };
+
+      if (request.tools && request.tools.length > 0) {
+        requestBody.tools = request.tools.map((t) => ({
+          name: t.function.name,
+          description: t.function.description,
+          parameters: t.function.parameters,
+        }));
+      }
+
+      const response = await (this.env.AI as any).run(modelConfig.modelId, requestBody);
 
       if (signal?.aborted) {
         throw new DOMException('The operation was aborted', 'AbortError');
       }
 
+      const responseData = response as {
+        response?: string;
+        tool_calls?: Array<{ name: string; arguments: Record<string, unknown> }>;
+      };
+
+      const toolCalls = responseData.tool_calls?.map((tc, idx) => ({
+        id: `tc_${idx}_${crypto.randomUUID().slice(0, 8)}`,
+        name: tc.name,
+        arguments: JSON.stringify(tc.arguments),
+      }));
+
       return {
         id: crypto.randomUUID(),
-        content: (response as { response?: string }).response || '',
+        content: responseData.response || '',
         role: 'assistant',
         model: modelConfig.modelId,
+        finishReason: toolCalls && toolCalls.length > 0 ? 'tool_calls' : 'stop',
+        toolCalls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
       };
     } catch (error) {
       logger.error('AI', 'Workers AI chat completion failed', {}, error);
@@ -78,6 +101,42 @@ export class WorkersAiAdapter implements IModelAdapter {
 
     try {
       const modelConfig = this.getModelConfig(request);
+
+      if (request.tools && request.tools.length > 0) {
+        const nonStreamResponse = await this.chatCompletion(request, signal);
+        if (nonStreamResponse.toolCalls && nonStreamResponse.toolCalls.length > 0) {
+          onChunk({
+            id: nonStreamResponse.id,
+            content: '',
+            role: 'assistant',
+            model: nonStreamResponse.model,
+            done: false,
+            toolCalls: nonStreamResponse.toolCalls.map((tc, idx) => ({
+              id: tc.id,
+              name: tc.name,
+              arguments: tc.arguments,
+              index: idx,
+            })),
+          });
+        } else if (nonStreamResponse.content) {
+          onChunk({
+            id: nonStreamResponse.id,
+            content: nonStreamResponse.content,
+            role: 'assistant',
+            model: nonStreamResponse.model,
+            done: false,
+          });
+        }
+        onChunk({
+          id: nonStreamResponse.id,
+          content: '',
+          role: 'assistant',
+          model: nonStreamResponse.model,
+          done: true,
+        });
+        return;
+      }
+
       const response = await (this.env.AI as any).run(modelConfig.modelId, {
         messages: request.messages.map((m) => ({
           role: m.role,
@@ -235,10 +294,6 @@ export class WorkersAiAdapter implements IModelAdapter {
     }
     if (!config.modelId.startsWith('@cf/') && config.modelId !== '__custom__') {
       return { valid: false, error: 'Invalid Workers AI model ID. Must start with @cf/' };
-    }
-
-    if (config.capabilities?.includes('function_calling')) {
-      logger.warn('AI', 'Workers AI 不支持 native function calling，将使用 prompt-based fallback');
     }
     return { valid: true };
   }
