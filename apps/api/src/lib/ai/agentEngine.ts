@@ -741,11 +741,10 @@ export class AgentEngine {
               onChunk({ type: 'reasoning', content: chunk.reasoningContent, done: false });
             }
 
-            if (chunk.content && !hasToolCalls) {
+            // 只缓存 content，不立即 emit：等流结束后确认没有 tool_calls 再 emit
+            // 避免工具调用轮次的前置文本（如"我来帮你查一下"）与最终回复重复
+            if (chunk.content) {
               streamContent += chunk.content;
-              onChunk({ type: 'text', content: chunk.content, done: false });
-              fullText += chunk.content;
-              outputTokens += estimateTokens(chunk.content);
             }
           },
           { modelId, signal: combinedSignal }
@@ -757,10 +756,7 @@ export class AgentEngine {
           logger.error('AgentEngine', 'LLM stream error (native)', {}, err);
           // 仅在第 0 轮（尚未产生任何工具调用）才允许 fallback
           if (toolCallCount === 0) {
-            if (fullText.length > 0) {
-              onChunk({ type: 'reset', done: false }); // 通知前端清空已渲染内容
-              fullText = '';
-            }
+            // 第一轮出错：streamContent 尚未 emit，无需 reset，直接 fallback
             logger.warn('AgentEngine', 'Native tool calling failed, falling back to prompt-based');
             return this.runPromptBased(
               userId,
@@ -788,13 +784,18 @@ export class AgentEngine {
 
       if (!hasToolCalls) {
         // native模式第一轮无工具调用：除非是明确的闲聊，否则直接降级到prompt-based
-        // 原因：native模型有能力调工具，第一轮没调说明模型跳过了，不需要猜测意图
         if (toolCallCount === 0 && !isPureChitchat(query)) {
           if (fallbackCount >= MAX_FALLBACK_ATTEMPTS) {
             logger.warn('AgentEngine', 'Max fallback attempts reached, accepting response without tool call', {
               modelId: resolvedModelId,
               query: query.slice(0, 100),
             });
+            // fallback 次数用完，接受这次回复并 emit
+            if (streamContent) {
+              onChunk({ type: 'text', content: streamContent, done: false });
+              fullText += streamContent;
+              outputTokens += estimateTokens(streamContent);
+            }
             messages.push({ role: 'assistant', content: streamContent });
             break;
           }
@@ -805,11 +806,7 @@ export class AgentEngine {
             responsePreview: streamContent.slice(0, 150),
           });
 
-          if (fullText.length > 0) {
-            onChunk({ type: 'reset', done: false });
-            fullText = '';
-          }
-
+          // 此时 fullText 为空（第一轮未 emit 任何内容），无需 reset
           return this.runPromptBased(
             userId,
             query,
@@ -826,6 +823,12 @@ export class AgentEngine {
           );
         }
 
+        // 非 fallback 情况：emit 本轮内容
+        if (streamContent) {
+          onChunk({ type: 'text', content: streamContent, done: false });
+          fullText += streamContent;
+          outputTokens += estimateTokens(streamContent);
+        }
         messages.push({ role: 'assistant', content: streamContent });
         break;
       }
@@ -1016,6 +1019,11 @@ export class AgentEngine {
             temperature: config.agentTemperature,
           },
           (chunk: StreamChunk) => {
+            // reasoning 内容单独路由，不进 buffer
+            if (chunk.reasoningContent) {
+              onChunk({ type: 'reasoning', content: chunk.reasoningContent, done: false });
+            }
+
             if (!chunk.content) return;
             buffer += chunk.content;
 
@@ -1025,7 +1033,10 @@ export class AgentEngine {
               return;
             }
 
-            if (!foundToolCall) {
+            // 只有在已经有工具调用轮次（toolCallCount > 0）时才流式转发，
+            // 第一轮直接转发会在「注入强制提示重试」路径下导致内容重复。
+            // 第一轮内容等流结束后统一判断再决定是否 emit。
+            if (!foundToolCall && (toolCallCount > 0 || hasInjectedForcedHint)) {
               const safe = safeForwardPoint(buffer);
               if (safe > forwardedUpTo) {
                 const txt = buffer.slice(forwardedUpTo, safe);
@@ -1056,11 +1067,8 @@ export class AgentEngine {
             query: query.slice(0, 100),
           });
 
-          if (fullText.length > 0) {
-            onChunk({ type: 'reset', done: false });
-            fullText = '';
-            forwardedUpTo = 0;
-          }
+          // 第一轮没有流式转发任何内容（见回调逻辑），无需 reset
+          // fullText 此时为空，不需要清空
 
           messages.push({ role: 'assistant', content: buffer });
           messages.push({
@@ -1074,7 +1082,7 @@ export class AgentEngine {
           continue;
         }
 
-        // 真正的最终回答
+        // 真正的最终回答：emit 尚未转发的剩余内容
         if (buffer.length > forwardedUpTo) {
           const tail = buffer.slice(forwardedUpTo);
           onChunk({ type: 'text', content: tail, done: false });
