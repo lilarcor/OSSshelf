@@ -361,6 +361,15 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
                   })),
                 });
                 toolCallMap.clear();
+                
+                // 发送 done 标记，让 Agent 知道流式响应已结束
+                onChunk({
+                  id: data.id || crypto.randomUUID(),
+                  content: '',
+                  role: 'assistant',
+                  model: this.config.modelId,
+                  done: true,
+                });
               }
             } catch {
               continue;

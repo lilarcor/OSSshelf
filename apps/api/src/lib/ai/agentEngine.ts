@@ -698,6 +698,7 @@ export class AgentEngine {
       const combinedSignal = signal ? AbortSignal.any([signal, abortCtrl.signal]) : abortCtrl.signal;
 
       let hasToolCalls = false;
+      let isDone = false;
       // 用 index → entry 的 Map 聚合流式 tool call delta，与适配器逻辑保持一致
       const collectedMap = new Map<number, { id: string; name: string; arguments: string }>();
       let streamContent = '';
@@ -717,6 +718,11 @@ export class AgentEngine {
             toolChoice: 'auto',
           },
           (chunk: StreamChunk) => {
+            if (chunk.done) {
+              isDone = true;
+              return;
+            }
+
             if (chunk.toolCalls?.length) {
               hasToolCalls = true;
               for (const tc of chunk.toolCalls) {
