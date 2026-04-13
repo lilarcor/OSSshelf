@@ -23,6 +23,7 @@ import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
 import { decryptCredential, getEncryptionKey, isAesGcmFormat } from '../../crypto';
 import { AI_LOG_MODULE } from '../constants';
+import { extractThinkingContent, hasThinkingTags } from '../utils';
 
 export class OpenAiCompatibleAdapter implements IModelAdapter {
   readonly provider = 'openai_compatible' as const;
@@ -81,8 +82,18 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
       };
 
       const choice = data.choices[0];
-      const responseContent = choice?.message?.content || '';
-      const reasoningContent = choice?.message?.reasoning_content || '';
+      let responseContent = choice?.message?.content || '';
+      let reasoningContent = choice?.message?.reasoning_content || '';
+
+      // 如果响应中包含 `` 标签，提取思考内容
+      if (responseContent && hasThinkingTags(responseContent)) {
+        const extracted = extractThinkingContent(responseContent);
+        if (extracted.reasoning) {
+          reasoningContent = reasoningContent ? reasoningContent + extracted.reasoning : extracted.reasoning;
+        }
+        responseContent = extracted.content;
+      }
+
       const toolCalls = choice?.message?.tool_calls?.map((tc) => ({
         id: tc.id,
         name: tc.function.name,
@@ -154,7 +165,9 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
 
       const decoder = new TextDecoder();
       let buffer = '';
+      let contentBuffer = '';
       const toolCallMap = new Map<number, { id?: string; name?: string; arguments: string }>();
+      let hasEmittedReasoning = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -168,6 +181,30 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
           const trimmedLine = line.trim();
           if (!trimmedLine || trimmedLine === 'data: [DONE]') {
             if (trimmedLine === 'data: [DONE]') {
+              // 处理累积的内容缓冲区，提取thinking内容
+              if (contentBuffer) {
+                const extracted = extractThinkingContent(contentBuffer);
+                if (extracted.reasoning) {
+                  onChunk({
+                    id: crypto.randomUUID(),
+                    content: '',
+                    role: 'assistant',
+                    model: this.config.modelId,
+                    done: false,
+                    reasoningContent: extracted.reasoning,
+                  });
+                }
+                if (extracted.content) {
+                  onChunk({
+                    id: crypto.randomUUID(),
+                    content: extracted.content,
+                    role: 'assistant',
+                    model: this.config.modelId,
+                    done: false,
+                  });
+                }
+              }
+
               // 如果 finish_reason=tool_calls 已经 emit 并 clear 了，这里 size=0，跳过
               if (toolCallMap.size > 0) {
                 onChunk({
@@ -203,13 +240,61 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
               const delta = choice?.delta;
 
               if (delta?.content) {
-                onChunk({
-                  id: data.id || crypto.randomUUID(),
-                  content: delta.content,
-                  role: 'assistant',
-                  model: this.config.modelId,
-                  done: false,
-                });
+                contentBuffer += delta.content;
+
+                // 检查是否有未闭合的``标签
+                const hasOpenTag = /<think>/.test(contentBuffer);
+                const hasCloseTag = /<\/think>/.test(contentBuffer);
+
+                if (hasOpenTag && !hasCloseTag) {
+                  // thinking标签未闭合，提取并发送已接收的thinking内容
+                  const thinkingMatch = /<think>([\s\S]*)$/.exec(contentBuffer);
+                  if (thinkingMatch) {
+                    const partialThinking = thinkingMatch[1];
+                    onChunk({
+                      id: data.id || crypto.randomUUID(),
+                      content: '',
+                      role: 'assistant',
+                      model: this.config.modelId,
+                      done: false,
+                      reasoningContent: partialThinking,
+                    });
+                  }
+                } else if (hasOpenTag && hasCloseTag) {
+                  // 完整的thinking标签，提取并发送
+                  const extracted = extractThinkingContent(contentBuffer);
+                  if (extracted.reasoning) {
+                    onChunk({
+                      id: data.id || crypto.randomUUID(),
+                      content: '',
+                      role: 'assistant',
+                      model: this.config.modelId,
+                      done: false,
+                      reasoningContent: extracted.reasoning,
+                    });
+                  }
+                  // 发送清理后的正文内容
+                  if (extracted.content) {
+                    onChunk({
+                      id: data.id || crypto.randomUUID(),
+                      content: extracted.content,
+                      role: 'assistant',
+                      model: this.config.modelId,
+                      done: false,
+                    });
+                  }
+                  // 清空缓冲区
+                  contentBuffer = '';
+                } else {
+                  // 没有thinking标签，正常发送
+                  onChunk({
+                    id: data.id || crypto.randomUUID(),
+                    content: delta.content,
+                    role: 'assistant',
+                    model: this.config.modelId,
+                    done: false,
+                  });
+                }
               }
 
               if (delta?.reasoning_content) {
@@ -238,6 +323,30 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
 
               // finish_reason=tool_calls 时立即 emit（部分模型不发 [DONE] 或发送顺序不同）
               if (choice?.finish_reason === 'tool_calls' && toolCallMap.size > 0) {
+                // 处理累积的内容缓冲区
+                if (contentBuffer) {
+                  const extracted = extractThinkingContent(contentBuffer);
+                  if (extracted.reasoning) {
+                    onChunk({
+                      id: data.id || crypto.randomUUID(),
+                      content: '',
+                      role: 'assistant',
+                      model: this.config.modelId,
+                      done: false,
+                      reasoningContent: extracted.reasoning,
+                    });
+                  }
+                  if (extracted.content) {
+                    onChunk({
+                      id: data.id || crypto.randomUUID(),
+                      content: extracted.content,
+                      role: 'assistant',
+                      model: this.config.modelId,
+                      done: false,
+                    });
+                  }
+                }
+
                 onChunk({
                   id: data.id || crypto.randomUUID(),
                   content: '',

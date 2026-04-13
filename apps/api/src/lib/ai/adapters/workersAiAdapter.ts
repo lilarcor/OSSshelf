@@ -19,6 +19,7 @@ import type {
   EmbeddingResponse,
 } from '../types';
 import { logger } from '@osshelf/shared';
+import { extractThinkingContent, hasThinkingTags } from '../utils';
 
 export class WorkersAiAdapter implements IModelAdapter {
   readonly provider = 'workers_ai' as const;
@@ -92,7 +93,8 @@ export class WorkersAiAdapter implements IModelAdapter {
 
       const reader = response.getReader();
       const decoder = new TextDecoder();
-      let fullContent = '';
+      let contentBuffer = '';
+      let hasEmittedReasoning = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -106,18 +108,90 @@ export class WorkersAiAdapter implements IModelAdapter {
             const data = JSON.parse(line);
             const chunk = data.response || '';
             if (chunk) {
-              fullContent += chunk;
-              onChunk({
-                id: crypto.randomUUID(),
-                content: chunk,
-                role: 'assistant',
-                model: modelConfig.modelId,
-                done: false,
-              });
+              contentBuffer += chunk;
+
+              // 检查是否有未闭合的``标签
+              const hasOpenTag = /<think>/.test(contentBuffer);
+              const hasCloseTag = /<\/think>/.test(contentBuffer);
+
+              if (hasOpenTag && !hasCloseTag) {
+                // thinking 标签未闭合，提取并发送已接收的 thinking 内容
+                const thinkingMatch = /<think>([\s\S]*)$/.exec(contentBuffer);
+                if (thinkingMatch) {
+                  const partialThinking = thinkingMatch[1];
+                  onChunk({
+                    id: crypto.randomUUID(),
+                    content: '',
+                    role: 'assistant',
+                    model: modelConfig.modelId,
+                    done: false,
+                    reasoningContent: partialThinking,
+                  });
+                }
+              } else if (hasOpenTag && hasCloseTag) {
+                // 完整的 thinking 标签，提取并发送
+                const extracted = extractThinkingContent(contentBuffer);
+                if (extracted.reasoning && !hasEmittedReasoning) {
+                  onChunk({
+                    id: crypto.randomUUID(),
+                    content: '',
+                    role: 'assistant',
+                    model: modelConfig.modelId,
+                    done: false,
+                    reasoningContent: extracted.reasoning,
+                  });
+                  hasEmittedReasoning = true;
+                }
+                // 发送清理后的正文内容
+                if (extracted.content) {
+                  onChunk({
+                    id: crypto.randomUUID(),
+                    content: extracted.content,
+                    role: 'assistant',
+                    model: modelConfig.modelId,
+                    done: false,
+                  });
+                }
+                // 清空缓冲区
+                contentBuffer = '';
+              } else {
+                // 没有 thinking 标签，正常发送
+                onChunk({
+                  id: crypto.randomUUID(),
+                  content: chunk,
+                  role: 'assistant',
+                  model: modelConfig.modelId,
+                  done: false,
+                });
+              }
             }
           } catch {
             continue;
           }
+        }
+      }
+
+      // 处理剩余的缓冲区内容
+      if (contentBuffer) {
+        const extracted = extractThinkingContent(contentBuffer);
+        if (extracted.reasoning) {
+          onChunk({
+            id: crypto.randomUUID(),
+            content: '',
+            role: 'assistant',
+            model: modelConfig.modelId,
+            done: false,
+            reasoningContent: extracted.reasoning,
+          });
+        }
+        if (extracted.content) {
+          onChunk({
+            id: crypto.randomUUID(),
+            content: extracted.content,
+            role: 'assistant',
+            model: modelConfig.modelId,
+            done: false,
+          });
         }
       }
 

@@ -336,6 +336,55 @@ export function supportsReasoningContent(modelId: string, customConfig?: ModelTh
   return false;
 }
 
+/**
+ * 从模型响应中提取思考内容
+ *
+ * 某些模型（如 DeepSeek-R1）会在响应中使用 `` 标签包裹思考过程。
+ * 此函数将思考内容提取出来，并返回分离后的思考和正文内容。
+ *
+ * @param content - 模型原始响应内容
+ * @returns 包含 reasoning（思考内容）和 content（正文内容）的对象
+ *
+ * @example
+ * const input = '<think>这是思考过程</think>这是正文内容';
+ * const result = extractThinkingContent(input);
+ * // result: { reasoning: '这是思考过程', content: '这是正文内容' }
+ */
+export function extractThinkingContent(content: string): {
+  reasoning: string;
+  content: string;
+} {
+  if (!content) return { reasoning: '', content: '' };
+
+  const thinkingRegex = /<think>([\s\S]*?)<\/think>/g;
+  let reasoning = '';
+  let cleanedContent = content;
+
+  // 提取所有 `` 标签内容
+  let match;
+  while ((match = thinkingRegex.exec(content)) !== null) {
+    reasoning += match[1];
+  }
+
+  // 移除所有 `` 标签及其内容
+  cleanedContent = content.replace(thinkingRegex, '').trim();
+
+  return {
+    reasoning: reasoning.trim(),
+    content: cleanedContent,
+  };
+}
+
+/**
+ * 检查内容是否包含思考标签
+ *
+ * @param content - 要检查的内容
+ * @returns 是否包含 `` 标签
+ */
+export function hasThinkingTags(content: string): boolean {
+  return /<think>/.test(content) && /<\/think>/.test(content);
+}
+
 export interface VendorSpecificParams {
   reasoning_effort?: 'minimal' | 'low' | 'medium' | 'high';
   thinking_budget?: number;
