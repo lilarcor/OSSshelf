@@ -272,7 +272,7 @@ export function ToolCallCard({
               {previewDiff && <DiffPreview diff={previewDiff} />}
 
               {/* Phase 7: 草稿预览 */}
-              {(resultObj?.previewType as string) === 'draft' && resultObj.draftContent != null && (
+              {resultObj && (resultObj.previewType as string) === 'draft' && resultObj.draftContent != null && (
                 <DraftPreview
                   content={String(resultObj.draftContent)}
                   fileName={String(resultObj.fileName || 'untitled')}
