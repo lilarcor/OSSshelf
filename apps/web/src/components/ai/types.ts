@@ -19,6 +19,7 @@ export interface ToolCallEvent {
   args: Record<string, unknown>;
   result?: unknown;
   status: 'running' | 'done' | 'error' | 'pending_confirm';
+  confirmStatus?: 'pending' | 'confirmed' | 'cancelled';
 }
 
 export interface PreviewDiff {

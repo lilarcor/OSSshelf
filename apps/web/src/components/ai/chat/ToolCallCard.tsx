@@ -43,8 +43,9 @@ export function ToolCallCard({
   };
 
   const resultObj = tc.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>) : null;
-  const isPendingConfirm = resultObj?.status === 'pending_confirm';
-  const isCancelled = resultObj?.status === 'cancelled';
+  const isPendingConfirm = tc.confirmStatus === 'pending' || (resultObj?.status === 'pending_confirm' && !tc.confirmStatus);
+  const isCancelled = tc.confirmStatus === 'cancelled';
+  const isConfirmed = tc.confirmStatus === 'confirmed';
   const confirmMessage = resultObj?.message as string | undefined;
   const confirmId = resultObj?.confirmId as string | undefined;
   const previewDiff = resultObj?.previewDiff as PreviewDiff | undefined;
@@ -176,8 +177,9 @@ export function ToolCallCard({
               className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${statusConfig.iconBg} ${statusConfig.statusColor}`}
             >
               {isRunning && <Clock className="h-2.5 w-2.5 mr-1" />}
-              {!isRunning && !isPendingConfirm && <Zap className="h-2.5 w-2.5 mr-1" />}
+              {!isRunning && !isPendingConfirm && !isCancelled && <Zap className="h-2.5 w-2.5 mr-1" />}
               {isPendingConfirm && <AlertTriangle className="h-2.5 w-2.5 mr-1" />}
+              {isCancelled && <X className="h-2.5 w-2.5 mr-1" />}
               {statusConfig.statusText}
             </span>
           </div>

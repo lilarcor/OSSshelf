@@ -414,13 +414,22 @@ export function AIChat() {
                 existing.result = raw.result;
                 existing.status = 'done';
               }
+              const resultObj = raw.result && typeof raw.result === 'object' ? (raw.result as Record<string, unknown>) : null;
+              const isPendingConfirm = resultObj?.status === 'pending_confirm';
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantId
                     ? {
                         ...m,
                         toolCalls: (m.toolCalls || []).map((tc) =>
-                          tc.id === raw.toolCallId ? { ...tc, result: raw.result, status: 'done' as const } : tc
+                          tc.id === raw.toolCallId
+                            ? {
+                                ...tc,
+                                result: raw.result,
+                                status: 'done' as const,
+                                ...(isPendingConfirm ? { confirmStatus: 'pending' as const } : {}),
+                              }
+                            : tc
                         ),
                       }
                     : m
@@ -515,13 +524,15 @@ export function AIChat() {
                   isLoading: false,
                   pendingConfirm: undefined,
                   content: (m.content || '') + `\n\n✅ 操作执行成功:\n${resultStr}`,
-                  toolCalls: (m.toolCalls || []).map((tc) =>
-                    tc.result &&
-                    typeof tc.result === 'object' &&
-                    (tc.result as Record<string, unknown>).status === 'pending_confirm'
-                      ? { ...tc, result: resultData.result }
-                      : tc
-                  ),
+                  toolCalls: (m.toolCalls || []).map((tc) => {
+                    const resultObj = tc.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>) : null;
+                    const wasPendingConfirm = tc.confirmStatus === 'pending' ||
+                      (resultObj?.status === 'pending_confirm' && !tc.confirmStatus);
+                    if (wasPendingConfirm) {
+                      return { ...tc, result: resultData.result, confirmStatus: 'confirmed' as const };
+                    }
+                    return tc;
+                  }),
                 }
               : m
           )
@@ -544,13 +555,15 @@ export function AIChat() {
               ...m,
               pendingConfirm: undefined,
               content: (m.content || '') + '\n\n⛔ 用户已取消操作',
-              toolCalls: (m.toolCalls || []).map((tc) =>
-                tc.result &&
-                typeof tc.result === 'object' &&
-                (tc.result as Record<string, unknown>).status === 'pending_confirm'
-                  ? { ...tc, result: { ...tc.result, status: 'cancelled' }, status: 'done' as const }
-                  : tc
-              ),
+              toolCalls: (m.toolCalls || []).map((tc) => {
+                const resultObj = tc.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>) : null;
+                const wasPendingConfirm = tc.confirmStatus === 'pending' ||
+                  (resultObj?.status === 'pending_confirm' && !tc.confirmStatus);
+                if (wasPendingConfirm) {
+                  return { ...tc, confirmStatus: 'cancelled' as const };
+                }
+                return tc;
+              }),
             }
           : m
       )
