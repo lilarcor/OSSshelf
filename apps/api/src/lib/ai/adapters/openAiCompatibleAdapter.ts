@@ -299,7 +299,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
                   // 清空缓冲区
                   contentBuffer = '';
                 } else {
-                  // 没有thinking标签，正常发送
+                  // 没有thinking标签，正常发送，并清空缓冲区防止 [DONE] 时重复发送
                   onChunk({
                     id: data.id || crypto.randomUUID(),
                     content: delta.content,
@@ -307,6 +307,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
                     model: this.config.modelId,
                     done: false,
                   });
+                  contentBuffer = ''; // 关键修复：已直接发送 delta，清空避免 [DONE] flush 重复
                 }
               }
 
