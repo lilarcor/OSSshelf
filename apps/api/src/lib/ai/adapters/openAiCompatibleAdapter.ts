@@ -358,6 +358,8 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
                       done: false,
                     });
                   }
+                  // 清空缓冲区，防止 [DONE] 时重复发送
+                  contentBuffer = '';
                 }
 
                 onChunk({
