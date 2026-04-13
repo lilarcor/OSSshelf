@@ -11,7 +11,7 @@
  */
 
 import { useState } from 'react';
-import { Sparkles, ChevronDown, Loader2, File, CheckCircle2, AlertTriangle, Clock, Zap } from 'lucide-react';
+import { Sparkles, ChevronDown, Loader2, File, CheckCircle2, AlertTriangle, Clock, Zap, X } from 'lucide-react';
 import type { ToolCallEvent, AgentFile, PreviewDiff } from '../types';
 import { DiffPreview } from './DiffPreview';
 import { DraftPreview } from './DraftPreview'; // Phase 7 草稿预览
@@ -44,6 +44,7 @@ export function ToolCallCard({
 
   const resultObj = tc.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>) : null;
   const isPendingConfirm = resultObj?.status === 'pending_confirm';
+  const isCancelled = resultObj?.status === 'cancelled';
   const confirmMessage = resultObj?.message as string | undefined;
   const confirmId = resultObj?.confirmId as string | undefined;
   const previewDiff = resultObj?.previewDiff as PreviewDiff | undefined;
@@ -117,6 +118,17 @@ export function ToolCallCard({
         icon: <AlertTriangle className="h-3 w-3" />,
         statusText: '待确认',
         statusColor: 'text-amber-600 dark:text-amber-400',
+      };
+    }
+    if (isCancelled) {
+      return {
+        bg: 'bg-gradient-to-r from-slate-50 via-gray-50 to-transparent dark:from-slate-950/30 dark:via-gray-950/20',
+        border: 'border-slate-300 dark:border-slate-700',
+        iconBg: 'bg-slate-100 dark:bg-slate-800/40',
+        iconColor: 'text-slate-500 dark:text-slate-400',
+        icon: <X className="h-3 w-3" />,
+        statusText: '已取消',
+        statusColor: 'text-slate-500 dark:text-slate-400',
       };
     }
     if (isRunning) {

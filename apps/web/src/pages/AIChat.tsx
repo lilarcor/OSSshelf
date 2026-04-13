@@ -539,7 +539,20 @@ export function AIChat() {
   const handleCancelConfirm = useCallback((msgId: string) => {
     setMessages((prev) =>
       prev.map((m) =>
-        m.id === msgId ? { ...m, pendingConfirm: undefined, content: (m.content || '') + '\n\n⛔ 用户已取消操作' } : m
+        m.id === msgId
+          ? {
+              ...m,
+              pendingConfirm: undefined,
+              content: (m.content || '') + '\n\n⛔ 用户已取消操作',
+              toolCalls: (m.toolCalls || []).map((tc) =>
+                tc.result &&
+                typeof tc.result === 'object' &&
+                (tc.result as Record<string, unknown>).status === 'pending_confirm'
+                  ? { ...tc, result: { ...tc.result, status: 'cancelled' }, status: 'done' as const }
+                  : tc
+              ),
+            }
+          : m
       )
     );
   }, []);
