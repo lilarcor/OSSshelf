@@ -518,6 +518,13 @@ async function handleStreamChat(
               } else {
                 if (chunk.type === 'text') {
                   fullText += chunk.content;
+                  logger.info('AI Agent', 'SSE text chunk', {
+                    userId,
+                    sessionId: actualSessionId,
+                    chunkLen: chunk.content.length,
+                    fullTextLen: fullText.length,
+                    preview: chunk.content.slice(0, 50),
+                  });
                   enqueue({ content: chunk.content, done: false });
                 } else if (chunk.type === 'reasoning') {
                   collectedReasoning += chunk.content;
