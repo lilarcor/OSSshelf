@@ -78,8 +78,21 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
             tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }>;
           };
           finish_reason: string;
-        }>;
+        }> | null;
+        error?: {
+          message: string;
+          type: string;
+          code: string;
+        };
       };
+
+      if (data.error) {
+        throw new Error(`API error: ${data.error.message || JSON.stringify(data.error)}`);
+      }
+
+      if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+        throw new Error(`API returned empty or invalid choices: ${JSON.stringify(data)}`);
+      }
 
       const choice = data.choices[0];
       let responseContent = choice?.message?.content || '';
