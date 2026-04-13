@@ -12,7 +12,21 @@ import { useState, useEffect } from 'react';
 import type { FileItem } from '@osshelf/shared';
 import { MobileDialog } from '@/components/ui/MobileDialog';
 import { Button } from '@/components/ui/Button';
-import { Copy, Check, Folder, FileText, Tag, Brain, Share2, HardDrive, Clock, Hash, Info, Database, ArrowRightLeft } from 'lucide-react';
+import {
+  Copy,
+  Check,
+  Folder,
+  FileText,
+  Tag,
+  Brain,
+  Share2,
+  HardDrive,
+  Clock,
+  Hash,
+  Info,
+  Database,
+  ArrowRightLeft,
+} from 'lucide-react';
 import { formatBytes, formatDate, decodeFileName } from '@/utils';
 import { filesApi, bucketsApi } from '@/services/api';
 import { useQuery } from '@tanstack/react-query';
@@ -63,7 +77,9 @@ export function FileDetailPanel({ file, onClose }: FileDetailPanelProps) {
       try {
         const res = await bucketsApi.list();
         return (res.data?.data as Array<{ id: string; name: string }>) || [];
-      } catch { return []; }
+      } catch {
+        return [];
+      }
     },
     enabled: file.isFolder,
   });
@@ -179,7 +195,9 @@ export function FileDetailPanel({ file, onClose }: FileDetailPanelProps) {
                     选择新存储桶（子文件夹将级联更新）
                   </p>
                   {bucketsData.length <= 1 ? (
-                    <p className="text-xs text-muted-foreground py-2">当前仅有 1 个存储桶，请先创建更多存储桶后再更改。</p>
+                    <p className="text-xs text-muted-foreground py-2">
+                      当前仅有 1 个存储桶，请先创建更多存储桶后再更改。
+                    </p>
                   ) : (
                     <select
                       className="w-full h-8 px-2 text-xs border rounded-lg bg-background"
@@ -188,13 +206,16 @@ export function FileDetailPanel({ file, onClose }: FileDetailPanelProps) {
                         if (e.target.value) handleChangeBucket(e.target.value);
                       }}
                     >
-                      <option value="" disabled>请选择目标存储桶...</option>
+                      <option value="" disabled>
+                        请选择目标存储桶...
+                      </option>
                       {bucketsData
                         .filter((b) => b.id !== detail.bucketId)
                         .map((b) => (
-                          <option key={b.id} value={b.id}>{b.name}</option>
-                        ))
-                      }
+                          <option key={b.id} value={b.id}>
+                            {b.name}
+                          </option>
+                        ))}
                     </select>
                   )}
                   {changingBucket && (

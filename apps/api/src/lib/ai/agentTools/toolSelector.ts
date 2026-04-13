@@ -53,6 +53,7 @@ export const TOOL_GROUPS = {
     'create_text_file',
     'create_code_file',
     'create_file_from_template',
+    'draft_and_create_file',
     'edit_file_content',
     'append_to_file',
     'find_and_replace',

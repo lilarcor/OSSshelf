@@ -277,38 +277,41 @@ export function MobileSearchPanel({
             </div>
           )}
 
-          {showSearchHistory && !showSuggestions && searchInput.length === 0 && (searchHistoryData?.length ?? 0) > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-xl shadow-lg z-50 max-h-56 overflow-auto">
-              <div className="flex items-center justify-between px-4 py-2 border-b">
-                <span className="text-xs text-muted-foreground">搜索历史</span>
-                <button
-                  className="text-xs text-muted-foreground hover:text-destructive transition-colors"
-                  onMouseDown={onClearHistory}
-                >
-                  清空
-                </button>
-              </div>
-              {searchHistoryData?.map((item) => (
-                <div key={item.id} className="flex items-center group hover:bg-muted/50 transition-colors">
+          {showSearchHistory &&
+            !showSuggestions &&
+            searchInput.length === 0 &&
+            (searchHistoryData?.length ?? 0) > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-xl shadow-lg z-50 max-h-56 overflow-auto">
+                <div className="flex items-center justify-between px-4 py-2 border-b">
+                  <span className="text-xs text-muted-foreground">搜索历史</span>
                   <button
-                    className="flex-1 px-4 py-3 text-left text-sm"
-                    onMouseDown={() => onSuggestionClick(item.query)}
+                    className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                    onMouseDown={onClearHistory}
                   >
-                    {item.query}
-                  </button>
-                  <button
-                    className="px-3 py-3 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all touch-visible"
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      onDeleteHistoryItem(item.id);
-                    }}
-                  >
-                    <X className="h-3.5 w-3.5" />
+                    清空
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
+                {searchHistoryData?.map((item) => (
+                  <div key={item.id} className="flex items-center group hover:bg-muted/50 transition-colors">
+                    <button
+                      className="flex-1 px-4 py-3 text-left text-sm"
+                      onMouseDown={() => onSuggestionClick(item.query)}
+                    >
+                      {item.query}
+                    </button>
+                    <button
+                      className="px-3 py-3 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all touch-visible"
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        onDeleteHistoryItem(item.id);
+                      }}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
         </div>
 
         {/* 搜索模式图标按钮（与输入框同行） */}

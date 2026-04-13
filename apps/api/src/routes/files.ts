@@ -1841,7 +1841,9 @@ app.put('/:id/bucket', async (c) => {
     const children = await db
       .select({ id: files.id })
       .from(files)
-      .where(and(eq(files.parentId, parentId), eq(files.isFolder, true), eq(files.userId, userId), isNull(files.deletedAt)))
+      .where(
+        and(eq(files.parentId, parentId), eq(files.isFolder, true), eq(files.userId, userId), isNull(files.deletedAt))
+      )
       .all();
     for (const child of children) {
       collected.push(...(await collectSubfolderIds(child.id)));
@@ -1862,7 +1864,13 @@ app.put('/:id/bucket', async (c) => {
     userId,
     action: 'file.update',
     resourceType: 'folder',
-    details: { action: 'change_bucket', folderId, oldBucketId: folder.bucketId, newBucketId: targetBucketId, updatedFolderCount: updatedCount },
+    details: {
+      action: 'change_bucket',
+      folderId,
+      oldBucketId: folder.bucketId,
+      newBucketId: targetBucketId,
+      updatedFolderCount: updatedCount,
+    },
     ipAddress: getClientIp(c),
     userAgent: getUserAgent(c),
   });

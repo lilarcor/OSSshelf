@@ -5,7 +5,7 @@
  * 所有 service 层和 agentTools 应从此文件导入，禁止从 routes 导入。
  */
 
-import { eq, and, isNull, inArray } from 'drizzle-orm';
+import { eq, and, isNull, inArray, lt, or, desc, isNotNull } from 'drizzle-orm';
 import { getDb, files, filePermissions, users, userGroups, groupMembers } from '../db';
 import type { Env } from '../types/env';
 import { logger } from '@osshelf/shared';
@@ -370,4 +370,99 @@ export async function manageGroupMembers(
     default:
       return { success: false, error: `未知操作: ${action}` };
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 查询过期权限（供 AgentTools 调用）
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ListExpiredPermissionsInput {
+  includeExpiringSoon?: boolean;
+  withinDays?: number;
+}
+
+export interface ExpiredPermissionItem {
+  fileId: string;
+  fileName: string;
+  userId: string;
+  permission: string;
+  expiresAt: string;
+}
+
+export async function listExpiredPermissions(
+  env: Env,
+  userId: string,
+  input?: ListExpiredPermissionsInput
+): Promise<{
+  expired: ExpiredPermissionItem[];
+  expiringSoon?: ExpiredPermissionItem[];
+  total: number;
+  scannedAt: string;
+}> {
+  const db = getDb(env.DB);
+  const includeExpiringSoon = input?.includeExpiringSoon || false;
+  const withinDays = input?.withinDays || 7;
+
+  const now = new Date().toISOString();
+  const expiringThreshold = new Date(Date.now() + withinDays * 86400000).toISOString();
+
+  const conditions = [eq(filePermissions.grantedBy, userId)];
+
+  if (includeExpiringSoon) {
+    conditions.push(
+      or(
+        lt(filePermissions.expiresAt, now),
+        and(isNotNull(filePermissions.expiresAt), lt(filePermissions.expiresAt, expiringThreshold))
+      )!
+    );
+  } else {
+    conditions.push(lt(filePermissions.expiresAt, now));
+  }
+
+  const expiredPermissions = await db
+    .select({
+      id: filePermissions.id,
+      fileId: filePermissions.fileId,
+      fileName: files.name,
+      userId: filePermissions.userId,
+      permission: filePermissions.permission,
+      expiresAt: filePermissions.expiresAt,
+    })
+    .from(filePermissions)
+    .leftJoin(files, eq(filePermissions.fileId, files.id))
+    .where(and(...conditions))
+    .orderBy(desc(filePermissions.expiresAt))
+    .limit(50)
+    .all();
+
+  const result = {
+    expired: [] as ExpiredPermissionItem[],
+    expiringSoon: includeExpiringSoon ? ([] as ExpiredPermissionItem[]) : undefined,
+    scannedAt: now,
+    total: expiredPermissions.length,
+  };
+
+  for (const perm of expiredPermissions) {
+    const item: ExpiredPermissionItem = {
+      fileId: perm.fileId,
+      fileName: perm.fileName || '(未知文件)',
+      userId: perm.userId || '(未知用户)',
+      permission: perm.permission,
+      expiresAt: perm.expiresAt || '',
+    };
+
+    if (perm.expiresAt && perm.expiresAt < now) {
+      result.expired.push(item);
+    } else if (includeExpiringSoon && result.expiringSoon) {
+      result.expiringSoon.push(item);
+    }
+  }
+
+  logger.info('PermissionService', '查询过期授权完成', {
+    userId,
+    expiredCount: result.expired.length,
+    expiringSoonCount: result.expiringSoon?.length || 0,
+  });
+
+  return result;
 }

@@ -146,6 +146,7 @@ const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<
     generate_summary: (env, userId, args) => ContentTools.executeGenerateSummary(env, userId, args),
     generate_tags: (env, userId, args) => ContentTools.executeGenerateTags(env, userId, args),
     content_preview: (env, userId, args) => ContentTools.executeContentPreview(env, userId, args),
+    analyze_file_collection: (env, userId, args) => ContentTools.executeAnalyzeFileCollection(env, userId, args),
 
     // ════════════════════════════════════════════════════════════════
     // 📂 目录导航 (navigation.ts)
@@ -185,6 +186,7 @@ const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<
     batch_rename: (env, userId, args) => FileOpsTools.executeBatchRename(env, userId, args),
     star_file: (env, userId, args) => FileOpsTools.executeStarFile(env, userId, args),
     unstar_file: (env, userId, args) => FileOpsTools.executeUnstarFile(env, userId, args),
+    draft_and_create_file: (env, userId, args) => FileOpsTools.executeDraftAndCreateFile(env, userId, args),
 
     // ════════════════════════════════════════════════════════════════
     // 🏷️ 标签管理 (tags.ts)
@@ -236,6 +238,7 @@ const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<
     set_folder_access_level: (env, userId, args) => PermissionTools.executeSetFolderAccessLevel(env, userId, args),
     list_user_groups: (env, userId, args) => PermissionTools.executeListUserGroups(env, userId, args),
     manage_group_members: (env, userId, args) => PermissionTools.executeManageGroupMembers(env, userId, args),
+    list_expired_permissions: (env, userId, args) => PermissionTools.executeListExpiredPermissions(env, userId, args),
 
     // ════════════════════════════════════════════════════════════════
     // 💾 存储桶管理 (storage.ts)
@@ -272,6 +275,7 @@ const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<
     rebuild_vector_index: (env, userId, args) => AiEnhanceTools.executeRebuildVectorIndex(env, userId, args),
     ask_rag_question: (env, userId, args) => AiEnhanceTools.executeAskRagQuestion(env, userId, args),
     smart_rename_suggest: (env, userId, args) => AiEnhanceTools.executeSmartRenameSuggest(env, userId, args),
+    smart_organize_suggest: (env, userId, args) => AiEnhanceTools.executeSmartOrganizeSuggest(env, userId, args),
   };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -548,6 +552,7 @@ export function getToolsByCategory(): Record<string, string[]> {
       'generate_summary',
       'generate_tags',
       'content_preview',
+      'analyze_file_collection',
     ],
     '📂 目录导航': [
       'navigate_path',
@@ -569,6 +574,7 @@ export function getToolsByCategory(): Record<string, string[]> {
       'create_text_file',
       'create_code_file',
       'create_file_from_template',
+      'draft_and_create_file',
       'edit_file_content',
       'append_to_file',
       'find_and_replace',
@@ -610,6 +616,7 @@ export function getToolsByCategory(): Record<string, string[]> {
       'set_folder_access_level',
       'list_user_groups',
       'manage_group_members',
+      'list_expired_permissions',
     ],
     '💾 存储管理': [
       'get_storage_usage',
@@ -640,6 +647,7 @@ export function getToolsByCategory(): Record<string, string[]> {
       'rebuild_vector_index',
       'ask_rag_question',
       'smart_rename_suggest',
+      'smart_organize_suggest',
     ],
   };
 

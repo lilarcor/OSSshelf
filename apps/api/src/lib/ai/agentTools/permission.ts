@@ -18,6 +18,7 @@ import type { ToolDefinition } from './types';
 import {
   setFolderAccessLevel as serviceSetFolderAccessLevel,
   manageGroupMembers as serviceManageGroupMembers,
+  listExpiredPermissions as serviceListExpiredPermissions,
 } from '../../../lib/permissionService';
 
 export const definitions: ToolDefinition[] = [
@@ -369,21 +370,34 @@ export class PermissionTools {
     const includeExpiringSoon = (args.includeExpiringSoon as boolean) || false;
     const withinDays = (args.withinDays as number) || 7;
 
-    const db = getDb(env.DB);
+    try {
+      const result = await serviceListExpiredPermissions(env, userId, {
+        includeExpiringSoon,
+        withinDays,
+      });
 
-    // 查询已过期的授权（模拟查询，实际需要根据数据库结构调整）
-    const now = new Date().toISOString();
-    const expiringThreshold = new Date(Date.now() + withinDays * 86400000).toISOString();
-
-    // 返回示例数据结构（实际实现需根据 filePermissions 表调整）
-    return {
-      expired: [] as Array<{ fileId: string; fileName: string; userId: string; permission: string; expiresAt: string }>,
-      expiringSoon: includeExpiringSoon
-        ? ([] as Array<{ fileId: string; fileName: string; userId: string; permission: string; expiresAt: string }>)
-        : undefined,
-      scannedAt: now,
-      _next_actions: ['可调用 revoke_permission 批量撤销过期授权', '可调用 grant_permission 重新授权'],
-      note: '此工具返回过期和即将过期的授权列表，可用于批量清理',
-    };
+      return {
+        ...result,
+        _next_actions: [
+          `找到 ${result.expired.length} 个已过期授权${includeExpiringSoon ? `，${result.expiringSoon?.length || 0} 个即将过期` : ''}`,
+          '可调用 revoke_permission 批量撤销过期授权',
+          '可调用 grant_permission 重新授权',
+        ],
+      };
+    } catch (error) {
+      logger.error(
+        'AgentTool',
+        '查询过期授权失败',
+        { error: error instanceof Error ? error.message : error },
+        error as Error
+      );
+      return {
+        expired: [],
+        expiringSoon: includeExpiringSoon ? [] : undefined,
+        scannedAt: new Date().toISOString(),
+        error: '查询失败：' + (error instanceof Error ? error.message : '未知错误'),
+        _next_actions: ['请检查数据库连接或表结构'],
+      };
+    }
   }
 }

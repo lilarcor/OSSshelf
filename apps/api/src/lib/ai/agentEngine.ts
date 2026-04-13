@@ -190,6 +190,10 @@ const TOOL_SUMMARY_MAP: Record<string, (args: Record<string, unknown>) => string
   create_api_key: (a) => `创建 API Key`,
   revoke_api_key: (a) => `撤销 API Key`,
   create_webhook: (a) => `创建 Webhook`,
+  draft_and_create_file: (a) => `草稿创建文件 "${a.fileName || '(未命名)'}"`,
+  list_expired_permissions: (a) => `查询过期授权`,
+  smart_organize_suggest: (a) => `智能整理建议 (范围: ${a.scope || 'all'})`,
+  analyze_file_collection: (a) => `文件集合分析 (类型: ${a.analysisType})`,
 };
 
 function buildConfirmSummary(toolName: string, args: Record<string, unknown>): string {

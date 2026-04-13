@@ -32,6 +32,7 @@ import { readFileContent } from '../../../lib/fileContentHelper';
 import { buildFileTextForVector } from '../vectorIndex';
 import { getAiConfigNumber, getAiConfigString } from '../aiConfigService';
 import { toAgentFile, validateFileAccess, createSuccessResponse, createErrorResponse } from './agentToolUtils';
+import { getFilesByScope as serviceGetFilesByScope } from '../../../lib/fileService';
 
 const DEFAULT_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_TEXT_CHUNK_SIZE = 1500;
@@ -722,86 +723,44 @@ export class ContentTools {
       return { error: '缺少必要参数: scope 和 analysisType' };
     }
 
-    const db = getDb(env.DB);
+    try {
+      const result = await serviceGetFilesByScope(env, userId, {
+        scope: scope as 'folder' | 'tag' | 'starred',
+        folderId,
+        tagName,
+        maxFiles,
+      });
 
-    // 构建查询条件
-    const conditions = [isNull(files.deletedAt), eq(files.userId, userId)];
+      if (result.error) {
+        return { error: result.error };
+      }
 
-    switch (scope) {
-      case 'folder':
-        if (!folderId) return { error: 'scope=folder 时必须提供 folderId' };
-        conditions.push(eq(files.parentId, folderId));
-        break;
-      case 'starred':
-        // 需要 JOIN userStars 表（简化处理，实际需调整）
-        break;
-      case 'tag':
-        // 需要 JOIN fileTags 表（简化处理，实际需调整）
-        break;
-      default:
-        return { error: `无效的 scope: ${scope}` };
+      const analysisTypeMap: Record<string, string> = {
+        summary: '请基于以上文件摘要生成整体报告',
+        compare: '请对比以上文件的异同点',
+        extract_common: '请提取以上文件的共同主题/条款/关键词',
+        timeline: '请按时间顺序梳理文件脉络',
+      };
+
+      return {
+        files: result.files,
+        totalCount: result.totalCount,
+        truncated: result.totalCount >= maxFiles,
+        analysisType,
+        scope,
+        _next_actions: [analysisTypeMap[analysisType] || '请分析以上文件集合'],
+      };
+    } catch (error) {
+      logger.error(
+        'AgentTool',
+        '文件集合分析失败',
+        { error: error instanceof Error ? error.message : error },
+        error as Error
+      );
+      return {
+        error: '分析失败：' + (error instanceof Error ? error.message : '未知错误'),
+      };
     }
-
-    // 查询文件列表
-    const fileList = await db
-      .select({
-        id: files.id,
-        name: files.name,
-        mimeType: files.mimeType,
-        size: files.size,
-        aiSummary: files.aiSummary,
-        updatedAt: files.updatedAt,
-        createdAt: files.createdAt,
-      })
-      .from(files)
-      .where(and(...conditions))
-      .limit(maxFiles)
-      .all();
-
-    // 构建内容摘要列表
-    const filesWithSummary = await Promise.all(
-      fileList.map(async (f) => {
-        let summary = f.aiSummary;
-
-        // 无 AI 摘要时尝试读取内容前 500 字符
-        if (!summary && !f.mimeType?.startsWith('image/') && !f.mimeType?.startsWith('video/')) {
-          try {
-            const readResult = await readFileContent(env, f as any);
-            if (readResult.success && readResult.content) {
-              summary = readResult.content.slice(0, 500);
-            }
-          } catch (e) {
-            // 忽略读取错误
-          }
-        }
-
-        return {
-          id: f.id,
-          name: f.name,
-          mimeType: f.mimeType,
-          size: Number(f.size),
-          summary: summary || (f.mimeType?.startsWith('image/') ? '[图片文件]' : '[二进制文件]'),
-          updatedAt: f.updatedAt,
-        };
-      })
-    );
-
-    // 分析类型对应的 _next_actions
-    const nextActionsMap: Record<string, string> = {
-      summary: '请基于以上文件摘要生成整体报告',
-      compare: '请对比以上文件的异同点',
-      extract_common: '请提取以上文件的共同主题/条款/关键词',
-      timeline: '请按时间顺序梳理文件脉络',
-    };
-
-    return {
-      files: filesWithSummary,
-      totalCount: fileList.length,
-      truncated: fileList.length >= maxFiles,
-      analysisType,
-      scope,
-      _next_actions: [nextActionsMap[analysisType] || '请分析以上文件集合'],
-    };
   }
 }
 

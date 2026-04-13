@@ -1391,8 +1391,9 @@ export default function Files() {
         >
           <div className="space-y-4 mt-2">
             <p className="text-sm text-muted-foreground">
-              修改文件夹 <span className="font-medium text-foreground">「{decodeFileName(changeFolderBucketFile.name)}」</span> 的默认存储桶。
-              新上传到此文件夹的文件将使用新桶，<span className="font-medium">已有文件不会移动</span>。
+              修改文件夹{' '}
+              <span className="font-medium text-foreground">「{decodeFileName(changeFolderBucketFile.name)}」</span>{' '}
+              的默认存储桶。 新上传到此文件夹的文件将使用新桶，<span className="font-medium">已有文件不会移动</span>。
             </p>
             <select
               className="w-full h-9 px-3 text-sm border rounded-lg bg-background"
@@ -1403,7 +1404,9 @@ export default function Files() {
               {allBuckets
                 .filter((b) => b.id !== (changeFolderBucketFile as any).bucketId)
                 .map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
                 ))}
             </select>
           </div>
