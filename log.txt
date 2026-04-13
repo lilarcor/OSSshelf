@@ -1,0 +1,204 @@
+{
+  "level": "error",
+  "message": "POST https://ossapi.wort.uk/api/ai-config/ai-providers",
+  "$workers": {
+    "event": {
+      "request": {
+        "cf": {
+          "requestHeaderNames": {},
+          "isEUCountry": false,
+          "tlsClientAuth": {
+            "certRFC9440TooLarge": false,
+            "certChainRFC9440TooLarge": false,
+            "certPresented": "0",
+            "certVerified": "NONE",
+            "certRevoked": "0",
+            "certIssuerDN": "",
+            "certSubjectDN": "",
+            "certIssuerDNRFC2253": "",
+            "certSubjectDNRFC2253": "",
+            "certIssuerDNLegacy": "",
+            "certSubjectDNLegacy": "",
+            "certSerial": "",
+            "certIssuerSerial": "",
+            "certSKI": "",
+            "certIssuerSKI": "",
+            "certFingerprintSHA1": "",
+            "certFingerprintSHA256": "",
+            "certNotBefore": "",
+            "certNotAfter": "",
+            "certRFC9440": "",
+            "certChainRFC9440": ""
+          },
+          "httpProtocol": "HTTP/2",
+          "clientAcceptEncoding": "gzip, deflate, br",
+          "requestPriority": "weight=220;exclusive=1",
+          "colo": "NRT",
+          "asOrganization": "Oracle Corporation",
+          "country": "JP",
+          "city": "Inzai",
+          "continent": "AS",
+          "region": "Chiba",
+          "regionCode": "12",
+          "timezone": "Asia/Tokyo",
+          "longitude": "140.1185",
+          "latitude": "35.8089",
+          "postalCode": "270-1352",
+          "tlsVersion": "TLSv1.3",
+          "tlsCipher": "AEAD-AES128-GCM-SHA256",
+          "tlsClientRandom": "hviGC8wFfSI45bkQKNOPP/yrs56m3Ae3qCrF40kvj/8=",
+          "tlsClientCiphersSha1": "nWmr2CuvhM3+1BAitb/WHA2q9wk=",
+          "tlsClientExtensionsSha1": "2AXqg1JxXNU49aGH5wdoK7Q2KnE=",
+          "tlsClientExtensionsSha1Le": "Sn809Y+X+2VzEuSGxSm83UCJtz0=",
+          "tlsExportedAuthenticator": {
+            "clientHandshake": "2f677bd43bdb6cd85542abe03fa3766a2d61c79d1cb05d92c39d2b9e6b187c05",
+            "serverHandshake": "3a09447cb2313f6d909a397c00cb6e601e4171b8e529704f05f8e883032a7386",
+            "clientFinished": "86e41a9eb4aa8a758a6c6264548050a623014984e7859b63629e9e347b562edc",
+            "serverFinished": "9a625a020214d50451d511a70177bbd04426061c08edc3b950786df08406a108"
+          },
+          "tlsClientHelloLength": "1954",
+          "verifiedBotCategory": "",
+          "edgeRequestKeepAliveStatus": 1,
+          "clientTcpRtt": 1,
+          "clientQuicRtt": 0,
+          "asn": 31898,
+          "edgeL4": {
+            "deliveryRate": 8534381
+          }
+        },
+        "url": "https://ossapi.wort.uk/api/ai-config/ai-providers",
+        "method": "POST",
+        "headers": {
+          "accept": "application/json, text/plain, */*",
+          "accept-encoding": "gzip, br",
+          "accept-language": "zh-CN,zh;q=0.9",
+          "authorization": "********",
+          "cf-connecting-ip": "161.33.190.243",
+          "cf-ipcountry": "JP",
+          "cf-ray": "9eb75be9983da0de",
+          "cf-visitor": "{\"scheme\":\"https\"}",
+          "connection": "Keep-Alive",
+          "content-length": "298",
+          "content-type": "application/json",
+          "host": "ossapi.wort.uk",
+          "origin": "https://oss.wort.uk",
+          "priority": "u=1, i",
+          "referer": "https://oss.wort.uk/",
+          "sec-ch-ua": "\"Chromium\";v=\"146\", \"Not-A.Brand\";v=\"24\", \"Google Chrome\";v=\"146\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "\"Windows\"",
+          "sec-fetch-dest": "empty",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-site": "same-site",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+          "x-forwarded-proto": "https",
+          "x-real-ip": "161.33.190.243"
+        },
+        "path": "/api/ai-config/ai-providers"
+      },
+      "rayId": "9eb75be9983da0de",
+      "response": {
+        "status": 500
+      }
+    },
+    "truncated": false,
+    "scriptName": "ossshelf-api",
+    "outcome": "ok",
+    "eventType": "fetch",
+    "executionModel": "stateless",
+    "scriptVersion": {
+      "id": "3f90e579-c228-4daa-9ab5-518f0e5b9785"
+    },
+    "requestId": "9eb75be9983da0de",
+    "cpuTimeMs": 3,
+    "wallTimeMs": 294
+  },
+  "$metadata": {
+    "id": "01KP2DXBKR5TTX7FW7J3SXDQMX",
+    "requestId": "9eb75be9983da0de",
+    "trigger": "POST /api/ai-config/ai-providers",
+    "service": "ossshelf-api",
+    "level": "error",
+    "error": "POST https://ossapi.wort.uk/api/ai-config/ai-providers",
+    "message": "POST https://ossapi.wort.uk/api/ai-config/ai-providers",
+    "account": "2f24288827c6b14fac807324df3a4ac2",
+    "type": "cf-worker-event",
+    "fingerprint": "42c775460d723602aa0bc387455eab95",
+    "origin": "fetch",
+    "messageTemplate": "POST https://ossapi.wort.uk/api/ai-config/ai-providers"
+  }
+}
+
+{
+  "level": "error",
+  "message": "[2026-04-13T03:24:39.706Z] [ERROR] [AI Config] Failed to create provider {\"userId\":\"ca589195-75a9-456f-830f-ad7efe52a848\"} Error: D1_ERROR: table ai_providers has no column named name_en: SQLITE_ERROR",
+  "$workers": {
+    "truncated": false,
+    "event": {
+      "request": {
+        "url": "https://ossapi.wort.uk/api/ai-config/ai-providers",
+        "method": "POST",
+        "path": "/api/ai-config/ai-providers"
+      }
+    },
+    "outcome": "ok",
+    "scriptName": "ossshelf-api",
+    "eventType": "fetch",
+    "executionModel": "stateless",
+    "scriptVersion": {
+      "id": "3f90e579-c228-4daa-9ab5-518f0e5b9785"
+    },
+    "requestId": "9eb75be9983da0de"
+  },
+  "$metadata": {
+    "id": "01KP2DXBWT7R88ZVW49AP376KD",
+    "requestId": "9eb75be9983da0de",
+    "trigger": "POST /api/ai-config/ai-providers",
+    "service": "ossshelf-api",
+    "level": "error",
+    "error": "[2026-04-13T03:24:39.706Z] [ERROR] [AI Config] Failed to create provider {\"userId\":\"ca589195-75a9-456f-830f-ad7efe52a848\"} Error: D1_ERROR: table ai_providers has no column named name_en: SQLITE_ERROR",
+    "message": "[2026-04-13T03:24:39.706Z] [ERROR] [AI Config] Failed to create provider {\"userId\":\"ca589195-75a9-456f-830f-ad7efe52a848\"} Error: D1_ERROR: table ai_providers has no column named name_en: SQLITE_ERROR",
+    "account": "2f24288827c6b14fac807324df3a4ac2",
+    "type": "cf-worker",
+    "fingerprint": "5c1f67adf42a593cf7c7457bdffab1c0",
+    "origin": "fetch",
+    "messageTemplate": "[<DATETIME>] [ERROR] [AI Config] Failed to create provider {\"userId\":\"<UUID>\"} Error: D1_ERROR: table ai_providers has no column named name_en: SQLITE_ERROR"
+  }
+}
+
+{
+  "level": "error",
+  "message": "Error: D1_ERROR: table ai_providers has no column named name_en: SQLITE_ERROR\n    at D1DatabaseSessionAlwaysPrimary._sendOrThrow (cloudflare-internal:d1-api:139:19)\n    at async cloudflare-internal:d1-api:353:41\n    at async index.js:41233:5\n    at async dispatch (index.js:12046:17)\n    at async handleJwtAuth (index.js:14494:5)\n    at async authMiddleware (index.js:14456:12)\n    at async dispatch (index.js:12046:17)\n    at async errorHandler (index.js:18804:5)\n    at async dispatch (index.js:12046:17)\n    at async secureHeaders2 (index.js:14348:5)",
+  "$workers": {
+    "truncated": false,
+    "event": {
+      "request": {
+        "url": "https://ossapi.wort.uk/api/ai-config/ai-providers",
+        "method": "POST",
+        "path": "/api/ai-config/ai-providers"
+      }
+    },
+    "outcome": "ok",
+    "scriptName": "ossshelf-api",
+    "eventType": "fetch",
+    "executionModel": "stateless",
+    "scriptVersion": {
+      "id": "3f90e579-c228-4daa-9ab5-518f0e5b9785"
+    },
+    "requestId": "9eb75be9983da0de"
+  },
+  "$metadata": {
+    "id": "01KP2DXBWT7R88ZVW49AP376KE",
+    "requestId": "9eb75be9983da0de",
+    "trigger": "POST /api/ai-config/ai-providers",
+    "service": "ossshelf-api",
+    "level": "error",
+    "error": "Error: D1_ERROR: table ai_providers has no column named name_en: SQLITE_ERROR\n    at D1DatabaseSessionAlwaysPrimary._sendOrThrow (cloudflare-internal:d1-api:139:19)\n    at async cloudflare-internal:d1-api:353:41\n    at async index.js:41233:5\n    at async dispatch (index.js:12046:17)\n    at async handleJwtAuth (index.js:14494:5)\n    at async authMiddleware (index.js:14456:12)\n    at async dispatch (index.js:12046:17)\n    at async errorHandler (index.js:18804:5)\n    at async dispatch (index.js:12046:17)\n    at async secureHeaders2 (index.js:14348:5)",
+    "message": "Error: D1_ERROR: table ai_providers has no column named name_en: SQLITE_ERROR\n    at D1DatabaseSessionAlwaysPrimary._sendOrThrow (cloudflare-internal:d1-api:139:19)\n    at async cloudflare-internal:d1-api:353:41\n    at async index.js:41233:5\n    at async dispatch (index.js:12046:17)\n    at async handleJwtAuth (index.js:14494:5)\n    at async authMiddleware (index.js:14456:12)\n    at async dispatch (index.js:12046:17)\n    at async errorHandler (index.js:18804:5)\n    at async dispatch (index.js:12046:17)\n    at async secureHeaders2 (index.js:14348:5)",
+    "account": "2f24288827c6b14fac807324df3a4ac2",
+    "type": "cf-worker",
+    "fingerprint": "85ff35b318f8e64260110e3101eaa88d",
+    "origin": "fetch",
+    "messageTemplate": "Error: D1_ERROR: table ai_providers has no column named name_en: SQLITE_ERROR\n    at D1DatabaseSessionAlwaysPrimary._sendOrThrow (cloudflare-internal:d1-api:139:19)\n    at async cloudflare-internal:d1-api:353:41\n    at async <DOMAIN>:41233:5\n    at async dispatch (<DOMAIN>:12046:17)\n    at async handleJwtAuth (<DOMAIN>:14494:5)\n    at async authMiddleware (<DOMAIN>:14456:12)\n    at async dispatch (<DOMAIN>:12046:17)\n    at async errorHandler (<DOMAIN>:18804:5)\n    at async dispatch (<DOMAIN>:12046:17)\n    at async secureHeaders2 (<DOMAIN>:14348:5)"
+  }
+}
