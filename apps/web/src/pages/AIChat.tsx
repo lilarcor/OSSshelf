@@ -211,7 +211,7 @@ export function AIChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(urlSessionId || null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [showSidebar, setShowSidebar] = useState(() => window.innerWidth >= 1024);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
