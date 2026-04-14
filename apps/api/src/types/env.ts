@@ -18,6 +18,8 @@ export interface AiTaskMessage {
   retryCount?: number;
   /** tags/summary 完成后是否自动触发向量索引（上传自动处理时使用） */
   triggerIndexOnComplete?: boolean;
+  /** 是否支持断点续传（批量索引时标记） */
+  isResumable?: boolean;
 }
 
 export interface Env {

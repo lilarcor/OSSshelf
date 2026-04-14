@@ -185,7 +185,63 @@ export const filesApi = {
 
   star: (id: string) => api.post<ApiResponse<{ message: string; isStarred: boolean }>>(`/api/files/${id}/star`),
   unstar: (id: string) => api.delete<ApiResponse<{ message: string; isStarred: boolean }>>(`/api/files/${id}/star`),
+
+  // ── 文件夹大小统计（批量）──
+  /** 批量获取文件夹大小统计 */
+  getFoldersSize: (folderIds: string[]) =>
+    api.post<ApiResponse<Record<string, FolderSizeStats>>>('/api/files/folders/size', { folderIds }),
+
+  // ── 文件夹 Zip 下载 ──
+  /** 文件夹打包下载为 ZIP */
+  downloadFolderAsZip: (folderId: string, fileIds?: string[]) => {
+    const params = fileIds ? `?fileIds=${fileIds.join(',')}` : '';
+    return api.get(`/api/files/${folderId}/zip${params}`, { responseType: 'blob' });
+  },
+
+  // ── 文件访问日志 ──
+  /** 获取文件的访问日志（分页） */
+  getFileLogs: (fileId: string, params?: { limit?: number; offset?: number; action?: string }) =>
+    api.get<ApiResponse<FileAccessLogResponse>>(`/api/files/${fileId}/logs`, { params }),
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 新增类型定义
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 文件夹大小统计信息 */
+export interface FolderSizeStats {
+  folderId: string;
+  totalSize: number;
+  fileCount: number;
+  folderCount: number;
+  childFiles: Array<{ id: string; name: string; size: number }>;
+  lastUpdated: string;
+}
+
+/** 文件访问日志响应 */
+export interface FileAccessLogResponse {
+  fileId: string;
+  fileName: string;
+  logs: Array<{
+    id: string;
+    userId: string | null;
+    action: string;
+    ipAddress: string | null;
+    userAgent: string | null;
+    status: 'success' | 'failed';
+    errorMessage: string | null;
+    details: string | null;
+    createdAt: string;
+    user: { name: string | null; email: string } | null;
+  }>;
+  stats: Array<{ action: string; count: number }>;
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+    totalPages: number;
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Share — 下载分享 + 文件夹浏览 + 上传链接

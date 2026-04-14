@@ -669,10 +669,8 @@ export class AgentEngine {
     signal?: AbortSignal,
     sessionId?: string,
     filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS,
-    contextPrompt: string = '',
-    fallbackCount: number = 0
+    contextPrompt: string = ''
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
-    const MAX_FALLBACK_ATTEMPTS = 1; // 最大降级重试次数（防止无限循环）
     const systemContent = AGENT_SYSTEM_PROMPT + contextPrompt;
     const messages: Array<{ role: string; content?: string; toolCalls?: any[]; toolCallId?: string }> = [
       { role: 'system', content: systemContent },
@@ -757,7 +755,7 @@ export class AgentEngine {
           /* ok */
         } else if (!isAbortError(err)) {
           logger.error('AgentEngine', 'LLM stream error (native)', {}, err);
-          // 仅在第 0 轮（尚未产生任何工具调用）才允许 fallback
+          // 仅在第 0 轮（尚未产生任何工具调用）才允许降级到 prompt-based
           if (toolCallCount === 0) {
             if (fullText.length > 0) {
               onChunk({ type: 'reset', done: false }); // 通知前端清空已渲染内容
@@ -778,7 +776,7 @@ export class AgentEngine {
               contextPrompt
             );
           } else {
-            // 已有工具调用轮次，不 fallback，直接报错
+            // 已有工具调用轮次，不降级，直接报错
             onChunk({ type: 'error', message: 'AI 模型调用失败', done: true });
             return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
           }
@@ -789,45 +787,6 @@ export class AgentEngine {
       const collected = Array.from(collectedMap.values()).filter((tc) => tc.name);
 
       if (!hasToolCalls) {
-        // native模式第一轮无工具调用：除非是明确的闲聊，否则直接降级到prompt-based
-        // 原因：native模型有能力调工具，第一轮没调说明模型跳过了，不需要猜测意图
-        if (toolCallCount === 0 && !isPureChitchat(query)) {
-          if (fallbackCount >= MAX_FALLBACK_ATTEMPTS) {
-            logger.warn('AgentEngine', 'Max fallback attempts reached, accepting response without tool call', {
-              modelId: resolvedModelId,
-              query: query.slice(0, 100),
-            });
-            messages.push({ role: 'assistant', content: streamContent });
-            break;
-          }
-
-          logger.warn('AgentEngine', 'Native model skipped tool call, falling back to prompt-based', {
-            modelId: resolvedModelId,
-            query: query.slice(0, 100),
-            responsePreview: streamContent.slice(0, 150),
-          });
-
-          if (fullText.length > 0) {
-            onChunk({ type: 'reset', done: false });
-            fullText = '';
-          }
-
-          return this.runPromptBased(
-            userId,
-            query,
-            conversationHistory,
-            modelId,
-            caps,
-            config,
-            onChunk,
-            signal,
-            sessionId,
-            filteredTools,
-            contextPrompt,
-            fallbackCount + 1
-          );
-        }
-
         messages.push({ role: 'assistant', content: streamContent });
         break;
       }
@@ -961,7 +920,7 @@ export class AgentEngine {
     return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
   }
 
-  // ── Prompt-Based Fallback ──────────────────────────────────────────────────
+  // ── Prompt-Based Mode（用于不支持 native tool calling 的模型）──────────────────
 
   private async runPromptBased(
     userId: string,
@@ -974,10 +933,8 @@ export class AgentEngine {
     signal?: AbortSignal,
     sessionId?: string,
     filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS,
-    contextPrompt: string = '',
-    fallbackCount: number = 0
+    contextPrompt: string = ''
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
-    const MAX_FALLBACK_ATTEMPTS = 1;
     // 工具列表：注入工具名 + 高频工具的参数示例，帮助小模型正确构造调用
     // 不注入完整 description，避免 token 暴增导致小模型上下文溢出失效
     const TOOL_PARAM_EXAMPLES: Record<string, string> = {
@@ -1020,7 +977,6 @@ export class AgentEngine {
     const callSignatures = new Set<string>();
     let toolCallCount = 0;
     let idleRounds = 0;
-    let hasInjectedForcedHint = false; // 防止强制提示重复注入导致循环
 
     // token 累计（估算）
     const resolvedModelId = caps.resolvedModelId || modelId || 'default';
@@ -1078,32 +1034,6 @@ export class AgentEngine {
       }
 
       if (!foundToolCall) {
-        // prompt-based第一轮无工具调用：非闲聊则注入强制提示重试一次
-        if (toolCallCount === 0 && !isPureChitchat(query) && !hasInjectedForcedHint) {
-          logger.warn('AgentEngine', 'Prompt-based model skipped tool call, injecting forced hint', {
-            modelId: resolvedModelId,
-            query: query.slice(0, 100),
-          });
-
-          if (fullText.length > 0) {
-            onChunk({ type: 'reset', done: false });
-            fullText = '';
-            forwardedUpTo = 0;
-          }
-
-          messages.push({ role: 'assistant', content: buffer });
-          messages.push({
-            role: 'user',
-            content: `[系统提示] 这个问题需要查询真实数据，请调用合适的工具获取后再回答。直接输出工具调用代码块，不要解释。`,
-          });
-
-          buffer = '';
-          forwardedUpTo = 0;
-          hasInjectedForcedHint = true;
-          continue;
-        }
-
-        // 真正的最终回答
         if (buffer.length > forwardedUpTo) {
           const tail = buffer.slice(forwardedUpTo);
           onChunk({ type: 'text', content: tail, done: false });
@@ -1464,26 +1394,6 @@ function isExpectedAbort(err: unknown, hadToolCalls: boolean): boolean {
 
 function randomId(): string {
   return `tc_${crypto.randomUUID().slice(0, 8)}`;
-}
-
-/**
- * 判断是否是不需要工具的纯闲聊
- * 用于 native 模式：第一轮无工具调用时，只有明确是闲聊才放行，否则直接降级
- */
-function isPureChitchat(query: string): boolean {
-  const q = query.trim();
-  // 极短的问候/感谢/确认
-  if (
-    q.length < 15 &&
-    /^(你好|hi|hello|谢谢|感谢|好的|明白|知道了|ok|okay|嗯|哦|是的|对的|没事|不用了)[\s!！。.]*$/i.test(q)
-  ) {
-    return true;
-  }
-  // 明确的通用知识问题（不涉及文件系统）
-  if (/^(什么是|怎么理解|帮我解释|介绍一下|讲讲)\S/.test(q) && !/文件|文档|目录|存储|上传|分享|收藏|标签/.test(q)) {
-    return true;
-  }
-  return false;
 }
 
 /** 从回复文本中提取文件引用（前端渲染卡片用） */

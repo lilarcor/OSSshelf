@@ -536,8 +536,16 @@ async function handlePut(c: AppContext, userId: string, path: string) {
   if (existingFile) {
     const sizeDelta = body.byteLength - existingFile.size;
     if (sizeDelta > 0) {
-      const userRow = await db.select().from(users).where(eq(users.id, userId)).get();
-      if (userRow && userRow.storageUsed + sizeDelta > userRow.storageQuota) {
+      // 使用原子查询避免 snapshot 值问题
+      const quotaCheck = await db
+        .select({
+          storageUsed: users.storageUsed,
+          storageQuota: users.storageQuota,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .get();
+      if (quotaCheck && quotaCheck.storageQuota !== null && (quotaCheck.storageUsed ?? 0) + sizeDelta > (quotaCheck.storageQuota ?? 0)) {
         return new Response('Insufficient Storage', { status: 507, headers: DAV_BASE_HEADERS });
       }
       if (bucketCfgP) {
@@ -546,8 +554,16 @@ async function handlePut(c: AppContext, userId: string, path: string) {
       }
     }
   } else {
-    const userRow = await db.select().from(users).where(eq(users.id, userId)).get();
-    if (userRow && userRow.storageUsed + body.byteLength > userRow.storageQuota) {
+    // 使用原子查询避免 snapshot 值问题
+    const quotaCheck = await db
+      .select({
+        storageUsed: users.storageUsed,
+        storageQuota: users.storageQuota,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .get();
+    if (quotaCheck && quotaCheck.storageQuota !== null && (quotaCheck.storageUsed ?? 0) + body.byteLength > (quotaCheck.storageQuota ?? 0)) {
       return new Response('Insufficient Storage', { status: 507, headers: DAV_BASE_HEADERS });
     }
     if (bucketCfgP) {

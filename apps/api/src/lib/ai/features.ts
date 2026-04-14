@@ -188,6 +188,49 @@ export function isImageFile(mimeType: string | null): boolean {
   return mimeType?.startsWith('image/') ?? false;
 }
 
+/**
+ * 判断文件是否应该建立向量索引
+ *
+ * 核心原则：
+ * 1. 向量索引会通过 buildFileTextForVector() 读取实际文件内容
+ * 2. 只有能提取文本内容的文件才值得建立语义搜索索引
+ * 3. 排除不适合的类型：图片/视频/音频（无文本）、超大文件（成本过高）
+ *
+ * 使用场景：
+ * - 文件上传时自动触发索引（即使不需要 summary/tags）
+ * - 批量手动索引时过滤无效文件
+ */
+export function shouldIndexFile(mimeType: string | null, fileSize?: number): boolean {
+  // 文件大小限制：超过 10MB 不索引（嵌入 token 成本过高）
+  const MAX_INDEX_SIZE = 10 * 1024 * 1024;
+  if (fileSize && fileSize > MAX_INDEX_SIZE) {
+    return false;
+  }
+
+  // 排除明显的非文本类型（这些类型没有有意义的文本内容可供索引）
+  if (!mimeType) return false;
+
+  // 图片/视频/音频 → 不适合向量索引（它们走 tags 路径生成描述性标签）
+  if (mimeType.startsWith('image/') || mimeType.startsWith('video/') || mimeType.startsWith('audio/')) {
+    return false;
+  }
+
+  // 压缩包/二进制 → 无法提取有意义的内容
+  if (
+    mimeType === 'application/zip' ||
+    mimeType === 'application/x-rar-compressed' ||
+    mimeType === 'application/x-7z-compressed' ||
+    mimeType === 'application/octet-stream' ||
+    mimeType === 'application/x-msdownload' // .exe
+  ) {
+    return false;
+  }
+
+  // 其余类型都允许尝试索引（text/*, application/json, PDF, 代码等）
+  // 即使某些文件 readfileContent() 读不到内容，buildFileTextForVector 会降级使用元数据
+  return true;
+}
+
 export function isAIConfigured(env: Env): boolean {
   return !!(env.AI || env.VECTORIZE);
 }
@@ -821,9 +864,14 @@ export async function enqueueAutoProcessFile(env: Env, fileId: string, userId?: 
     taskTypes.push('summary');
   }
 
+  // 向量索引：独立判断是否需要索引
+  // 即使不需要 summary/tags，只要文件内容可提取就应该建立索引
   const vectorIndexEnabled = await getAiConfigBoolean(env, 'ai.feature.vector_index_enabled', true);
-  if (env.VECTORIZE && taskTypes.length > 0 && vectorIndexEnabled) {
-    taskTypes.push('index');
+  if (env.VECTORIZE && vectorIndexEnabled) {
+    // 检查文件是否适合建立向量索引
+    if (shouldIndexFile(file.mimeType, file.size)) {
+      taskTypes.push('index');
+    }
   }
 
   if (taskTypes.length === 0) {
@@ -832,13 +880,26 @@ export async function enqueueAutoProcessFile(env: Env, fileId: string, userId?: 
 
   if (env.AI_TASKS_QUEUE) {
     try {
-      // 先创建 task 记录（processAiTaskMessage 会先查此记录，不存在则跳过）
-      // index 不单独入队 —— 由 tags/summary 各自完成后在 aiTaskQueue 里触发
+      // 分离内容任务和索引任务
       const contentTaskTypes = taskTypes.filter((t) => t !== 'index') as Array<'summary' | 'tags'>;
-      if (contentTaskTypes.length === 0) return;
+      const hasIndexOnly = contentTaskTypes.length === 0 && taskTypes.includes('index');
 
-      // 创建一个 task 记录，total = contentTaskTypes.length
-      // index 在所有内容任务完成后由队列处理器自动触发
+      // 纯索引任务：直接创建 index 任务并入队
+      if (hasIndexOnly) {
+        const task = await createTaskRecord(env, 'index', effectiveUserId, 1);
+        await (env.AI_TASKS_QUEUE as any).send({
+          body: {
+            type: 'index',
+            fileId,
+            userId: effectiveUserId,
+            taskId: task.id,
+          },
+        });
+        logger.info('AI', '文件向量索引任务已入队（纯索引）', { fileId, userId: effectiveUserId });
+        return;
+      }
+
+      // 混合任务：先执行 summary/tags，完成后自动触发 index
       const task = await createTaskRecord(env, contentTaskTypes[0], effectiveUserId, contentTaskTypes.length);
       const taskId = task.id;
 
@@ -848,7 +909,6 @@ export async function enqueueAutoProcessFile(env: Env, fileId: string, userId?: 
           fileId,
           userId: effectiveUserId,
           taskId,
-          // 标记需要在完成后触发 index
           triggerIndexOnComplete: env.VECTORIZE ? true : false,
         } as import('../../types/env').AiTaskMessage,
       }));

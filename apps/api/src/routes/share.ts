@@ -1291,6 +1291,12 @@ app.post('/upload/:token', async (c) => {
     throwAppError('NO_STORAGE_CONFIGURED', '存储桶未配置');
   }
 
+  // 检查文件所有者的个人存储配额（防止通过分享链接绕过限制）
+  const ownerUser = await db.select().from(users).where(eq(users.id, folderOwnerId)).get();
+  if (ownerUser && ownerUser.storageQuota !== null && (ownerUser.storageUsed ?? 0) + uploadFile.size > (ownerUser.storageQuota ?? 0)) {
+    throwAppError('QUOTA_EXCEEDED', '文件所有者存储空间不足，无法上传');
+  }
+
   const fileId = crypto.randomUUID();
   const now = new Date().toISOString();
   const r2Key = `files/${folderOwnerId}/${fileId}/${encodeFilename(uploadFile.name)}`;
