@@ -904,7 +904,9 @@ export class AgentEngine {
             };
           }
 
-          roundNewData = mergeSourcesFromResult(result, sources) || roundNewData;
+          mergeSourcesFromResult(result, sources);
+          // 工具成功执行就算有效轮次（不依赖是否返回文件），重置 idleRounds
+          roundNewData = true;
           // 工具结果注入估算（工具名 + 结果 JSON）
           inputTokens += estimateTokens(tc.name + JSON.stringify(result));
         } catch (err) {
@@ -947,7 +949,7 @@ export class AgentEngine {
         }
       }
 
-      // 空转检测：没有有效新数据时递增（包括全部被跳过的情况）
+      // 空转检测：本轮有工具成功执行则重置，只有全部被跳过（重复调用）才递增
       if (!roundNewData) {
         idleRounds++;
         if (idleRounds >= config.maxIdleRounds) break;
@@ -976,10 +978,35 @@ export class AgentEngine {
     fallbackCount: number = 0
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
     const MAX_FALLBACK_ATTEMPTS = 1;
-    // 只注入工具名列表，不加完整描述，避免token暴增导致LLM失效
+    // 工具列表：注入工具名 + 高频工具的参数示例，帮助小模型正确构造调用
+    // 不注入完整 description，避免 token 暴增导致小模型上下文溢出失效
+    const TOOL_PARAM_EXAMPLES: Record<string, string> = {
+      search_files:        '{"query": "关键词"}',
+      filter_files:        '{"mimeTypePrefix": "image/", "limit": 20}',
+      get_storage_stats:   '{}',
+      get_starred_files:   '{}',
+      list_folder:         '{"folderId": null}',
+      get_folder_tree:     '{}',
+      get_recent_files:    '{"limit": 10}',
+      list_shares:         '{}',
+      get_file_tags:       '{"fileId": "<id>"}',
+      get_activity_stats:  '{}',
+      read_file_text:      '{"fileId": "<id>"}',
+      get_file_details:    '{"fileId": "<id>"}',
+      search_by_tag:       '{"tagNames": ["标签名"]}',
+      get_storage_usage:   '{}',
+    };
     const toolListHint =
       filteredTools.length > 0
-        ? `\n\n## 当前可用工具（只能调用以下工具名，工具名必须完全匹配）\n${filteredTools.map((t) => `- ${t.function.name}`).join('\n')}`
+        ? `\n\n## 当前可用工具（只能调用以下工具名，工具名必须完全匹配）\n` +
+          filteredTools
+            .map((t) => {
+              const ex = TOOL_PARAM_EXAMPLES[t.function.name];
+              return ex
+                ? `- ${t.function.name}  示例参数: ${ex}`
+                : `- ${t.function.name}`;
+            })
+            .join('\n')
         : '';
     const systemContent = PROMPT_BASED_SYSTEM_PROMPT + contextPrompt + toolListHint;
     const messages: Array<{ role: string; content: string }> = [
@@ -1129,7 +1156,7 @@ export class AgentEngine {
       messages.push({ role: 'assistant', content: buffer });
 
       let result: unknown;
-      let roundNewData = false;
+      let toolSucceeded = false;
       try {
         result = await this.executor.execute(toolName, toolArgs);
 
@@ -1160,7 +1187,9 @@ export class AgentEngine {
           };
         }
 
-        roundNewData = mergeSourcesFromResult(result, sources);
+        mergeSourcesFromResult(result, sources);
+        // 工具成功执行就算有效轮次，重置 idleRounds
+        toolSucceeded = true;
         // 工具结果注入估算
         inputTokens += estimateTokens(toolName + JSON.stringify(result));
       } catch (err) {
@@ -1180,8 +1209,8 @@ export class AgentEngine {
         content: `[工具 ${toolName} 结果]\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\`\n${INJECTION_GUARD}${hintText}\n\n请根据以上结果继续回答用户问题。`,
       });
 
-      // 空转检测：与 Native 模式保持一致，使用 mergeSourcesFromResult 判断是否有新数据
-      if (!roundNewData) {
+      // 空转检测：工具成功执行则重置，只有工具被跳过（重复调用）才递增
+      if (!toolSucceeded) {
         idleRounds++;
         if (idleRounds >= config.maxIdleRounds) break;
       } else {
@@ -1396,11 +1425,33 @@ function mergeSourcesFromResult(result: unknown, sources: AgentSource[]): boolea
   return hasNew;
 }
 
+/**
+ * 计算 buffer 中可以安全向前端 flush 的最大位置。
+ *
+ * 问题：模型可能在流式输出中混入普通代码块（如 ```python ...```），
+ * 原逻辑对所有 ``` 都停住，导致代码类回复流式显示严重滞后。
+ *
+ * 修复：只有当 ``` 后紧跟 tool_call 关键字时才停住，
+ * 其他代码块（```python / ```json / ``` 等）不阻断 flush。
+ *
+ * 保守策略：若 ``` 后内容不足以判断（流还没接收完标识符），
+ * 停在该 ``` 前等待更多数据，防止误判后需要回退。
+ */
 function safeForwardPoint(buffer: string): number {
   const pos = buffer.lastIndexOf('```');
   if (pos === -1) return buffer.length;
+
+  // ``` 之后的内容（去掉前导空白）
   const after = buffer.slice(pos + 3).trimStart();
-  return after.startsWith('tool_call') || after.startsWith('tool\n') || after.startsWith('tool ') ? pos : buffer.length;
+
+  // 已确认是 tool_call 块：停在 ``` 前不 flush
+  if (after.startsWith('tool_call')) return pos;
+
+  // 后缀不足 9 字符（'tool_call' 长度），无法确认是否为 tool_call，保守等待
+  if (after.length < 9 && !after.includes('\n')) return pos;
+
+  // 其余情况（普通代码块 ```python / ```json / 空行等）：正常 flush
+  return buffer.length;
 }
 
 function isAbortError(err: unknown): boolean {

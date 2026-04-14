@@ -180,7 +180,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
       let buffer = '';
       let contentBuffer = '';
       const toolCallMap = new Map<number, { id?: string; name?: string; arguments: string }>();
-      let hasEmittedReasoning = false;
+      let lastEmittedReasoningLen = 0; // 追踪已 emit 的 reasoning 长度，避免 <think> 未闭合时重复发送
 
       while (true) {
         const { done, value } = await reader.read();
@@ -218,7 +218,7 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
                 }
               }
 
-              // 如果 finish_reason=tool_calls 已经 emit 并 clear 了，这里 size=0，跳过
+              // 统一在 [DONE] 处 flush toolCallMap，确保所有 arguments delta 已完整拼接
               if (toolCallMap.size > 0) {
                 onChunk({
                   id: crypto.randomUUID(),
@@ -260,18 +260,22 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
                 const hasCloseTag = /<\/think>/.test(contentBuffer);
 
                 if (hasOpenTag && !hasCloseTag) {
-                  // thinking标签未闭合，提取并发送已接收的thinking内容
+                  // thinking标签未闭合，只 emit 新增的增量部分，避免每次都重发整段内容
                   const thinkingMatch = /<think>([\s\S]*)$/.exec(contentBuffer);
                   if (thinkingMatch) {
-                    const partialThinking = thinkingMatch[1];
-                    onChunk({
-                      id: data.id || crypto.randomUUID(),
-                      content: '',
-                      role: 'assistant',
-                      model: this.config.modelId,
-                      done: false,
-                      reasoningContent: partialThinking,
-                    });
+                    const fullPartial = thinkingMatch[1];
+                    const newPart = fullPartial.slice(lastEmittedReasoningLen);
+                    if (newPart) {
+                      onChunk({
+                        id: data.id || crypto.randomUUID(),
+                        content: '',
+                        role: 'assistant',
+                        model: this.config.modelId,
+                        done: false,
+                        reasoningContent: newPart,
+                      });
+                      lastEmittedReasoningLen = fullPartial.length;
+                    }
                   }
                 } else if (hasOpenTag && hasCloseTag) {
                   // 完整的thinking标签，提取并发送
@@ -296,8 +300,9 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
                       done: false,
                     });
                   }
-                  // 清空缓冲区
+                  // 清空缓冲区，重置增量计数器
                   contentBuffer = '';
+                  lastEmittedReasoningLen = 0;
                 } else {
                   // 没有thinking标签，正常发送，并清空缓冲区防止 [DONE] 时重复发送
                   onChunk({
@@ -335,9 +340,13 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
                 }
               }
 
-              // finish_reason=tool_calls 时立即 emit（部分模型不发 [DONE] 或发送顺序不同）
-              if (choice?.finish_reason === 'tool_calls' && toolCallMap.size > 0) {
-                // 处理累积的内容缓冲区
+              // finish_reason=tool_calls：仅标记，不提前 emit+clear。
+              // 原因：部分模型（如 GLM-4.7、Llama-70B）在 finish_reason 事件发出时
+              // tool_calls 的 arguments 字段尚未完整接收，提前 clear 会导致 arguments 截断，
+              // agentEngine JSON.parse 失败后直接跳过，工具调用静默丢失。
+              // 统一在 [DONE] 处 flush，确保 arguments 已完整拼接。
+              if (choice?.finish_reason === 'tool_calls') {
+                // 仅清空 contentBuffer（thinking 内容在此时已可以确认完整）
                 if (contentBuffer) {
                   const extracted = extractThinkingContent(contentBuffer);
                   if (extracted.reasoning) {
@@ -359,24 +368,9 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
                       done: false,
                     });
                   }
-                  // 清空缓冲区，防止 [DONE] 时重复发送
                   contentBuffer = '';
                 }
-
-                onChunk({
-                  id: data.id || crypto.randomUUID(),
-                  content: '',
-                  role: 'assistant',
-                  model: this.config.modelId,
-                  done: false,
-                  toolCalls: Array.from(toolCallMap.entries()).map(([index, tc]) => ({
-                    id: tc.id || `tc_idx_${index}`,
-                    name: tc.name || '',
-                    arguments: tc.arguments,
-                    index,
-                  })),
-                });
-                toolCallMap.clear();
+                // toolCallMap 保留，等 [DONE] 统一 flush
               }
             } catch {
               continue;
