@@ -54,7 +54,10 @@ function FileRefCard({
   const isFolder = type === 'FOLDER';
 
   return (
-    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/40 dark:to-purple-950/30 border border-violet-200/60 dark:border-violet-700/50 hover:border-violet-400 dark:hover:border-violet-500 text-violet-700 dark:text-violet-300 text-[12px] font-medium transition-all duration-200 hover:shadow-sm active:scale-[0.97] align-middle">
+    <button
+      onClick={() => onClick(id, isFolder)}
+      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/40 dark:to-purple-950/30 border border-violet-200/60 dark:border-violet-700/50 hover:border-violet-400 dark:hover:border-violet-500 text-violet-700 dark:text-violet-300 text-[12px] font-medium transition-all duration-200 hover:shadow-sm active:scale-[0.97] align-middle cursor-pointer"
+    >
       {isFolder ? (
         <FolderOpen className="h-3 w-3 text-amber-500 flex-shrink-0" />
       ) : (
@@ -62,7 +65,7 @@ function FileRefCard({
       )}
       <span className="truncate max-w-[200px]" title={name}>{name}</span>
       <ExternalLink className="h-2.5 w-2 opacity-40 flex-shrink-0" />
-    </span>
+    </button>
   );
 }
 
