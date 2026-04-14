@@ -22,7 +22,8 @@ interface AssistantContentProps {
 
 const FILE_REF_REGEX = /\[(FILE|FOLDER):([^:\]]+):([^\]]+)\]/g;
 
-const REF_PLACEHOLDER = '__FREF_';
+const REF_PLACEHOLDER = '\u200B\u200CFREF_';
+const REF_PLACEHOLDER_SUFFIX = '\u200C\u200B';
 
 interface FileRefInfo {
   type: 'FILE' | 'FOLDER';
@@ -238,7 +239,7 @@ function replacePlaceholders(
   refMap: Map<number, FileRefInfo>,
   onFileClick: (id: string, isFolder: boolean) => void,
 ): React.ReactNode[] {
-  const pattern = new RegExp(`${REF_PLACEHOLDER}(\\d+)__`, 'g');
+  const pattern = new RegExp(`${REF_PLACEHOLDER}(\\d+)${REF_PLACEHOLDER_SUFFIX.replace(/[\\^$.*+?()|[\]{}]/g, '\\$&')}`, 'g');
   const result: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -299,7 +300,7 @@ export function AssistantContent({ content, onFileClick }: AssistantContentProps
     const name = match[3] ?? '';
     const standalone = isStandaloneLine(cleanedContent, match.index, match[0].length);
 
-    const placeholder = `${REF_PLACEHOLDER}${refIndex}__`;
+    const placeholder = `${REF_PLACEHOLDER}${refIndex}${REF_PLACEHOLDER_SUFFIX}`;
 
     processedContent =
       processedContent.slice(0, match.index + offset) +
