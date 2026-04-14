@@ -5,6 +5,7 @@
  * 功能:
  * - Markdown渲染（增强版）
  * - [FILE:id:name] / [FOLDER:id:name] 文件引用解析为可点击元素
+ * - 表格内的文件引用以内联方式渲染，避免破坏表格结构
  * - 优化的代码块、列表、表格样式
  * - 美观的文件引用按钮设计
  */
@@ -21,6 +22,29 @@ interface AssistantContentProps {
 }
 
 const FILE_REF_REGEX = /\[(FILE|FOLDER):([^:]+):([^\]]+)\]/g;
+
+const INLINE_REF_PLACEHOLDER_PREFIX = '\x00TBL_REF_';
+const INLINE_REF_PLACEHOLDER_SUFFIX = '\x00';
+
+interface FileRefInfo {
+  type: 'FILE' | 'FOLDER';
+  id: string;
+  name: string;
+}
+
+function isInsideTable(content: string, position: number): boolean {
+  const lineStart = content.lastIndexOf('\n', position);
+  const lineEnd = content.indexOf('\n', position);
+  const line = (lineStart === -1 ? content.slice(0, lineEnd === -1 ? undefined : lineEnd) : content.slice(lineStart + 1, lineEnd === -1 ? undefined : lineEnd)).trim();
+  if (line.startsWith('|') && line.endsWith('|') && line.split('|').length >= 3) {
+    return true;
+  }
+  if (line.includes('---') || line.includes('===') || /^\s*[\|\s\-:]+$/.test(line)) {
+    return false;
+  }
+  const pipeCount = (line.match(/\|/g) || []).length;
+  return pipeCount >= 2;
+}
 
 function FileRefButton({
   type,
@@ -55,9 +79,55 @@ function FileRefButton({
   );
 }
 
-function getMarkdownComponents() {
+function InlineFileRefButton({
+  type,
+  id,
+  name,
+  onClick,
+}: {
+  type: 'FILE' | 'FOLDER';
+  id: string;
+  name: string;
+  onClick: (id: string, isFolder: boolean) => void;
+}) {
+  const isFolder = type === 'FOLDER';
+
+  return (
+    <button
+      onClick={() => onClick(id, isFolder)}
+      className="group inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-violet-50 dark:bg-violet-950/30 border border-violet-200/50 dark:border-violet-700/40 hover:border-violet-400 dark:hover:border-violet-500 hover:bg-violet-100 dark:hover:bg-violet-900/40 text-violet-600 dark:text-violet-300 text-[12px] font-medium transition-all duration-150 hover:shadow-sm active:scale-95 align-middle"
+    >
+      {isFolder ? (
+        <FolderOpen className="h-3 w-3 text-amber-500 flex-shrink-0" />
+      ) : (
+        <FileText className="h-3 w-3 text-violet-500 flex-shrink-0" />
+      )}
+      <span className="truncate max-w-[160px]">{name}</span>
+    </button>
+  );
+}
+
+function getMarkdownComponents(
+  inlineRefMap?: Map<number, FileRefInfo>,
+  onFileClick?: (id: string, isFolder: boolean) => void,
+) {
+  const resolveInlineRefs = (children: React.ReactNode): React.ReactNode => {
+    if (!inlineRefMap || inlineRefMap.size === 0 || !onFileClick) return children;
+    if (typeof children === 'string') {
+      return renderInlineRefsInText(children, inlineRefMap, onFileClick);
+    }
+    if (Array.isArray(children)) {
+      return children.map((child, i) =>
+        typeof child === 'string'
+          ? renderInlineRefsInText(child, inlineRefMap, onFileClick)
+          : resolveInlineRefs(child),
+      );
+    }
+    return children;
+  };
+
   return {
-    p: (props: any) => <p className="mb-3 last:mb-0 leading-relaxed">{props.children}</p>,
+    p: (props: any) => <p className="mb-3 last:mb-0 leading-relaxed">{resolveInlineRefs(props.children)}</p>,
     h1: (props: any) => (
       <h1 className="text-xl font-bold mb-4 mt-6 first:mt-0 text-slate-900 dark:text-slate-100 pb-2 border-b border-slate-200 dark:border-slate-700">
         {props.children}
@@ -81,7 +151,7 @@ function getMarkdownComponents() {
         {props.children}
       </ol>
     ),
-    li: (props: any) => <li className="pl-1 leading-relaxed text-slate-700 dark:text-slate-300">{props.children}</li>,
+    li: (props: any) => <li className="pl-1 leading-relaxed text-slate-700 dark:text-slate-300">{resolveInlineRefs(props.children)}</li>,
     code: (props: any) => {
       const isInline = !props.className;
       if (isInline) {
@@ -132,12 +202,12 @@ function getMarkdownComponents() {
     ),
     th: (props: any) => (
       <th className="px-4 py-2.5 text-left font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">
-        {props.children}
+        {resolveInlineRefs(props.children)}
       </th>
     ),
     td: (props: any) => (
       <td className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">
-        {props.children}
+        {resolveInlineRefs(props.children)}
       </td>
     ),
     a: (props: any) => {
@@ -170,21 +240,94 @@ function getMarkdownComponents() {
   };
 }
 
+function renderInlineRefsInText(
+  text: string,
+  inlineRefMap: Map<number, FileRefInfo>,
+  onFileClick: (id: string, isFolder: boolean) => void,
+): React.ReactNode[] {
+  const result: React.ReactNode[] = [];
+  let lastIndex = 0;
+  const placeholderRegex = new RegExp(
+    `${INLINE_REF_PLACEHOLDER_PREFIX.replace(/\x00/g, '\\x00')}(\d+)${INLINE_REF_PLACEHOLDER_SUFFIX.replace(/\x00/g, '\\x00')}`,
+    'g',
+  );
+  let match: RegExpExecArray | null;
+  while ((match = placeholderRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      result.push(text.slice(lastIndex, match.index));
+    }
+    const refIndex = parseInt(match[1] ?? '0', 10);
+    const refInfo = inlineRefMap.get(refIndex);
+    if (refInfo) {
+      result.push(
+        <InlineFileRefButton
+          key={`inline-ref-${refIndex}`}
+          type={refInfo.type}
+          id={refInfo.id}
+          name={refInfo.name}
+          onClick={onFileClick}
+        />,
+      );
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    result.push(text.slice(lastIndex));
+  }
+  return result.length > 0 ? result : [text];
+}
+
 export function AssistantContent({ content, onFileClick }: AssistantContentProps) {
   const cleanedContent = content.replace(/```tool_call\s*[\s\S]*?```/g, '').trim();
 
-  const components = getMarkdownComponents();
+  const allMatches: Array<{
+    type: 'FILE' | 'FOLDER';
+    id: string;
+    name: string;
+    index: number;
+    length: number;
+    isInTable: boolean;
+  }> = [];
+  let match: RegExpExecArray | null;
+  FILE_REF_REGEX.lastIndex = 0;
+  while ((match = FILE_REF_REGEX.exec(cleanedContent)) !== null) {
+    const isInTable = isInsideTable(cleanedContent, match.index);
+    allMatches.push({
+      type: match[1] as 'FILE' | 'FOLDER',
+      id: match[2] ?? '',
+      name: match[3] ?? '',
+      index: match.index,
+      length: match[0].length,
+      isInTable,
+    });
+  }
+
+  const inlineRefMap = new Map<number, FileRefInfo>();
+  let protectedContent = cleanedContent;
+  let offset = 0;
+  allMatches.forEach((m, idx) => {
+    if (m.isInTable) {
+      const placeholder = `${INLINE_REF_PLACEHOLDER_PREFIX}${idx}${INLINE_REF_PLACEHOLDER_SUFFIX}`;
+      protectedContent =
+        protectedContent.slice(0, m.index + offset) +
+        placeholder +
+        protectedContent.slice(m.index + m.length + offset);
+      offset += placeholder.length - m.length;
+      inlineRefMap.set(idx, { type: m.type, id: m.id, name: m.name });
+    }
+  });
+
+  const hasInlineRefs = inlineRefMap.size > 0;
+  const components = getMarkdownComponents(hasInlineRefs ? inlineRefMap : undefined, hasInlineRefs ? onFileClick : undefined);
 
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
-  let match: RegExpExecArray | null;
   let keyIndex = 0;
-
   FILE_REF_REGEX.lastIndex = 0;
 
-  while ((match = FILE_REF_REGEX.exec(cleanedContent)) !== null) {
+  while ((match = FILE_REF_REGEX.exec(protectedContent)) !== null) {
     if (match.index > lastIndex) {
-      const textPart = cleanedContent.slice(lastIndex, match.index);
+      const textPart = protectedContent.slice(lastIndex, match.index);
       parts.push(
         <ReactMarkdown
           key={`md-${keyIndex++}`}
@@ -193,25 +336,24 @@ export function AssistantContent({ content, onFileClick }: AssistantContentProps
           components={components}
         >
           {textPart}
-        </ReactMarkdown>
+        </ReactMarkdown>,
       );
     }
 
     const type = match[1] as 'FILE' | 'FOLDER';
     const id = match[2] ?? '';
     const name = match[3] ?? '';
-    // 文件引用渲染为独立行，避免与文本混排错位
     parts.push(
       <div key={`ref-${keyIndex++}`} className="my-1">
         <FileRefButton type={type} id={id} name={name} onClick={onFileClick} />
-      </div>
+      </div>,
     );
 
     lastIndex = match.index + match[0].length;
   }
 
-  if (lastIndex < cleanedContent.length) {
-    const textPart = cleanedContent.slice(lastIndex);
+  if (lastIndex < protectedContent.length) {
+    const textPart = protectedContent.slice(lastIndex);
     parts.push(
       <ReactMarkdown
         key={`md-${keyIndex++}`}
@@ -220,7 +362,7 @@ export function AssistantContent({ content, onFileClick }: AssistantContentProps
         components={components}
       >
         {textPart}
-      </ReactMarkdown>
+      </ReactMarkdown>,
     );
   }
 
@@ -230,7 +372,7 @@ export function AssistantContent({ content, onFileClick }: AssistantContentProps
         parts
       ) : (
         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={components}>
-          {cleanedContent}
+          {protectedContent}
         </ReactMarkdown>
       )}
     </div>
