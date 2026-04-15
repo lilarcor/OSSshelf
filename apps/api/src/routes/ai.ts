@@ -130,7 +130,7 @@ app.post('/index/all', async (c) => {
 
   const db = getDb(c.env.DB);
   const allUnindexed = await db
-    .select({ id: files.id })
+    .select({ id: files.id, mimeType: files.mimeType, size: files.size })
     .from(files)
     .where(
       and(eq(files.userId, userId), isNull(files.deletedAt), eq(files.isFolder, false), isNull(files.vectorIndexedAt))
@@ -147,8 +147,23 @@ app.post('/index/all', async (c) => {
     });
   }
 
-  const task = await createTaskRecord(c.env, 'index', userId, allUnindexed.length);
-  const fileIds = allUnindexed.map((f) => f.id);
+  // 过滤掉不适合索引的文件（图片/视频/音频/压缩包等）
+  const { shouldIndexFile } = await import('../lib/ai/features');
+  const indexableFiles = allUnindexed.filter((f) => shouldIndexFile(f.mimeType, f.size ?? undefined));
+
+  if (indexableFiles.length === 0) {
+    return c.json({
+      success: true,
+      data: {
+        message: '没有适合索引的文件（已过滤图片/视频/音频/压缩包等）',
+        task: { status: 'completed', total: 0, processed: 0, failed: 0 },
+        filtered: allUnindexed.length,
+      },
+    });
+  }
+
+  const task = await createTaskRecord(c.env, 'index', userId, indexableFiles.length);
+  const fileIds = indexableFiles.map((f) => f.id);
 
   try {
     await enqueueAiTasks(c.env, 'index', fileIds, userId, task.id);
@@ -156,8 +171,9 @@ app.post('/index/all', async (c) => {
     return c.json({
       success: true,
       data: {
-        message: `索引任务已启动，共 ${allUnindexed.length} 个文件`,
+        message: `索引任务已启动，共 ${indexableFiles.length} 个文件${allUnindexed.length > indexableFiles.length ? `（已过滤 ${allUnindexed.length - indexableFiles.length} 个不适合索引的文件）` : ''}`,
         task,
+        filtered: allUnindexed.length - indexableFiles.length,
       },
     });
   } catch (error) {

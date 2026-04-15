@@ -902,19 +902,21 @@ export async function enqueueAutoProcessFile(env: Env, fileId: string, userId?: 
       // 混合任务：先执行 summary/tags，完成后自动触发 index
       const task = await createTaskRecord(env, contentTaskTypes[0], effectiveUserId, contentTaskTypes.length);
       const taskId = task.id;
+      const needIndex = taskTypes.includes('index');
 
-      const messages = contentTaskTypes.map((type) => ({
+      const messages = contentTaskTypes.map((type, index) => ({
         body: {
           type,
           fileId,
           userId: effectiveUserId,
           taskId,
-          triggerIndexOnComplete: env.VECTORIZE ? true : false,
+          // 只有最后一个任务且需要索引时才触发（避免重复索引）
+          triggerIndexOnComplete: needIndex && index === contentTaskTypes.length - 1,
         } as import('../../types/env').AiTaskMessage,
       }));
 
       await env.AI_TASKS_QUEUE.sendBatch(messages);
-      logger.info('AI', '文件AI处理任务已入队', { fileId, taskTypes: contentTaskTypes, userId: effectiveUserId });
+      logger.info('AI', '文件AI处理任务已入队', { fileId, taskTypes: contentTaskTypes, needIndex, userId: effectiveUserId });
       return;
     } catch (error) {
       logger.warn('AI', '队列发送失败，降级为同步处理', { fileId }, error);

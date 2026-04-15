@@ -341,10 +341,9 @@ export class OpenAiCompatibleAdapter implements IModelAdapter {
               }
 
               // finish_reason=tool_calls：仅标记，不提前 emit+clear。
-              // 原因：部分模型（如 GLM-4.7、Llama-70B）在 finish_reason 事件发出时
-              // tool_calls 的 arguments 字段尚未完整接收，提前 clear 会导致 arguments 截断，
-              // agentEngine JSON.parse 失败后直接跳过，工具调用静默丢失。
-              // 统一在 [DONE] 处 flush，确保 arguments 已完整拼接。
+              // 原因：部分模型在 finish_reason 事件发出时 tool_calls 的 arguments 字段
+              // 尚未完整接收，提前 clear 会导致 arguments 截断后 JSON.parse 失败，
+              // 工具调用静默丢失。统一在 [DONE] 处 flush，确保 arguments 已完整拼接。
               if (choice?.finish_reason === 'tool_calls') {
                 // 仅清空 contentBuffer（thinking 内容在此时已可以确认完整）
                 if (contentBuffer) {
