@@ -192,12 +192,12 @@ export function isImageFile(mimeType: string | null): boolean {
  * 判断文件是否应该建立向量索引
  *
  * 核心原则：
- * 1. 向量索引会通过 buildFileTextForVector() 读取实际文件内容
- * 2. 只有能提取文本内容的文件才值得建立语义搜索索引
- * 3. 排除不适合的类型：图片/视频/音频（无文本）、超大文件（成本过高）
+ * 1. 向量索引通过 buildFileTextForVector() 构建文本，会自动降级到元数据
+ * 2. 即使是图片/视频，如果有 AI 标签/摘要，索引也有意义
+ * 3. 只排除明确无意义的情况：超大文件、压缩包、二进制可执行文件
  *
  * 使用场景：
- * - 文件上传时自动触发索引（即使不需要 summary/tags）
+ * - 文件上传时自动触发索引
  * - 批量手动索引时过滤无效文件
  */
 export function shouldIndexFile(mimeType: string | null, fileSize?: number): boolean {
@@ -207,27 +207,28 @@ export function shouldIndexFile(mimeType: string | null, fileSize?: number): boo
     return false;
   }
 
-  // 排除明显的非文本类型（这些类型没有有意义的文本内容可供索引）
-  if (!mimeType) return false;
+  // 无 MIME 类型时允许尝试（依赖文件名和元数据）
+  if (!mimeType) return true;
 
-  // 图片/视频/音频 → 不适合向量索引（它们走 tags 路径生成描述性标签）
-  if (mimeType.startsWith('image/') || mimeType.startsWith('video/') || mimeType.startsWith('audio/')) {
-    return false;
-  }
-
-  // 压缩包/二进制 → 无法提取有意义的内容
+  // 压缩包 → 无法提取有意义的内容，且文件名通常无语义价值
   if (
     mimeType === 'application/zip' ||
     mimeType === 'application/x-rar-compressed' ||
     mimeType === 'application/x-7z-compressed' ||
-    mimeType === 'application/octet-stream' ||
-    mimeType === 'application/x-msdownload' // .exe
+    mimeType === 'application/x-tar' ||
+    mimeType === 'application/gzip'
   ) {
     return false;
   }
 
-  // 其余类型都允许尝试索引（text/*, application/json, PDF, 代码等）
-  // 即使某些文件 readfileContent() 读不到内容，buildFileTextForVector 会降级使用元数据
+  // 可执行文件 → 无语义价值
+  if (mimeType === 'application/x-msdownload' || mimeType === 'application/x-dosexec') {
+    return false;
+  }
+
+  // 其余类型都允许索引：
+  // - text/*, application/json, PDF, 代码等 → 提取内容
+  // - image/video/audio → 降级使用文件名 + AI 标签 + AI 摘要
   return true;
 }
 
