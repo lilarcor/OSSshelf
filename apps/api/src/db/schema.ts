@@ -690,6 +690,7 @@ export const aiChatMessages = sqliteTable(
     reasoning: text('reasoning'),
     inputTokens: integer('input_tokens').default(0),
     outputTokens: integer('output_tokens').default(0),
+    aborted: integer('aborted', { mode: 'boolean' }).default(false),
     createdAt: text('created_at').notNull(),
   },
   (table) => ({

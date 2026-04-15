@@ -305,6 +305,7 @@ export function AIChat() {
             sources: m.sources,
             toolCalls: m.toolCalls || [],
             reasoning: m.reasoning || undefined,
+            aborted: m.aborted || false,
             timestamp: new Date(m.createdAt),
           }))
         );

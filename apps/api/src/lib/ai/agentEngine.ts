@@ -751,35 +751,35 @@ export class AgentEngine {
           { modelId, signal: combinedSignal }
         );
       } catch (err) {
-        if (isExpectedAbort(err, hasToolCalls)) {
-          /* ok */
-        } else if (!isAbortError(err)) {
-          logger.error('AgentEngine', 'LLM stream error (native)', {}, err);
-          // 仅在第 0 轮（尚未产生任何工具调用）才允许降级到 prompt-based
-          if (toolCallCount === 0) {
-            if (fullText.length > 0) {
-              onChunk({ type: 'reset', done: false }); // 通知前端清空已渲染内容
-              fullText = '';
-            }
-            logger.warn('AgentEngine', 'Native tool calling failed, falling back to prompt-based');
-            return this.runPromptBased(
-              userId,
-              query,
-              conversationHistory,
-              modelId,
-              caps,
-              config,
-              onChunk,
-              signal,
-              sessionId,
-              filteredTools,
-              contextPrompt
-            );
-          } else {
-            // 已有工具调用轮次，不降级，直接报错
-            onChunk({ type: 'error', message: 'AI 模型调用失败', done: true });
-            return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
+        if (isAbortError(err)) {
+          logger.info('AgentEngine', 'Stream aborted by client (native)', { toolCallCount, hasContent: fullText.length > 0 });
+          throw err;
+        }
+        logger.error('AgentEngine', 'LLM stream error (native)', {}, err);
+        // 仅在第 0 轮（尚未产生任何工具调用）才允许降级到 prompt-based
+        if (toolCallCount === 0) {
+          if (fullText.length > 0) {
+            onChunk({ type: 'reset', done: false }); // 通知前端清空已渲染内容
+            fullText = '';
           }
+          logger.warn('AgentEngine', 'Native tool calling failed, falling back to prompt-based');
+          return this.runPromptBased(
+            userId,
+            query,
+            conversationHistory,
+            modelId,
+            caps,
+            config,
+            onChunk,
+            signal,
+            sessionId,
+            filteredTools,
+            contextPrompt
+          );
+        } else {
+          // 已有工具调用轮次，不降级，直接报错
+          onChunk({ type: 'error', message: 'AI 模型调用失败', done: true });
+          return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
         }
       }
 
@@ -1022,13 +1022,13 @@ export class AgentEngine {
           { modelId, signal: combinedSignal }
         );
       } catch (err) {
-        if (isExpectedAbort(err, foundToolCall)) {
-          /* ok */
-        } else if (!isAbortError(err)) {
-          logger.error('AgentEngine', 'LLM stream error (prompt)', {}, err);
-          onChunk({ type: 'error', message: 'AI 模型调用失败，请检查模型配置', done: true });
-          return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
+        if (isAbortError(err)) {
+          logger.info('AgentEngine', 'Stream aborted by client (prompt)', { toolCallCount, hasContent: fullText.length > 0 });
+          throw err;
         }
+        logger.error('AgentEngine', 'LLM stream error (prompt)', {}, err);
+        onChunk({ type: 'error', message: 'AI 模型调用失败，请检查模型配置', done: true });
+        return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
       }
 
       if (!foundToolCall) {

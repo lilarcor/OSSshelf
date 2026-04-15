@@ -1763,6 +1763,7 @@ export interface AiChatMessage {
   reasoning?: string;
   modelUsed?: string;
   latencyMs?: number;
+  aborted?: boolean;
   createdAt: string;
 }
 

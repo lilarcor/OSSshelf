@@ -153,6 +153,7 @@ app.get('/sessions/:sessionId', async (c) => {
           sources: m.sources ? JSON.parse(m.sources) : undefined,
           toolCalls,
           reasoning: m.reasoning || undefined,
+          aborted: m.aborted || false,
         };
       }),
     },
@@ -592,8 +593,9 @@ async function handleStreamChat(
           }
         } catch (error) {
           logger.error('AI Agent', 'Stream failed', { userId }, error);
+          const isAborted = error instanceof Error && error.name === 'AbortError';
           const errorMessage = error instanceof Error ? error.message : 'AI 响应出错';
-          enqueue({ done: true, error: errorMessage, sessionId: actualSessionId, sources: finalSources });
+          enqueue({ done: true, error: isAborted ? '响应已中断' : errorMessage, sessionId: actualSessionId, sources: finalSources });
           try {
             controller.close();
           } catch {}
@@ -612,9 +614,10 @@ async function handleStreamChat(
                 latencyMs: Date.now() - startTime,
                 inputTokens: 0,
                 outputTokens: 0,
+                aborted: isAborted,
                 createdAt: new Date().toISOString(),
               });
-              logger.info('AI Agent', 'Partial message saved after error', { sessionId: actualSessionId });
+              logger.info('AI Agent', 'Partial message saved after error', { sessionId: actualSessionId, isAborted });
             } catch (saveError) {
               logger.error('AI Agent', 'Failed to save partial message', { userId }, saveError);
             }
