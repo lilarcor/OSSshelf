@@ -9,7 +9,20 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, Plus, Edit2, Trash2, Star, Loader2, Link, FileText, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import {
+  X,
+  Plus,
+  Edit2,
+  Trash2,
+  Star,
+  Loader2,
+  Link,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Check,
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { aiApi, type AiProviderItem, type CreateAiProviderParams } from '@/services/api';
 
@@ -371,7 +384,8 @@ const THINKING_FORMATS = [
     name: '嵌套对象格式 (object)',
     description: '参数值为嵌套对象，需要在请求体中添加 thinking 参数',
     providers: ['火山引擎豆包', '智谱GLM', 'DeepSeek R1', '月之暗面Kimi', 'xAI Grok'],
-    config: '{"paramFormat":"object","paramName":"thinking","nestedKey":"type","enabledValue":"enabled","disabledValue":"disabled"}',
+    config:
+      '{"paramFormat":"object","paramName":"thinking","nestedKey":"type","enabledValue":"enabled","disabledValue":"disabled"}',
     example: `{
   "model": "your-model",
   "messages": [...],
@@ -440,9 +454,7 @@ function ThinkingFormatExamples({ onSelect }: ThinkingFormatExamplesProps) {
             <div key={format.id} className="border rounded-lg p-3 bg-background">
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    {format.name}
-                  </h4>
+                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{format.name}</h4>
                   <p className="text-xs text-muted-foreground mt-0.5">{format.description}</p>
                 </div>
               </div>
@@ -480,7 +492,8 @@ function ThinkingFormatExamples({ onSelect }: ThinkingFormatExamplesProps) {
 
                 <div className="relative group">
                   <div className="text-[10px] font-medium text-muted-foreground mb-1">配置 JSON（点击使用）：</div>
-                  <pre className="p-2 bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all cursor-pointer hover:bg-emerald-950/50 transition-colors border border-emerald-200 dark:border-emerald-800"
+                  <pre
+                    className="p-2 bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all cursor-pointer hover:bg-emerald-950/50 transition-colors border border-emerald-200 dark:border-emerald-800"
                     onClick={() => onSelect(format.config)}
                     title="点击填入配置"
                   >
@@ -515,7 +528,8 @@ function ThinkingFormatExamples({ onSelect }: ThinkingFormatExamplesProps) {
           ))}
 
           <p className="text-xs text-muted-foreground pt-2 border-t">
-            💡 提示：如果您的提供商不在上述列表中，请根据其 API 文档自行填写配置。不在三种标准格式内的，可以留空或自定义。
+            💡 提示：如果您的提供商不在上述列表中，请根据其 API
+            文档自行填写配置。不在三种标准格式内的，可以留空或自定义。
           </p>
         </div>
       )}

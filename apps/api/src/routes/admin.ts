@@ -12,7 +12,7 @@
  */
 
 import { Hono } from 'hono';
-import { eq, and, isNull, desc, sql, gte, lte } from 'drizzle-orm';
+import { eq, and, isNull, desc, sql, gte, lte, lt } from 'drizzle-orm';
 import { getDb, users, files, storageBuckets, auditLogs } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { ERROR_CODES, logger } from '@osshelf/shared';
@@ -364,7 +364,7 @@ app.get('/audit-logs', async (c) => {
 
   const db = getDb(c.env.DB);
 
-  const conditions: any[] = [];
+  const conditions: Array<ReturnType<typeof eq> | ReturnType<typeof gte> | ReturnType<typeof lt>> = [];
   if (userId) conditions.push(eq(auditLogs.userId, userId));
   if (action) conditions.push(eq(auditLogs.action, action));
   if (resourceType) conditions.push(eq(auditLogs.resourceType, resourceType));
@@ -595,7 +595,7 @@ app.post('/email/broadcast', async (c) => {
     conditions.push(eq(users.role, userFilter.role));
   }
   if (userFilter?.active !== undefined) {
-    conditions.push(eq(users.role, 'user'));
+    conditions.push(eq(users.emailVerified, true));
   }
 
   const allUsers =

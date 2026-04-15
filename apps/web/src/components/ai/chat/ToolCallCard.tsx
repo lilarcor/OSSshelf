@@ -43,7 +43,8 @@ export function ToolCallCard({
   };
 
   const resultObj = tc.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>) : null;
-  const isPendingConfirm = tc.confirmStatus === 'pending' || (resultObj?.status === 'pending_confirm' && !tc.confirmStatus);
+  const isPendingConfirm =
+    tc.confirmStatus === 'pending' || (resultObj?.status === 'pending_confirm' && !tc.confirmStatus);
   const isCancelled = tc.confirmStatus === 'cancelled';
   const isConfirmed = tc.confirmStatus === 'confirmed';
   const confirmMessage = resultObj?.message as string | undefined;

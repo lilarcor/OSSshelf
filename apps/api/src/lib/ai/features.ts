@@ -917,7 +917,12 @@ export async function enqueueAutoProcessFile(env: Env, fileId: string, userId?: 
       }));
 
       await env.AI_TASKS_QUEUE.sendBatch(messages);
-      logger.info('AI', '文件AI处理任务已入队', { fileId, taskTypes: contentTaskTypes, needIndex, userId: effectiveUserId });
+      logger.info('AI', '文件AI处理任务已入队', {
+        fileId,
+        taskTypes: contentTaskTypes,
+        needIndex,
+        userId: effectiveUserId,
+      });
       return;
     } catch (error) {
       logger.warn('AI', '队列发送失败，降级为同步处理', { fileId }, error);

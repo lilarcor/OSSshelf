@@ -140,7 +140,8 @@ app.get('/sessions/:sessionId', async (c) => {
               const confirmId = (tc.result as any).confirmId;
               if (confirmId && confirmStatusMap.has(confirmId)) {
                 const dbStatus = confirmStatusMap.get(confirmId);
-                const confirmStatus = dbStatus === 'consumed' ? 'confirmed' : dbStatus === 'cancelled' ? 'cancelled' : 'pending';
+                const confirmStatus =
+                  dbStatus === 'consumed' ? 'confirmed' : dbStatus === 'cancelled' ? 'cancelled' : 'pending';
                 return { ...tc, confirmStatus };
               }
             }
@@ -753,7 +754,13 @@ app.post('/cancel', async (c) => {
     const result = await db
       .update(aiConfirmRequests)
       .set({ status: 'cancelled' })
-      .where(and(eq(aiConfirmRequests.id, confirmId), eq(aiConfirmRequests.userId, userId), eq(aiConfirmRequests.status, 'pending')))
+      .where(
+        and(
+          eq(aiConfirmRequests.id, confirmId),
+          eq(aiConfirmRequests.userId, userId),
+          eq(aiConfirmRequests.status, 'pending')
+        )
+      )
       .returning();
 
     if (!result || result.length === 0) {

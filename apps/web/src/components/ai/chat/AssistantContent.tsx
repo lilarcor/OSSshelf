@@ -36,7 +36,8 @@ function isStandaloneLine(content: string, matchIndex: number, matchLength: numb
   const beforeStart = content.lastIndexOf('\n', matchIndex);
   const afterEnd = content.indexOf('\n', matchIndex + matchLength);
   const lineBefore = beforeStart === -1 ? content.slice(0, matchIndex) : content.slice(beforeStart + 1, matchIndex);
-  const lineAfter = afterEnd === -1 ? content.slice(matchIndex + matchLength) : content.slice(matchIndex + matchLength, afterEnd);
+  const lineAfter =
+    afterEnd === -1 ? content.slice(matchIndex + matchLength) : content.slice(matchIndex + matchLength, afterEnd);
   return lineBefore.trim() === '' && lineAfter.trim() === '';
 }
 
@@ -63,7 +64,9 @@ function FileRefCard({
       ) : (
         <FileText className="h-3 w-3 text-violet-500 flex-shrink-0" />
       )}
-      <span className="truncate max-w-[200px]" title={name}>{name}</span>
+      <span className="truncate max-w-[200px]" title={name}>
+        {name}
+      </span>
       <ExternalLink className="h-2.5 w-2 opacity-40 flex-shrink-0" />
     </button>
   );
@@ -104,7 +107,7 @@ function StandaloneFileRefCard({
 
 function getMarkdownComponents(
   refMap?: Map<number, FileRefInfo>,
-  onFileClick?: (id: string, isFolder: boolean) => void,
+  onFileClick?: (id: string, isFolder: boolean) => void
 ) {
   const resolveRefs = (children: React.ReactNode): React.ReactNode => {
     if (!refMap || refMap.size === 0 || !onFileClick) return children;
@@ -113,9 +116,7 @@ function getMarkdownComponents(
     }
     if (Array.isArray(children)) {
       return children.map((child, i) =>
-        typeof child === 'string'
-          ? replacePlaceholders(child, refMap, onFileClick)
-          : resolveRefs(child),
+        typeof child === 'string' ? replacePlaceholders(child, refMap, onFileClick) : resolveRefs(child)
       );
     }
     return children;
@@ -148,7 +149,9 @@ function getMarkdownComponents(
         {resolveRefs(props.children)}
       </ol>
     ),
-    li: (props: any) => <li className="pl-1 leading-relaxed text-slate-700 dark:text-slate-300">{resolveRefs(props.children)}</li>,
+    li: (props: any) => (
+      <li className="pl-1 leading-relaxed text-slate-700 dark:text-slate-300">{resolveRefs(props.children)}</li>
+    ),
     code: (props: any) => {
       const isInline = !props.className;
       if (isInline) {
@@ -220,7 +223,9 @@ function getMarkdownComponents(
         </a>
       );
     },
-    strong: (props: any) => <strong className="font-bold text-slate-900 dark:text-slate-100">{resolveRefs(props.children)}</strong>,
+    strong: (props: any) => (
+      <strong className="font-bold text-slate-900 dark:text-slate-100">{resolveRefs(props.children)}</strong>
+    ),
     em: (props: any) => <em className="italic text-slate-700 dark:text-slate-300">{resolveRefs(props.children)}</em>,
     hr: () => <hr className="my-6 border-t-2 border-slate-200 dark:border-slate-700" />,
     img: (props: any) => {
@@ -240,9 +245,12 @@ function getMarkdownComponents(
 function replacePlaceholders(
   text: string,
   refMap: Map<number, FileRefInfo>,
-  onFileClick: (id: string, isFolder: boolean) => void,
+  onFileClick: (id: string, isFolder: boolean) => void
 ): React.ReactNode[] {
-  const pattern = new RegExp(`${REF_PLACEHOLDER}(\\d+)${REF_PLACEHOLDER_SUFFIX.replace(/[\\^$.*+?()|[\]{}]/g, '\\$&')}`, 'g');
+  const pattern = new RegExp(
+    `${REF_PLACEHOLDER}(\\d+)${REF_PLACEHOLDER_SUFFIX.replace(/[\\^$.*+?()|[\]{}]/g, '\\$&')}`,
+    'g'
+  );
   const result: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -262,17 +270,11 @@ function replacePlaceholders(
             id={info.id}
             name={info.name}
             onClick={onFileClick}
-          />,
+          />
         );
       } else {
         result.push(
-          <FileRefCard
-            key={`ref-${idx}`}
-            type={info.type}
-            id={info.id}
-            name={info.name}
-            onClick={onFileClick}
-          />,
+          <FileRefCard key={`ref-${idx}`} type={info.type} id={info.id} name={info.name} onClick={onFileClick} />
         );
       }
     }
@@ -320,11 +322,7 @@ export function AssistantContent({ content, onFileClick }: AssistantContentProps
 
   return (
     <div className="prose prose-sm max-w-none dark:prose-invert">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
-        components={components}
-      >
+      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={components}>
         {processedContent}
       </ReactMarkdown>
     </div>

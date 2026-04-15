@@ -45,6 +45,7 @@ export interface Message {
   pendingConfirm?: PendingConfirm;
   timestamp: Date;
   isLoading?: boolean;
+  aborted?: boolean;
 }
 
 export interface SseChunk {

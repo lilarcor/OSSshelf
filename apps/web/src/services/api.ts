@@ -1481,6 +1481,7 @@ export const aiApi = {
           confirmId?: string;
           summary?: string;
           reasoning?: boolean;
+          reset?: boolean;
         }) => void;
         onError?: (error: Error) => void;
         signal?: AbortSignal;
@@ -1496,6 +1497,10 @@ export const aiApi = {
 
       while (retryCount <= MAX_RETRIES) {
         try {
+          if (options.signal?.aborted) {
+            throw new DOMException('The operation was aborted.', 'AbortError');
+          }
+
           const response = await fetch(`${baseUrl}/api/ai-chat/chat`, {
             method: 'POST',
             headers: {
@@ -1530,6 +1535,15 @@ export const aiApi = {
           let streamDone = false;
 
           while (!streamDone) {
+            if (options.signal?.aborted) {
+              try {
+                await reader.cancel();
+              } catch {
+                // 忽略取消读取时的错误
+              }
+              throw new DOMException('The operation was aborted.', 'AbortError');
+            }
+
             const { done, value } = await reader.read();
             if (done) {
               streamDone = true;
@@ -1566,8 +1580,8 @@ export const aiApi = {
           return;
         } catch (error) {
           lastError = error instanceof Error ? error : new Error(String(error));
-          if (options.signal?.aborted) {
-            throw lastError;
+          if (options.signal?.aborted || lastError.name === 'AbortError') {
+            throw new DOMException('The operation was aborted.', 'AbortError');
           }
           if (retryCount >= MAX_RETRIES) {
             options.onError?.(lastError);

@@ -313,11 +313,14 @@ export async function processAiTaskMessage(
         taskId,
       });
       // 延迟重新入队（指数退避）
-      setTimeout(() => {
-        if (env.AI_TASKS_QUEUE) {
-          (env.AI_TASKS_QUEUE as any).send({ body: message });
-        }
-      }, Math.random() * 5000 + 1000); // 1-6 秒随机延迟
+      setTimeout(
+        () => {
+          if (env.AI_TASKS_QUEUE) {
+            (env.AI_TASKS_QUEUE as any).send({ body: message });
+          }
+        },
+        Math.random() * 5000 + 1000
+      ); // 1-6 秒随机延迟
       return { success: false, error: '全局并发已达上限，稍后重试' };
     }
 
@@ -331,25 +334,26 @@ export async function processAiTaskMessage(
         taskId,
       });
       // 延迟重新入队（指数退避）
-      setTimeout(() => {
-        if (env.AI_TASKS_QUEUE) {
-          (env.AI_TASKS_QUEUE as any).send({ body: message });
-        }
-      }, Math.random() * 3000 + 1000); // 1-4 秒随机延迟
+      setTimeout(
+        () => {
+          if (env.AI_TASKS_QUEUE) {
+            (env.AI_TASKS_QUEUE as any).send({ body: message });
+          }
+        },
+        Math.random() * 3000 + 1000
+      ); // 1-4 秒随机延迟
       return { success: false, error: `用户并发已达上限 (${USER_MAX_CONCURRENT})，稍后重试` };
     }
 
     // 获取并发锁（原子递增）
     await env.KV.put(
       CONCURRENCY_KEY_PREFIX + 'count',
-      String((parseInt(globalCount || '0') + 1)),
+      String(parseInt(globalCount || '0') + 1),
       { expirationTtl: 120 } // 2 分钟 TTL，防死锁
     );
-    await env.KV.put(
-      USER_CONCURRENCY_KEY_PREFIX + userId,
-      String((parseInt(userCount || '0') + 1)),
-      { expirationTtl: 120 }
-    );
+    await env.KV.put(USER_CONCURRENCY_KEY_PREFIX + userId, String(parseInt(userCount || '0') + 1), {
+      expirationTtl: 120,
+    });
 
     logger.debug('AI_QUEUE', 'Concurrency acquired', {
       global: parseInt(globalCount || '0') + 1,
@@ -423,7 +427,7 @@ export async function enqueueAiTasks(
   const BATCH_SIZE = 50;
 
   // ── 断点续传：检查是否有未完成的历史任务 ──
-  let processedFileIds = new Set<string>();
+  const processedFileIds = new Set<string>();
 
   if (resumeFrom) {
     // 从指定的历史任务恢复

@@ -189,7 +189,11 @@ export class AiEnhanceTools {
       const { generateFileSummary } = await import('../features');
       await generateFileSummary(env, fileId, undefined, userId);
 
-      logger.info('AgentTool', 'Triggered AI summary generation (completed)', { fileId, fileName: file.name, forceRegenerate });
+      logger.info('AgentTool', 'Triggered AI summary generation (completed)', {
+        fileId,
+        fileName: file.name,
+        forceRegenerate,
+      });
 
       const updatedFile = await getFileUpdatedAiInfo(env, fileId);
 
@@ -307,10 +311,7 @@ export class AiEnhanceTools {
           message: `已为 "${file.name}" 完成向量索引重建`,
           fileId,
           fileName: file.name,
-          _next_actions: [
-            '现在可以使用 search_files 或 smart_search 进行语义搜索',
-            '搜索结果会更加准确和相关',
-          ],
+          _next_actions: ['现在可以使用 search_files 或 smart_search 进行语义搜索', '搜索结果会更加准确和相关'],
         };
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
@@ -343,7 +344,12 @@ export class AiEnhanceTools {
       const fileIds = filesToIndex.map((f) => f.id);
       await enqueueAiTasks(env, 'index', fileIds, userId, task.id);
 
-      logger.info('AgentTool', 'Started batch vector index rebuild', { userId, fileCount: filesToIndex.length, forceAll, taskId: task.id });
+      logger.info('AgentTool', 'Started batch vector index rebuild', {
+        userId,
+        fileCount: filesToIndex.length,
+        forceAll,
+        taskId: task.id,
+      });
 
       return {
         success: true,
@@ -373,7 +379,7 @@ export class AiEnhanceTools {
   }
 
   static async executeAskRagQuestion(env: Env, userId: string, args: Record<string, unknown>) {
-    const question = (args.question as string || '').trim();
+    const question = ((args.question as string) || '').trim();
     const scope = (args.scope as string) || 'all';
     const folderId = args.folderId as string | undefined;
     const topK = Math.min((args.topK as number) || 5, 10);
@@ -426,7 +432,10 @@ export class AiEnhanceTools {
         temperature: 0.3,
       } as any);
 
-      const answer = typeof completion === 'string' ? completion : (completion as any)?.content || (completion as any)?.choices?.[0]?.message?.content || '无法生成答案';
+      const answer =
+        typeof completion === 'string'
+          ? completion
+          : (completion as any)?.content || (completion as any)?.choices?.[0]?.message?.content || '无法生成答案';
 
       logger.info('AgentTool', 'RAG question answered', {
         userId,
@@ -456,7 +465,11 @@ export class AiEnhanceTools {
       const errorMsg = error instanceof Error ? error.message : String(error);
       logger.error('AgentTool', 'RAG question failed', { userId, question: question.slice(0, 50) }, error);
 
-      if (errorMsg.includes('No relevant documents') || errorMsg.includes('no relevant') || errorMsg.includes('未找到')) {
+      if (
+        errorMsg.includes('No relevant documents') ||
+        errorMsg.includes('no relevant') ||
+        errorMsg.includes('未找到')
+      ) {
         return {
           error: `未找到与问题相关的文档。建议：1) 先上传相关文件 2) 确保文件已建立向量索引 3) 尝试更具体的问题`,
           code: 'NO_RELEVANT_DOCUMENTS',
@@ -507,7 +520,18 @@ export class AiEnhanceTools {
     const limit = Math.min((args.limit as number) || 200, 500);
 
     const fileList = await getFilesForVectorIndex(env, userId, true).then((files) =>
-      files.slice(0, limit).map((f) => ({ id: f.id, name: '', mimeType: '', path: '', parentId: '', aiTags: '', aiSummary: '', size: 0, isFolder: false, createdAt: new Date() }))
+      files.slice(0, limit).map((f) => ({
+        id: f.id,
+        name: '',
+        mimeType: '',
+        path: '',
+        parentId: '',
+        aiTags: '',
+        aiSummary: '',
+        size: 0,
+        isFolder: false,
+        createdAt: new Date(),
+      }))
     );
 
     // ── 四维度分析 ───────────────────────────────────────

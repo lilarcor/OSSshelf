@@ -17,7 +17,6 @@ import {
   Sparkles,
   StopCircle,
   Copy,
-  Check,
   CheckCircle2,
   RefreshCw,
   Search,
@@ -30,7 +29,6 @@ import {
   FolderOpen,
   X,
   AlertTriangle,
-  ExternalLink,
   Clock,
   Lightbulb,
   FilePlus,
@@ -414,7 +412,8 @@ export function AIChat() {
                 existing.result = raw.result;
                 existing.status = 'done';
               }
-              const resultObj = raw.result && typeof raw.result === 'object' ? (raw.result as Record<string, unknown>) : null;
+              const resultObj =
+                raw.result && typeof raw.result === 'object' ? (raw.result as Record<string, unknown>) : null;
               const isPendingConfirm = resultObj?.status === 'pending_confirm';
               setMessages((prev) =>
                 prev.map((m) =>
@@ -489,14 +488,25 @@ export function AIChat() {
         });
       } catch (e) {
         const name = (e as Error).name;
-        if (name !== 'AbortError') {
+        if (name === 'AbortError') {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? {
+                    ...m,
+                    isLoading: false,
+                    aborted: true,
+                    content: m.content || '',
+                  }
+                : m
+            )
+          );
+        } else {
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantId ? { ...m, content: '抱歉，遇到了问题，请稍后再试。', isLoading: false } : m
             )
           );
-        } else {
-          setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, isLoading: false } : m)));
         }
       } finally {
         setIsLoading(false);
@@ -525,9 +535,10 @@ export function AIChat() {
                   pendingConfirm: undefined,
                   content: (m.content || '') + `\n\n✅ 操作执行成功:\n${resultStr}`,
                   toolCalls: (m.toolCalls || []).map((tc) => {
-                    const resultObj = tc.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>) : null;
-                    const wasPendingConfirm = tc.confirmStatus === 'pending' ||
-                      (resultObj?.status === 'pending_confirm' && !tc.confirmStatus);
+                    const resultObj =
+                      tc.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>) : null;
+                    const wasPendingConfirm =
+                      tc.confirmStatus === 'pending' || (resultObj?.status === 'pending_confirm' && !tc.confirmStatus);
                     if (wasPendingConfirm) {
                       return { ...tc, result: resultData.result, confirmStatus: 'confirmed' as const };
                     }
@@ -547,42 +558,55 @@ export function AIChat() {
     }
   }, []);
 
-  const handleCancelConfirm = useCallback(async (msgId: string, confirmId?: string) => {
-    const message = messages.find((m) => m.id === msgId);
-    const tc = message?.toolCalls?.find(
-      (t) => t.confirmStatus === 'pending' || (t.result && typeof t.result === 'object' && (t.result as Record<string, unknown>).status === 'pending_confirm' && !t.confirmStatus)
-    );
-    const actualConfirmId = confirmId || (tc?.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>).confirmId as string | undefined : undefined);
+  const handleCancelConfirm = useCallback(
+    async (msgId: string, confirmId?: string) => {
+      const message = messages.find((m) => m.id === msgId);
+      const tc = message?.toolCalls?.find(
+        (t) =>
+          t.confirmStatus === 'pending' ||
+          (t.result &&
+            typeof t.result === 'object' &&
+            (t.result as Record<string, unknown>).status === 'pending_confirm' &&
+            !t.confirmStatus)
+      );
+      const actualConfirmId =
+        confirmId ||
+        (tc?.result && typeof tc.result === 'object'
+          ? ((tc.result as Record<string, unknown>).confirmId as string | undefined)
+          : undefined);
 
-    if (actualConfirmId) {
-      try {
-        await aiApi.chatSession.cancelAction(actualConfirmId);
-      } catch (e) {
-        console.error('Failed to cancel action:', e);
+      if (actualConfirmId) {
+        try {
+          await aiApi.chatSession.cancelAction(actualConfirmId);
+        } catch (e) {
+          console.error('Failed to cancel action:', e);
+        }
       }
-    }
 
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === msgId
-          ? {
-              ...m,
-              pendingConfirm: undefined,
-              content: (m.content || '') + '\n\n⛔ 用户已取消操作',
-              toolCalls: (m.toolCalls || []).map((tc) => {
-                const resultObj = tc.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>) : null;
-                const wasPendingConfirm = tc.confirmStatus === 'pending' ||
-                  (resultObj?.status === 'pending_confirm' && !tc.confirmStatus);
-                if (wasPendingConfirm) {
-                  return { ...tc, confirmStatus: 'cancelled' as const };
-                }
-                return tc;
-              }),
-            }
-          : m
-      )
-    );
-  }, [messages]);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId
+            ? {
+                ...m,
+                pendingConfirm: undefined,
+                content: (m.content || '') + '\n\n⛔ 用户已取消操作',
+                toolCalls: (m.toolCalls || []).map((tc) => {
+                  const resultObj =
+                    tc.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>) : null;
+                  const wasPendingConfirm =
+                    tc.confirmStatus === 'pending' || (resultObj?.status === 'pending_confirm' && !tc.confirmStatus);
+                  if (wasPendingConfirm) {
+                    return { ...tc, confirmStatus: 'cancelled' as const };
+                  }
+                  return tc;
+                }),
+              }
+            : m
+        )
+      );
+    },
+    [messages]
+  );
 
   const handleRegenerate = (msgId: string) => {
     const idx = messages.findIndex((m) => m.id === msgId);
@@ -774,6 +798,15 @@ export function AIChat() {
                       <span className="whitespace-pre-wrap">{msg.content}</span>
                     )}
 
+                    {msg.aborted && msg.role === 'assistant' && (
+                      <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                        <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs">
+                          <StopCircle className="h-3.5 w-3.5" />
+                          <span>输出已中断</span>
+                        </div>
+                      </div>
+                    )}
+
                     {msg.isLoading && !msg.content && (
                       <div className="flex items-center gap-2 py-1">
                         <div className="flex gap-1.5">
@@ -820,7 +853,7 @@ export function AIChat() {
                       <span className="text-[11px] text-slate-400 font-medium">
                         {formatDate(msg.timestamp.toISOString())}
                       </span>
-                      {msg.role === 'assistant' && msg.content && (
+                      {msg.role === 'assistant' && (msg.content || msg.aborted) && (
                         <>
                           <button
                             onClick={() => handleCopy(msg.id, msg.content)}
@@ -833,7 +866,7 @@ export function AIChat() {
                               <Copy className="h-3.5 w-3.5" />
                             )}
                           </button>
-                          {index === lastAssistantIdx && !isLoading && (
+                          {(index === lastAssistantIdx || msg.aborted) && !isLoading && (
                             <button
                               onClick={() => handleRegenerate(msg.id)}
                               className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-all duration-200"

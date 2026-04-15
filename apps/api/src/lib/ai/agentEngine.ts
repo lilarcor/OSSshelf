@@ -938,20 +938,20 @@ export class AgentEngine {
     // 工具列表：注入工具名 + 高频工具的参数示例，帮助小模型正确构造调用
     // 不注入完整 description，避免 token 暴增导致小模型上下文溢出失效
     const TOOL_PARAM_EXAMPLES: Record<string, string> = {
-      search_files:        '{"query": "关键词"}',
-      filter_files:        '{"mimeTypePrefix": "image/", "limit": 20}',
-      get_storage_stats:   '{}',
-      get_starred_files:   '{}',
-      list_folder:         '{"folderId": null}',
-      get_folder_tree:     '{}',
-      get_recent_files:    '{"limit": 10}',
-      list_shares:         '{}',
-      get_file_tags:       '{"fileId": "<id>"}',
-      get_activity_stats:  '{}',
-      read_file_text:      '{"fileId": "<id>"}',
-      get_file_details:    '{"fileId": "<id>"}',
-      search_by_tag:       '{"tagNames": ["标签名"]}',
-      get_storage_usage:   '{}',
+      search_files: '{"query": "关键词"}',
+      filter_files: '{"mimeTypePrefix": "image/", "limit": 20}',
+      get_storage_stats: '{}',
+      get_starred_files: '{}',
+      list_folder: '{"folderId": null}',
+      get_folder_tree: '{}',
+      get_recent_files: '{"limit": 10}',
+      list_shares: '{}',
+      get_file_tags: '{"fileId": "<id>"}',
+      get_activity_stats: '{}',
+      read_file_text: '{"fileId": "<id>"}',
+      get_file_details: '{"fileId": "<id>"}',
+      search_by_tag: '{"tagNames": ["标签名"]}',
+      get_storage_usage: '{}',
     };
     const toolListHint =
       filteredTools.length > 0
@@ -959,9 +959,7 @@ export class AgentEngine {
           filteredTools
             .map((t) => {
               const ex = TOOL_PARAM_EXAMPLES[t.function.name];
-              return ex
-                ? `- ${t.function.name}  示例参数: ${ex}`
-                : `- ${t.function.name}`;
+              return ex ? `- ${t.function.name}  示例参数: ${ex}` : `- ${t.function.name}`;
             })
             .join('\n')
         : '';

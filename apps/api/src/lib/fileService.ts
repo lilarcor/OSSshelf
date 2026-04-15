@@ -862,7 +862,6 @@ export async function getFilesByScope(
 
     if (!summary && !f.mimeType?.startsWith('image/') && !f.mimeType?.startsWith('video/')) {
       try {
-        const { readFileContent } = require('./fileContentHelper');
         const fileRecord = { id: f.id, r2Key: '', bucketId: null, mimeType: f.mimeType, size: f.size } as any;
         const readResult = await readFileContent(env, fileRecord, userId);
 

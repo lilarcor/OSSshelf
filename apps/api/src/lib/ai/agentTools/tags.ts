@@ -196,7 +196,7 @@ export class TagsTools {
     if (!file) return { error: `文件不存在或无权访问: ${fileId}` };
 
     let addedCount = 0;
-    let skippedTags: string[] = [];
+    const skippedTags: string[] = [];
 
     for (const tagName of tags) {
       if (!tagName) continue;

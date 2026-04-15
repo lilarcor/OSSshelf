@@ -321,12 +321,7 @@ export function FileDetailPanel({ file, onClose }: FileDetailPanelProps) {
                   <Folder className="h-4 w-4" />
                   文件夹统计
                 </h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs gap-1"
-                  onClick={handleDownloadZip}
-                >
+                <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleDownloadZip}>
                   <Download className="h-3.5 w-3.5" />
                   下载 ZIP
                 </Button>
@@ -362,7 +357,10 @@ export function FileDetailPanel({ file, onClose }: FileDetailPanelProps) {
                       <div className="pt-2 border-t mt-2 space-y-1">
                         <p className="text-xs text-muted-foreground">最大文件 Top 5：</p>
                         {folderSizeStats.childFiles.map((f) => (
-                          <div key={f.id} className="flex justify-between items-center py-0.5 px-2 bg-background/50 rounded text-xs">
+                          <div
+                            key={f.id}
+                            className="flex justify-between items-center py-0.5 px-2 bg-background/50 rounded text-xs"
+                          >
                             <span className="truncate max-w-[70%]">{decodeFileName(f.name)}</span>
                             <span className="text-muted-foreground flex-shrink-0">{formatBytes(f.size)}</span>
                           </div>
@@ -485,10 +483,15 @@ export function FileDetailPanel({ file, onClose }: FileDetailPanelProps) {
                     {accessLogs.logs.length > 0 ? (
                       <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
                         {accessLogs.logs.map((log) => (
-                          <div key={log.id} className="flex items-start gap-2 py-1.5 px-2 bg-background/50 rounded text-xs">
-                            <span className={`inline-flex items-center justify-center w-12 h-5 rounded-full text-[10px] font-medium ${
-                              log.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                            }`}>
+                          <div
+                            key={log.id}
+                            className="flex items-start gap-2 py-1.5 px-2 bg-background/50 rounded text-xs"
+                          >
+                            <span
+                              className={`inline-flex items-center justify-center w-12 h-5 rounded-full text-[10px] font-medium ${
+                                log.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                              }`}
+                            >
                               {log.status === 'success' ? '成功' : '失败'}
                             </span>
                             <div className="flex-1 min-w-0">
@@ -509,7 +512,8 @@ export function FileDetailPanel({ file, onClose }: FileDetailPanelProps) {
                     {accessLogs.pagination.totalPages > 1 && (
                       <div className="flex items-center justify-between pt-2 border-t mt-2">
                         <span className="text-xs text-muted-foreground">
-                          第 {Math.floor(accessLogs.pagination.offset / accessLogs.pagination.limit) + 1}/{accessLogs.pagination.totalPages} 页
+                          第 {Math.floor(accessLogs.pagination.offset / accessLogs.pagination.limit) + 1}/
+                          {accessLogs.pagination.totalPages} 页
                         </span>
                         <div className="flex gap-1">
                           <Button

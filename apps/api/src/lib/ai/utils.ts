@@ -31,7 +31,16 @@ import type { AiFeatureType, ModelConfig } from './types';
  */
 export function buildThinkingConfig(
   featureType: AiFeatureType = 'chat',
-  config?: Pick<ModelConfig, 'supportsThinking' | 'thinkingParamFormat' | 'thinkingParamName' | 'thinkingEnabledValue' | 'thinkingDisabledValue' | 'thinkingNestedKey' | 'disableThinkingForFeatures'>
+  config?: Pick<
+    ModelConfig,
+    | 'supportsThinking'
+    | 'thinkingParamFormat'
+    | 'thinkingParamName'
+    | 'thinkingEnabledValue'
+    | 'thinkingDisabledValue'
+    | 'thinkingNestedKey'
+    | 'disableThinkingForFeatures'
+  >
 ): Record<string, unknown> | undefined {
   if (!config?.supportsThinking) {
     return undefined;
@@ -261,4 +270,3 @@ export function extractThinkingContent(content: string): {
 export function hasThinkingTags(content: string): boolean {
   return /<think>/.test(content) && /<\/think>/.test(content);
 }
-

@@ -329,7 +329,8 @@ export class WorkersAiAdapter implements IModelAdapter {
         id: '@cf/moonshotai/kimi-k2.5',
         name: 'Kimi K2.5 🌟',
         capabilities: ['chat', 'vision', 'function_calling'],
-        description: 'Moonshot AI前沿开源模型，256K超长上下文，支持多轮工具调用、视觉输入和结构化输出，Agent场景首选（推荐）',
+        description:
+          'Moonshot AI前沿开源模型，256K超长上下文，支持多轮工具调用、视觉输入和结构化输出，Agent场景首选（推荐）',
       },
       {
         id: '@cf/openai/gpt-oss-120b',

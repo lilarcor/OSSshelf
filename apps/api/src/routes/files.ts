@@ -335,7 +335,7 @@ app.get('/:id/zip', async (c) => {
     entries = selectedFiles.filter((f) => !f.isFolder).map((f) => ({ file: f, relativePath: f.name }));
   } else {
     // 打包整个文件夹（递归收集）
-    entries = await collectFolderFiles(db, fileId, '');
+    entries = await collectFolderFiles(db, fileId, '', userId);
   }
 
   if (entries.length === 0) {
@@ -350,7 +350,10 @@ app.get('/:id/zip', async (c) => {
     return c.json(
       {
         success: false,
-        error: { code: ERROR_CODES.VALIDATION_ERROR, message: `ZIP 打包最多 ${MAX_ZIP_FILES} 个文件，当前 ${entries.length} 个` },
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: `ZIP 打包最多 ${MAX_ZIP_FILES} 个文件，当前 ${entries.length} 个`,
+        },
       },
       400
     );
@@ -361,7 +364,10 @@ app.get('/:id/zip', async (c) => {
     return c.json(
       {
         success: false,
-        error: { code: ERROR_CODES.VALIDATION_ERROR, message: `ZIP 打包总大小不超过 500MB，当前 ${(totalBytes / 1024 / 1024).toFixed(1)}MB` },
+        error: {
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: `ZIP 打包总大小不超过 500MB，当前 ${(totalBytes / 1024 / 1024).toFixed(1)}MB`,
+        },
       },
       400
     );
@@ -405,19 +411,20 @@ app.get('/:id/zip', async (c) => {
 async function collectFolderFiles(
   db: ReturnType<typeof getDb>,
   folderId: string,
-  basePath = ''
+  basePath: string,
+  userId: string
 ): Promise<Array<{ file: typeof files.$inferSelect; relativePath: string }>> {
   const children = await db
     .select()
     .from(files)
-    .where(and(eq(files.parentId, folderId), isNull(files.deletedAt)))
+    .where(and(eq(files.parentId, folderId), eq(files.userId, userId), isNull(files.deletedAt)))
     .all();
 
   const result: Array<{ file: typeof files.$inferSelect; relativePath: string }> = [];
 
   for (const child of children) {
     if (child.isFolder) {
-      const sub = await collectFolderFiles(db, child.id, `${basePath}${child.name}/`);
+      const sub = await collectFolderFiles(db, child.id, `${basePath}${child.name}/`, userId);
       result.push(...sub);
     } else {
       result.push({ file: child, relativePath: `${basePath}${child.name}` });
@@ -758,7 +765,9 @@ app.get('/', async (c) => {
   const userId = c.get('userId')!;
   const parentId = c.req.query('parentId') || null;
   const search = c.req.query('search') || '';
-  const sortBy = (c.req.query('sortBy') || 'createdAt') as keyof typeof files.$inferSelect;
+  const ALLOWED_SORT_FIELDS = ['createdAt', 'updatedAt', 'name', 'size'] as const;
+  const sortByRaw = c.req.query('sortBy') || 'createdAt';
+  const sortBy = ALLOWED_SORT_FIELDS.includes(sortByRaw as any) ? sortByRaw : 'createdAt';
   const sortOrder = c.req.query('sortOrder') || 'desc';
   const starred = c.req.query('starred') === 'true';
 
@@ -778,7 +787,7 @@ app.get('/', async (c) => {
   }
 
   // 构建查询条件
-  const conditions: any[] = [isNull(files.deletedAt)];
+  const conditions: Array<ReturnType<typeof isNull> | ReturnType<typeof eq>> = [isNull(files.deletedAt)];
 
   // 收藏文件筛选
   if (starred) {
@@ -842,9 +851,9 @@ app.get('/', async (c) => {
     // - 或被授权访问的文件 (id IN permittedIds)
     const ownershipCondition = or(
       and(eq(files.userId, userId), isNull(files.parentId)),
-      permittedIds.size > 0 ? inArray(files.id, Array.from(permittedIds)) : undefined
+      permittedIds.size > 0 ? inArray(files.id, Array.from(permittedIds)) : sql`0=1`
     );
-    conditions.push(ownershipCondition);
+    if (ownershipCondition) conditions.push(ownershipCondition);
   } else {
     // 收藏筛选时，只返回用户自己的收藏文件
     conditions.push(eq(files.userId, userId));
@@ -865,7 +874,18 @@ app.get('/', async (c) => {
   const total = totalCountResult?.count ?? 0;
 
   // 使用 SQL 排序和分页，避免内存爆炸
-  const orderColumn = files[sortBy] ?? files.createdAt;
+  const orderColumn = (() => {
+    switch (sortBy) {
+      case 'updatedAt':
+        return files.updatedAt;
+      case 'name':
+        return files.name;
+      case 'size':
+        return files.size;
+      default:
+        return files.createdAt;
+    }
+  })();
   const orderDir = sortOrder === 'asc' ? sql`ASC` : sql`DESC`;
 
   const items = await db
@@ -961,7 +981,9 @@ app.post('/folders/size', async (c) => {
   const folderRecords = await db
     .select({ id: files.id })
     .from(files)
-    .where(and(inArray(files.id, folderIds), eq(files.userId, userId), eq(files.isFolder, true), isNull(files.deletedAt)))
+    .where(
+      and(inArray(files.id, folderIds), eq(files.userId, userId), eq(files.isFolder, true), isNull(files.deletedAt))
+    )
     .all();
 
   const validFolderIds = folderRecords.map((f) => f.id);
@@ -1586,10 +1608,7 @@ app.get('/:id/logs', async (c) => {
   if (!file) throwAppError('FILE_NOT_FOUND');
 
   // 构建查询条件
-  const conditions = [
-    eq(auditLogs.resourceId, fileId),
-    eq(auditLogs.resourceType, 'file'),
-  ];
+  const conditions = [eq(auditLogs.resourceId, fileId), eq(auditLogs.resourceType, 'file')];
 
   if (action) {
     conditions.push(eq(auditLogs.action, action));
