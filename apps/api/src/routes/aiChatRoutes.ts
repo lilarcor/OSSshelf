@@ -478,6 +478,17 @@ async function handleStreamChat(
 
     const agentEngine = new AgentEngine(c.env);
 
+    // ── 占位消息：流开始前写入 DB，确保任何中断都有记录可更新 ──────────────
+    const assistantMsgId = crypto.randomUUID();
+    await db.insert(aiChatMessages).values({
+      id: assistantMsgId,
+      sessionId: actualSessionId!,
+      role: 'assistant',
+      content: '',
+      aborted: false,
+      createdAt: new Date().toISOString(),
+    });
+
     let fullText = '';
     let finalSources: Array<{ id: string; name: string; mimeType: string | null; score: number }> = [];
     const collectedToolCalls: Array<{
@@ -494,6 +505,29 @@ async function handleStreamChat(
     const streamDone = new Promise<void>((r) => {
       resolveStream = r;
     });
+
+    // ── 统一的消息更新函数，替代双路径 INSERT ────────────────────────────────
+    const saveAssistantMessage = async (opts: {
+      isAborted: boolean;
+      inputTokens?: number;
+      outputTokens?: number;
+      latencyMs: number;
+    }) => {
+      await db
+        .update(aiChatMessages)
+        .set({
+          content: fullText || (collectedToolCalls.length > 0 ? '(执行了工具操作)' : '(响应中断)'),
+          sources: JSON.stringify(finalSources),
+          toolCalls: collectedToolCalls.length > 0 ? JSON.stringify(collectedToolCalls) : null,
+          reasoning: collectedReasoning || null,
+          modelUsed: agentResult?.meta?.modelId || modelId || null,
+          latencyMs: opts.latencyMs,
+          inputTokens: opts.inputTokens ?? 0,
+          outputTokens: opts.outputTokens ?? 0,
+          aborted: opts.isAborted,
+        })
+        .where(eq(aiChatMessages.id, assistantMsgId));
+    };
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -599,63 +633,35 @@ async function handleStreamChat(
           try {
             controller.close();
           } catch {}
-          resolveStream();
-          if (actualSessionId && (fullText.trim() || collectedToolCalls.length > 0 || finalSources.length > 0)) {
-            try {
-              await db.insert(aiChatMessages).values({
-                id: crypto.randomUUID(),
-                sessionId: actualSessionId,
-                role: 'assistant',
-                content: fullText || '(响应中断)',
-                sources: JSON.stringify(finalSources),
-                toolCalls: collectedToolCalls.length > 0 ? JSON.stringify(collectedToolCalls) : null,
-                reasoning: collectedReasoning || null,
-                modelUsed: agentResult?.meta?.modelId || modelId || null,
-                latencyMs: Date.now() - startTime,
-                inputTokens: 0,
-                outputTokens: 0,
-                aborted: isAborted,
-                createdAt: new Date().toISOString(),
-              });
-              logger.info('AI Agent', 'Partial message saved after error', { sessionId: actualSessionId, isAborted });
-            } catch (saveError) {
-              logger.error('AI Agent', 'Failed to save partial message', { userId }, saveError);
-            }
+          // ── abort/error 路径：立即更新占位消息，保存已输出的部分内容 ──────
+          try {
+            await saveAssistantMessage({ isAborted, latencyMs: Date.now() - startTime });
+            logger.info('AI Agent', 'Partial message saved after abort/error', { sessionId: actualSessionId, isAborted, contentLen: fullText.length });
+          } catch (saveError) {
+            logger.error('AI Agent', 'Failed to save partial message', { userId }, saveError);
           }
+          resolveStream();
         }
       },
     });
 
-    // Save assistant message after stream completes
+    // ── 正常完成路径：更新占位消息（含完整 tokens/latency 信息）────────────
     c.executionCtx.waitUntil(
       (async () => {
         await streamDone;
+        // abort 路径已在 catch 块中同步保存，此处跳过避免覆盖
+        if (!doneEmitted) return;
         try {
-          const hasContent = fullText.trim().length > 0;
-          const hasToolCalls = collectedToolCalls.length > 0;
-          const hasSources = finalSources.length > 0;
-          const hasReasoning = collectedReasoning.trim().length > 0;
-          if (!hasContent && !hasToolCalls && !hasSources && !hasReasoning) return;
           const latencyMs = Date.now() - startTime;
-          await db.insert(aiChatMessages).values({
-            id: crypto.randomUUID(),
-            sessionId: actualSessionId!,
-            role: 'assistant',
-            content: fullText || '(执行了工具操作)',
-            sources: JSON.stringify(finalSources),
-            toolCalls: hasToolCalls ? JSON.stringify(collectedToolCalls) : null,
-            reasoning: collectedReasoning || null,
-            modelUsed: agentResult?.meta?.modelId || modelId || null,
-            latencyMs,
+          await saveAssistantMessage({
+            isAborted: false,
             inputTokens: agentResult?.meta?.inputTokens ?? 0,
             outputTokens: agentResult?.meta?.outputTokens ?? 0,
-            createdAt: new Date().toISOString(),
+            latencyMs,
           });
           logger.info('AI Agent', 'Message saved', {
             sessionId: actualSessionId,
             latencyMs,
-            hasToolCalls,
-            hasSources,
             toolCallCount: agentResult?.meta?.toolCallCount ?? collectedToolCalls.length,
             inputTokens: agentResult?.meta?.inputTokens ?? 0,
             outputTokens: agentResult?.meta?.outputTokens ?? 0,

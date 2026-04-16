@@ -298,16 +298,21 @@ export function AIChat() {
       if (res.data.success && res.data.data) {
         setCurrentSessionId(sessionId);
         setMessages(
-          res.data.data.messages.map((m: AiChatMessage) => ({
-            id: m.id,
-            role: m.role as 'user' | 'assistant',
-            content: m.content,
-            sources: m.sources,
-            toolCalls: m.toolCalls || [],
-            reasoning: m.reasoning || undefined,
-            aborted: m.aborted || false,
-            timestamp: new Date(m.createdAt),
-          }))
+          res.data.data.messages.map((m: AiChatMessage) => {
+            // 占位消息（content 为空且未标记 aborted）说明 Worker 意外终止，标记为中断
+            const isInterrupted =
+              m.role === 'assistant' && !m.content && !m.aborted;
+            return {
+              id: m.id,
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+              sources: m.sources,
+              toolCalls: m.toolCalls || [],
+              reasoning: m.reasoning || undefined,
+              aborted: m.aborted || isInterrupted,
+              timestamp: new Date(m.createdAt),
+            };
+          })
         );
       } else {
         toast({
