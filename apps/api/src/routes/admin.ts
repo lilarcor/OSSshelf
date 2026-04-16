@@ -848,7 +848,7 @@ app.get('/ai/traces/:traceId', async (c) => {
       createdAt: session.createdAt,
       hasPlan: !!plan,
       toolCalls: toolCalls.map((tc: Record<string, unknown>) => ({
-        name: tc.name || 'unknown',
+        name: (tc.toolName || tc.name || 'unknown') as string,
         args: tc.args || {},
         result: tc.result || null,
         durationMs: tc.durationMs || 0,

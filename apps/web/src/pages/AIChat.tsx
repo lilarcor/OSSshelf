@@ -1000,7 +1000,7 @@ export function AIChat() {
         </div>
 
         <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto relative">
             <div className="flex items-end gap-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 focus-within:border-violet-400 dark:focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-400/20 transition-all px-3 py-2">
               <textarea
                 ref={inputRef}
