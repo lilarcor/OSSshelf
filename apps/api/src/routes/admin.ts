@@ -693,7 +693,6 @@ app.get('/ai/traces', async (c) => {
   const db = getDb(c.env.DB);
 
   const conditions: Array<ReturnType<typeof eq> | ReturnType<typeof gte> | ReturnType<typeof lt>> = [];
-  if (status) conditions.push(eq(aiChatSessions.status, status as string));
   if (userId) conditions.push(eq(aiChatSessions.userId, userId));
   if (sessionId) conditions.push(eq(aiChatSessions.id, sessionId));
 
@@ -733,13 +732,8 @@ app.get('/ai/traces', async (c) => {
       let reasoningLength = 0;
 
       for (const msg of assistantMessages) {
-        if (msg.tokenUsage) {
-          try {
-            const usage = typeof msg.tokenUsage === 'string' ? JSON.parse(msg.tokenUsage) : msg.tokenUsage;
-            tokenUsage.input += usage?.inputTokens ?? usage?.prompt_tokens ?? 0;
-            tokenUsage.output += usage?.outputTokens ?? usage?.completion_tokens ?? 0;
-          } catch {}
-        }
+        tokenUsage.input += msg.inputTokens ?? 0;
+        tokenUsage.output += msg.outputTokens ?? 0;
         if (msg.content && msg.content.includes('"type":"plan"')) hasPlan = true;
         if (msg.reasoning) reasoningLength += String(msg.reasoning).length;
       }
@@ -760,7 +754,7 @@ app.get('/ai/traces', async (c) => {
         sessionId: session.id,
         query: session.title || messages.find((m) => m.role === 'user')?.content?.slice(0, 100) || '',
         modelId: session.modelId || 'unknown',
-        status: session.status || 'completed',
+        status: 'completed',
         toolCallCount: toolCalls.length,
         tokenUsage,
         durationMs,
@@ -816,13 +810,8 @@ app.get('/ai/traces/:traceId', async (c) => {
   let memoryRecalled: string[] = [];
 
   for (const msg of assistantMsgs) {
-    if (msg.tokenUsage) {
-      try {
-        const usage = typeof msg.tokenUsage === 'string' ? JSON.parse(msg.tokenUsage) : msg.tokenUsage;
-        tokenUsage.input += usage?.inputTokens ?? usage?.prompt_tokens ?? 0;
-        tokenUsage.output += usage?.outputTokens ?? usage?.completion_tokens ?? 0;
-      } catch {}
-    }
+    tokenUsage.input += msg.inputTokens ?? 0;
+    tokenUsage.output += msg.outputTokens ?? 0;
     if (msg.reasoning) reasoning += String(msg.reasoning);
   }
 
@@ -852,7 +841,7 @@ app.get('/ai/traces/:traceId', async (c) => {
       sessionId: session.id,
       query: session.title || '',
       modelId: session.modelId || 'unknown',
-      status: session.status || 'completed',
+      status: 'completed',
       toolCallCount: toolCalls.length,
       tokenUsage,
       durationMs,

@@ -691,11 +691,18 @@ export const adminApi = {
     ),
 
   // ── AI Agent 可观测性 ──
-  aiTraceList: (params?: { userId?: string; sessionId?: string; modelId?: string; page?: number; limit?: number }) =>
+  aiTraceList: (params?: {
+    userId?: string;
+    sessionId?: string;
+    modelId?: string;
+    page?: number;
+    limit?: number;
+  }) =>
     api.get<ApiResponse<{ items: AITraceItem[]; total: number; page: number; limit: number }>>('/api/admin/ai/traces', {
       params,
     }),
-  aiTraceDetail: (traceId: string) => api.get<ApiResponse<AITraceDetail>>(`/api/admin/ai/traces/${traceId}`),
+  aiTraceDetail: (traceId: string) =>
+    api.get<ApiResponse<AITraceDetail>>(`/api/admin/ai/traces/${traceId}`),
   aiModelHealth: () => api.get<ApiResponse<ModelHealthInfo[]>>('/api/admin/ai/models/health'),
 };
 

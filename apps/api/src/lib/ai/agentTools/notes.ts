@@ -50,6 +50,7 @@ export const definitions: ToolDefinition[] = [
         { user_query: '标注一下这个文件的重点', tool_call: { fileId: '<report_id>', content: '## 重点摘要\n- 项目进度：80%\n- 风险点：...' } },
       ],
     },
+  },
 
   // 2. get_notes — 查看笔记
   {
