@@ -676,7 +676,7 @@ async function handleStreamChat(
               .update(aiChatSessions)
               .set({
                 modelId: agentResult.meta.modelId || modelId || null,
-                lastToolCallCount: agentResult.meta.toolCallCount,
+                lastToolCallCount: sql`last_tool_call_count + ${agentResult.meta.toolCallCount}`,
                 totalTokensUsed: sql`total_tokens_used + ${agentResult.meta.inputTokens + agentResult.meta.outputTokens}`,
                 updatedAt: new Date().toISOString(),
               })

@@ -41,7 +41,7 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use('/*', authMiddleware);
 
 const searchSchema = z.object({
-  query: z.string().min(1),
+  query: z.string().min(0),
   limit: z.number().int().min(1).max(50).default(20),
   threshold: z.number().min(0).max(1).default(0.7),
   mimeType: z.string().optional(),

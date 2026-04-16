@@ -234,7 +234,7 @@ export function AIChat() {
       aiApi
         .search(mentionQuery, { limit: 8 })
         .then((r) => r.data?.data ?? []),
-    enabled: showMentionDropdown && mentionQuery.length > 0,
+    enabled: showMentionDropdown,
     staleTime: 5000,
   });
 
