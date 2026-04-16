@@ -598,6 +598,25 @@ export class AgentEngine {
     }
   }
 
+  /**
+   * 规划阶段：为复杂任务生成结构化执行计划
+   *
+   * @param userId - 用户ID
+   * @param query - 用户原始查询
+   * @param modelId - 模型ID（可选）
+   * @returns 结构化执行计划，解析失败时返回 null
+   *
+   * 工作流程：
+   * 1. 调用 LLM 生成 JSON 格式的执行计划
+   * 2. 解析并验证计划结构（goal + steps[]）
+   * 3. 为每个步骤补充默认值（id、status 等）
+   * 4. 估算总工具调用次数
+   *
+   * 使用场景：
+   * - 用户请求涉及多步操作（批量整理、条件归档等）
+   * - isComplexQuery 判断为 true 时触发
+   * - 生成的计划将注入后续执行的上下文中
+   */
   private async planPhase(
     userId: string,
     query: string,

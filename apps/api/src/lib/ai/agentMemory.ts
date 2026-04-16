@@ -1,3 +1,21 @@
+/**
+ * agentMemory.ts — Agent 跨会话记忆管理
+ *
+ * 功能:
+ * - 对话结束时自动提取结构化记忆（操作/偏好/路径/文件引用）
+ * - 对话开始时召回相关历史记忆注入上下文
+ * - 记忆的增删查管理接口
+ *
+ * 架构设计:
+ * - 双存储：D1（结构化查询）+ Vectorize（语义检索）
+ * - 命名空间隔离：memory:{userId} 区别于 file:{userId}
+ * - 召回策略：时间优先 + 向量语义匹配兜底
+ *
+ * 使用场景:
+ * - 用户说"上次你帮我整理的那个文件夹" → Agent 能找回上下文
+ * - 用户偏好、常用路径、重要文件被记住，减少重复提问
+ */
+
 import { getDb, aiMemories } from '../../db';
 import { eq, and, desc } from 'drizzle-orm';
 import { logger } from '@osshelf/shared';

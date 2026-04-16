@@ -11,7 +11,7 @@
 
 import { Hono } from 'hono';
 import { eq, and, desc, sql, count } from 'drizzle-orm';
-import { getDb, aiChatSessions, aiChatMessages, aiConfirmRequests } from '../db';
+import { getDb, aiChatSessions, aiChatMessages, aiConfirmRequests, aiMemories } from '../db';
 import { authMiddleware } from '../middleware';
 import { ERROR_CODES, logger } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
@@ -212,6 +212,8 @@ app.delete('/sessions/:sessionId', async (c) => {
 
   try {
     await db.delete(aiChatMessages).where(eq(aiChatMessages.sessionId, sessionId));
+    await db.delete(aiConfirmRequests).where(eq(aiConfirmRequests.sessionId, sessionId));
+    await db.delete(aiMemories).where(eq(aiMemories.sessionId, sessionId));
     await db.delete(aiChatSessions).where(eq(aiChatSessions.id, sessionId));
 
     return c.json({ success: true, data: { message: '会话已删除' } });

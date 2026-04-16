@@ -42,8 +42,13 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['fileId'],
       },
+      examples: [
+        { user_query: '为这个文件生成AI摘要', tool_call: { fileId: '<file_id>' } },
+        { user_query: '重新生成摘要', tool_call: { fileId: '<doc_id>', forceRegenerate: true } },
+      ],
     },
   },
+
   {
     type: 'function',
     function: {
@@ -61,6 +66,10 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['fileId'],
       },
+      examples: [
+        { user_query: '为这张图片生成智能标签', tool_call: { fileId: '<image_id>' } },
+        { user_query: '生成3个标签就行', tool_call: { fileId: '<photo_id>', maxTags: 3 } },
+      ],
     },
   },
   {
@@ -79,8 +88,14 @@ export const definitions: ToolDefinition[] = [
         },
         required: [],
       },
+      examples: [
+        { user_query: '重建这个文件的索引', tool_call: { fileId: '<file_id>' } },
+        { user_query: '重建所有文件索引', tool_call: { forceAll: true, _confirmed: true } },
+        { user_query: '搜索结果不准确，重新索引', tool_call: {} },
+      ],
     },
   },
+
   {
     type: 'function',
     function: {
@@ -108,6 +123,11 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['question'],
       },
+      examples: [
+        { user_query: '合同里违约金怎么规定', tool_call: { question: '我的合同里关于违约金是怎么规定的？' } },
+        { user_query: '去年服务器花费多少', tool_call: { question: '去年我花了多少钱在服务器上？', scope: 'recent' } },
+        { user_query: '项目用了什么技术', tool_call: { question: '项目中使用了哪些技术栈？', topK: 3 } },
+      ],
     },
   },
   {
@@ -133,6 +153,10 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['fileId'],
       },
+      examples: [
+        { user_query: '帮这个文件改个规范的名字', tool_call: { fileId: '<img_id>' } },
+        { user_query: '用日期前缀格式重命名', tool_call: { fileId: '<doc_id>', style: 'date_prefix' } },
+      ],
     },
   },
 
@@ -162,6 +186,11 @@ export const definitions: ToolDefinition[] = [
         },
         required: [],
       },
+      examples: [
+        { user_query: '帮我整理文件', tool_call: {} },
+        { user_query: '分析这个文件夹的问题', tool_call: { scope: 'folder', folderId: '<folder_id>' } },
+        { user_query: '找需要打标签的文件', tool_call: { scope: 'untagged' } },
+      ],
     },
   },
 ];

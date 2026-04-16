@@ -179,6 +179,11 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['tag'],
       },
+      examples: [
+        { user_query: '找所有标记为重要的文件', tool_call: { tag: '重要' } },
+        { user_query: '带工作标签的文档有哪些', tool_call: { tag: '工作', limit: 30 } },
+        { user_query: '待处理的内容', tool_call: { tag: '待处理' } },
+      ],
     },
   },
 
@@ -202,6 +207,10 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['fileId'],
       },
+      examples: [
+        { user_query: '找和这份报告类似的文档', tool_call: { fileId: '<report_id>' } },
+        { user_query: '还有没有像这样的图片', tool_call: { fileId: '<image_id>', limit: 15 } },
+      ],
     },
   },
 
@@ -224,6 +233,10 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['fileId'],
       },
+      examples: [
+        { user_query: '这个文件的详细信息', tool_call: { fileId: '<file_id>' } },
+        { user_query: '看看这个文档的属性', tool_call: { fileId: '<doc_id>' } },
+      ],
     },
   },
 
@@ -247,6 +260,11 @@ export const definitions: ToolDefinition[] = [
           limit: { type: 'number', description: '返回数量（默认20）' },
         },
       },
+      examples: [
+        { user_query: '有没有重复的文件', tool_call: {} },
+        { user_query: '下载文件夹里找重复的', tool_call: { folderId: '<downloads_id>' } },
+        { user_query: '清理相似文件', tool_call: { includeSimilar: true, limit: 50 } },
+      ],
     },
   },
 ];

@@ -689,7 +689,60 @@ export const adminApi = {
       '/api/admin/email/broadcast',
       data
     ),
+
+  // ── AI Agent 可观测性 ──
+  aiTraceList: (params?: { userId?: string; sessionId?: string; modelId?: string; page?: number; limit?: number }) =>
+    api.get<ApiResponse<{ items: AITraceItem[]; total: number; page: number; limit: number }>>('/api/admin/ai/traces', {
+      params,
+    }),
+  aiTraceDetail: (traceId: string) => api.get<ApiResponse<AITraceDetail>>(`/api/admin/ai/traces/${traceId}`),
+  aiModelHealth: () => api.get<ApiResponse<ModelHealthInfo[]>>('/api/admin/ai/models/health'),
 };
+
+// ── AI Trace 类型定义 ──
+export interface AITraceItem {
+  id: string;
+  traceId: string;
+  userId: string;
+  userName?: string;
+  sessionId: string;
+  query: string;
+  modelId: string;
+  status: 'running' | 'completed' | 'error' | 'aborted';
+  toolCallCount: number;
+  tokenUsage: { input: number; output: number };
+  durationMs: number;
+  createdAt: string;
+  hasPlan: boolean;
+}
+
+export interface AITraceDetail extends AITraceItem {
+  toolCalls: Array<{
+    name: string;
+    args: Record<string, unknown>;
+    result?: unknown;
+    durationMs: number;
+    status: 'success' | 'error';
+    timestamp: string;
+  }>;
+  plan?: {
+    goal: string;
+    steps: Array<{ id: string; description: string; status: string }>;
+  };
+  reasoning?: string;
+  memoryRecalled?: string[];
+}
+
+export interface ModelHealthInfo {
+  modelId: string;
+  modelName: string;
+  status: 'healthy' | 'degraded' | 'down';
+  circuitState: 'closed' | 'open' | 'half-open';
+  successRate: number;
+  avgLatencyMs: number;
+  failureCount: number;
+  lastFailureAt?: string;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tasks

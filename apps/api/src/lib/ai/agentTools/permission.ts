@@ -35,8 +35,13 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['fileId'],
       },
+      examples: [
+        { user_query: '这个文件夹谁能访问', tool_call: { fileId: '<folder_id>' } },
+        { user_query: '看看文件的共享情况', tool_call: { fileId: '<doc_id>' } },
+      ],
     },
   },
+
   {
     type: 'function',
     function: {
@@ -60,6 +65,10 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['fileId', 'permissionLevel'],
       },
+      examples: [
+        { user_query: '给张三读写权限', tool_call: { fileId: '<folder_id>', targetUserId: '<zhangsan_id>', permissionLevel: 'write', _confirmed: true } },
+        { user_query: '允许李四只读访问30天', tool_call: { fileId: '<doc_id>', permissionLevel: 'read', expiresInDays: 30, _confirmed: true } },
+      ],
     },
   },
   {
@@ -78,8 +87,13 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['fileId', '_confirmed'],
       },
+      examples: [
+        { user_query: '撤销李四的访问权限', tool_call: { fileId: '<folder_id>', targetUserId: '<lisi_id>', _confirmed: true } },
+        { user_query: '取消某人的写入权限', tool_call: { fileId: '<doc_id>', reason: '权限调整', _confirmed: true } },
+      ],
     },
   },
+
   {
     type: 'function',
     function: {
@@ -99,8 +113,13 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['folderId', 'accessLevel', '_confirmed'],
       },
+      examples: [
+        { user_query: '设为仅团队成员可访问', tool_call: { folderId: '<folder_id>', accessLevel: 'team', _confirmed: true } },
+        { user_query: '改为公开可读', tool_call: { folderId: '<public_id>', accessLevel: 'public_read', _confirmed: true } },
+      ],
     },
   },
+
   {
     type: 'function',
     function: {
@@ -115,6 +134,10 @@ export const definitions: ToolDefinition[] = [
         },
         required: [],
       },
+      examples: [
+        { user_query: '看看有哪些用户组', tool_call: {} },
+        { user_query: '开发组有哪些人', tool_call: { includeMembers: true, limit: 10 } },
+      ],
     },
   },
   {
@@ -142,8 +165,14 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['groupId', 'action', 'userId'],
       },
+      examples: [
+        { user_query: '把王五加到开发组', tool_call: { groupId: '<dev_group_id>', action: 'add', userId: '<wangwu_id>', _confirmed: true } },
+        { user_query: '从测试组移除赵六', tool_call: { groupId: '<test_group_id>', action: 'remove', userId: '<zhaoliu_id>', _confirmed: true } },
+        { user_query: '提升为管理员', tool_call: { groupId: '<team_id>', action: 'change_role', userId: '<user_id>', role: 'admin', _confirmed: true } },
+      ],
     },
   },
+
   {
     type: 'function',
     function: {
@@ -158,6 +187,10 @@ export const definitions: ToolDefinition[] = [
         },
         required: [],
       },
+      examples: [
+        { user_query: '哪些授权过期了', tool_call: {} },
+        { user_query: '7天内要过期的权限', tool_call: { includeExpiringSoon: true, withinDays: 7 } },
+      ],
     },
   },
 ];

@@ -32,10 +32,11 @@ import {
   Clock,
   Lightbulb,
   FilePlus,
+  AtSign,
 } from 'lucide-react';
 import { aiApi, filesApi, type AiChatMessage } from '@/services/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatDate } from '@/utils';
+import { formatDate, formatBytes } from '@/utils';
 import { FilePreview } from '@/components/files/FilePreview';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/components/ui/useToast';
@@ -219,6 +220,79 @@ export function AIChat() {
   const [showToolInfo, setShowToolInfo] = useState(false);
   const [executionPlans, setExecutionPlans] = useState<Map<string, ExecutionPlan>>(new Map());
 
+  // ═══ @文件引用功能状态 ═══
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
+  const [mentionedFiles, setMentionedFiles] = useState<Array<{ id: string; name: string }>>([]);
+  const mentionDropdownRef = useRef<HTMLDivElement>(null);
+  const [mentionCursorPos, setMentionCursorPos] = useState(0);
+
+  // ═══ @文件引用搜索查询 ═══
+  const { data: mentionSearchResults = [] } = useQuery({
+    queryKey: ['mention-files', mentionQuery],
+    queryFn: () =>
+      aiApi
+        .search(mentionQuery, { limit: 8 })
+        .then((r) => r.data?.data ?? []),
+    enabled: showMentionDropdown && mentionQuery.length > 0,
+    staleTime: 5000,
+  });
+
+  // 检测 @ 符号触发搜索
+  const detectMention = useCallback(
+    (value: string, cursorPos: number) => {
+      const textBeforeCursor = value.substring(0, cursorPos);
+      const atIndex = textBeforeCursor.lastIndexOf('@');
+
+      if (atIndex !== -1 && (atIndex === 0 || textBeforeCursor[atIndex - 1] === ' ' || textBeforeCursor[atIndex - 1] === '\n')) {
+        const query = textBeforeCursor.substring(atIndex + 1);
+        if (!query.includes(' ') && !query.includes('@')) {
+          setMentionQuery(query);
+          setShowMentionDropdown(true);
+          setMentionCursorPos(atIndex);
+          return;
+        }
+      }
+      setShowMentionDropdown(false);
+      setMentionQuery('');
+    },
+    [],
+  );
+
+  // 选择文件到引用列表
+  const selectMentionedFile = useCallback(
+    (fileId: string, fileName: string) => {
+      if (!mentionedFiles.find((f) => f.id === fileId)) {
+        setMentionedFiles((prev) => [...prev, { id: fileId, name: fileName }]);
+      }
+      // 移除输入框中的 @xxx 文本
+      const currentInput = input;
+      const beforeMention = currentInput.substring(0, mentionCursorPos);
+      const afterCursor = currentInput.substring(mentionCursorPos + 1 + mentionQuery.length);
+      setInput(beforeMention + afterCursor);
+      setShowMentionDropdown(false);
+      setMentionQuery('');
+      inputRef.current?.focus();
+    },
+    [input, mentionedFiles, mentionCursorPos, mentionQuery],
+  );
+
+  // 移除已引用的文件
+  const removeMentionedFile = useCallback((fileId: string) => {
+    setMentionedFiles((prev) => prev.filter((f) => f.id !== fileId));
+  }, []);
+
+  // 点击外部关闭下拉框
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (mentionDropdownRef.current && !mentionDropdownRef.current.contains(e.target as Node)) {
+        setShowMentionDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const abortRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -366,6 +440,7 @@ export function AIChat() {
           },
         ]);
         setInput('');
+        setMentionedFiles([]);
         if (inputRef.current) inputRef.current.style.height = 'auto';
       }
 
@@ -393,6 +468,7 @@ export function AIChat() {
           maxFiles: 8,
           includeFileContent: false,
           contextFolderId,
+          contextFileIds: mentionedFiles.length > 0 ? mentionedFiles.map((f) => f.id) : undefined,
           onChunk: (raw: SseChunk) => {
             if (raw.type === 'plan' && raw.plan) {
               setExecutionPlans((prev) => new Map(prev).set(assistantId, raw.plan!));
@@ -932,14 +1008,19 @@ export function AIChat() {
                 onChange={(e) => {
                   setInput(e.target.value);
                   autoResize(e.target);
+                  detectMention(e.target.value, e.target.selectionStart);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage(input);
                   }
+                  // @mention 下拉框键盘导航
+                  if (showMentionDropdown && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter')) {
+                    e.preventDefault();
+                  }
                 }}
-                placeholder="问我任何关于你的文件的问题… (Enter 发送)"
+                placeholder="问我任何关于你的文件的问题… (@ 引用文件)"
                 className="flex-1 resize-none bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none min-h-[36px] max-h-40 py-0.5"
                 rows={1}
                 disabled={isLoading}
@@ -964,6 +1045,62 @@ export function AIChat() {
                 )}
               </div>
             </div>
+
+            {/* 已引用的文件 Chips */}
+            {mentionedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 max-w-3xl mx-auto mt-1.5">
+                {mentionedFiles.map((file) => (
+                  <span
+                    key={file.id}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-xs font-medium"
+                  >
+                    <AtSign className="h-3 w-3" />
+                    <span className="max-w-[120px] truncate">{file.name}</span>
+                    <button
+                      onClick={() => removeMentionedFile(file.id)}
+                      className="ml-0.5 hover:text-red-500 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* @mention 文件搜索下拉框 */}
+            {showMentionDropdown && (
+              <div
+                ref={mentionDropdownRef}
+                className="absolute bottom-full left-4 right-4 mb-1 max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-50"
+              >
+                <div className="p-2">
+                  <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground mb-1">
+                    <AtSign className="h-3 w-3" />
+                    <span>搜索文件（{mentionQuery || '全部'}）</span>
+                  </div>
+                  {mentionSearchResults.length === 0 ? (
+                    <div className="px-3 py-4 text-center text-sm text-muted-foreground">未找到匹配的文件</div>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto">
+                      {mentionSearchResults.map((file: FileItem) => (
+                        <button
+                          key={file.id}
+                          onClick={() => selectMentionedFile(file.id, file.name)}
+                          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-left transition-colors"
+                        >
+                          <FileText className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{file.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{formatBytes(file.size)}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {input.length > 0 && <p className="text-[10px] text-slate-400 mt-1 text-right">{input.length} 字</p>}
           </div>
         </div>

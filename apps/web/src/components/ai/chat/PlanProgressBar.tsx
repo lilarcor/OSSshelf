@@ -1,12 +1,12 @@
-import { CheckCircle2, Circle, Loader2, ArrowRight, ListTodo } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, ListTodo } from 'lucide-react';
 import type { ExecutionPlan, ExecutionPlanStep } from '../types';
 
 interface PlanProgressBarProps {
   plan: ExecutionPlan;
-  onStepUpdate?: (stepId: string, status: string) => void;
+  _onStepUpdate?: (stepId: string, status: string) => void;
 }
 
-export function PlanProgressBar({ plan, onStepUpdate }: PlanProgressBarProps) {
+export function PlanProgressBar({ plan }: PlanProgressBarProps) {
   const completedCount = plan.steps.filter((s) => s.status === 'done').length;
   const progressPercent = Math.round((completedCount / plan.steps.length) * 100);
 
@@ -56,7 +56,7 @@ export function PlanProgressBar({ plan, onStepUpdate }: PlanProgressBarProps) {
       </div>
 
       <div className="px-4 py-2.5 space-y-1.5">
-        {plan.steps.map((step, idx) => (
+        {plan.steps.map((step) => (
           <div
             key={step.id}
             className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border transition-all duration-300 ${getStepStyle(step)}`}
@@ -67,9 +67,6 @@ export function PlanProgressBar({ plan, onStepUpdate }: PlanProgressBarProps) {
               <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100/80 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-mono flex-shrink-0">
                 {step.toolHint}
               </span>
-            )}
-            {idx < plan.steps.length - 1 && (
-              <ArrowRight className="h-3 w-3 text-slate-300 dark:text-slate-600 absolute -right-3 opacity-0" />
             )}
           </div>
         ))}
