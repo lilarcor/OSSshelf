@@ -11,10 +11,55 @@
  */
 
 import { useState } from 'react';
-import { Sparkles, ChevronDown, Loader2, File, CheckCircle2, AlertTriangle, Clock, Zap, X } from 'lucide-react';
+import { Sparkles, ChevronDown, Loader2, File, CheckCircle2, AlertTriangle, Clock, Zap, X, Search, Move, Trash2, List, FolderOpen } from 'lucide-react';
 import type { ToolCallEvent, AgentFile, PreviewDiff } from '../types';
 import { DiffPreview } from './DiffPreview';
-import { DraftPreview } from './DraftPreview'; // Phase 7 草稿预览
+import { DraftPreview } from './DraftPreview';
+
+const TOOL_SUMMARIES: Record<string, (args: Record<string, unknown>) => string> = {
+  search_files: (a) => `搜索「${String(a.query || '').slice(0, 40)}」`,
+  smart_search: (a) => `智能搜索「${String(a.query || '').slice(0, 30)}」`,
+  filter_files: (a) => {
+    const parts: string[] = [];
+    if (a.mimeTypePrefix) parts.push(`类型: ${String(a.mimeTypePrefix).split('/')[0]}`);
+    if (a.minSize) parts.push(`最小: ${formatFileSize(Number(a.minSize))}`);
+    if (a.dateFrom) parts.push(`起始: ${String(a.dateFrom).slice(0, 10)}`);
+    return `筛选文件${parts.length > 0 ? `（${parts.join('、')}）` : ''}`;
+  },
+  list_folder: (a) => a.folderId ? '浏览文件夹' : '浏览根目录',
+  get_file_details: () => '获取文件详情',
+  get_folder_tree: () => '获取目录树',
+  read_file_text: () => '读取文件内容',
+  move_file: (a) => `移动到 ${a.targetFolderPath || a.targetFolderId || '目标文件夹'}`,
+  delete_file: () => '删除文件',
+  rename_file: (a) => `重命名为「${String(a.newName || '').slice(0, 30)}」`,
+  draft_and_create_file: (a) => `创建「${String(a.fileName || '').slice(0, 30)}」`,
+  create_folder: (a) => `创建文件夹「${String(a.folderName || '').slice(0, 30)}」`,
+  get_storage_stats: () => '获取存储统计',
+  get_starred_files: () => '获取收藏文件',
+  get_recent_files: () => '获取最近文件',
+  search_by_tag: (a) => `按标签搜索「${Array.isArray(a.tagNames) ? (a.tagNames as string[]).join('、') : String(a.tagNames || '')}」`,
+  get_file_tags: () => '获取文件标签',
+  get_activity_stats: () => '获取活动统计',
+  list_shares: () => '获取分享列表',
+  get_storage_usage: () => '获取存储用量',
+};
+
+const TOOL_ICONS: Record<string, React.ReactNode> = {
+  search_files: <Search className="h-3 w-3" />,
+  smart_search: <Search className="h-3 w-3" />,
+  filter_files: <List className="h-3 w-3" />,
+  list_folder: <FolderOpen className="h-3 w-3" />,
+  get_folder_tree: <FolderOpen className="h-3 w-3" />,
+  move_file: <Move className="h-3 w-3" />,
+  delete_file: <Trash2 className="h-3 w-3" />,
+};
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / 1048576).toFixed(1)}MB`;
+}
 
 interface ToolCallCardProps {
   tc: ToolCallEvent;
@@ -39,8 +84,11 @@ export function ToolCallCard({
 
   const meta = toolMeta[tc.toolName] || {
     label: tc.toolName.replace(/_/g, ' '),
-    icon: <Sparkles className="h-3 w-3" />,
+    icon: TOOL_ICONS[tc.toolName] || <Sparkles className="h-3 w-3" />,
   };
+
+  const summaryFn = tc.args ? TOOL_SUMMARIES[tc.toolName] : undefined;
+  const humanSummary = summaryFn ? summaryFn(tc.args) : null;
 
   const resultObj = tc.result && typeof tc.result === 'object' ? (tc.result as Record<string, unknown>) : null;
   const isPendingConfirm =
@@ -184,8 +232,8 @@ export function ToolCallCard({
               {statusConfig.statusText}
             </span>
           </div>
-          {!expanded && argsSummary && (
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate font-mono">{argsSummary}</p>
+          {!expanded && (humanSummary || argsSummary) && (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate font-mono">{humanSummary || argsSummary}</p>
           )}
         </div>
 

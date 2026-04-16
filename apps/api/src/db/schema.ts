@@ -774,3 +774,24 @@ export const aiConfig = sqliteTable(
 
 export type AiConfig = typeof aiConfig.$inferSelect;
 export type File = typeof files.$inferSelect;
+
+export const aiMemories = sqliteTable(
+  'ai_memories',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    sessionId: text('session_id').notNull(),
+    type: text('type').notNull().default('operation'),
+    summary: text('summary').notNull(),
+    embeddingId: text('embedding_id'),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => ({
+    userCreatedIdx: index('idx_memories_user_created').on(table.userId, table.createdAt),
+    userTypeIdx: index('idx_memories_user_type').on(table.userId, table.type),
+  })
+);
+
+export type AiMemory = typeof aiMemories.$inferSelect;

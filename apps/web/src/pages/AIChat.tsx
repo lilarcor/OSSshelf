@@ -48,8 +48,9 @@ import {
   ChatSidebar,
   ChatHeader,
   WelcomeScreen,
+  PlanProgressBar,
 } from '@/components/ai/chat';
-import type { Message, ToolCallEvent, SseChunk, PendingConfirm } from '@/components/ai/types';
+import type { Message, ToolCallEvent, SseChunk, PendingConfirm, ExecutionPlan } from '@/components/ai/types';
 
 // ────────────────────────────────────────────────────────────
 // Tool name → label + icon
@@ -216,6 +217,7 @@ export function AIChat() {
   const [renameValue, setRenameValue] = useState('');
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [showToolInfo, setShowToolInfo] = useState(false);
+  const [executionPlans, setExecutionPlans] = useState<Map<string, ExecutionPlan>>(new Map());
 
   const abortRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -392,6 +394,23 @@ export function AIChat() {
           includeFileContent: false,
           contextFolderId,
           onChunk: (raw: SseChunk) => {
+            if (raw.type === 'plan' && raw.plan) {
+              setExecutionPlans((prev) => new Map(prev).set(assistantId, raw.plan!));
+              return;
+            }
+
+            if (raw.type === 'plan_step_update' && raw.stepId && raw.status) {
+              setExecutionPlans((prev) => {
+                const currentPlan = prev.get(assistantId);
+                if (!currentPlan) return prev;
+                const updatedPlan = { ...currentPlan, steps: currentPlan.steps.map((s) => s.id === raw.stepId ? { ...s, status: raw.status as ExecutionPlan['steps'][number]['status'] } : s) };
+                const newMap = new Map(prev);
+                newMap.set(assistantId, updatedPlan);
+                return newMap;
+              });
+              return;
+            }
+
             // 处理 reset 信号：清空当前 assistant 消息的已渲染内容
             if (raw.type === 'reset') {
               setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: '', reasoning: '' } : m)));
@@ -733,6 +752,10 @@ export function AIChat() {
                 )}
 
                 <div className="max-w-[85%] min-w-0 space-y-2.5">
+                  {msg.role === 'assistant' && executionPlans.has(msg.id) && (
+                    <PlanProgressBar plan={executionPlans.get(msg.id)!} />
+                  )}
+
                   {msg.role === 'assistant' && msg.reasoning && <ReasoningSection content={msg.reasoning} />}
 
                   {msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0 && (

@@ -64,7 +64,7 @@ export async function getLatestTaskByUserType(env: Env, userId: string, type: st
 
 export async function createTaskRecord(
   env: Env,
-  type: 'index' | 'summary' | 'tags',
+  type: 'index' | 'summary' | 'tags' | 'agent_batch',
   userId: string,
   total: number
 ): Promise<TaskProgress> {
@@ -280,6 +280,61 @@ async function handleTagsTask(env: Env, message: AiTaskMessage): Promise<{ succe
   }
 }
 
+async function handleAgentBatchTask(env: Env, message: AiTaskMessage): Promise<{ success: boolean; error?: string }> {
+  const { fileId, userId, taskId } = message;
+
+  try {
+    const db = getDb(env.DB);
+    const file = await db.select().from(files).where(eq(files.id, fileId)).get();
+    if (!file) {
+      await incrementFailed(env, taskId);
+      return { success: false, error: '文件不存在' };
+    }
+
+    const operation = (message as any).operation || 'unknown';
+    logger.info('AI_QUEUE', 'Processing agent_batch operation', { operation, fileId, taskId });
+
+    switch (operation) {
+      case 'move':
+        const targetFolderId = (message as any).targetFolderId;
+        if (targetFolderId) {
+          await db.update(files).set({ parentId: targetFolderId, updatedAt: new Date().toISOString() }).where(eq(files.id, fileId));
+        }
+        break;
+      case 'delete':
+        await db.update(files).set({ deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }).where(eq(files.id, fileId));
+        break;
+      case 'rename':
+        const newName = (message as any).newName;
+        if (newName) {
+          await db.update(files).set({ name: newName, updatedAt: new Date().toISOString() }).where(eq(files.id, fileId));
+        }
+        break;
+      default:
+        logger.warn('AI_QUEUE', 'Unknown agent_batch operation', { operation });
+    }
+
+    await incrementProcessed(env, taskId);
+
+    try {
+      await dispatchWebhook(env, userId, 'ai.agent_batch_complete', {
+        fileId,
+        fileName: file.name,
+        operation,
+      });
+    } catch (webhookError) {
+      logger.warn('AI_QUEUE', 'Failed to dispatch agent_batch webhook', { fileId }, webhookError);
+    }
+
+    return { success: true };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error('AI_QUEUE', 'Agent batch task failed', { fileId, taskId }, error);
+    await incrementFailed(env, taskId);
+    return { success: false, error: errorMsg };
+  }
+}
+
 export async function processAiTaskMessage(
   message: AiTaskMessage,
   env: Env
@@ -378,6 +433,9 @@ export async function processAiTaskMessage(
       case 'tags':
         result = await handleTagsTask(env, message);
         break;
+      case 'agent_batch':
+        result = await handleAgentBatchTask(env, message);
+        break;
       default:
         result = { success: false, error: `未知任务类型: ${type}` };
     }
@@ -414,11 +472,13 @@ export async function processAiTaskMessage(
 
 export async function enqueueAiTasks(
   env: Env,
-  type: 'index' | 'summary' | 'tags',
+  type: 'index' | 'summary' | 'tags' | 'agent_batch',
   fileIds: string[],
   userId: string,
   taskId: string,
-  resumeFrom?: string // 可选：从指定任务ID恢复（断点续传）
+  resumeFrom?: string,
+  operation?: string,
+  operationArgs?: Record<string, unknown>
 ): Promise<void> {
   if (!env.AI_TASKS_QUEUE) {
     throw new Error('AI 任务队列未配置');
@@ -463,9 +523,14 @@ export async function enqueueAiTasks(
   }
 
   for (let i = 0; i < fileIds.length; i += BATCH_SIZE) {
-    const batch = fileIds.slice(i, i + BATCH_SIZE).map((fileId) => ({
-      body: { type, fileId, userId, taskId, isResumable: true } as AiTaskMessage,
-    }));
+    const batch = fileIds.slice(i, i + BATCH_SIZE).map((fileId) => {
+      const baseMessage: any = { type, fileId, userId, taskId, isResumable: true };
+      if (type === 'agent_batch' && operation) {
+        baseMessage.operation = operation;
+        if (operationArgs) Object.assign(baseMessage, operationArgs);
+      }
+      return { body: baseMessage as AiTaskMessage };
+    });
 
     await env.AI_TASKS_QUEUE.sendBatch(batch);
     logger.info('AI_QUEUE', 'Enqueued batch', {
@@ -504,4 +569,31 @@ async function updateTaskResumeInfo(
   } catch (error) {
     logger.error('AI_QUEUE', 'Failed to update resume info', { newTaskId }, error);
   }
+}
+
+export async function enqueueAgentBatchOperation(
+  env: Env,
+  operation: 'move' | 'delete' | 'rename',
+  fileIds: string[],
+  userId: string,
+  operationArgs?: Record<string, unknown>
+): Promise<{ taskId: string; total: number; estimatedMinutes: number }> {
+  const task = await createTaskRecord(env, 'agent_batch', userId, fileIds.length);
+
+  await enqueueAiTasks(env, 'agent_batch', fileIds, userId, task.id, undefined, operation, operationArgs);
+
+  const estimatedMinutes = Math.ceil(fileIds.length / 30);
+
+  logger.info('AI_QUEUE', 'Agent batch task created', {
+    taskId: task.id,
+    operation,
+    totalFiles: fileIds.length,
+    estimatedMinutes,
+  });
+
+  return {
+    taskId: task.id,
+    total: fileIds.length,
+    estimatedMinutes,
+  };
 }

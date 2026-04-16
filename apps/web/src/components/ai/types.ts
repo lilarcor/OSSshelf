@@ -49,7 +49,7 @@ export interface Message {
 }
 
 export interface SseChunk {
-  type?: 'reset';
+  type?: 'reset' | 'plan' | 'plan_step_update';
   content?: string;
   done?: boolean;
   sessionId?: string;
@@ -66,4 +66,21 @@ export interface SseChunk {
   confirmRequest?: boolean;
   confirmId?: string;
   summary?: string;
+  plan?: ExecutionPlan;
+  stepId?: string;
+  status?: string;
+}
+
+export interface ExecutionPlanStep {
+  id: string;
+  description: string;
+  toolHint?: string;
+  dependsOn?: string[];
+  status: 'pending' | 'running' | 'done' | 'skipped';
+}
+
+export interface ExecutionPlan {
+  goal: string;
+  steps: ExecutionPlanStep[];
+  estimatedToolCalls: number;
 }

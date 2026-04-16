@@ -653,3 +653,58 @@ export function getToolsByCategory(): Record<string, string[]> {
 
   return categories;
 }
+
+const REQUIRED_FIELDS = ['name', 'description', 'parameters'] as const;
+
+export function validateToolDefinitions(): { valid: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+  const toolNames = new Set<string>();
+
+  for (const def of TOOL_DEFINITIONS) {
+    const name = def.function.name;
+
+    if (toolNames.has(name)) {
+      warnings.push(`[重复] 工具名重复: ${name}`);
+    }
+    toolNames.add(name);
+
+    for (const field of REQUIRED_FIELDS) {
+      if (!def.function[field]) {
+        warnings.push(`[缺失] ${name} 缺少必填字段: ${field}`);
+      }
+    }
+
+    if (!def.function.parameters || typeof def.function.parameters !== 'object') {
+      warnings.push(`[格式] ${name} parameters 格式错误`);
+    } else {
+      const params = def.function.parameters as Record<string, unknown>;
+      if (!params.properties || typeof params.properties !== 'object') {
+        warnings.push(`[格式] ${name} parameters 缺少 properties`);
+      }
+    }
+
+    if (!def.function.description || def.function.description.length < 10) {
+      warnings.push(`[描述] ${name} description 过短（<10字符）`);
+    }
+  }
+
+  const orphanTools = Object.keys(TOOL_EXECUTOR_MAP).filter((n) => !toolNames.has(n));
+  if (orphanTools.length > 0) {
+    warnings.push(`[孤立] 有执行器但无定义的工具: ${orphanTools.join(', ')}`);
+  }
+
+  const orphanDefs = TOOL_DEFINITIONS.filter((d) => !TOOL_EXECUTOR_MAP[d.function.name]);
+  if (orphanDefs.length > 0) {
+    warnings.push(`[孤立] 有定义但无执行器的工具: ${orphanDefs.map((d) => d.function.name).join(', ')}`);
+  }
+
+  if (warnings.length > 0 && process.env.NODE_ENV !== 'production') {
+    logger.warn('AgentTools', `工具定义校验完成，发现 ${warnings.length} 个问题`, { warnings });
+  }
+
+  return { valid: warnings.filter((w) => w.startsWith('[缺失]')).length === 0, warnings };
+}
+
+if (typeof globalThis !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  validateToolDefinitions();
+}

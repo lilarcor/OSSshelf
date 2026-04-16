@@ -342,6 +342,10 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['fileId', 'targetFolderId'],
       },
+      examples: [
+        { user_query: '把这个文件移到设计文件夹', tool_call: { fileId: '<file_id>', targetFolderId: '<design_folder_id>' } },
+        { user_query: '整理所有PDF到文档目录', tool_call: { fileId: '<pdf_id>', targetFolderId: '<docs_folder_id>' } },
+      ],
     },
   },
 
@@ -510,6 +514,11 @@ export const definitions: ToolDefinition[] = [
         },
         required: ['fileName', 'draftContent'],
       },
+      examples: [
+        { user_query: '帮我写一个README', tool_call: { fileName: 'README.md', userRequest: '帮我写一个README', draftContent: '# 项目名称\n\n## 简介\n...' } },
+        { user_query: '生成一个Python爬虫脚本', tool_call: { fileName: 'spider.py', userRequest: '生成一个Python爬虫脚本', draftContent: 'import requests\n...' } },
+        { user_query: '创建配置文件放到代码文件夹', tool_call: { fileName: 'config.json', targetFolderId: '<folder_id>', userRequest: '创建配置文件', draftContent: '{ "app": {...} }' } },
+      ],
     },
   },
 ];

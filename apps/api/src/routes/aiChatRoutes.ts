@@ -18,6 +18,7 @@ import type { Env, Variables } from '../types/env';
 import { z } from 'zod';
 import { ModelGateway, RagEngine } from '../lib/ai';
 import { AgentEngine, type AgentChunk } from '../lib/ai/agentEngine';
+import { AgentMemory } from '../lib/ai/agentMemory';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use('/*', authMiddleware);
@@ -679,6 +680,10 @@ async function handleStreamChat(
               })
               .where(eq(aiChatSessions.id, actualSessionId));
           }
+
+          const toolCallsStr = collectedToolCalls.map((tc) => `${tc.toolName}: ${JSON.stringify(tc.args)}`).join('\n');
+          const memory = new AgentMemory(new ModelGateway(c.env), c.env);
+          await memory.extractAndSaveMemories(userId, actualSessionId!, fullText, toolCallsStr);
         } catch (error) {
           logger.error('AI Agent', 'Failed to save message', { userId }, error);
         }
@@ -708,7 +713,44 @@ async function handleStreamChat(
   }
 }
 
-export default app;
+app.get('/memories', async (c) => {
+  const userId = c.get('userId')!;
+  const type = c.req.query('type');
+  const limit = parseInt(c.req.query('limit') || '50', 10);
+  const offset = parseInt(c.req.query('offset') || '0', 10);
+
+  try {
+    const memory = new AgentMemory(new ModelGateway(c.env), c.env);
+    const result = await memory.listMemories(userId, { type, limit, offset });
+    return c.json({ success: true, data: result });
+  } catch (error) {
+    logger.error('AI Chat', 'List memories failed', { userId }, error);
+    return c.json(
+      { success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '获取记忆列表失败' } },
+      500
+    );
+  }
+});
+
+app.delete('/memories/:id', async (c) => {
+  const userId = c.get('userId')!;
+  const memoryId = c.req.param('id');
+
+  try {
+    const memory = new AgentMemory(new ModelGateway(c.env), c.env);
+    const success = await memory.deleteMemory(memoryId, userId);
+    if (!success) {
+      return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '记忆不存在' } }, 404);
+    }
+    return c.json({ success: true });
+  } catch (error) {
+    logger.error('AI Chat', 'Delete memory failed', { userId, memoryId }, error);
+    return c.json(
+      { success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '删除记忆失败' } },
+      500
+    );
+  }
+});
 
 app.post('/confirm', async (c) => {
   const userId = c.get('userId')!;
@@ -796,3 +838,5 @@ app.post('/cancel', async (c) => {
     );
   }
 });
+
+export default app;

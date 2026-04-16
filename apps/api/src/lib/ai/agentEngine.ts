@@ -37,6 +37,7 @@ import { eq, and, gte, isNull, inArray } from 'drizzle-orm';
 import { classifyIntent } from './ragEngine';
 import { selectTools, needsWriteTools, TOOL_GROUPS } from './agentTools/toolSelector';
 import { buildFolderPath } from '../../lib/utils';
+import { AgentMemory } from './agentMemory';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 默认配置常量（当数据库配置不可用时使用）
@@ -298,12 +299,28 @@ async function consumePendingConfirm(
 // 类型
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface ExecutionPlanStep {
+  id: string;
+  description: string;
+  toolHint?: string;
+  dependsOn?: string[];
+  status: 'pending' | 'running' | 'done' | 'skipped';
+}
+
+export interface ExecutionPlan {
+  goal: string;
+  steps: ExecutionPlanStep[];
+  estimatedToolCalls: number;
+}
+
 export type AgentChunk =
   | { type: 'text'; content: string; done: false }
   | { type: 'reasoning'; content: string; done: false }
   | { type: 'tool_start'; toolName: string; toolCallId: string; args: Record<string, unknown>; done: false }
   | { type: 'tool_result'; toolCallId: string; toolName: string; result: unknown; done: false }
   | { type: 'reset'; done: false }
+  | { type: 'plan'; plan: ExecutionPlan; done: false }
+  | { type: 'plan_step_update'; stepId: string; status: string; done: false }
   | {
       type: 'confirm_request';
       confirmId: string;
@@ -323,6 +340,7 @@ export interface AgentSource {
 }
 
 export interface AgentRunMeta {
+  actualTraceId: string;
   toolCallCount: number;
   modelId: string;
   inputTokens: number;
@@ -501,6 +519,46 @@ export const PROMPT_BASED_SYSTEM_PROMPT = `${AGENT_SYSTEM_PROMPT}
 3. 不要解释你要调用什么工具，直接输出代码块
 4. 等待工具结果返回后，再决定下一步行动`;
 
+const COMPLEX_TASK_PATTERNS = [
+  /批量|全部|所有|每个|逐一/g,
+  /归档|整理|分类|分组|排序/g,
+  /重复|去重|合并/g,
+  /先.*再.*然后|第一步|第二步|首先|接着/g,
+  /超过\s*\d+\s*(年|月|天|小时)/g,
+  /按.*条件.*(处理|操作|移动|删除|重命名)/g,
+  /多步|分步|逐步|依次/g,
+];
+
+function isComplexTask(query: string): boolean {
+  const lowerQuery = query.toLowerCase();
+  return COMPLEX_TASK_PATTERNS.some((pattern) => pattern.test(lowerQuery));
+}
+
+const PLANNING_SYSTEM_PROMPT = `你是一个任务规划专家。根据用户的需求，生成结构化的执行计划。
+
+## 输出格式
+严格输出以下 JSON 格式，不要输出其他内容：
+{
+  "goal": "一句话概括任务目标",
+  "steps": [
+    {
+      "id": "step-1",
+      "description": "人类可读的步骤描述",
+      "toolHint": "预期使用的工具名（可选）",
+      "dependsOn": [],
+      "status": "pending"
+    }
+  ],
+  "estimatedToolCalls": 预估的工具调用次数（数字）
+}
+
+## 规则
+1. 步骤数控制在 2-8 个之间
+2. 每个步骤应该是原子操作（不可再分的单一动作）
+3. 步骤间如有依赖关系，在 dependsOn 中注明前置步骤 id
+4. estimatedToolCalls 要合理估算（搜索=1, 批量操作=文件数*1.5）
+5. 对于简单查询类问题，只返回 1 个步骤`;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Agent Engine
 // ─────────────────────────────────────────────────────────────────────────────
@@ -540,6 +598,61 @@ export class AgentEngine {
     }
   }
 
+  private async planPhase(
+    userId: string,
+    query: string,
+    modelId: string | undefined
+  ): Promise<ExecutionPlan | null> {
+    try {
+      const response = await this.gateway.chatCompletion(userId, {
+        messages: [
+          { role: 'system', content: PLANNING_SYSTEM_PROMPT },
+          { role: 'user', content: `请为以下用户请求生成执行计划：\n${query}` },
+        ],
+        temperature: 0.2,
+      }, modelId);
+
+      const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        logger.warn('AgentEngine', 'planPhase: failed to parse LLM output as JSON');
+        return null;
+      }
+
+      const plan = JSON.parse(jsonMatch[0]) as ExecutionPlan;
+      if (!plan.goal || !Array.isArray(plan.steps) || plan.steps.length === 0) {
+        logger.warn('AgentEngine', 'planPhase: invalid plan structure');
+        return null;
+      }
+
+      const validatedSteps: ExecutionPlanStep[] = plan.steps.map((step, idx) => ({
+        id: step.id || `step-${idx + 1}`,
+        description: step.description || `步骤 ${idx + 1}`,
+        toolHint: step.toolHint,
+        dependsOn: step.dependsOn || [],
+        status: 'pending' as const,
+      }));
+
+      logger.info('AgentEngine', 'Plan generated', { goal: plan.goal, stepCount: validatedSteps.length });
+
+      return {
+        goal: plan.goal,
+        steps: validatedSteps,
+        estimatedToolCalls: plan.estimatedToolCalls || validatedSteps.length * 2,
+      };
+    } catch (error) {
+      logger.error('AgentEngine', 'planPhase failed', { query: query.slice(0, 80) }, error);
+      return null;
+    }
+  }
+
+  private formatPlanContext(plan: ExecutionPlan | null): string {
+    if (!plan) return '';
+    const stepsInfo = plan.steps
+      .map((s) => `- [${s.status}] ${s.id}: ${s.description}${s.toolHint ? ` (工具: ${s.toolHint})` : ''}`)
+      .join('\n');
+    return `\n\n## 当前执行计划\n目标：${plan.goal}\n步骤进度：\n${stepsInfo}\n请根据计划逐步执行，每完成一步更新对应状态。`;
+  }
+
   async run(
     userId: string,
     query: string,
@@ -552,6 +665,10 @@ export class AgentEngine {
     contextFileIds?: string[]
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
     this.executor.setUserId(userId);
+    const traceId = `trace_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+    const startTime = Date.now();
+
+    logger.info('AgentEngine', 'Run started', { traceId, userId, sessionId, queryLength: query.length });
 
     const [caps, config] = await Promise.all([this.getModelCapabilities(modelId, userId), loadAgentConfig(this.env)]);
 
@@ -590,7 +707,23 @@ export class AgentEngine {
       }
     }
 
+    const memory = new AgentMemory(this.gateway, this.env);
+    const memoryContext = await memory.recallMemories(userId, query);
+    if (memoryContext) {
+      contextPrompt += memoryContext;
+    }
+
     const resolvedModelId = caps.resolvedModelId || modelId || 'default';
+
+    let executionPlan: ExecutionPlan | null = null;
+    if (isComplexTask(query)) {
+      logger.info('AgentEngine', 'Complex task detected, generating plan', { query: query.slice(0, 60) });
+      executionPlan = await this.planPhase(userId, query, modelId);
+      if (executionPlan) {
+        onChunk({ type: 'plan', plan: executionPlan, done: false });
+        contextPrompt += this.formatPlanContext(executionPlan);
+      }
+    }
 
     if (caps.nativeToolCalling) {
       // ── Native 路径：完全信任模型，注入全量工具，不做意图分类和裁剪 ──────
@@ -613,11 +746,13 @@ export class AgentEngine {
         signal,
         sessionId,
         TOOL_DEFINITIONS, // 全量工具，让模型自己选
-        contextPrompt
+        contextPrompt,
+        executionPlan,
+        traceId
       );
       return {
         ...result,
-        meta: result.meta ?? { toolCallCount: 0, modelId: resolvedModelId, inputTokens: 0, outputTokens: 0 },
+        meta: result.meta ?? { actualTraceId: traceId, toolCallCount: 0, modelId: resolvedModelId, inputTokens: 0, outputTokens: 0 },
       };
     }
 
@@ -648,11 +783,13 @@ export class AgentEngine {
       signal,
       sessionId,
       filteredTools,
-      contextPrompt
+      contextPrompt,
+      executionPlan,
+      traceId
     );
     return {
       ...result,
-      meta: result.meta ?? { toolCallCount: 0, modelId: resolvedModelId, inputTokens: 0, outputTokens: 0 },
+      meta: result.meta ?? { actualTraceId: traceId || 'unknown', toolCallCount: 0, modelId: resolvedModelId, inputTokens: 0, outputTokens: 0 },
     };
   }
 
@@ -669,14 +806,25 @@ export class AgentEngine {
     signal?: AbortSignal,
     sessionId?: string,
     filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS,
-    contextPrompt: string = ''
+    contextPrompt: string = '',
+    executionPlan?: ExecutionPlan | null,
+    traceId?: string
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
+    const actualTraceId = traceId || 'unknown';
     const systemContent = AGENT_SYSTEM_PROMPT + contextPrompt;
     const messages: Array<{ role: string; content?: string; toolCalls?: any[]; toolCallId?: string }> = [
       { role: 'system', content: systemContent },
       ...this.buildHistory(conversationHistory, query, config),
       { role: 'user', content: query },
     ];
+
+    const updatePlanStep = (stepId: string, status: string) => {
+      if (executionPlan) {
+        const step = executionPlan.steps.find((s) => s.id === stepId);
+        if (step) step.status = status as ExecutionPlanStep['status'];
+        onChunk({ type: 'plan_step_update', stepId, status, done: false });
+      }
+    };
 
     let fullText = '';
     const sources: AgentSource[] = [];
@@ -774,12 +922,14 @@ export class AgentEngine {
             signal,
             sessionId,
             filteredTools,
-            contextPrompt
+            contextPrompt,
+            undefined,
+            traceId
           );
         } else {
           // 已有工具调用轮次，不降级，直接报错
           onChunk({ type: 'error', message: 'AI 模型调用失败', done: true });
-          return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
+          return { fullText, sources, meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
         }
       }
 
@@ -859,7 +1009,7 @@ export class AgentEngine {
               fullText,
               sources,
               pendingConfirmId: confirmId,
-              meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens },
+              meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens },
             };
           }
 
@@ -868,6 +1018,17 @@ export class AgentEngine {
           roundNewData = true;
           // 工具结果注入估算（工具名 + 结果 JSON）
           inputTokens += estimateTokens(tc.name + JSON.stringify(result));
+
+          if (executionPlan && executionPlan.steps.length > 0) {
+            const currentPendingStep = executionPlan.steps.find((s) => s.status === 'running');
+            if (currentPendingStep) {
+              updatePlanStep(currentPendingStep.id, 'done');
+            }
+            const nextPendingStep = executionPlan.steps.find((s) => s.status === 'pending');
+            if (nextPendingStep) {
+              updatePlanStep(nextPendingStep.id, 'running');
+            }
+          }
         } catch (err) {
           result = { error: err instanceof Error ? err.message : '工具执行失败' };
         }
@@ -917,7 +1078,7 @@ export class AgentEngine {
       }
     }
 
-    return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
+    return { fullText, sources, meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
   }
 
   // ── Prompt-Based Mode（用于不支持 native tool calling 的模型）──────────────────
@@ -933,8 +1094,20 @@ export class AgentEngine {
     signal?: AbortSignal,
     sessionId?: string,
     filteredTools: typeof TOOL_DEFINITIONS = TOOL_DEFINITIONS,
-    contextPrompt: string = ''
+    contextPrompt: string = '',
+    executionPlan?: ExecutionPlan | null,
+    traceId?: string
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
+    const actualTraceId = traceId || 'unknown';
+
+    const updatePlanStep = (stepId: string, status: string) => {
+      if (executionPlan) {
+        const step = executionPlan.steps.find((s) => s.id === stepId);
+        if (step) step.status = status as ExecutionPlanStep['status'];
+        onChunk({ type: 'plan_step_update', stepId, status, done: false });
+      }
+    };
+
     // 工具列表：注入工具名 + 高频工具的参数示例，帮助小模型正确构造调用
     // 不注入完整 description，避免 token 暴增导致小模型上下文溢出失效
     const TOOL_PARAM_EXAMPLES: Record<string, string> = {
@@ -953,6 +1126,18 @@ export class AgentEngine {
       search_by_tag: '{"tagNames": ["标签名"]}',
       get_storage_usage: '{}',
     };
+
+    const examplesSection = filteredTools
+      .filter((t) => t.function.examples && t.function.examples.length > 0)
+      .map(
+        (t) =>
+          `\n### ${t.function.name}\n` +
+          t.function.examples!
+            .map((ex) => `- 用户问："${ex.user_query}" → 调用 \`${t.function.name}(${JSON.stringify(ex.tool_call)})\``)
+            .join('\n')
+      )
+      .join('\n');
+
     const toolListHint =
       filteredTools.length > 0
         ? `\n\n## 当前可用工具（只能调用以下工具名，工具名必须完全匹配）\n` +
@@ -961,7 +1146,10 @@ export class AgentEngine {
               const ex = TOOL_PARAM_EXAMPLES[t.function.name];
               return ex ? `- ${t.function.name}  示例参数: ${ex}` : `- ${t.function.name}`;
             })
-            .join('\n')
+            .join('\n') +
+          (examplesSection.length > 0
+            ? `\n\n## 工具调用示例（参考这些示例来构造正确的调用参数）\n${examplesSection}`
+            : '')
         : '';
     const systemContent = PROMPT_BASED_SYSTEM_PROMPT + contextPrompt + toolListHint;
     const messages: Array<{ role: string; content: string }> = [
@@ -1028,7 +1216,7 @@ export class AgentEngine {
         }
         logger.error('AgentEngine', 'LLM stream error (prompt)', {}, err);
         onChunk({ type: 'error', message: 'AI 模型调用失败，请检查模型配置', done: true });
-        return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
+        return { fullText, sources, meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
       }
 
       if (!foundToolCall) {
@@ -1111,7 +1299,7 @@ export class AgentEngine {
             fullText,
             sources,
             pendingConfirmId: confirmId,
-            meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens },
+            meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens },
           };
         }
 
@@ -1120,6 +1308,17 @@ export class AgentEngine {
         toolSucceeded = true;
         // 工具结果注入估算
         inputTokens += estimateTokens(toolName + JSON.stringify(result));
+
+        if (executionPlan && executionPlan.steps.length > 0) {
+          const currentRunningStep = executionPlan.steps.find((s) => s.status === 'running');
+          if (currentRunningStep) {
+            updatePlanStep(currentRunningStep.id, 'done');
+          }
+          const nextPendingStep = executionPlan.steps.find((s) => s.status === 'pending');
+          if (nextPendingStep) {
+            updatePlanStep(nextPendingStep.id, 'running');
+          }
+        }
       } catch (err) {
         result = { error: err instanceof Error ? err.message : '工具执行失败' };
       }
@@ -1146,7 +1345,7 @@ export class AgentEngine {
       }
     }
 
-    return { fullText, sources, meta: { toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
+    return { fullText, sources, meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
   }
 
   // ── 自动链式调用（图片搜索结果 → analyze_image）────────────────────────────
