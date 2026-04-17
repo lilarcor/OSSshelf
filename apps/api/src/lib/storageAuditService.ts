@@ -434,7 +434,7 @@ async function auditSingleBucket(
   const dbFiles = await db
     .select({ id: files.id, name: files.name, r2Key: files.r2Key, size: files.size, bucketId: files.bucketId })
     .from(files)
-    .where(and(eq(files.bucketId, bucketId), isNull(files.deletedAt)))
+    .where(and(eq(files.bucketId, bucketId), isNull(files.deletedAt), eq(files.isFolder, false)))
     .all();
 
   const bucketFileIds = dbFiles.map((f) => f.id);
