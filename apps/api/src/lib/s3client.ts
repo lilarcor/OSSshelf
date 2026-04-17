@@ -70,6 +70,8 @@ export function resolveEndpoint(provider: string, endpoint: string | null, regio
   switch (provider) {
     case 's3':
       return `https://s3.${r}.amazonaws.com`;
+    case 'r2':
+      return `https://<account_id>.r2.cloudflarestorage.com`;
     case 'oss':
       return `https://oss-${r}.aliyuncs.com`;
     case 'cos':

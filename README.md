@@ -128,7 +128,36 @@
 - ✅ 显示"输出已中断"状态提示 + "重新生成"按钮
 - ✅ API 层统一 AbortError 处理 + signal 检查
 
-> 完整修复清单请参阅 [CHANGELOG.md](CHANGELOG.md) 的 v4.7.0 `Fixed` 章节。
+#### 📊 额外稳定性修复（7 项）
+
+- 🔴 **storageUsed 竞态条件**：tasks.ts/downloads.ts 统一原子方法 `updateUserStorage()`，消除并发丢失更新
+- 🔴 **文件列表分页**：SQL ORDER BY + limit/offset 分页，消除 D1 1000 行截断
+- 🟡 **softDelete 配额释放**：软删除时立即扣减 storageUsed，不再等 cron 硬删除
+- 🟡 **JWT Refresh Token**：新增静默续期机制，移动端体验大幅改善
+- 🟡 **Analytics SQL 聚合**：GROUP BY 替代全量拉取，性能提升 10x+
+- 🟡 **分享上传配额校验**：增加 owner 的 storageUsed 检查，堵住配额绕过漏洞
+- 🔵 **LIKE 搜索转义**：% 和 _ 自动转义，消除通配符误匹配
+
+#### ⚡ 性能优化（5 项）
+
+- 文件列表排序移至 SQL（配合分页）
+- AI 任务队列 per-user 并发背压控制
+- cleanup.ts 分批硬删除（防 cron 超时）
+- WebDAV 原子化 storageUsed
+- 向量索引断点续传
+
+#### 🆕 新增功能（6 项）
+
+| 功能 | 说明 |
+|------|------|
+| 文件夹大小统计 | 前端详情面板展示递归占用空间 |
+| 增量向量索引 | 上传自动触发索引，新文件立即可搜 |
+| Zip 打包下载 | 文件夹一键打包下载 |
+| 文件访问日志 | 文件维度访问记录查看 |
+| 标签全局管理页 | 合并/重命名/批量删除 |
+| AI 对话导出 | Markdown/PDF 一键导出 |
+
+> 完整修复清单请参阅 [CHANGELOG.md](CHANGELOG.md) 的 v4.7.0 章节。
 
 ### 历史版本 v4.6.0 - 用户体验全面优化与AI能力增强 🚀
 

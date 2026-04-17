@@ -93,5 +93,3 @@ export async function recordModelSuccess(modelId: string): Promise<void> {
     current.failures = Math.max(0, current.failures - 1);
   }
 }
-
-export default circuitBreaker;

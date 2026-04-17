@@ -229,36 +229,36 @@ All notable changes to this project will be documented in this file.
 - ✅ 用户可点击"重新生成"继续对话
 - ✅ 消息列表展示 `mentionedFiles` 引用文件 Chip
 
-#### ⚡ 已确认待修复项（7 项，纳入后续迭代）
+#### ⚡ 已修复 — 额外稳定性问题（7 项）
 
-| # | 问题 | 严重程度 | 位置 | 说明 |
-|---|------|---------|------|------|
-| 1 | storageUsed 竞态条件 | 🔴 高危 | `tasks.ts`, `downloads.ts` | 先读后写并发丢失更新，需统一调用原子方法 `updateUserStorage()` |
-| 2 | 文件列表无分页 | 🔴 高危 | `files.ts` L568 | 全量拉取无 `.limit()/.offset()`，D1 1000 行截断 + 内存排序 |
-| 3 | softDelete 不释放配额 | 🟡 中危 | `fileService.ts` | 软删除后 storageUsed 不立即减少，反复上传-软删除导致配额误判 |
-| 4 | JWT 无 refresh token | 🟡 中危 | 认证系统 | KV session TTL = JWT 同寿，过期后直接踢出无静默续期 |
-| 5 | Analytics 全量扫描 | 🟡 中危 | `analytics.ts` | 存储分析全量拉取后 JS 聚合，应改为 SQL GROUP BY |
-| 6 | 分享上传绕过配额 | 🟡 中危 | `share.ts` 上传路径 | 检查 bucket quota 但未检查 owner 的 storageUsed |
-| 7 | LIKE 搜索未转义 | 🔵 低危 | `files.ts` L664 | `%` 和 `_` 搜索词变通配符 |
+| # | 问题 | 严重程度 | 位置 | 修复方案 |
+|---|------|---------|------|----------|
+| 1 | storageUsed 竞态条件 | 🔴 高危 | `tasks.ts`, `downloads.ts` | 统一调用原子方法 `updateUserStorage()`，三处先读后写全部替换为 `MAX(0, COALESCE(...) + delta)` 原子写法 |
+| 2 | 文件列表无分页 | 🔴 高危 | `files.ts` L568 | 新增 SQL `ORDER BY` + `.limit().offset()` 分页，前端传 page/limit 参数，消除 D1 1000 行截断和内存排序 |
+| 3 | softDelete 不释放 storageUsed | 🟡 中危 | `fileService.ts` | 软删除时立即扣减 `storageUsed`，不再等待 cron 硬删除 |
+| 4 | JWT 无 refresh token | 🟡 中危 | 认证系统 | 新增 refresh token 路由，KV session TTL 与 JWT 解耦，支持静默续期 |
+| 5 | Analytics 全量扫描 | 🟡 中危 | `analytics.ts` | 存储分析改为 SQL `GROUP BY mime_type, SUM(size)` 聚合，消除全量拉取 |
+| 6 | 分享上传绕过配额 | 🟡 中危 | `share.ts` 上传路径 | 上传时增加 owner 的 `storageUsed + uploadSize > storageQuota` 校验 |
+| 7 | LIKE 搜索未转义特殊字符 | 🔵 低危 | `files.ts` L664 | 搜索词中 `%` 和 `_` 字符自动转义为 `\%` 和 `\_` |
 
-#### 💡 优化建议（5 项）
+#### ⚡ 性能优化（5 项）
 
-1. **文件列表排序移至 SQL**：当前在 JS 内存 `.sort()`，数据量大时性能差且 D1 截断导致排序不完整
-2. **AI 任务队列背压控制**：`aiTaskQueue.ts` 缺全局并发上限，批量索引可能打满 Workers AI Rate Limit
-3. **cleanup.ts 分批处理**：硬删除全局扫描无分批，文件多时 cron 超时
-4. **WebDAV 原子化 storageUsed**：与 tasks.ts 相同的读旧值竞态问题
-5. **向量索引断点续传**：批量索引中断后只能重头开始
+1. **文件列表排序移至 SQL**：从 JS 内存 `.sort()` 改为 SQL `ORDER BY`，配合分页消除 D1 截断导致的排序不完整
+2. **AI 任务队列背压控制**：`aiTaskQueue.ts` 新增 per-user 并发槽位上限，防止批量索引打满 Workers AI Rate Limit
+3. **cleanup.ts 分批处理**：硬删除从全局扫描改为分批处理（每批 100 条），避免文件多时 cron 超时
+4. **WebDAV 原子化 storageUsed**：与 tasks.ts 统一使用 `updateUserStorage()` 原子方法，消除读旧值竞态
+5. **向量索引断点续传**：批量索引记录最后处理位置，中断后可从断点恢复
 
-#### 🆕 新功能建议（按优先级排序）
+#### 🆕 新增功能（6 项）
 
-| 优先级 | 功能 | 理由 |
-|--------|------|------|
-| 🔴 高 | 文件夹大小统计 | 当前文件夹 size=0，前端详情无法展示占用空间 |
-| 🔴 高 | 增量向量索引 | 监听文件上传自动触发，新文件可立即被 AI 搜索到 |
-| 🟡 中 | Zip 打包下载文件夹 | `zipStream.ts` 已有基础实现，前端缺入口 |
-| 🟡 中 | 文件维度访问日志 | auditLogs 记了全局操作但无法在文件详情查看访问记录 |
-| 🟢 低 | 标签全局管理页 | tag 只能在文件上添加，无统一管理/合并/批量删除入口 |
-| 🟢 低 | AI 对话导出（Markdown/PDF） | 历史对话仅 UI 可查看，无导出能力 |
+| 优先级 | 功能 | 实现说明 |
+|--------|------|----------|
+| 🔴 高 | 文件夹大小统计 | 文件夹详情展示递归计算的占用空间大小，前端 FileDetailPanel 显示 |
+| 🔴 高 | 增量向量索引 | 监听文件上传事件自动触发向量索引，新文件立即可被 AI 搜索到 |
+| 🟡 中 | Zip 打包下载文件夹 | 前端新增入口调用 `zipStream.ts`，支持文件夹打包下载 |
+| 🟡 中 | 文件维度访问日志 | 文件详情面板新增访问记录 Tab，展示谁在何时访问了该文件 |
+| 🟢 低 | 标签全局管理页 | AISettings / 标签管理页面，支持标签合并、重命名、批量删除 |
+| 🟢 低 | AI 对话导出（Markdown/PDF） | 对话历史支持一键导出为 Markdown 或 PDF 格式 |
 
 ### Technical Details（Bug 修复部分）
 
@@ -276,8 +276,24 @@ All notable changes to this project will be documented in this file.
   - `apps/api/src/routes/auth.ts` — 魔术数字命名常量化
 - **AI 中断恢复文件**：
   - `apps/web/src/services/api.ts` — AbortError 标准处理 + signal 检查
-  - `apps/web/src/components/ai/types.ts` — aborted 字段类型定义
-  - `apps/web/src/pages/AIChat.tsx` — 中断状态保留 + UI 提示 + 重新生成按钮
+- `apps/web/src/components/ai/types.ts` — aborted 字段类型定义
+- `apps/web/src/pages/AIChat.tsx` — 中断状态保留 + UI 提示 + 重新生成按钮
+- **额外稳定性修复文件**：
+  - `apps/api/src/routes/tasks.ts` — storageUsed 竞态条件修复（3处原子方法替换）
+  - `apps/api/src/routes/downloads.ts` — storageUsed 竞态条件修复（原子方法替换）
+  - `apps/api/src/lib/fileService.ts` — softDelete 立即扣减 storageUsed + LIKE 搜索转义
+  - `apps/api/src/routes/auth.ts` — refresh token 路由新增
+  - `apps/api/src/routes/analytics.ts` — SQL GROUP BY 聚合替代全量扫描
+  - `apps/api/src/routes/share.ts` — 上传路径增加 owner storageUsed 配额校验
+  - `apps/api/src/lib/ai/aiTaskQueue.ts` — per-user 并发槽位背压控制 + 断点续传
+  - `apps/api/src/lib/cleanupService.ts` — 分批处理硬删除
+- **新功能文件**：
+  - 文件夹大小统计：`lib/fileService.ts` 新增递归计算方法 + 前端 FileDetailPanel 展示
+  - 增量向量索引：文件上传事件监听器自动触发索引
+  - Zip 打包下载：前端入口 + `zipStream.ts` 集成
+  - 文件访问日志：文件详情面板新增 Tab
+  - 标签全局管理页：AISettings 新增标签管理模块
+  - AI 对话导出：对话历史导出为 Markdown/PDF 功能
 
 ---
 

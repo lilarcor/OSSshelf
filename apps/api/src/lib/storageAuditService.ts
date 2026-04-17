@@ -118,7 +118,9 @@ const S3_COMPATIBLE_PROVIDERS = new Set(['s3', 'r2', 'b2', 'oss', 'cos', 'obs', 
 
 function isS3CompatibleBucket(bucket: typeof storageBuckets.$inferSelect): boolean {
   if (isTelegramBucket(bucket)) return false;
-  return S3_COMPATIBLE_PROVIDERS.has(bucket.provider);
+  if (S3_COMPATIBLE_PROVIDERS.has(bucket.provider)) return true;
+  if (bucket.endpoint && bucket.endpoint.length > 0) return true;
+  return false;
 }
 
 async function getUserEncKey(kv: KVNamespace, userId: string): Promise<string | null> {

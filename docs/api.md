@@ -224,17 +224,36 @@ JSON
 | TOKEN_EXPIRED 错误码 | A001（与 UNAUTHORIZED 重复） | A006（唯一码） |
 | AI 流式中断 | 已输出内容丢失 | 保留内容 + `aborted: true` 标记 |
 
-### 待修复已知问题（纳入后续迭代）
+### 已修复 — 额外稳定性问题（7 项）
 
-| # | 问题 | 严重程度 | 说明 |
-|---|------|---------|------|
-| 1 | storageUsed 竞态条件 | 🔴 高危 | tasks.ts/downloads.ts 先读后写并发丢失更新 |
-| 2 | 文件列表无分页 | 🔴 高危 | files.ts 全量拉取无 limit/offset，D1 1000 行截断 |
-| 3 | softDelete 不释放配额 | 🟡 中危 | 软删除后 storageUsed 不立即减少 |
-| 4 | JWT 无 refresh token | 🟡 中危 | Token 过期后直接踢出无静默续期 |
-| 5 | Analytics 全量扫描 | 🟡 中危 | 存储分析应改为 SQL GROUP BY |
-| 6 | 分享上传绕过配额 | 🟡 中危 | 未检查 owner 的 storageUsed |
-| 7 | LIKE 搜索未转义 | 🔵 低危 | `%` 和 `_` 变通配符 |
+| # | 问题 | 严重程度 | 修复方案 |
+|---|------|---------|----------|
+| 1 | storageUsed 竞态条件 | 🔴 高危 | 统一原子方法 `updateUserStorage()`，3 处先读后写全部替换 |
+| 2 | 文件列表无分页 | 🔴 高危 | SQL ORDER BY + limit/offset 分页，前端传 page/limit |
+| 3 | softDelete 不释放配额 | 🟡 中危 | 软删除时立即扣减 storageUsed |
+| 4 | JWT 无 refresh token | 🟡 中危 | 新增 refresh token 路由 + 静默续期 |
+| 5 | Analytics 全量扫描 | 🟡 中危 | SQL GROUP BY mime_type, SUM(size) 替代 JS 聚合 |
+| 6 | 分享上传绕过配额 | 🟡 中危 | 上传路径增加 owner 的 storageUsed 校验 |
+| 7 | LIKE 搜索未转义 | 🔵 低危 | `%` 和 `_` 自动转义为 `\%` 和 `\_` |
+
+### 已完成性能优化（5 项）
+
+1. **文件列表 SQL 排序**：ORDER BY 替代 JS 内存 .sort()，配合分页
+2. **AI 队列背压控制**：per-user 并发槽位上限防 Rate Limit 打满
+3. **cleanup 分批处理**：每批 100 条硬删除，防 cron 超时
+4. **WebDAV 原子化 storageUsed**：统一 updateUserStorage() 原子方法
+5. **向量索引断点续传**：记录最后处理位置，中断可恢复
+
+### 已实现新功能（6 项）
+
+| 功能 | 说明 |
+|------|------|
+| 文件夹大小统计 | FileDetailPanel 展示递归占用空间 |
+| 增量向量索引 | 文件上传自动触发索引 |
+| Zip 打包下载 | 前端入口 + zipStream.ts |
+| 文件访问日志 | 文件详情面板新增 Tab |
+| 标签全局管理页 | AISettings 标签管理模块 |
+| AI 对话导出 | Markdown/PDF 导出功能 |
 
 ---
 
