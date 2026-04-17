@@ -184,6 +184,8 @@ const TOOL_EXECUTOR_MAP: Record<string, (env: Env, userId: string, args: Record<
     restore_file: (env, userId, args) => FileOpsTools.executeRestoreFile(env, userId, args),
     create_folder: (env, userId, args) => FileOpsTools.executeCreateFolder(env, userId, args),
     batch_rename: (env, userId, args) => FileOpsTools.executeBatchRename(env, userId, args),
+    batch_move: (env, userId, args) => FileOpsTools.executeBatchMove(env, userId, args),
+    batch_delete: (env, userId, args) => FileOpsTools.executeBatchDelete(env, userId, args),
     star_file: (env, userId, args) => FileOpsTools.executeStarFile(env, userId, args),
     unstar_file: (env, userId, args) => FileOpsTools.executeUnstarFile(env, userId, args),
     draft_and_create_file: (env, userId, args) => FileOpsTools.executeDraftAndCreateFile(env, userId, args),

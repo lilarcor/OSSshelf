@@ -1657,6 +1657,13 @@ export const aiApi = {
       }
     },
   },
+
+  memories: {
+    list: (params?: { type?: string; limit?: number; offset?: number }) =>
+      api.get<ApiResponse<{ items: Array<{ id: string; type: string; summary: string; sessionId: string; createdAt: string }>; total: number }>>('/api/ai-chat/memories', { params }),
+    delete: (memoryId: string) =>
+      api.delete<ApiResponse<{ success: boolean }>>(`/api/ai-chat/memories/${memoryId}`),
+  },
 };
 
 // AI配置相关类型定义

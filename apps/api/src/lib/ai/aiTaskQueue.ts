@@ -291,7 +291,7 @@ async function handleAgentBatchTask(env: Env, message: AiTaskMessage): Promise<{
       return { success: false, error: '文件不存在' };
     }
 
-    const operation = (message as any).operation || 'unknown';
+    const operation = (message as any).operation || (message as any)._defaultOp || '';
     logger.info('AI_QUEUE', 'Processing agent_batch operation', { operation, fileId, taskId });
 
     switch (operation) {

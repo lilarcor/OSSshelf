@@ -510,6 +510,61 @@ export const definitions: ToolDefinition[] = [
     },
   },
 
+  {
+    type: 'function',
+    function: {
+      name: 'batch_move',
+      description: `【批量移动文件】将多个文件移动到目标文件夹。
+当文件数量超过阈值时自动入队异步处理，避免超时。
+适用场景："把所有PDF移到文档目录"、"按类型整理文件到对应文件夹"`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '要移动的文件ID列表',
+          },
+          targetFolderId: { type: 'string', description: '目标文件夹 ID' },
+          targetFolderPath: { type: 'string', description: '目标文件夹路径（备选）' },
+          _confirmed: { type: 'boolean', description: '用户确认' },
+        },
+        required: ['fileIds', 'targetFolderId'],
+      },
+      examples: [
+        { user_query: '把所有PDF移到文档目录', tool_call: { fileIds: ['<id1>', '<id2>'], targetFolderId: '<docs_folder_id>' } },
+        { user_query: '整理图片到素材文件夹', tool_call: { fileIds: ['<img_id1>', '<img_id2>'], targetFolderId: '<assets_id>' } },
+      ],
+    },
+  },
+
+  {
+    type: 'function',
+    function: {
+      name: 'batch_delete',
+      description: `【批量删除文件】将多个文件移入回收站（非永久删除）。
+当文件数量超过阈值时自动入队异步处理。删除后可通过 restore_file 恢复。
+⚠️ 此操作不可逆，请务必确认！`,
+      parameters: {
+        type: 'object',
+        properties: {
+          fileIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '要删除的文件ID列表',
+          },
+          reason: { type: 'string', description: '删除原因（可选，用于审计）' },
+          _confirmed: { type: 'boolean', description: '用户确认（必须为true）' },
+        },
+        required: ['fileIds', '_confirmed'],
+      },
+      examples: [
+        { user_query: '批量删除临时文件', tool_call: { fileIds: ['<id1>', '<id2>'], reason: '清理临时文件', _confirmed: true } },
+        { user_query: '清空缓存文件夹', tool_call: { fileIds: ['<cache_id1>'], _confirmed: true } },
+      ],
+    },
+  },
+
   // ════════════════════════════════════════════════════════════════
   // D. 收藏管理（2个新工具）⭐
   // ════════════════════════════════════════════════════════════════
@@ -1137,6 +1192,110 @@ services:
       totalFiles: results.length,
       successCount,
       results,
+    };
+  }
+
+  static async executeBatchMove(env: Env, userId: string, args: Record<string, unknown>) {
+    const fileIds = args.fileIds as string[];
+    const targetFolderId = args.targetFolderId as string;
+
+    if (!Array.isArray(fileIds) || fileIds.length === 0 || !targetFolderId) {
+      return { error: '缺少必要参数: fileIds (数组) 和 targetFolderId' };
+    }
+
+    if (fileIds.length > BATCH_THRESHOLD) {
+      try {
+        const batchResult = await enqueueAgentBatchOperation(env, 'move', fileIds, userId, { targetFolderId });
+        return {
+          status: 'queued',
+          taskId: batchResult.taskId,
+          message: `批量移动任务已提交到队列（共 ${batchResult.total} 个文件），预计 ${batchResult.estimatedMinutes} 分钟完成`,
+          totalFiles: batchResult.total,
+          estimatedMinutes: batchResult.estimatedMinutes,
+          _next_actions: [
+            `✅ 批量移动任务已入队（taskId: ${batchResult.taskId}）`,
+            '可通过 GET /api/ai/index/task 查看进度',
+          ],
+        };
+      } catch (queueError) {
+        logger.warn('AgentTool', 'Batch move queue failed, falling back to sync', { fileCount: fileIds.length }, queueError);
+      }
+    }
+
+    const db = getDb(env.DB);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const fileId of fileIds) {
+      try {
+        const result = await moveFile(env, userId, fileId, { targetParentId: targetFolderId });
+        if (result.success) successCount++;
+        else failCount++;
+      } catch (error) {
+        logger.warn('AgentTool', 'Batch move single file failed', { fileId }, error);
+        failCount++;
+      }
+    }
+
+    return {
+      status: 'completed',
+      message: `批量移动完成：${successCount} 成功，${failCount} 失败`,
+      totalFiles: fileIds.length,
+      successCount,
+      failCount,
+      _next_actions: [`✅ 已将 ${successCount} 个文件移到目标文件夹`],
+    };
+  }
+
+  static async executeBatchDelete(env: Env, userId: string, args: Record<string, unknown>) {
+    const fileIds = args.fileIds as string[];
+    const reason = args.reason as string | undefined;
+
+    if (!Array.isArray(fileIds) || fileIds.length === 0) {
+      return { error: '缺少必要参数: fileIds (非空数组)' };
+    }
+
+    if (fileIds.length > BATCH_THRESHOLD) {
+      try {
+        const batchResult = await enqueueAgentBatchOperation(env, 'delete', fileIds, userId, { reason });
+        return {
+          status: 'queued',
+          taskId: batchResult.taskId,
+          message: `批量删除任务已提交到队列（共 ${batchResult.total} 个文件），预计 ${batchResult.estimatedMinutes} 分钟完成。文件将被移入回收站，可通过 restore_file 恢复`,
+          totalFiles: batchResult.total,
+          estimatedMinutes: batchResult.estimatedMinutes,
+          _next_actions: [
+            `✅ 批量删除任务已入队（taskId: ${batchResult.taskId}）`,
+            '删除的文件可在回收站中恢复',
+          ],
+        };
+      } catch (queueError) {
+        logger.warn('AgentTool', 'Batch delete queue failed, falling back to sync', { fileCount: fileIds.length }, queueError);
+      }
+    }
+
+    const db = getDb(env.DB);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const fileId of fileIds) {
+      try {
+        const result = await softDeleteFile(env, userId, fileId);
+        if (result.success) successCount++;
+        else failCount++;
+      } catch (error) {
+        logger.warn('AgentTool', 'Batch delete single file failed', { fileId }, error);
+        failCount++;
+      }
+    }
+
+    return {
+      status: 'completed',
+      message: `批量删除完成：${successCount} 成功移入回收站，${failCount} 失败`,
+      totalFiles: fileIds.length,
+      successCount,
+      failCount,
+      _next_actions: ['✅ 文件已移入回收站，可调用 restore_file 恢复'],
     };
   }
 

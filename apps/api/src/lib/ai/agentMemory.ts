@@ -121,7 +121,7 @@ export class AgentMemory {
   async recallMemories(
     userId: string,
     query: string,
-    _vectorizeQuery?: (namespace: string, values: number[], metadata?: Record<string, unknown>) => Promise<string | null>
+    _vectorizeQuery?: (namespace: string, values: number[], metadata?: Record<string, string | number | boolean>) => Promise<string | null>
   ): Promise<string> {
     try {
       const db = getDb(this.env.DB);

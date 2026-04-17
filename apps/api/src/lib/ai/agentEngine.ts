@@ -38,6 +38,7 @@ import { classifyIntent } from './ragEngine';
 import { selectTools, needsWriteTools, TOOL_GROUPS } from './agentTools/toolSelector';
 import { buildFolderPath } from '../../lib/utils';
 import { AgentMemory } from './agentMemory';
+import { isModelAvailable, recordModelFailure, recordModelSuccess } from './circuitBreaker';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 默认配置常量（当数据库配置不可用时使用）
@@ -727,7 +728,17 @@ export class AgentEngine {
     }
 
     const memory = new AgentMemory(this.gateway, this.env);
-    const memoryContext = await memory.recallMemories(userId, query);
+    const vectorizeQuery = async (namespace: string, values: number[], metadata?: Record<string, string | number | boolean>): Promise<string | null> => {
+      try {
+        if (!this.env.VECTORIZE) return null;
+        const results = await this.env.VECTORIZE.query(values, { topK: 1, filter: metadata as any, namespace, returnMetadata: true });
+        return results.matches?.[0]?.id || null;
+      } catch (e) {
+        logger.warn('AgentEngine', 'vectorizeQuery failed', {}, e);
+        return null;
+      }
+    };
+    const memoryContext = await memory.recallMemories(userId, query, vectorizeQuery);
     if (memoryContext) {
       contextPrompt += memoryContext;
     }
@@ -858,6 +869,12 @@ export class AgentEngine {
     let inputTokens = estimateTokens(AGENT_SYSTEM_PROMPT + query);
     let outputTokens = 0;
 
+    if (!(await isModelAvailable(resolvedModelId))) {
+      logger.warn('AgentEngine', 'Model circuit breaker OPEN, skipping', { modelId: resolvedModelId });
+      onChunk({ type: 'error', message: `模型 ${resolvedModelId} 暂时不可用，请稍后重试或切换模型`, done: true });
+      return { fullText: '', sources: [], meta: { actualTraceId: traceId || 'unknown', toolCallCount: 0, modelId: resolvedModelId, inputTokens, outputTokens } };
+    }
+
     while (toolCallCount < config.maxToolCalls) {
       if (signal?.aborted) break;
 
@@ -923,6 +940,7 @@ export class AgentEngine {
           throw err;
         }
         logger.error('AgentEngine', 'LLM stream error (native)', {}, err);
+        recordModelFailure(resolvedModelId, err);
         // 仅在第 0 轮（尚未产生任何工具调用）才允许降级到 prompt-based
         if (toolCallCount === 0) {
           if (fullText.length > 0) {
@@ -1097,6 +1115,7 @@ export class AgentEngine {
       }
     }
 
+    recordModelSuccess(resolvedModelId);
     return { fullText, sources, meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
   }
 
@@ -1188,6 +1207,12 @@ export class AgentEngine {
     let inputTokens = estimateTokens(PROMPT_BASED_SYSTEM_PROMPT + query);
     let outputTokens = 0;
 
+    if (!(await isModelAvailable(resolvedModelId))) {
+      logger.warn('AgentEngine', 'Model circuit breaker OPEN (prompt-based), skipping', { modelId: resolvedModelId });
+      onChunk({ type: 'error', message: `模型 ${resolvedModelId} 暂时不可用，请稍后重试或切换模型`, done: true });
+      return { fullText, sources, meta: { actualTraceId: traceId || 'unknown', toolCallCount: 0, modelId: resolvedModelId, inputTokens, outputTokens } };
+    }
+
     while (toolCallCount < config.maxToolCalls) {
       if (signal?.aborted) break;
 
@@ -1234,6 +1259,7 @@ export class AgentEngine {
           throw err;
         }
         logger.error('AgentEngine', 'LLM stream error (prompt)', {}, err);
+        recordModelFailure(resolvedModelId, err);
         onChunk({ type: 'error', message: 'AI 模型调用失败，请检查模型配置', done: true });
         return { fullText, sources, meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
       }
@@ -1364,6 +1390,7 @@ export class AgentEngine {
       }
     }
 
+    recordModelSuccess(resolvedModelId);
     return { fullText, sources, meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
   }
 

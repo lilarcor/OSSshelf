@@ -33,6 +33,7 @@ import {
   Lightbulb,
   FilePlus,
   AtSign,
+  Reply,
 } from 'lucide-react';
 import { aiApi, filesApi, type AiChatMessage } from '@/services/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -228,6 +229,11 @@ export function AIChat() {
   const mentionDropdownRef = useRef<HTMLDivElement>(null);
   const [mentionCursorPos, setMentionCursorPos] = useState(0);
 
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [quotedMessage, setQuotedMessage] = useState<{ id: string; content: string; role: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; messageId: string; content: string; role: string } | null>(null);
+  const inputAreaRef = useRef<HTMLDivElement>(null);
+
   // ═══ @文件引用搜索查询 ═══
   const { data: mentionSearchResults = [] } = useQuery({
     queryKey: ['mention-files', mentionQuery],
@@ -289,6 +295,82 @@ export function AIChat() {
       mentionedFilesRef.current = next;
       return next;
     });
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/osshelf-file-ids')) {
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+
+      const fileIdsData = e.dataTransfer.getData('application/osshelf-file-ids');
+      if (fileIdsData) {
+        try {
+          const droppedIds: Array<{ id: string; name: string }> = JSON.parse(fileIdsData);
+          setMentionedFiles((prev) => {
+            const newFiles = droppedIds.filter((df) => !prev.find((pf) => pf.id === df.id));
+            const next = [...prev, ...newFiles];
+            mentionedFilesRef.current = next;
+            return next;
+          });
+        } catch {
+          // ignore parse errors
+        }
+        return;
+      }
+
+      if (e.dataTransfer.files.length > 0) {
+        const files = Array.from(e.dataTransfer.files);
+        files.forEach((file) => {
+          const fileId = file.name.replace(/\.[^.]+$/, '');
+          if (!mentionedFilesRef.current.find((f) => f.id === fileId)) {
+            setMentionedFiles((prev) => {
+              const next = [...prev, { id: fileId, name: file.name }];
+              mentionedFilesRef.current = next;
+              return next;
+            });
+          }
+        });
+      }
+    },
+    [mentionedFiles]
+  );
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, messageId: string, content: string, role: string) => {
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY, messageId, content, role });
+    },
+    []
+  );
+
+  const handleQuoteMessage = useCallback((content: string) => {
+    const preview = content.length > 80 ? content.slice(0, 80) + '...' : content;
+    setQuotedMessage({ id: `quote_${Date.now()}`, content, role: 'user' });
+    setContextMenu(null);
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
+  useEffect(() => {
+    const closeMenu = () => setContextMenu(null);
+    window.addEventListener('click', closeMenu);
+    return () => window.removeEventListener('click', closeMenu);
   }, []);
 
   // 点击外部关闭下拉框
@@ -433,6 +515,8 @@ export function AIChat() {
         return;
       }
 
+      const finalQuery = quotedMessage ? `[引用]: ${quotedMessage.content}\n\n${query}` : query;
+
       if (regenerateFromId) {
         setMessages((prev) => {
           const idx = prev.findIndex((m) => m.id === regenerateFromId);
@@ -444,7 +528,7 @@ export function AIChat() {
           {
             id: crypto.randomUUID(),
             role: 'user',
-            content: query,
+            content: finalQuery,
             timestamp: new Date(),
           },
         ]);
@@ -452,6 +536,7 @@ export function AIChat() {
         setMentionedFiles([]);
         mentionedFilesRef.current = [];
         if (inputRef.current) inputRef.current.style.height = 'auto';
+        setQuotedMessage(null);
       }
 
       setIsLoading(true);
@@ -473,7 +558,7 @@ export function AIChat() {
       abortRef.current = new AbortController();
 
       try {
-        await aiApi.chatSession.chatStream(query, {
+        await aiApi.chatSession.chatStream(finalQuery, {
           sessionId: currentSessionId || undefined,
           maxFiles: 8,
           includeFileContent: false,
@@ -828,6 +913,9 @@ export function AIChat() {
               <div
                 key={msg.id}
                 className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} group/message animate-in slide-in-from-bottom-2 duration-300`}
+                onContextMenu={(e) => {
+                  if (msg.content) handleContextMenu(e, msg.id, msg.content, msg.role);
+                }}
               >
                 {msg.role === 'assistant' && (
                   <div className="flex-shrink-0">
@@ -1006,12 +1094,57 @@ export function AIChat() {
               </div>
             ))}
             <div ref={messagesEndRef} />
+
+            {contextMenu && (
+              <div
+                className="fixed z-[100] min-w-[160px] bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 py-1.5 animate-in fade-in zoom-in-95 duration-150"
+                style={{ left: Math.min(contextMenu.x, window.innerWidth - 180), top: Math.min(contextMenu.y, window.innerHeight - 120) }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => handleQuoteMessage(contextMenu.content)}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-violet-50 dark:hover:bg-violet-950/30 hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
+                >
+                  <Reply className="h-3.5 w-3.5" />
+                  引用此消息
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(contextMenu.content);
+                    setContextMenu(null);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  复制内容
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="flex-shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
+        <div
+          className={`flex-shrink-0 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 relative transition-colors duration-200 ${isDragOver ? 'border-violet-400 bg-violet-50/50 dark:bg-violet-950/20' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <div className="max-w-3xl mx-auto relative">
             <div className="flex items-end gap-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 focus-within:border-violet-400 dark:focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-400/20 transition-all px-3 py-2">
+              {quotedMessage && (
+                <div className="w-full mb-1 flex items-start gap-2 px-2 py-1.5 rounded-lg bg-violet-100/80 dark:bg-violet-900/30 text-sm">
+                  <Reply className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400 mt-0.5 flex-shrink-0" />
+                  <span className="flex-1 text-violet-700 dark:text-violet-300 line-clamp-2 italic">
+                    {quotedMessage.content.length > 120 ? quotedMessage.content.slice(0, 120) + '...' : quotedMessage.content}
+                  </span>
+                  <button
+                    onClick={() => setQuotedMessage(null)}
+                    className="flex-shrink-0 p-0.5 rounded hover:bg-violet-200 dark:hover:bg-violet-800 text-violet-500 hover:text-red-500 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
               <textarea
                 ref={inputRef}
                 value={input}
@@ -1074,6 +1207,13 @@ export function AIChat() {
                     </button>
                   </span>
                 ))}
+              </div>
+            )}
+
+            {isDragOver && (
+              <div className="max-w-3xl mx-auto mt-1.5 py-3 border-2 border-dashed border-violet-400 dark:border-violet-500 rounded-xl bg-violet-50/80 dark:bg-violet-950/30 flex items-center justify-center gap-2 text-sm text-violet-600 dark:text-violet-400 animate-pulse">
+                <Download className="h-4 w-4" />
+                <span>释放以添加文件到对话上下文</span>
               </div>
             )}
 
