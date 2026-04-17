@@ -328,12 +328,22 @@ app.get('/stats', async (c) => {
   const totalQuota = allUsers.reduce((sum, u) => sum + (u.storageQuota ?? 0), 0);
 
   const providerBreakdown: Record<string, { bucketCount: number; storageUsed: number }> = {};
+
+  const bucketFileStats = new Map<string, { storageUsed: number }>();
+  for (const f of allFiles.filter((f) => !f.isFolder)) {
+    const bucketId = f.bucketId || '__no_bucket__';
+    const stats = bucketFileStats.get(bucketId) || { storageUsed: 0 };
+    stats.storageUsed += f.size;
+    bucketFileStats.set(bucketId, stats);
+  }
+
   for (const b of allBuckets) {
     if (!providerBreakdown[b.provider]) {
       providerBreakdown[b.provider] = { bucketCount: 0, storageUsed: 0 };
     }
     providerBreakdown[b.provider].bucketCount++;
-    providerBreakdown[b.provider].storageUsed += b.storageUsed ?? 0;
+    const fileStat = bucketFileStats.get(b.id);
+    providerBreakdown[b.provider].storageUsed += fileStat?.storageUsed ?? 0;
   }
 
   return c.json({
