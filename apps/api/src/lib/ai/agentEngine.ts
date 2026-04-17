@@ -618,19 +618,19 @@ export class AgentEngine {
    * - isComplexQuery 判断为 true 时触发
    * - 生成的计划将注入后续执行的上下文中
    */
-  private async planPhase(
-    userId: string,
-    query: string,
-    modelId: string | undefined
-  ): Promise<ExecutionPlan | null> {
+  private async planPhase(userId: string, query: string, modelId: string | undefined): Promise<ExecutionPlan | null> {
     try {
-      const response = await this.gateway.chatCompletion(userId, {
-        messages: [
-          { role: 'system', content: PLANNING_SYSTEM_PROMPT },
-          { role: 'user', content: `请为以下用户请求生成执行计划：\n${query}` },
-        ],
-        temperature: 0.2,
-      }, modelId);
+      const response = await this.gateway.chatCompletion(
+        userId,
+        {
+          messages: [
+            { role: 'system', content: PLANNING_SYSTEM_PROMPT },
+            { role: 'user', content: `请为以下用户请求生成执行计划：\n${query}` },
+          ],
+          temperature: 0.2,
+        },
+        modelId
+      );
 
       const jsonMatch = response.content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
@@ -728,10 +728,19 @@ export class AgentEngine {
     }
 
     const memory = new AgentMemory(this.gateway, this.env);
-    const vectorizeQuery = async (namespace: string, values: number[], metadata?: Record<string, string | number | boolean>): Promise<string | null> => {
+    const vectorizeQuery = async (
+      namespace: string,
+      values: number[],
+      metadata?: Record<string, string | number | boolean>
+    ): Promise<string | null> => {
       try {
         if (!this.env.VECTORIZE) return null;
-        const results = await this.env.VECTORIZE.query(values, { topK: 1, filter: metadata as any, namespace, returnMetadata: true });
+        const results = await this.env.VECTORIZE.query(values, {
+          topK: 1,
+          filter: metadata as any,
+          namespace,
+          returnMetadata: true,
+        });
         return results.matches?.[0]?.id || null;
       } catch (e) {
         logger.warn('AgentEngine', 'vectorizeQuery failed', {}, e);
@@ -782,7 +791,13 @@ export class AgentEngine {
       );
       return {
         ...result,
-        meta: result.meta ?? { actualTraceId: traceId, toolCallCount: 0, modelId: resolvedModelId, inputTokens: 0, outputTokens: 0 },
+        meta: result.meta ?? {
+          actualTraceId: traceId,
+          toolCallCount: 0,
+          modelId: resolvedModelId,
+          inputTokens: 0,
+          outputTokens: 0,
+        },
       };
     }
 
@@ -819,7 +834,13 @@ export class AgentEngine {
     );
     return {
       ...result,
-      meta: result.meta ?? { actualTraceId: traceId || 'unknown', toolCallCount: 0, modelId: resolvedModelId, inputTokens: 0, outputTokens: 0 },
+      meta: result.meta ?? {
+        actualTraceId: traceId || 'unknown',
+        toolCallCount: 0,
+        modelId: resolvedModelId,
+        inputTokens: 0,
+        outputTokens: 0,
+      },
     };
   }
 
@@ -872,7 +893,17 @@ export class AgentEngine {
     if (!(await isModelAvailable(resolvedModelId))) {
       logger.warn('AgentEngine', 'Model circuit breaker OPEN, skipping', { modelId: resolvedModelId });
       onChunk({ type: 'error', message: `模型 ${resolvedModelId} 暂时不可用，请稍后重试或切换模型`, done: true });
-      return { fullText: '', sources: [], meta: { actualTraceId: traceId || 'unknown', toolCallCount: 0, modelId: resolvedModelId, inputTokens, outputTokens } };
+      return {
+        fullText: '',
+        sources: [],
+        meta: {
+          actualTraceId: traceId || 'unknown',
+          toolCallCount: 0,
+          modelId: resolvedModelId,
+          inputTokens,
+          outputTokens,
+        },
+      };
     }
 
     while (toolCallCount < config.maxToolCalls) {
@@ -936,7 +967,10 @@ export class AgentEngine {
         );
       } catch (err) {
         if (isAbortError(err)) {
-          logger.info('AgentEngine', 'Stream aborted by client (native)', { toolCallCount, hasContent: fullText.length > 0 });
+          logger.info('AgentEngine', 'Stream aborted by client (native)', {
+            toolCallCount,
+            hasContent: fullText.length > 0,
+          });
           throw err;
         }
         logger.error('AgentEngine', 'LLM stream error (native)', {}, err);
@@ -966,7 +1000,11 @@ export class AgentEngine {
         } else {
           // 已有工具调用轮次，不降级，直接报错
           onChunk({ type: 'error', message: 'AI 模型调用失败', done: true });
-          return { fullText, sources, meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
+          return {
+            fullText,
+            sources,
+            meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens },
+          };
         }
       }
 
@@ -1116,7 +1154,11 @@ export class AgentEngine {
     }
 
     recordModelSuccess(resolvedModelId);
-    return { fullText, sources, meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
+    return {
+      fullText,
+      sources,
+      meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens },
+    };
   }
 
   // ── Prompt-Based Mode（用于不支持 native tool calling 的模型）──────────────────
@@ -1170,8 +1212,10 @@ export class AgentEngine {
       .map(
         (t) =>
           `\n### ${t.function.name}\n` +
-          t.function.examples!
-            .map((ex) => `- 用户问："${ex.user_query}" → 调用 \`${t.function.name}(${JSON.stringify(ex.tool_call)})\``)
+          t.function
+            .examples!.map(
+              (ex) => `- 用户问："${ex.user_query}" → 调用 \`${t.function.name}(${JSON.stringify(ex.tool_call)})\``
+            )
             .join('\n')
       )
       .join('\n');
@@ -1210,7 +1254,17 @@ export class AgentEngine {
     if (!(await isModelAvailable(resolvedModelId))) {
       logger.warn('AgentEngine', 'Model circuit breaker OPEN (prompt-based), skipping', { modelId: resolvedModelId });
       onChunk({ type: 'error', message: `模型 ${resolvedModelId} 暂时不可用，请稍后重试或切换模型`, done: true });
-      return { fullText, sources, meta: { actualTraceId: traceId || 'unknown', toolCallCount: 0, modelId: resolvedModelId, inputTokens, outputTokens } };
+      return {
+        fullText,
+        sources,
+        meta: {
+          actualTraceId: traceId || 'unknown',
+          toolCallCount: 0,
+          modelId: resolvedModelId,
+          inputTokens,
+          outputTokens,
+        },
+      };
     }
 
     while (toolCallCount < config.maxToolCalls) {
@@ -1255,13 +1309,20 @@ export class AgentEngine {
         );
       } catch (err) {
         if (isAbortError(err)) {
-          logger.info('AgentEngine', 'Stream aborted by client (prompt)', { toolCallCount, hasContent: fullText.length > 0 });
+          logger.info('AgentEngine', 'Stream aborted by client (prompt)', {
+            toolCallCount,
+            hasContent: fullText.length > 0,
+          });
           throw err;
         }
         logger.error('AgentEngine', 'LLM stream error (prompt)', {}, err);
         recordModelFailure(resolvedModelId, err);
         onChunk({ type: 'error', message: 'AI 模型调用失败，请检查模型配置', done: true });
-        return { fullText, sources, meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
+        return {
+          fullText,
+          sources,
+          meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens },
+        };
       }
 
       if (!foundToolCall) {
@@ -1391,7 +1452,11 @@ export class AgentEngine {
     }
 
     recordModelSuccess(resolvedModelId);
-    return { fullText, sources, meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens } };
+    return {
+      fullText,
+      sources,
+      meta: { actualTraceId, toolCallCount, modelId: resolvedModelId, inputTokens, outputTokens },
+    };
   }
 
   // ── 自动链式调用（图片搜索结果 → analyze_image）────────────────────────────

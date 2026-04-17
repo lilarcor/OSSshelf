@@ -80,7 +80,10 @@ export const definitions: ToolDefinition[] = [
       },
       examples: [
         { user_query: '这个文件夹里有什么', tool_call: { folderId: '<folder_id>' } },
-        { user_query: '按时间倒序排列文件', tool_call: { folderId: '<folder_id>', sortBy: 'updated_at', sortOrder: 'desc' } },
+        {
+          user_query: '按时间倒序排列文件',
+          tool_call: { folderId: '<folder_id>', sortBy: 'updated_at', sortOrder: 'desc' },
+        },
         { user_query: '只看图片文件', tool_call: { folderId: '<folder_id>', mimeTypePrefix: 'image/' } },
       ],
     },

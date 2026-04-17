@@ -13,7 +13,17 @@
 
 import { Hono } from 'hono';
 import { eq, and, isNull, desc, sql, gte, lte, lt, inArray } from 'drizzle-orm';
-import { getDb, users, files, storageBuckets, auditLogs, aiChatSessions, aiChatMessages, aiMemories, fileVersions } from '../db';
+import {
+  getDb,
+  users,
+  files,
+  storageBuckets,
+  auditLogs,
+  aiChatSessions,
+  aiChatMessages,
+  aiMemories,
+  fileVersions,
+} from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { ERROR_CODES, logger } from '@osshelf/shared';
 import { throwAppError } from '../middleware/error';
@@ -728,16 +738,12 @@ app.get('/ai/traces', async (c) => {
 
   const items = await Promise.all(
     sessions.map(async (session) => {
-      const messages = await db
-        .select()
-        .from(aiChatMessages)
-        .where(eq(aiChatMessages.sessionId, session.id))
-        .all();
+      const messages = await db.select().from(aiChatMessages).where(eq(aiChatMessages.sessionId, session.id)).all();
 
       const toolCalls = messages.flatMap((m) => (m.toolCalls ? JSON.parse(m.toolCalls as string) : []));
       const assistantMessages = messages.filter((m) => m.role === 'assistant');
 
-      let tokenUsage = { input: 0, output: 0 };
+      const tokenUsage = { input: 0, output: 0 };
       let hasPlan = false;
       let reasoningLength = 0;
 
@@ -772,7 +778,7 @@ app.get('/ai/traces', async (c) => {
         hasPlan,
         reasoningLength,
       };
-    }),
+    })
   );
 
   return c.json({
@@ -814,8 +820,8 @@ app.get('/ai/traces/:traceId', async (c) => {
 
   const assistantMsgs = messages.filter((m) => m.role === 'assistant');
 
-  let tokenUsage = { input: 0, output: 0 };
-  let plan = null;
+  const tokenUsage = { input: 0, output: 0 };
+  const plan = null;
   let reasoning = '';
   let memoryRecalled: string[] = [];
 
@@ -825,12 +831,7 @@ app.get('/ai/traces/:traceId', async (c) => {
     if (msg.reasoning) reasoning += String(msg.reasoning);
   }
 
-  const memories = await db
-    .select()
-    .from(aiMemories)
-    .where(eq(aiMemories.sessionId, sessionId))
-    .limit(5)
-    .all();
+  const memories = await db.select().from(aiMemories).where(eq(aiMemories.sessionId, sessionId)).limit(5).all();
   memoryRecalled = memories.map((m) => m.summary);
 
   const durationMs = session.updatedAt
@@ -871,8 +872,6 @@ app.get('/ai/traces/:traceId', async (c) => {
     },
   });
 });
-
-
 
 // ══════════════════════════════════════════════════════════════
 // 存储审计 API - S3/R2 与数据库文件一致性检查
@@ -998,7 +997,7 @@ import { makeBucketConfigAsync, s3Delete, type S3BucketConfig } from '../lib/s3c
 import { getEncryptionKey } from '../lib/crypto';
 
 app.post('/storage-audit/cleanup-orphans', async (c) => {
-  const body = await c.req.json().catch(() => ({})) as {
+  const body = (await c.req.json().catch(() => ({}))) as {
     bucketId?: string;
     keys?: string[];
     mode?: 'all' | 'selected';
@@ -1020,7 +1019,10 @@ app.post('/storage-audit/cleanup-orphans', async (c) => {
     config = await makeBucketConfigAsync(bucket, encKey, db);
   } catch (error) {
     return c.json(
-      { success: false, error: { code: 'BUCKET_CONFIG_ERROR', message: `无法解析存储桶配置: ${(error as Error).message}` } },
+      {
+        success: false,
+        error: { code: 'BUCKET_CONFIG_ERROR', message: `无法解析存储桶配置: ${(error as Error).message}` },
+      },
       500
     );
   }
@@ -1044,7 +1046,7 @@ app.post('/storage-audit/cleanup-orphans', async (c) => {
 
   const deletedKeys: string[] = [];
   const failedKeys: Array<{ key: string; error: string }> = [];
-  let totalDeletedBytes = 0;
+  const totalDeletedBytes = 0;
 
   for (const key of keysToDelete) {
     try {
@@ -1196,7 +1198,7 @@ app.get('/storage-audit/missing-files/:bucketId', async (c) => {
 
 app.delete('/storage-audit/missing-files/:bucketId/mark-deleted', async (c) => {
   const bucketId = c.req.param('bucketId');
-  const body = await c.req.json().catch(() => ({})) as { fileIds?: string[] };
+  const body = (await c.req.json().catch(() => ({}))) as { fileIds?: string[] };
 
   if (!body.fileIds || body.fileIds.length === 0) {
     return c.json({ success: false, error: { code: 'BAD_REQUEST', message: '缺少 fileIds' } }, 400);

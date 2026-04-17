@@ -298,16 +298,25 @@ async function handleAgentBatchTask(env: Env, message: AiTaskMessage): Promise<{
       case 'move':
         const targetFolderId = (message as any).targetFolderId;
         if (targetFolderId) {
-          await db.update(files).set({ parentId: targetFolderId, updatedAt: new Date().toISOString() }).where(eq(files.id, fileId));
+          await db
+            .update(files)
+            .set({ parentId: targetFolderId, updatedAt: new Date().toISOString() })
+            .where(eq(files.id, fileId));
         }
         break;
       case 'delete':
-        await db.update(files).set({ deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }).where(eq(files.id, fileId));
+        await db
+          .update(files)
+          .set({ deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+          .where(eq(files.id, fileId));
         break;
       case 'rename':
         const newName = (message as any).newName;
         if (newName) {
-          await db.update(files).set({ name: newName, updatedAt: new Date().toISOString() }).where(eq(files.id, fileId));
+          await db
+            .update(files)
+            .set({ name: newName, updatedAt: new Date().toISOString() })
+            .where(eq(files.id, fileId));
         }
         break;
       default:

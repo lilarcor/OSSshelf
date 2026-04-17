@@ -1067,9 +1067,7 @@ export async function s3ListObjects(
   }
 }
 
-export async function s3ListAllBucketsObjects(
-  buckets: Array<{ config: S3BucketConfig; prefix?: string }>
-): Promise<
+export async function s3ListAllBucketsObjects(buckets: Array<{ config: S3BucketConfig; prefix?: string }>): Promise<
   Array<{
     bucketId: string;
     bucketName: string;

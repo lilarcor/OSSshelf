@@ -154,7 +154,10 @@ export const definitions: ToolDefinition[] = [
       examples: [
         { user_query: '找出所有图片', tool_call: { mimeTypePrefix: 'image/', limit: 50 } },
         { user_query: '找出超过100MB的文件', tool_call: { minSize: 104857600, sortBy: 'size', sortOrder: 'desc' } },
-        { user_query: '最近一个月的PDF文档', tool_call: { mimeTypePrefix: 'application/pdf', dateFrom: '2026-03-16', limit: 30 } },
+        {
+          user_query: '最近一个月的PDF文档',
+          tool_call: { mimeTypePrefix: 'application/pdf', dateFrom: '2026-03-16', limit: 30 },
+        },
       ],
     },
   },

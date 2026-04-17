@@ -11,7 +11,12 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminApi, type StorageAuditReport, type BucketAuditResult, type MissingFileDetailResponse } from '@/services/api';
+import {
+  adminApi,
+  type StorageAuditReport,
+  type BucketAuditResult,
+  type MissingFileDetailResponse,
+} from '@/services/api';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { useToast } from '@/components/ui/useToast';
@@ -77,9 +82,10 @@ export function StorageAuditTab() {
   });
 
   const cleanupOrphansMutation = useMutation({
-    mutationFn: (bucketId: string) =>
-      adminApi.cleanupOrphans({ bucketId, mode: 'all' }).then((r) => r.data),
-    onMutate: (bucketId) => { setCleaningBucketId(bucketId); },
+    mutationFn: (bucketId: string) => adminApi.cleanupOrphans({ bucketId, mode: 'all' }).then((r) => r.data),
+    onMutate: (bucketId) => {
+      setCleaningBucketId(bucketId);
+    },
     onSuccess: (data, bucketId) => {
       const d = data?.data;
       if (!d) return;
@@ -100,8 +106,7 @@ export function StorageAuditTab() {
 
   const missingFilesQuery = useQuery({
     queryKey: ['admin', 'storage-audit-missing', showMissingDetails],
-    queryFn: () =>
-      showMissingDetails ? adminApi.getMissingFiles(showMissingDetails).then((r) => r.data.data) : null,
+    queryFn: () => (showMissingDetails ? adminApi.getMissingFiles(showMissingDetails).then((r) => r.data.data) : null),
     enabled: !!showMissingDetails,
     staleTime: 2 * 60 * 1000,
   });
@@ -141,12 +146,7 @@ export function StorageAuditTab() {
                   <span className="text-lg text-muted-foreground">/100</span>
                 </div>
               </div>
-              <div
-                className={cn(
-                  'w-14 h-14 rounded-2xl flex items-center justify-center',
-                  statusConfig.iconBg
-                )}
-              >
+              <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center', statusConfig.iconBg)}>
                 {statusConfig.icon}
               </div>
             </div>
@@ -161,9 +161,7 @@ export function StorageAuditTab() {
               >
                 {statusConfig.label}
               </span>
-              <span className="text-xs text-muted-foreground">
-                一致性 {report.overallConsistencyRate.toFixed(1)}%
-              </span>
+              <span className="text-xs text-muted-foreground">一致性 {report.overallConsistencyRate.toFixed(1)}%</span>
             </div>
 
             {/* 进度条 */}
@@ -263,11 +261,7 @@ export function StorageAuditTab() {
           ) : (
             <RefreshCw className="h-4 w-4 mr-1.5" />
           )}
-          {forceAuditMutation.isPending
-            ? '扫描中...'
-            : isFetching
-              ? '刷新中...'
-              : '强制重新审计'}
+          {forceAuditMutation.isPending ? '扫描中...' : isFetching ? '刷新中...' : '强制重新审计'}
         </Button>
       </div>
 
@@ -323,15 +317,12 @@ export function StorageAuditTab() {
                 <div>
                   <CardTitle className="text-base">丢失文件 — 文件夹路径穿透</CardTitle>
                   <CardDescription>
-                    {missingFilesQuery.data.bucketName} ({missingFilesQuery.data.provider}) — 共 {missingFilesQuery.data.missingCount} 个丢失文件
+                    {missingFilesQuery.data.bucketName} ({missingFilesQuery.data.provider}) — 共{' '}
+                    {missingFilesQuery.data.missingCount} 个丢失文件
                   </CardDescription>
                 </div>
               </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setShowMissingDetails(null)}
-              >
+              <Button size="sm" variant="ghost" onClick={() => setShowMissingDetails(null)}>
                 <XCircle className="h-4 w-4 mr-1" />
                 关闭
               </Button>
@@ -363,7 +354,9 @@ export function StorageAuditTab() {
                             <FileWarning className="h-3.5 w-3.5 text-red-400 flex-shrink-0" />
                             <code className="font-mono truncate max-w-[200px]">{f.name}</code>
                           </div>
-                          <code className="font-mono text-[10px] text-muted-foreground ml-5.5 block truncate max-w-[220px] mt-0.5">{f.r2Key}</code>
+                          <code className="font-mono text-[10px] text-muted-foreground ml-5.5 block truncate max-w-[220px] mt-0.5">
+                            {f.r2Key}
+                          </code>
                         </td>
                         <td className="px-3 py-2">
                           {f.folderPath ? (
@@ -377,7 +370,9 @@ export function StorageAuditTab() {
                             <span className="text-muted-foreground/50">—</span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{formatBytes(f.size)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                          {formatBytes(f.size)}
+                        </td>
                         <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
                           {formatDate(f.createdAt)}
                         </td>
@@ -546,7 +541,8 @@ function BucketDetailCard({
   }
 
   // 正常的 S3 兼容桶
-  const hasIssues = bucket.orphanFiles.length > 0 || bucket.missingFiles.length > 0 || bucket.sizeMismatchFiles.length > 0;
+  const hasIssues =
+    bucket.orphanFiles.length > 0 || bucket.missingFiles.length > 0 || bucket.sizeMismatchFiles.length > 0;
 
   const statusColor = hasIssues
     ? 'border-amber-200/40 bg-amber-50/20 dark:border-amber-800/20 dark:bg-amber-950/5'
@@ -624,7 +620,11 @@ function BucketDetailCard({
                       }}
                       disabled={isCleaning}
                     >
-                      {isCleaning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Eraser className="h-3 w-3 mr-1" />}
+                      {isCleaning ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : (
+                        <Eraser className="h-3 w-3 mr-1" />
+                      )}
                       清理
                     </Button>
                   </>
@@ -826,10 +826,7 @@ function FileIssueList({
       </div>
       <div className="space-y-1 max-h-56 overflow-y-auto">
         {items.map((item, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-background/50 group"
-          >
+          <div key={i} className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-background/50 group">
             <FileWarning className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
             <code className="font-mono flex-1 truncate text-[11px]">{item.key}</code>
             <span className="tabular-nums text-muted-foreground flex-shrink-0">{formatBytes(item.size)}</span>
@@ -841,9 +838,7 @@ function FileIssueList({
           </div>
         ))}
         {total > 15 && (
-          <div className="text-center text-xs text-muted-foreground py-1">
-            还有 {total - 15} 项未显示...
-          </div>
+          <div className="text-center text-xs text-muted-foreground py-1">还有 {total - 15} 项未显示...</div>
         )}
       </div>
     </div>
@@ -862,12 +857,14 @@ function RecommendationCard({
       label: '严重',
     },
     high: {
-      badge: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+      badge:
+        'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800',
       dot: 'bg-orange-500',
       label: '高',
     },
     medium: {
-      badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+      badge:
+        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800',
       dot: 'bg-amber-500',
       label: '中',
     },
@@ -877,7 +874,8 @@ function RecommendationCard({
       label: '低',
     },
     info: {
-      badge: 'bg-slate-100 text-slate-600 dark:bg-slate-800/30 dark:text-slate-400 border-slate-200 dark:border-slate-700',
+      badge:
+        'bg-slate-100 text-slate-600 dark:bg-slate-800/30 dark:text-slate-400 border-slate-200 dark:border-slate-700',
       dot: 'bg-slate-400',
       label: '信息',
     },
@@ -900,12 +898,8 @@ function RecommendationCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h4 className="text-sm font-semibold">{rec.title}</h4>
-              <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium border', cfg.badge)}>
-                {cfg.label}
-              </span>
-              <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium', risk.color)}>
-                {risk.label}
-              </span>
+              <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium border', cfg.badge)}>{cfg.label}</span>
+              <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-medium', risk.color)}>{risk.label}</span>
             </div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{rec.description}</p>
           </div>

@@ -659,6 +659,7 @@ export interface RegistrationConfig {
 }
 
 export const adminApi = {
+  getUser: (id: string) => api.get<ApiResponse<AdminUser>>(`/api/admin/users/${id}`),
   listUsers: () => api.get<ApiResponse<AdminUser[]>>('/api/admin/users'),
   patchUser: (
     id: string,
@@ -690,18 +691,11 @@ export const adminApi = {
     ),
 
   // ── AI Agent 可观测性 ──
-  aiTraceList: (params?: {
-    userId?: string;
-    sessionId?: string;
-    modelId?: string;
-    page?: number;
-    limit?: number;
-  }) =>
+  aiTraceList: (params?: { userId?: string; sessionId?: string; modelId?: string; page?: number; limit?: number }) =>
     api.get<ApiResponse<{ items: AITraceItem[]; total: number; page: number; limit: number }>>('/api/admin/ai/traces', {
       params,
     }),
-  aiTraceDetail: (traceId: string) =>
-    api.get<ApiResponse<AITraceDetail>>(`/api/admin/ai/traces/${traceId}`),
+  aiTraceDetail: (traceId: string) => api.get<ApiResponse<AITraceDetail>>(`/api/admin/ai/traces/${traceId}`),
 
   // ── 存储审计 ──
   storageAudit: () => api.get<ApiResponse<StorageAuditReport>>('/api/admin/storage-audit'),
@@ -711,11 +705,21 @@ export const adminApi = {
 
   // ── 存储审计 - 清理 & 修复 ──
   cleanupOrphans: (data: { bucketId: string; keys?: string[]; mode?: 'all' | 'selected' }) =>
-    api.post<ApiResponse<{ deletedCount: number; deletedKeys: string[]; failedKeys: Array<{ key: string; error: string }>; totalSizeBytes: number }>>('/api/admin/storage-audit/cleanup-orphans', data),
+    api.post<
+      ApiResponse<{
+        deletedCount: number;
+        deletedKeys: string[];
+        failedKeys: Array<{ key: string; error: string }>;
+        totalSizeBytes: number;
+      }>
+    >('/api/admin/storage-audit/cleanup-orphans', data),
   getMissingFiles: (bucketId: string) =>
     api.get<ApiResponse<MissingFileDetailResponse>>(`/api/admin/storage-audit/missing-files/${bucketId}`),
   markMissingDeleted: (bucketId: string, fileIds: string[]) =>
-    api.delete<ApiResponse<{ markedCount: number; message: string }>>(`/api/admin/storage-audit/missing-files/${bucketId}/mark-deleted`, { data: { fileIds } }),
+    api.delete<ApiResponse<{ markedCount: number; message: string }>>(
+      `/api/admin/storage-audit/missing-files/${bucketId}/mark-deleted`,
+      { data: { fileIds } }
+    ),
 };
 
 // ── AI Trace 类型定义 ──
@@ -874,6 +878,7 @@ export const tasksApi = {
         firstPartUrl: string;
       }>
     >('/api/tasks/create', data),
+  start: (taskId: string) => api.post<ApiResponse<{ message: string }>>('/api/tasks/start', { taskId }),
   get: (taskId: string) => api.get<ApiResponse<UploadTask>>(`/api/tasks/${taskId}`),
   part: (data: { taskId: string; partNumber: number }) =>
     api.post<ApiResponse<{ partUrl: string; partNumber: number; expiresIn: number }>>('/api/tasks/part', data),
@@ -933,8 +938,6 @@ export const batchApi = {
   delete: (fileIds: string[]) => api.post<ApiResponse<BatchOperationResult>>('/api/batch/delete', { fileIds }),
   move: (fileIds: string[], targetParentId: string | null) =>
     api.post<ApiResponse<BatchOperationResult>>('/api/batch/move', { fileIds, targetParentId }),
-  copy: (fileIds: string[], targetParentId: string | null, targetBucketId?: string | null) =>
-    api.post<ApiResponse<BatchOperationResult>>('/api/batch/copy', { fileIds, targetParentId, targetBucketId }),
   rename: (items: Array<{ fileId: string; newName: string }>) =>
     api.post<ApiResponse<BatchOperationResult>>('/api/batch/rename', { items }),
   permanentDelete: (fileIds: string[]) =>
@@ -1111,10 +1114,6 @@ export const previewApi = {
   streamUrl: (fileId: string) => `${import.meta.env.VITE_API_URL || ''}/api/preview/${fileId}/stream`,
   thumbnailUrl: (fileId: string, width = 256, height = 256) =>
     `${import.meta.env.VITE_API_URL || ''}/api/preview/${fileId}/thumbnail?width=${width}&height=${height}`,
-  getOffice: (fileId: string) =>
-    api.get<ApiResponse<{ fileName: string; mimeType: string; base64Content: string; size: number }>>(
-      `/api/preview/${fileId}/office`
-    ),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1254,6 +1253,19 @@ export const groupsApi = {
   list: () => api.get<ApiResponse<{ owned: UserGroup[]; memberOf: UserGroup[] }>>('/api/groups'),
   create: (data: { name: string; description?: string }) => api.post<ApiResponse<UserGroup>>('/api/groups', data),
   get: (id: string) => api.get<ApiResponse<UserGroup>>(`/api/groups/${id}`),
+  getFiles: (id: string) =>
+    api.get<
+      ApiResponse<
+        Array<{
+          id: string;
+          fileId: string;
+          permission: string;
+          createdAt: string;
+          fileName: string | null;
+          filePath: string | null;
+        }>
+      >
+    >(`/api/groups/${id}/files`),
   update: (id: string, data: { name?: string; description?: string }) =>
     api.put<ApiResponse<{ message: string }>>(`/api/groups/${id}`, data),
   delete: (id: string) => api.delete<ApiResponse<{ message: string }>>(`/api/groups/${id}`),
@@ -1519,17 +1531,6 @@ export const aiApi = {
 
   getIndexSample: (fileId: string) => api.get<ApiResponse<AIIndexSample>>(`/api/ai/index/sample/${fileId}`),
 
-  chat: (query: string, options?: { scope?: string; folderId?: string; limit?: number }) =>
-    api.post<
-      ApiResponse<{
-        answer: string;
-        sources: Array<{ id: string; name: string; mimeType: string | null; score: number }>;
-      }>
-    >('/api/ai/chat', {
-      query,
-      ...options,
-    }),
-
   // 新增：AI配置管理
   config: {
     getModels: (capability?: 'chat' | 'vision' | 'embedding') =>
@@ -1762,9 +1763,13 @@ export const aiApi = {
 
   memories: {
     list: (params?: { type?: string; limit?: number; offset?: number }) =>
-      api.get<ApiResponse<{ items: Array<{ id: string; type: string; summary: string; sessionId: string; createdAt: string }>; total: number }>>('/api/ai-chat/memories', { params }),
-    delete: (memoryId: string) =>
-      api.delete<ApiResponse<{ success: boolean }>>(`/api/ai-chat/memories/${memoryId}`),
+      api.get<
+        ApiResponse<{
+          items: Array<{ id: string; type: string; summary: string; sessionId: string; createdAt: string }>;
+          total: number;
+        }>
+      >('/api/ai-chat/memories', { params }),
+    delete: (memoryId: string) => api.delete<ApiResponse<{ success: boolean }>>(`/api/ai-chat/memories/${memoryId}`),
   },
 };
 
@@ -2023,6 +2028,37 @@ export const analyticsApi = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Versions (版本历史)
+// ─────────────────────────────────────────────────────────────────────────────
+export interface VersionInfo {
+  id: string;
+  version: number;
+  size: number;
+  mimeType: string | null;
+  changeSummary: string | null;
+  aiChangeSummary: string | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export interface VersionsListData {
+  versions: VersionInfo[];
+  currentVersion: number;
+  maxVersions: number;
+  versionRetentionDays: number;
+}
+
+export const versionsApi = {
+  getList: (fileId: string) => api.get<ApiResponse<VersionsListData>>(`/api/versions/${fileId}/versions`),
+  restore: (fileId: string, version: number) =>
+    api.post<ApiResponse<{ message: string }>>(`/api/versions/${fileId}/versions/${version}/restore`),
+  download: (fileId: string, version: number) =>
+    api.get<Blob>(`/api/versions/${fileId}/versions/${version}/download`, { responseType: 'blob' }),
+  delete: (fileId: string, version: number) =>
+    api.delete<ApiResponse<{ message: string }>>(`/api/versions/${fileId}/versions/${version}`),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Notifications (通知系统)
 // ─────────────────────────────────────────────────────────────────────────────
 export interface Notification {
@@ -2052,6 +2088,17 @@ export const notificationsApi = {
   delete: (id: string) => api.delete<ApiResponse<{ message: string }>>(`/api/notifications/${id}`),
 
   clearRead: () => api.delete<ApiResponse<{ message: string }>>('/api/notifications/read'),
+
+  stream: (options?: { signal?: AbortSignal }) =>
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/notifications/stream`, {
+      method: 'GET',
+      headers: {
+        Authorization: useAuthStore.getState().token ? `Bearer ${useAuthStore.getState().token}` : '',
+        Accept: 'text/event-stream',
+      },
+      credentials: 'include',
+      signal: options?.signal,
+    }),
 };
 
 export default api;

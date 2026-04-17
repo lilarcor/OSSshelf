@@ -47,7 +47,10 @@ export const definitions: ToolDefinition[] = [
       },
       examples: [
         { user_query: '在这个文档上记个笔记', tool_call: { fileId: '<doc_id>', content: '重要：第3页的数据需要核实' } },
-        { user_query: '标注一下这个文件的重点', tool_call: { fileId: '<report_id>', content: '## 重点摘要\n- 项目进度：80%\n- 风险点：...' } },
+        {
+          user_query: '标注一下这个文件的重点',
+          tool_call: { fileId: '<report_id>', content: '## 重点摘要\n- 项目进度：80%\n- 风险点：...' },
+        },
       ],
     },
   },
@@ -96,7 +99,10 @@ export const definitions: ToolDefinition[] = [
         required: ['noteId', 'content'],
       },
       examples: [
-        { user_query: '更新一下之前的备注', tool_call: { noteId: '<note_id>', content: '更新后的笔记内容：数据已核实，可以提交' } },
+        {
+          user_query: '更新一下之前的备注',
+          tool_call: { noteId: '<note_id>', content: '更新后的笔记内容：数据已核实，可以提交' },
+        },
         { user_query: '修正笔记中的错误', tool_call: { noteId: '<note_id>', content: '修正：日期应为2026-04-16' } },
       ],
     },

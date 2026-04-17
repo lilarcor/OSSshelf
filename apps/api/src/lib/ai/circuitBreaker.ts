@@ -47,7 +47,10 @@ export function classifyError(error: unknown): 'model_error' | 'network_timeout'
   return 'unknown';
 }
 
-export async function isModelAvailable(modelId: string, env?: { KV: { get: (key: string) => Promise<string | null> } }): Promise<boolean> {
+export async function isModelAvailable(
+  modelId: string,
+  env?: { KV: { get: (key: string) => Promise<string | null> } }
+): Promise<boolean> {
   const cached = circuitCache.get(modelId);
   if (cached && cached.state === 'open') {
     const elapsed = Date.now() - cached.lastFailureTime;

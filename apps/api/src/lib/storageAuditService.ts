@@ -154,8 +154,7 @@ function generateHealthScore(report: StorageAuditReport): number {
   score -= report.failedBuckets * 15;
 
   const inconsistencyRatio =
-    (report.totalOrphanFiles + report.totalMissingFiles + report.totalSizeMismatches) /
-    Math.max(totalFiles, 1);
+    (report.totalOrphanFiles + report.totalMissingFiles + report.totalSizeMismatches) / Math.max(totalFiles, 1);
   score -= inconsistencyRatio * 20;
 
   return Math.max(0, Math.min(100, Math.round(score)));
@@ -170,8 +169,7 @@ function generateRecommendations(report: StorageAuditReport): RemediationRecomme
       category: 'orphan_cleanup',
       severity: report.totalOrphanFiles > 100 ? 'high' : report.totalOrphanFiles > 10 ? 'medium' : 'low',
       title: `清理 ${report.totalOrphanFiles} 个孤儿文件`,
-      description:
-        `发现 ${report.totalOrphanFiles} 个存在于存储桶但数据库中无记录的文件，占用空间 ${formatBytes(report.totalOrphanSizeBytes)}。这些可能是上传中断、删除操作未完成或数据迁移遗留的文件。`,
+      description: `发现 ${report.totalOrphanFiles} 个存在于存储桶但数据库中无记录的文件，占用空间 ${formatBytes(report.totalOrphanSizeBytes)}。这些可能是上传中断、删除操作未完成或数据迁移遗留的文件。`,
       affectedCount: report.totalOrphanFiles,
       affectedSizeBytes: report.totalOrphanSizeBytes,
       action: '使用提供的清理API批量删除孤儿文件，或在确认无业务影响后手动清理',
@@ -186,8 +184,7 @@ function generateRecommendations(report: StorageAuditReport): RemediationRecomme
       category: 'missing_recovery',
       severity: report.totalMissingFiles > 50 ? 'critical' : report.totalMissingFiles > 10 ? 'high' : 'medium',
       title: `恢复 ${report.totalMissingFiles} 个丢失文件`,
-      description:
-        `发现 ${report.totalMissingFiles} 个在数据库中有记录但存储桶中不存在的文件（共 ${formatBytes(report.totalMissingSizeBytes)}）。这可能导致用户无法下载文件，属于数据完整性问题。`,
+      description: `发现 ${report.totalMissingFiles} 个在数据库中有记录但存储桶中不存在的文件（共 ${formatBytes(report.totalMissingSizeBytes)}）。这可能导致用户无法下载文件，属于数据完整性问题。`,
       affectedCount: report.totalMissingFiles,
       affectedSizeBytes: report.totalMissingSizeBytes,
       action: '检查是否有备份可恢复，确认后更新数据库状态或将文件标记为已损坏',
@@ -202,8 +199,7 @@ function generateRecommendations(report: StorageAuditReport): RemediationRecomme
       category: 'size_sync',
       severity: 'medium',
       title: `同步 ${report.totalSizeMismatches} 个大小不一致的文件`,
-      description:
-        `发现 ${report.totalSizeMismatches} 个文件的数据库记录大小与存储实际大小不匹配。这可能导致存储配额计算不准确。`,
+      description: `发现 ${report.totalSizeMismatches} 个文件的数据库记录大小与存储实际大小不匹配。这可能导致存储配额计算不准确。`,
       affectedCount: report.totalSizeMismatches,
       affectedSizeBytes: 0,
       action: '以存储桶实际大小为准更新数据库记录，或重新校验文件哈希值',

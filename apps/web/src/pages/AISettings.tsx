@@ -260,7 +260,10 @@ export function AISettings() {
 
   const { data: memoriesData, isLoading: isLoadingMemories } = useQuery({
     queryKey: ['ai-memories', memoryTypeFilter, memoryPage],
-    queryFn: () => aiApi.memories.list({ type: memoryTypeFilter || undefined, limit: 20, offset: (memoryPage - 1) * 20 }).then((r) => r.data.data),
+    queryFn: () =>
+      aiApi.memories
+        .list({ type: memoryTypeFilter || undefined, limit: 20, offset: (memoryPage - 1) * 20 })
+        .then((r) => r.data.data),
     staleTime: 30000,
   });
 
@@ -711,7 +714,10 @@ export function AISettings() {
               <div className="flex items-center gap-2">
                 <select
                   value={memoryTypeFilter}
-                  onChange={(e) => { setMemoryTypeFilter(e.target.value); setMemoryPage(1); }}
+                  onChange={(e) => {
+                    setMemoryTypeFilter(e.target.value);
+                    setMemoryPage(1);
+                  }}
                   className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm"
                 >
                   <option value="">全部类型</option>
@@ -746,22 +752,31 @@ export function AISettings() {
               </div>
             ) : (
               <>
-                <div className="text-sm text-muted-foreground mb-2">
-                  共 {memoriesData.total} 条记忆
-                </div>
+                <div className="text-sm text-muted-foreground mb-2">共 {memoriesData.total} 条记忆</div>
                 <div className="space-y-2">
                   {memoriesData.items.map((m) => (
                     <div
                       key={m.id}
                       className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors group"
                     >
-                      <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                        m.type === 'operation' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
-                        m.type === 'preference' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' :
-                        m.type === 'path' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
-                        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                      }`}>
-                        {m.type === 'operation' ? '操作' : m.type === 'preference' ? '偏好' : m.type === 'path' ? '路径' : '引用'}
+                      <span
+                        className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                          m.type === 'operation'
+                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                            : m.type === 'preference'
+                              ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                              : m.type === 'path'
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                        }`}
+                      >
+                        {m.type === 'operation'
+                          ? '操作'
+                          : m.type === 'preference'
+                            ? '偏好'
+                            : m.type === 'path'
+                              ? '路径'
+                              : '引用'}
                       </span>
                       <p className="flex-1 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{m.summary}</p>
                       <span className="flex-shrink-0 text-[11px] text-slate-400 whitespace-nowrap">

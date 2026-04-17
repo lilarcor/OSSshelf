@@ -17,6 +17,7 @@
 
 import axios from 'axios';
 import { useAuthStore } from '../stores/auth';
+import { tasksApi } from './api';
 import type { UploadedFile } from '@osshelf/shared';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -158,7 +159,7 @@ async function singlePresignUpload(
     throw new Error('预签名上传：服务器未返回上传 URL');
   }
 
-  await apiPost('/api/tasks/start', { taskId }).catch(() => {});
+  await tasksApi.start(taskId).catch(() => {});
 
   // 读取 buffer 并计算 SHA-256（用于服务端去重）
   const fileBuffer = await file.arrayBuffer();
@@ -226,7 +227,6 @@ async function multipartUpload(
   let taskId: string;
   let uploadId: string;
   let r2Key: string;
-  let resolvedBucketId: string | undefined;
   let firstPartUrl: string | undefined;
 
   // 如果提供了现有任务ID，使用断点续传模式
@@ -243,7 +243,6 @@ async function multipartUpload(
     }>(`/api/tasks/${existingTaskId}`);
     uploadId = taskInfo.uploadId;
     r2Key = taskInfo.r2Key;
-    resolvedBucketId = taskInfo.bucketId;
     // 合并服务器返回的已上传分片
     skipParts = [...new Set([...skipParts, ...taskInfo.uploadedParts])];
   } else {
@@ -280,7 +279,6 @@ async function multipartUpload(
     const initData = init as any;
     uploadId = initData.uploadId;
     r2Key = initData.r2Key;
-    resolvedBucketId = initData.bucketId;
     firstPartUrl = initData.firstPartUrl;
     taskId = initData.taskId;
     if (!uploadId || !r2Key) {
@@ -305,8 +303,6 @@ async function multipartUpload(
     try {
       if (taskId) {
         await apiPost('/api/tasks/abort', { taskId });
-      } else {
-        await apiPost('/api/presign/multipart/abort', { r2Key, uploadId, bucketId: resolvedBucketId });
       }
     } catch {
       /* ignore */

@@ -446,7 +446,7 @@ function AITraceTab() {
                     className={cn(
                       'p-3 rounded-lg border cursor-pointer transition-all hover:shadow-sm',
                       statusConfig.color,
-                      selectedTrace === trace.id && 'ring-2 ring-violet-400',
+                      selectedTrace === trace.id && 'ring-2 ring-violet-400'
                     )}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -470,9 +470,7 @@ function AITraceTab() {
                       </div>
                     </div>
 
-                    {selectedTrace === trace.id && (
-                      <AITraceDetailPanel traceId={trace.traceId} />
-                    )}
+                    {selectedTrace === trace.id && <AITraceDetailPanel traceId={trace.traceId} />}
                   </div>
                 );
               })}
@@ -481,13 +479,23 @@ function AITraceTab() {
 
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-4">
-              <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
                 上一页
               </Button>
               <span className="text-sm text-muted-foreground">
                 {page} / {totalPages}
               </span>
-              <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+              >
                 下一页
               </Button>
             </div>
@@ -552,7 +560,7 @@ function AITraceDetailPanel({ traceId }: { traceId: string }) {
                         ? 'bg-blue-500 animate-pulse'
                         : step.status === 'skipped'
                           ? 'bg-gray-400'
-                          : 'bg-gray-300',
+                          : 'bg-gray-300'
                   )}
                 />
                 <span className={step.status === 'skipped' ? 'line-through text-muted-foreground' : ''}>
@@ -576,15 +584,13 @@ function AITraceDetailPanel({ traceId }: { traceId: string }) {
                   'flex items-center gap-2 p-2 rounded text-xs border-l-2',
                   tc.status === 'success'
                     ? 'border-green-400 bg-green-50/30 dark:bg-green-950/10'
-                    : 'border-red-400 bg-red-50/30 dark:bg-red-950/10',
+                    : 'border-red-400 bg-red-50/30 dark:bg-red-950/10'
                 )}
               >
                 <span className="font-mono font-medium text-violet-600 dark:text-violet-400 min-w-[120px] truncate">
                   {tc.name}
                 </span>
-                <span className="text-muted-foreground flex-1 truncate">
-                  {JSON.stringify(tc.args)?.slice(0, 60)}
-                </span>
+                <span className="text-muted-foreground flex-1 truncate">{JSON.stringify(tc.args)?.slice(0, 60)}</span>
                 <span className="text-muted-foreground">{formatDuration(tc.durationMs)}</span>
               </div>
             ))}
@@ -598,7 +604,9 @@ function AITraceDetailPanel({ traceId }: { traceId: string }) {
           <div className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">🧠 召回记忆</div>
           <ul className="space-y-0.5">
             {detail.memoryRecalled.map((mem, i) => (
-              <li key={i} className="text-xs text-muted-foreground pl-2">• {mem}</li>
+              <li key={i} className="text-xs text-muted-foreground pl-2">
+                • {mem}
+              </li>
             ))}
           </ul>
         </div>
