@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi, type AdminUser } from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
@@ -51,7 +52,14 @@ type TabKey = 'users' | 'registration' | 'email' | 'stats' | 'audit' | 'ai-trace
 
 export default function Admin() {
   const { user: currentUser } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<TabKey>('users');
+  const { tab: urlTab } = useParams<{ tab?: string }>();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<TabKey>((urlTab as TabKey) || 'users');
+
+  const handleTabChange = (tabKey: TabKey) => {
+    setActiveTab(tabKey);
+    navigate(`/admin/${tabKey}`, { replace: true });
+  };
 
   if (currentUser?.role !== 'admin') {
     return (
@@ -90,7 +98,7 @@ export default function Admin() {
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
               className={cn(
                 'flex items-center gap-2 px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0',
                 activeTab === tab.key

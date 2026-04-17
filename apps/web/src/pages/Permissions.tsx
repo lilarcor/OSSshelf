@@ -11,6 +11,7 @@
  */
 
 import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { cn } from '@/utils';
 import { Users, Webhook, Key, BookOpen, Shield, HelpCircle } from 'lucide-react';
 import { GroupList } from '@/components/groups';
@@ -29,8 +30,15 @@ const tabs: Array<{ id: TabType; label: string; icon: React.ElementType }> = [
 ];
 
 const Permissions: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('authorizations');
+  const { tab: urlTab } = useParams<{ tab?: string }>();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<TabType>((urlTab as TabType) || 'authorizations');
   const [showHelp, setShowHelp] = useState(false);
+
+  const handleTabChange = (tabId: TabType) => {
+    setActiveTab(tabId);
+    navigate(`/permissions/${tabId}`, { replace: true });
+  };
 
   return (
     <div className="space-y-6">
@@ -67,7 +75,7 @@ const Permissions: React.FC = () => {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={cn(
                 'flex items-center gap-1 px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-medium transition-colors relative whitespace-nowrap flex-shrink-0',
                 activeTab === tab.id

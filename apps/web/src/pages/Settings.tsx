@@ -12,6 +12,7 @@
  */
 
 import { useState, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi, type EmailPreferences } from '@/services/api';
@@ -337,9 +338,16 @@ export default function Settings() {
   const { user, updateUser, logout } = useAuthStore();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { tab: urlTab } = useParams<{ tab?: string }>();
+  const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
+  const [activeTab, setActiveTab] = useState<SettingsTab>((urlTab as SettingsTab) || 'profile');
   const [name, setName] = useState(user?.name || '');
+
+  const handleTabChange = (tabId: SettingsTab) => {
+    setActiveTab(tabId);
+    navigate(`/settings/${tabId}`, { replace: true });
+  };
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
@@ -419,7 +427,7 @@ export default function Settings() {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={cn(
                 'flex items-center gap-1.5 px-3 lg:px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0',
                 activeTab === tab.id

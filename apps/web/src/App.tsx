@@ -166,6 +166,14 @@ function App() {
           }
         />
         <Route
+          path="/shares/:tab"
+          element={
+            <LazyWrapper>
+              <LazyShares />
+            </LazyWrapper>
+          }
+        />
+        <Route
           path="/trash"
           element={
             <LazyWrapper>
@@ -175,6 +183,14 @@ function App() {
         />
         <Route
           path="/settings"
+          element={
+            <LazyWrapper>
+              <LazySettings />
+            </LazyWrapper>
+          }
+        />
+        <Route
+          path="/settings/:tab"
           element={
             <LazyWrapper>
               <LazySettings />
@@ -214,6 +230,14 @@ function App() {
           }
         />
         <Route
+          path="/permissions/:tab"
+          element={
+            <LazyWrapper>
+              <LazyPermissions />
+            </LazyWrapper>
+          }
+        />
+        <Route
           path="/analytics"
           element={
             <LazyWrapper>
@@ -238,7 +262,23 @@ function App() {
           }
         />
         <Route
+          path="/admin/:tab"
+          element={
+            <LazyWrapper>
+              <LazyAdmin />
+            </LazyWrapper>
+          }
+        />
+        <Route
           path="/ai-settings"
+          element={
+            <LazyWrapper>
+              <LazyAISettings />
+            </LazyWrapper>
+          }
+        />
+        <Route
+          path="/ai-settings/:tab"
           element={
             <LazyWrapper>
               <LazyAISettings />

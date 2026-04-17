@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Cpu,
   Plus,
@@ -45,11 +45,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 type TabType = 'models' | 'providers' | 'index' | 'vectors' | 'advanced' | 'memory';
 
 export function AISettings() {
+  const { tab: urlTab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<TabType>('models');
+  const [activeTab, setActiveTab] = useState<TabType>((urlTab as TabType) || 'models');
   const [showAddModal, setShowAddModal] = useState(false);
+
+  const handleTabChange = (tabId: TabType) => {
+    setActiveTab(tabId);
+    navigate(`/ai-settings/${tabId}`, { replace: true });
+  };
   const [showProviderModal, setShowProviderModal] = useState(false);
   const [editingModel, setEditingModel] = useState<AiModel | null>(null);
   const [expandedModelId, setExpandedModelId] = useState<string | null>(null);
@@ -483,7 +489,7 @@ export function AISettings() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => handleTabChange(tab.id)}
                     className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
                       activeTab === tab.id
                         ? 'bg-primary text-primary-foreground shadow-md'
