@@ -14,6 +14,7 @@ import { eq, and, isNull, inArray } from 'drizzle-orm';
 import { getDb, files, fileVersions, storageBuckets } from '../db';
 import { makeBucketConfigAsync } from './s3client';
 import { s3ListObjects, type S3ObjectInfo, type ListObjectsResult } from './s3client';
+import { getEncryptionKey } from './crypto';
 import { logger } from '@osshelf/shared';
 
 export interface StorageMismatchItem {
@@ -104,7 +105,7 @@ export interface AuditSummary {
   };
 }
 
-const ENC_KEY_PREFIX = 'enc_key:';
+const S3_COMPATIBLE_PROVIDERS = new Set(['s3', 'r2', 'b2', 'oss', 'cos', 'obs', 'minio']);
 const NON_S3_PROVIDERS = new Set(['telegram']);
 const TG_BUCKET_NAME_PATTERN = /^-?\d+$/;
 
@@ -114,17 +115,11 @@ function isTelegramBucket(bucket: typeof storageBuckets.$inferSelect): boolean {
   return false;
 }
 
-const S3_COMPATIBLE_PROVIDERS = new Set(['s3', 'r2', 'b2', 'oss', 'cos', 'obs', 'minio']);
-
 function isS3CompatibleBucket(bucket: typeof storageBuckets.$inferSelect): boolean {
   if (isTelegramBucket(bucket)) return false;
   if (S3_COMPATIBLE_PROVIDERS.has(bucket.provider)) return true;
   if (bucket.endpoint && bucket.endpoint.length > 0) return true;
   return false;
-}
-
-async function getUserEncKey(kv: KVNamespace, userId: string): Promise<string | null> {
-  return kv.get(`${ENC_KEY_PREFIX}${userId}`);
 }
 
 function formatBytes(bytes: number): string {
@@ -268,10 +263,12 @@ function generateRecommendations(report: StorageAuditReport): RemediationRecomme
 export async function performStorageAudit(env: {
   DB: D1Database;
   KV: KVNamespace;
+  JWT_SECRET: string;
 }): Promise<StorageAuditReport> {
   const startTime = Date.now();
   const auditId = `audit_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   const db = getDb(env.DB);
+  const encKey = getEncryptionKey(env);
 
   const allBuckets = await db.select().from(storageBuckets).where(eq(storageBuckets.isActive, true)).all();
 
@@ -322,7 +319,7 @@ export async function performStorageAudit(env: {
   }
 
   for (const bucket of s3Buckets) {
-    const bucketResult = await auditSingleBucket(db, env.KV, bucket);
+    const bucketResult = await auditSingleBucket(db, bucket, encKey);
     bucketResults.push(bucketResult);
 
     if (!bucketResult.connected) {
@@ -409,8 +406,8 @@ export async function performStorageAudit(env: {
 
 async function auditSingleBucket(
   db: ReturnType<typeof getDb>,
-  kv: KVNamespace,
-  bucketRow: typeof storageBuckets.$inferSelect
+  bucketRow: typeof storageBuckets.$inferSelect,
+  encKey: string
 ): Promise<BucketAuditResult> {
   const bucketId = bucketRow.id;
   const bucketName = bucketRow.bucketName;
@@ -420,10 +417,6 @@ async function auditSingleBucket(
   let connectionError: string | null = null;
 
   try {
-    const encKey = await getUserEncKey(kv, bucketRow.userId);
-    if (!encKey) {
-      throw new Error(`用户 ${bucketRow.userId} 的加密密钥不存在`);
-    }
     const config = await makeBucketConfigAsync(bucketRow, encKey, db);
 
     logger.info('STORAGE_AUDIT', `正在列出存储桶 ${bucketName} 文件`, {

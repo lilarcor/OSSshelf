@@ -888,7 +888,7 @@ app.get('/storage-audit', async (c) => {
   }
 
   try {
-    const report = await performStorageAudit({ DB: c.env.DB, KV: c.env.KV });
+    const report = await performStorageAudit({ DB: c.env.DB, KV: c.env.KV, JWT_SECRET: c.env.JWT_SECRET });
 
     await createAuditLog({
       env: c.env,
@@ -921,7 +921,7 @@ app.get('/storage-audit', async (c) => {
 
 app.post('/storage-audit/force', async (c) => {
   try {
-    const report = await performStorageAudit({ DB: c.env.DB, KV: c.env.KV });
+    const report = await performStorageAudit({ DB: c.env.DB, KV: c.env.KV, JWT_SECRET: c.env.JWT_SECRET });
 
     await createAuditLog({
       env: c.env,
@@ -960,7 +960,7 @@ app.get('/storage-audit/bucket/:bucketId', async (c) => {
   }
 
   try {
-    const fullReport = await performStorageAudit({ DB: c.env.DB, KV: c.env.KV });
+    const fullReport = await performStorageAudit({ DB: c.env.DB, KV: c.env.KV, JWT_SECRET: c.env.JWT_SECRET });
     const bucketResult = fullReport.buckets.find((b) => b.bucketId === bucketId);
 
     if (!bucketResult) {
