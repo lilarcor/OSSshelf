@@ -517,6 +517,8 @@ export function AIChat() {
 
       const finalQuery = quotedMessage ? `[引用]: ${quotedMessage.content}\n\n${query}` : query;
 
+      let contextFileIdsForApi: string[] | undefined;
+
       if (regenerateFromId) {
         setMessages((prev) => {
           const idx = prev.findIndex((m) => m.id === regenerateFromId);
@@ -524,6 +526,7 @@ export function AIChat() {
         });
       } else {
         const currentMentionedFiles = [...mentionedFilesRef.current];
+        contextFileIdsForApi = currentMentionedFiles.length > 0 ? currentMentionedFiles.map((f) => f.id) : undefined;
         setMessages((prev) => [
           ...prev,
           {
@@ -565,7 +568,7 @@ export function AIChat() {
           maxFiles: 8,
           includeFileContent: false,
           contextFolderId,
-          contextFileIds: mentionedFilesRef.current.length > 0 ? mentionedFilesRef.current.map((f) => f.id) : undefined,
+          contextFileIds: contextFileIdsForApi,
           onChunk: (raw: SseChunk) => {
             if (raw.type === 'plan' && raw.plan) {
               setExecutionPlans((prev) => new Map(prev).set(assistantId, raw.plan!));
