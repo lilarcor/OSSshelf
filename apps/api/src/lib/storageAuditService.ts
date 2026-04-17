@@ -446,7 +446,7 @@ async function auditSingleBucket(
 
   const bucketFileIds = dbFiles.map((f) => f.id);
 
-  const BATCH_SIZE = 900;
+  const BATCH_SIZE = 100;
   const dbVersionFiles: Array<{
     id: string;
     fileId: string;
@@ -455,20 +455,38 @@ async function auditSingleBucket(
   }> = [];
 
   if (bucketFileIds.length > 0) {
+    logger.info('STORAGE_AUDIT', `查询文件版本记录`, {
+      bucketId,
+      totalFileIds: bucketFileIds.length,
+      batchCount: Math.ceil(bucketFileIds.length / BATCH_SIZE),
+    });
+
     for (let i = 0; i < bucketFileIds.length; i += BATCH_SIZE) {
       const batch = bucketFileIds.slice(i, i + BATCH_SIZE);
-      const batchResults = await db
-        .select({
-          id: fileVersions.id,
-          fileId: fileVersions.fileId,
-          r2Key: fileVersions.r2Key,
-          size: fileVersions.size,
-        })
-        .from(fileVersions)
-        .where(inArray(fileVersions.fileId, batch))
-        .all();
-      dbVersionFiles.push(...batchResults);
+      try {
+        const batchResults = await db
+          .select({
+            id: fileVersions.id,
+            fileId: fileVersions.fileId,
+            r2Key: fileVersions.r2Key,
+            size: fileVersions.size,
+          })
+          .from(fileVersions)
+          .where(inArray(fileVersions.fileId, batch))
+          .all();
+        dbVersionFiles.push(...batchResults);
+      } catch (batchError) {
+        logger.error(
+          'STORAGE_AUDIT',
+          `文件版本批次查询失败 (batch ${i}-${i + batch.length}, size=${batch.length})`,
+          { bucketId, batchStart: i, batchSize: batch.length },
+          batchError
+        );
+        throw new Error(`文件版本查询超出D1限制，当前桶文件数过多(${bucketFileIds.length}个)，建议分批审计`);
+      }
     }
+
+    logger.info('STORAGE_AUDIT', `文件版本查询完成`, { totalVersions: dbVersionFiles.length });
   }
 
   const allDbR2Keys = new Map<string, { fileId: string; fileName: string; fileSize: number }>();
