@@ -1831,6 +1831,7 @@ export interface AiChatMessage {
   modelUsed?: string;
   latencyMs?: number;
   aborted?: boolean;
+  mentionedFiles?: Array<{ id: string; name: string }>;
   createdAt: string;
 }
 

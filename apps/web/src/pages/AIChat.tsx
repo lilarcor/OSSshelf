@@ -466,7 +466,6 @@ export function AIChat() {
         setCurrentSessionId(sessionId);
         setMessages(
           res.data.data.messages.map((m: AiChatMessage) => {
-            // 占位消息（content 为空且未标记 aborted）说明 Worker 意外终止，标记为中断
             const isInterrupted =
               m.role === 'assistant' && !m.content && !m.aborted;
             return {
@@ -477,6 +476,7 @@ export function AIChat() {
               toolCalls: m.toolCalls || [],
               reasoning: m.reasoning || undefined,
               aborted: m.aborted || isInterrupted,
+              mentionedFiles: m.mentionedFiles,
               timestamp: new Date(m.createdAt),
             };
           })
