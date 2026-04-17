@@ -1005,6 +1005,25 @@ eventSource.addEventListener('plan_step_update', (e) => {
   const data = JSON.parse(e.data);
   updatePlanStepStatus(data.stepId, data.status);
 });
+
+// v4.7.0 新增：中断处理
+// 当用户手动停止或连接中断时，前端应保留已接收内容
+const abortController = new AbortController();
+eventSource.addEventListener('error', async (e) => {
+  // 检查是否为用户主动中断
+  if (abortController.signal.aborted) {
+    // 保留已输出内容，标记 aborted 状态
+    markMessageAsAborted(lastMessageId);
+    showAbortIndicator();
+  }
+  eventSource.close();
+});
+
+// 手动停止
+function stopGeneration() {
+  abortController.abort();
+  // API 层会抛出 DOMException('AbortError')，前端统一捕获
+}
 ```
 
 ---
@@ -1045,6 +1064,7 @@ eventSource.addEventListener('plan_step_update', (e) => {
 | `TASK_RUNNING`        | 任务正在运行     | 409         |
 | `CONFIRM_EXPIRED`     | 确认请求已过期   | 400         |
 | `CONFIRM_CONSUMED`    | 确认请求已使用   | 400         |
+| `TOKEN_EXPIRED`       | Token 已过期（v4.7.0 修正为 A006） | 401         |
 
 ### 错误处理最佳实践
 
@@ -1076,6 +1096,59 @@ try {
   showNetworkError();
 }
 ```
+
+### v4.7.0 中断处理机制（流式输出稳定性）
+
+**问题背景**：v4.7.0 修复了 AI 对话流式输出中断时内容丢失的问题。
+
+**消息类型扩展（aborted 字段）**
+
+```typescript
+interface AiChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: Array<{ id: string; fileName: string; score?: number }>;
+  toolCalls?: Array<{
+    id: string;
+    toolName: string;
+    args: Record<string, unknown>;
+    result?: unknown;
+    status: 'running' | 'done' | 'error';
+  }>;
+  reasoning?: string;
+  modelUsed?: string;
+  latencyMs?: number;
+  aborted?: boolean;          // v4.7.0 新增：标记消息是否被中断
+  mentionedFiles?: Array<{   // v4.7.0 新增：@mention 引用的文件列表
+    id: string;
+    name: string;
+  }>;
+  createdAt: string;
+}
+```
+
+**中断处理流程**
+
+```
+用户点击停止 / 连接超时
+       ↓
+AbortController.abort() → signal.aborted = true
+       ↓
+API 层检测到 signal → 抛出 DOMException('AbortError')
+       ↓
+前端 catch AbortError → 保留已接收的 content
+       ↓
+设置 aborted: true + 显示"输出已中断"提示
+       ↓
+显示"重新生成"按钮（可基于当前上下文重新发起）
+```
+
+**前端实现要点**
+1. `api.ts` 中请求开始前检查 `signal.aborted`
+2. 流式读取循环中每轮检查中断信号，及时取消 `reader`
+3. 统一抛出标准 `DOMException('AbortError')`，避免被重试逻辑误捕获
+4. `AIChat.tsx` 中中断时设置 `content: m.content || ''`（保留已输出内容）
 
 ---
 

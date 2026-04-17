@@ -3,16 +3,17 @@
  * 存储桶与数据库文件一致性审计服务
  *
  * 功能:
- * - 反查S3/R2存储桶所有文件
+ * - 反查S3/R2/B2存储桶所有文件（自动选择V1/V2 API）
  * - 与数据库files/fileVersions表记录对比
+ * - 自动过滤Telegram存储桶（不参与S3兼容存储分析）
  * - 检测孤儿文件(存储有DB无)和丢失文件(DB有存储无)
  * - 生成数据分析报告与整改建议
  */
 
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, inArray } from 'drizzle-orm';
 import { getDb, files, fileVersions, storageBuckets } from '../db';
 import { makeBucketConfigAsync } from './s3client';
-import { s3ListObjectsV2, type S3ObjectInfo, type ListObjectsResult } from './s3client';
+import { s3ListObjects, type S3ObjectInfo, type ListObjectsResult } from './s3client';
 import { logger } from '@osshelf/shared';
 
 export interface StorageMismatchItem {
@@ -30,7 +31,12 @@ export interface BucketAuditResult {
   bucketId: string;
   bucketName: string;
   provider: string;
-  isActive: boolean;
+
+  skipped: boolean;
+  skipReason?: string;
+
+  connected: boolean;
+  errorMessage?: string;
 
   s3ObjectCount: number;
   s3TotalSizeBytes: number;
@@ -53,6 +59,7 @@ export interface StorageAuditReport {
 
   totalBuckets: number;
   auditedBuckets: number;
+  skippedBuckets: number;
   failedBuckets: number;
 
   totalS3Objects: number;
@@ -98,6 +105,21 @@ export interface AuditSummary {
 }
 
 const ENC_KEY_PREFIX = 'enc_key:';
+const NON_S3_PROVIDERS = new Set(['telegram']);
+const TG_BUCKET_NAME_PATTERN = /^-?\d+$/;
+
+function isTelegramBucket(bucket: typeof storageBuckets.$inferSelect): boolean {
+  if (NON_S3_PROVIDERS.has(bucket.provider)) return true;
+  if (TG_BUCKET_NAME_PATTERN.test(bucket.bucketName)) return true;
+  return false;
+}
+
+const S3_COMPATIBLE_PROVIDERS = new Set(['s3', 'r2', 'b2', 'oss', 'cos', 'obs', 'minio']);
+
+function isS3CompatibleBucket(bucket: typeof storageBuckets.$inferSelect): boolean {
+  if (isTelegramBucket(bucket)) return false;
+  return S3_COMPATIBLE_PROVIDERS.has(bucket.provider);
+}
 
 async function getUserEncKey(kv: KVNamespace, userId: string): Promise<string | null> {
   return kv.get(`${ENC_KEY_PREFIX}${userId}`);
@@ -117,6 +139,7 @@ function calculateConsistencyRate(
   missingCount: number,
   sizeMismatchCount: number
 ): number {
+  if (s3Count === 0 && dbCount === 0) return 100;
   const totalUnique = s3Count + dbCount - Math.min(s3Count, dbCount);
   if (totalUnique === 0) return 100;
   const matched = Math.min(s3Count, dbCount) - Math.max(orphanCount, missingCount) - sizeMismatchCount;
@@ -127,16 +150,16 @@ function generateHealthScore(report: StorageAuditReport): number {
   const totalFiles = report.totalS3Objects + report.totalDbFiles;
   if (totalFiles === 0) return 100;
 
-  const inconsistencyRatio =
-    (report.totalOrphanFiles + report.totalMissingFiles + report.totalSizeMismatches) /
-    Math.max(totalFiles, 1);
-
   let score = 100;
   score -= report.totalOrphanFiles * 2;
   score -= report.totalMissingFiles * 10;
   score -= report.totalSizeMismatches * 3;
+  score -= report.failedBuckets * 15;
+
+  const inconsistencyRatio =
+    (report.totalOrphanFiles + report.totalMissingFiles + report.totalSizeMismatches) /
+    Math.max(totalFiles, 1);
   score -= inconsistencyRatio * 20;
-  if (report.failedBuckets > 0) score -= report.failedBuckets * 15;
 
   return Math.max(0, Math.min(100, Math.round(score)));
 }
@@ -198,16 +221,16 @@ function generateRecommendations(report: StorageAuditReport): RemediationRecomme
       category: 'bucket_config',
       severity: 'critical',
       title: `修复 ${report.failedBuckets} 个无法连接的存储桶`,
-      description: `有 ${report.failedBuckets} 个存储桶连接失败，请检查凭证、Endpoint配置和网络连通性。`,
+      description: `有 ${report.failedBuckets} 个S3兼容存储桶连接失败，请检查凭证、Endpoint配置和网络连通性。`,
       affectedCount: report.failedBuckets,
       affectedSizeBytes: 0,
-      action: '验证存储桶凭证有效性、检查区域配置、测试网络连接',
+      action: '验证存储桶凭证有效性、检查区域配置、测试网络连接（注意：B2需要使用S3兼容API密钥）',
       riskLevel: 'safe',
       estimatedTime: '5-10 分钟/桶',
     });
   }
 
-  if (report.overallConsistencyRate < 95 && report.overallConsistencyRate >= 80) {
+  if (report.overallConsistencyRate < 95 && report.overallConsistencyRate >= 80 && report.totalMissingFiles === 0) {
     recommendations.push({
       id: 'rec-005',
       category: 'db_repair',
@@ -228,7 +251,7 @@ function generateRecommendations(report: StorageAuditReport): RemediationRecomme
       category: 'db_repair',
       severity: 'info',
       title: '存储数据完全一致',
-      description: '所有存储桶文件与数据库记录完全匹配，无需整改操作。',
+      description: '所有S3兼容存储桶文件与数据库记录完全匹配，无需整改操作。',
       affectedCount: 0,
       affectedSizeBytes: 0,
       action: '继续保持当前运维规范，建议定期执行审计以预防问题',
@@ -249,10 +272,20 @@ export async function performStorageAudit(env: {
   const db = getDb(env.DB);
 
   const allBuckets = await db.select().from(storageBuckets).where(eq(storageBuckets.isActive, true)).all();
-  logger.info('STORAGE_AUDIT', '开始存储审计', { bucketCount: allBuckets.length, auditId });
+
+  const s3Buckets = allBuckets.filter((b) => isS3CompatibleBucket(b));
+  const tgBuckets = allBuckets.filter((b) => isTelegramBucket(b));
+
+  logger.info('STORAGE_AUDIT', '开始存储审计', {
+    totalBuckets: allBuckets.length,
+    s3Buckets: s3Buckets.length,
+    tgBucketsSkipped: tgBuckets.length,
+    auditId,
+  });
 
   const bucketResults: BucketAuditResult[] = [];
   let failedBucketCount = 0;
+  let skippedBucketCount = 0;
   let totalS3Objects = 0;
   let totalS3Size = 0;
   let totalDbFiles = 0;
@@ -263,11 +296,34 @@ export async function performStorageAudit(env: {
   let totalMissingSize = 0;
   let totalSizeMismatches = 0;
 
-  for (const bucket of allBuckets) {
+  for (const tgBucket of tgBuckets) {
+    bucketResults.push({
+      bucketId: tgBucket.id,
+      bucketName: tgBucket.bucketName,
+      provider: tgBucket.provider,
+
+      skipped: true,
+      skipReason: 'Telegram存储桶不参与S3兼容存储分析',
+
+      connected: false,
+      s3ObjectCount: 0,
+      s3TotalSizeBytes: 0,
+      dbFileCount: 0,
+      dbTotalSizeBytes: 0,
+      orphanFiles: [],
+      missingFiles: [],
+      sizeMismatchFiles: [],
+      matchedFiles: 0,
+      consistencyRate: 100,
+    });
+    skippedBucketCount++;
+  }
+
+  for (const bucket of s3Buckets) {
     const bucketResult = await auditSingleBucket(db, env.KV, bucket);
     bucketResults.push(bucketResult);
 
-    if (bucketResult.s3ObjectCount === 0 && bucketResult.dbFileCount === 0 && !bucketResult.isActive) {
+    if (!bucketResult.connected) {
       failedBucketCount++;
     }
 
@@ -297,7 +353,8 @@ export async function performStorageAudit(env: {
     durationMs,
 
     totalBuckets: allBuckets.length,
-    auditedBuckets: allBuckets.length - failedBucketCount,
+    auditedBuckets: s3Buckets.length - failedBucketCount,
+    skippedBuckets: skippedBucketCount,
     failedBuckets: failedBucketCount,
 
     totalS3Objects,
@@ -331,6 +388,9 @@ export async function performStorageAudit(env: {
     auditId,
     durationMs,
     overallConsistencyRate: report.overallConsistencyRate.toFixed(2),
+    s3Buckets: s3Buckets.length,
+    failedBuckets: failedBucketCount,
+    skippedTg: skippedBucketCount,
     totalOrphans,
     totalMissing,
     totalSizeMismatches,
@@ -355,7 +415,7 @@ async function auditSingleBucket(
   const provider = bucketRow.provider;
 
   let s3Result: ListObjectsResult = { objects: [], isTruncated: false, objectCount: 0, totalSizeBytes: 0 };
-  let s3Error: Error | null = null;
+  let connectionError: string | null = null;
 
   try {
     const encKey = await getUserEncKey(kv, bucketRow.userId);
@@ -363,10 +423,17 @@ async function auditSingleBucket(
       throw new Error(`用户 ${bucketRow.userId} 的加密密钥不存在`);
     }
     const config = await makeBucketConfigAsync(bucketRow, encKey, db);
-    s3Result = await s3ListObjectsV2(config);
+
+    logger.info('STORAGE_AUDIT', `正在列出存储桶 ${bucketName} 文件`, {
+      bucketId,
+      provider,
+      endpoint: config.endpoint || '(auto)',
+    });
+
+    s3Result = await s3ListObjects(config);
   } catch (error) {
-    s3Error = error as Error;
-    logger.error('STORAGE_AUDIT', `存储桶 ${bucketName} 列表获取失败`, { bucketId }, error);
+    connectionError = (error as Error).message || String(error);
+    logger.error('STORAGE_AUDIT', `存储桶 ${bucketName} 列表获取失败`, { bucketId, provider }, error);
   }
 
   const dbFiles = await db
@@ -375,15 +442,16 @@ async function auditSingleBucket(
     .where(and(eq(files.bucketId, bucketId), isNull(files.deletedAt)))
     .all();
 
-  const dbVersionFiles = await db
-    .select({
-      id: fileVersions.id,
-      fileId: fileVersions.fileId,
-      r2Key: fileVersions.r2Key,
-      size: fileVersions.size,
-    })
-    .from(fileVersions)
-    .all();
+  const bucketFileIds = dbFiles.map((f) => f.id);
+
+  const dbVersionFiles =
+    bucketFileIds.length > 0
+      ? await db
+          .select({ id: fileVersions.id, fileId: fileVersions.fileId, r2Key: fileVersions.r2Key, size: fileVersions.size })
+          .from(fileVersions)
+          .where(inArray(fileVersions.fileId, bucketFileIds))
+          .all()
+      : [];
 
   const allDbR2Keys = new Map<string, { fileId: string; fileName: string; fileSize: number }>();
   for (const f of dbFiles) {
@@ -398,11 +466,8 @@ async function auditSingleBucket(
   }
 
   const s3KeySet = new Set<string>();
-  const s3KeySizeMap = new Map<string, number>();
-
   for (const obj of s3Result.objects) {
     s3KeySet.add(obj.key);
-    s3KeySizeMap.set(obj.key, obj.size);
   }
 
   const orphanFiles: StorageMismatchItem[] = [];
@@ -462,7 +527,11 @@ async function auditSingleBucket(
     bucketId,
     bucketName,
     provider,
-    isActive: s3Error === null,
+
+    skipped: false,
+
+    connected: connectionError === null,
+    errorMessage: connectionError ?? undefined,
 
     s3ObjectCount: s3Result.objects.length,
     s3TotalSizeBytes: s3Result.totalSizeBytes,
@@ -497,10 +566,13 @@ function generateSummary(report: StorageAuditReport): AuditSummary {
     topIssues.push(`${report.totalOrphanFiles} 个孤儿文件占用 ${formatBytes(report.totalOrphanSizeBytes)} 空间`);
   }
   if (report.failedBuckets > 0) {
-    topIssues.push(`${report.failedBuckets} 个存储桶无法连接`);
+    topIssues.push(`${report.failedBuckets} 个存储桶连接失败（S3/R2/B2读取异常）`);
+  }
+  if (report.skippedBuckets > 0) {
+    topIssues.push(`${report.skippedBuckets} 个Telegram存储桶已跳过（非S3兼容）`);
   }
   if (topIssues.length === 0) {
-    topIssues.push('所有存储桶数据一致');
+    topIssues.push('所有S3兼容存储桶数据一致');
   }
 
   const totalStorage = report.totalS3SizeBytes + report.totalDbSizeBytes;

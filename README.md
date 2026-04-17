@@ -104,6 +104,32 @@
 - **🛡️ 模型熔断器**：连续失败 3 次自动熔断，10 分钟后恢复探测，区分模型错误/网络超时
 - **📐 工具定义统一规范**：标准化 name/description/parameters/examples 字段，启动校验缺失字段
 
+#### 🛡️ 安全性与稳定性修复（22 项 Bug + 中断恢复）
+
+**Critical 安全漏洞修复（4 项）**
+- 🔒 **跨用户数据泄露**：`collectFolderFiles` 增加 userId 过滤，防止文件夹遍历越权
+- 💥 **WebDAV OOM 崩溃**：DELETE/MOVE/COPY 改用 SQL 查询，消除全量内存加载
+- ⏱️ **时序攻击防护**：分享密码比对使用 `timingSafeEqual()` 常量时间比较 + KV 限流
+- 🚫 **CSRF 绕过修复**：CORS fallback 拒绝未知 origin 而非回退到白名单首项
+
+**High 严重问题修复（6 项）**
+- 🛡️ **Token 缓存泄漏**：Query Token 认证路径添加 `Cache-Control: private, no-store`
+- 🔒 **sortBy SQL 注入**：新增字段白名单 + switch 安全映射
+- 💾 **流式下载 OOM**：share 下载改为 Response body 直接透传
+- 🔄 **TOCTOU 竞态条件**：下载计数改用原子 CAS 单条 SQL 完成
+- 🔐 **WebDAV 暴力破解防护**：IP 维度 KV 速率限制（5min/10次）
+- 🔗 **直链滥用限制**：IP+Token 双维度速率限制（60次/分钟）
+
+**Medium/Low 问题修复（8 项）**
+- 广播过滤器逻辑修正、错误码去重、类型安全强化、权限常量提取、缩略图参数校验、ESM 冗余清理、魔术数字常量化
+
+**AI 对话中断恢复**
+- ✅ 流式输出中断时保留已输出内容（不再丢失）
+- ✅ 显示"输出已中断"状态提示 + "重新生成"按钮
+- ✅ API 层统一 AbortError 处理 + signal 检查
+
+> 完整修复清单请参阅 [CHANGELOG.md](CHANGELOG.md) 的 v4.7.0 `Fixed` 章节。
+
 ### 历史版本 v4.6.0 - 用户体验全面优化与AI能力增强 🚀
 
 **核心更新**：

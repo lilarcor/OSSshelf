@@ -4,7 +4,7 @@
  *
  * 功能:
  * - 健康评分总览仪表盘
- * - 分存储桶详情对比
+ - 分存储桶详情对比（自动过滤Telegram存储桶）
  * - 孤儿文件/丢失文件/大小不一致列表
  * - 整改建议与操作入口
  */
@@ -39,6 +39,9 @@ import {
   Lightbulb,
   Loader2,
   ExternalLink,
+  Ban,
+  WifiOff,
+  Info,
 } from 'lucide-react';
 
 export function StorageAuditTab() {
@@ -61,7 +64,7 @@ export function StorageAuditTab() {
   const forceAuditMutation = useMutation({
     mutationFn: () => adminApi.storageAuditForce().then((r) => r.data.data),
     onSuccess: () => {
-      toast({ title: '审计已完成', description: '已重新扫描所有存储桶' });
+      toast({ title: '审计已完成', description: '已重新扫描所有S3兼容存储桶' });
       queryClient.invalidateQueries({ queryKey: ['admin', 'storage-audit'] });
     },
     onError: (e: any) =>
@@ -73,8 +76,8 @@ export function StorageAuditTab() {
       <div className="flex items-center justify-center py-20">
         <div className="text-center space-y-4">
           <Loader2 className="h-10 w-10 animate-spin text-muted-foreground mx-auto" />
-          <p className="text-sm text-muted-foreground">正在扫描所有存储桶...</p>
-          <p className="text-xs text-muted-foreground/60">这可能需要一些时间</p>
+          <p className="text-sm text-muted-foreground">正在扫描所有S3兼容存储桶...</p>
+          <p className="text-xs text-muted-foreground/60">R2使用V2 API / B2使用V1 API</p>
         </div>
       </div>
     );
@@ -143,7 +146,7 @@ export function StorageAuditTab() {
             </div>
 
             {/* 审计元信息 */}
-            <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border/50 text-xs text-muted-foreground">
+            <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border/50 text-xs text-muted-foreground flex-wrap">
               <span className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 耗时 {(report.durationMs / 1000).toFixed(1)}s
@@ -154,7 +157,7 @@ export function StorageAuditTab() {
                   缓存 ({report.cacheInfo.ageMinutes}分钟前)
                 </span>
               )}
-              <span className="ml-auto font-mono text-[10px] opacity-50">{report.auditId.slice(-8)}</span>
+              <span className="font-mono text-[10px] opacity-50 ml-auto">{report.auditId.slice(-8)}</span>
             </div>
           </CardContent>
         </Card>
@@ -163,7 +166,7 @@ export function StorageAuditTab() {
         <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <MetricCard
             icon={<Database className="h-4 w-4" />}
-            label="S3/R2 对象"
+            label="S3/R2/B2 对象"
             value={report.totalS3Objects}
             sub={`${formatBytes(report.totalS3SizeBytes)}`}
             color="blue"
@@ -195,15 +198,24 @@ export function StorageAuditTab() {
       </div>
 
       {/* ── 操作栏 ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Activity className="h-4 w-4" />
-          <span>
-            扫描了 {report.auditedBuckets}/{report.totalBuckets} 个存储桶
-            {report.failedBuckets > 0 && (
-              <span className="text-red-500 ml-1">（{report.failedBuckets} 个失败）</span>
-            )}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+          <span className="flex items-center gap-1">
+            <Activity className="h-4 w-4" />
+            扫描了 {report.auditedBuckets}/{report.totalBuckets - report.skippedBuckets} 个S3存储桶
           </span>
+          {report.failedBuckets > 0 && (
+            <span className="flex items-center gap-1 text-red-500">
+              <WifiOff className="h-4 w-4" />
+              {report.failedBuckets} 个连接失败
+            </span>
+          )}
+          {report.skippedBuckets > 0 && (
+            <span className="flex items-center gap-1 text-violet-500">
+              <Ban className="h-4 w-4" />
+              {report.skippedBuckets} 个TG存储桶已跳过
+            </span>
+          )}
         </div>
         <Button
           size="sm"
@@ -216,12 +228,16 @@ export function StorageAuditTab() {
           ) : (
             <RefreshCw className="h-4 w-4 mr-1.5" />
           )}
-          {forceAuditMutation.isPending ? '扫描中...' : isFetching ? '刷新中...' : '强制重新审计'}
+          {forceAuditMutation.isPending
+            ? '扫描中...'
+            : isFetching
+              ? '刷新中...'
+              : '强制重新审计'}
         </Button>
       </div>
 
       {/* ── Top Issues 快速提示 ── */}
-      {summary.topIssues.length > 0 && summary.topIssues[0] !== '所有存储桶数据一致' && (
+      {summary.topIssues.length > 0 && summary.topIssues[0] !== '所有S3兼容存储桶数据一致' && (
         <div className="rounded-xl border border-amber-200/60 bg-amber-50/50 dark:border-amber-800/30 dark:bg-amber-950/10 p-4">
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -351,13 +367,66 @@ function BucketDetailCard({
   isExpanded: boolean;
   onToggle: () => void;
 }) {
+  // Telegram 跳过的桶
+  if (bucket.skipped) {
+    return (
+      <div className="rounded-xl border border-violet-200/40 bg-violet-50/20 dark:border-violet-800/20 dark:bg-violet-950/5 p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center flex-shrink-0">
+            <Ban className="h-5 w-5 text-violet-500" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm truncate">{bucket.bucketName}</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 uppercase">
+                {bucket.provider}
+              </span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
+                已跳过
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">{bucket.skipReason}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 连接失败的桶
+  if (!bucket.connected) {
+    return (
+      <div className="rounded-xl border border-red-200/50 bg-red-50/30 dark:border-red-800/30 dark:bg-red-950/10 p-4">
+        <button onClick={onToggle} className="w-full text-left">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                <WifiOff className="h-5 w-5 text-red-500" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm truncate">{bucket.bucketName}</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground uppercase flex-shrink-0">
+                    {bucket.provider}
+                  </span>
+                </div>
+                <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5 truncate max-w-md">
+                  {bucket.errorMessage || '连接失败，无法读取存储内容'}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-2" />
+          </div>
+        </button>
+      </div>
+    );
+  }
+
+  // 正常的 S3 兼容桶
   const hasIssues = bucket.orphanFiles.length > 0 || bucket.missingFiles.length > 0 || bucket.sizeMismatchFiles.length > 0;
 
-  const statusColor = !bucket.isActive
-    ? 'border-red-200/60 bg-red-50/30 dark:border-red-800/30 dark:bg-red-950/10'
-    : hasIssues
-      ? 'border-amber-200/40 bg-amber-50/20 dark:border-amber-800/20 dark:bg-amber-950/5'
-      : '';
+  const statusColor = hasIssues
+    ? 'border-amber-200/40 bg-amber-50/20 dark:border-amber-800/20 dark:bg-amber-950/5'
+    : '';
 
   return (
     <div
@@ -373,16 +442,10 @@ function BucketDetailCard({
             <div
               className={cn(
                 'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0',
-                !bucket.isActive
-                  ? 'bg-red-500/10'
-                  : hasIssues
-                    ? 'bg-amber-500/10'
-                    : 'bg-emerald-500/10'
+                hasIssues ? 'bg-amber-500/10' : 'bg-emerald-500/10'
               )}
             >
-              {!bucket.isActive ? (
-                <XCircle className="h-5 w-5 text-red-500" />
-              ) : hasIssues ? (
+              {hasIssues ? (
                 <AlertTriangle className="h-5 w-5 text-amber-500" />
               ) : (
                 <CheckCircle2 className="h-5 w-5 text-emerald-500" />
@@ -396,7 +459,7 @@ function BucketDetailCard({
                   {bucket.provider}
                 </span>
               </div>
-              <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+              <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1">
                   <Database className="h-3 w-3" /> S3: {bucket.s3ObjectCount} 个
                 </span>
@@ -462,7 +525,12 @@ function BucketDetailCard({
                 <div
                   className="h-full bg-blue-500 rounded-full transition-all duration-500"
                   style={{
-                    width: `${Math.min(100, (bucket.s3TotalSizeBytes / Math.max(bucket.s3TotalSizeBytes, bucket.dbTotalSizeBytes)) * 100)}%`,
+                    width: `${
+                      Math.min(
+                        100,
+                        (bucket.s3TotalSizeBytes / Math.max(bucket.s3TotalSizeBytes, bucket.dbTotalSizeBytes)) * 100
+                      ) || 0
+                    }%`,
                   }}
                 />
               </div>
@@ -476,7 +544,12 @@ function BucketDetailCard({
                 <div
                   className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                   style={{
-                    width: `${Math.min(100, (bucket.dbTotalSizeBytes / Math.max(bucket.s3TotalSizeBytes, bucket.dbTotalSizeBytes)) * 100)}%`,
+                    width: `${
+                      Math.min(
+                        100,
+                        (bucket.dbTotalSizeBytes / Math.max(bucket.s3TotalSizeBytes, bucket.dbTotalSizeBytes)) * 100
+                      ) || 0
+                    }%`,
                   }}
                 />
               </div>
@@ -484,7 +557,7 @@ function BucketDetailCard({
           </div>
 
           {/* 匹配统计 */}
-          <div className="flex items-center gap-4 py-2 px-3 bg-muted/30 rounded-lg text-xs">
+          <div className="flex items-center gap-4 py-2 px-3 bg-muted/30 rounded-lg text-xs flex-wrap">
             <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="h-3.5 w-3.5" />
               {bucket.matchedFiles} 匹配
@@ -514,7 +587,7 @@ function BucketDetailCard({
             <FileIssueList
               title={`孤儿文件 (${bucket.orphanFiles.length})`}
               subtitle="存储桶中存在但数据库无记录的文件"
-              items={bucket.orphanFiles.slice(0, 10).map((f) => ({
+              items={bucket.orphanFiles.slice(0, 15).map((f) => ({
                 key: f.r2Key,
                 size: f.s3Size ?? 0,
                 meta: f.dbFileName,
@@ -530,7 +603,7 @@ function BucketDetailCard({
             <FileIssueList
               title={`丢失文件 (${bucket.missingFiles.length})`}
               subtitle="数据库有记录但存储桶中不存在的文件"
-              items={bucket.missingFiles.slice(0, 10).map((f) => ({
+              items={bucket.missingFiles.slice(0, 15).map((f) => ({
                 key: f.r2Key,
                 size: f.dbFileSize ?? 0,
                 meta: f.dbFileName,
@@ -546,7 +619,7 @@ function BucketDetailCard({
             <FileIssueList
               title={`大小不一致 (${bucket.sizeMismatchFiles.length})`}
               subtitle="数据库记录大小与实际存储大小不符"
-              items={bucket.sizeMismatchFiles.slice(0, 10).map((f) => ({
+              items={bucket.sizeMismatchFiles.slice(0, 15).map((f) => ({
                 key: f.r2Key,
                 size: f.s3Size ?? 0,
                 meta: `DB:${formatBytes(f.dbSize)} → 实际:${formatBytes(f.s3Size)} (差${formatBytes(f.diffBytes)})`,
@@ -555,6 +628,14 @@ function BucketDetailCard({
               color="orange"
               total={bucket.sizeMismatchFiles.length}
             />
+          )}
+
+          {/* 数据为空提示 */}
+          {bucket.s3ObjectCount === 0 && bucket.dbFileCount === 0 && (
+            <div className="rounded-lg border border-dashed border-border p-4 text-center">
+              <Info className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
+              <p className="text-xs text-muted-foreground">该存储桶当前为空，无文件数据</p>
+            </div>
           )}
         </div>
       )}
@@ -590,7 +671,7 @@ function FileIssueList({
         <span className="text-xs font-semibold">{title}</span>
         <span className="text-[10px] text-muted-foreground ml-auto">{subtitle}</span>
       </div>
-      <div className="space-y-1 max-h-48 overflow-y-auto">
+      <div className="space-y-1 max-h-56 overflow-y-auto">
         {items.map((item, i) => (
           <div
             key={i}
@@ -600,15 +681,15 @@ function FileIssueList({
             <code className="font-mono flex-1 truncate text-[11px]">{item.key}</code>
             <span className="tabular-nums text-muted-foreground flex-shrink-0">{formatBytes(item.size)}</span>
             {item.meta && (
-              <span className="text-[10px] text-muted-foreground hidden sm:inline max-w-[180px] truncate">
+              <span className="text-[10px] text-muted-foreground hidden sm:inline max-w-[220px] truncate">
                 {item.meta}
               </span>
             )}
           </div>
         ))}
-        {total > 10 && (
+        {total > 15 && (
           <div className="text-center text-xs text-muted-foreground py-1">
-            还有 {total - 10} 项未显示...
+            还有 {total - 15} 项未显示...
           </div>
         )}
       </div>
@@ -678,18 +759,17 @@ function RecommendationCard({
         </div>
       </div>
 
-      <div className="flex items-center gap-4 pl-4 text-xs text-muted-foreground">
+      <div className="flex items-center gap-4 pl-4 text-xs text-muted-foreground flex-wrap">
         <span className="flex items-center gap-1">
           <ArrowRight className="h-3 w-3" />
-          {rec.action.slice(0, 60)}{rec.action.length > 60 ? '...' : ''}
+          {rec.action.slice(0, 60)}
+          {rec.action.length > 60 ? '...' : ''}
         </span>
         <span className="ml-auto flex items-center gap-1">
           <Clock className="h-3 w-3" />
           预计 {rec.estimatedTime}
         </span>
-        {rec.affectedCount > 0 && (
-          <span>影响 {rec.affectedCount} 项</span>
-        )}
+        {rec.affectedCount > 0 && <span>影响 {rec.affectedCount} 项</span>}
       </div>
     </div>
   );

@@ -660,7 +660,6 @@ export interface RegistrationConfig {
 
 export const adminApi = {
   listUsers: () => api.get<ApiResponse<AdminUser[]>>('/api/admin/users'),
-  getUser: (id: string) => api.get<ApiResponse<AdminUser>>(`/api/admin/users/${id}`),
   patchUser: (
     id: string,
     data: { name?: string; role?: 'admin' | 'user'; storageQuota?: number; newPassword?: string }
@@ -761,14 +760,23 @@ export interface BucketAuditResult {
   bucketId: string;
   bucketName: string;
   provider: string;
-  isActive: boolean;
+
+  skipped: boolean;
+  skipReason?: string;
+
+  connected: boolean;
+  errorMessage?: string;
+
   s3ObjectCount: number;
   s3TotalSizeBytes: number;
+
   dbFileCount: number;
   dbTotalSizeBytes: number;
+
   orphanFiles: StorageMismatchItem[];
   missingFiles: StorageMismatchItem[];
   sizeMismatchFiles: Array<StorageMismatchItem & { dbSize: number; s3Size: number; diffBytes: number }>;
+
   matchedFiles: number;
   consistencyRate: number;
 }
@@ -799,6 +807,7 @@ export interface StorageAuditReport {
   durationMs: number;
   totalBuckets: number;
   auditedBuckets: number;
+  skippedBuckets: number;
   failedBuckets: number;
   totalS3Objects: number;
   totalS3SizeBytes: number;

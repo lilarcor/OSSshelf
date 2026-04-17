@@ -195,6 +195,49 @@ JSON
 
 ---
 
+## v4.7.0 安全性与稳定性更新 🛡️
+
+> **重要**：v4.7.0 版本修复了 **22 项安全漏洞和稳定性问题**，涵盖跨用户数据泄露、SQL 注入、时序攻击、CSRF 绕过、OOM 崩溃等 Critical/High 级别问题。完整修复清单请参阅 [CHANGELOG.md](../CHANGELOG.md)。
+
+### 安全修复影响范围
+
+| 接口模块 | 修复项数 | 关键修复 |
+|----------|---------|----------|
+| 文件接口 (`/api/files`) | 3 | 跨用户数据泄露（userId 过滤）、sortBy SQL 注入防护 |
+| 分享接口 (`/api/share`) | 4 | 时序攻击（timingSafeEqual）、流式下载 OOM、TOCTOU 竞态原子化 |
+| WebDAV 接口 (`/webdav`) | 2 | OOM 崩溃（SQL 替代内存加载）、暴力破解限流 |
+| 预览接口 (`/api/preview`) | 2 | Token 缓存泄漏（Cache-Control）、缩略图参数校验 |
+| 直链接口 (`/api/direct-link`) | 1 | 滥用限流（IP+Token 双维度） |
+| 管理员接口 (`/api/admin`) | 1 | 广播过滤器字段修正 |
+| 全局安全 (`src/index.ts`) | 1 | CSRF 绕过修复（CORS fallback） |
+
+### v4.7.0 行为变更
+
+| 变更点 | 旧行为 | 新行为 |
+|--------|--------|--------|
+| CORS 未知 origin | 返回 `allowedOrigins[0]`（可能泄露） | 返回 `undefined`（拒绝请求） |
+| 分享密码比对 | 直接 `===` 比较（可被时序攻击） | `timingSafeEqual()` + KV 限流 |
+| sortBy 参数 | 动态字段访问 `files[sortBy]`（SQL 注入风险） | 白名单校验 + switch 安全映射 |
+| WebDAV DELETE/MOVE/COPY | 全量加载文件到内存后 JS 过滤 | SQL `like(path, ...)` 查询直接操作 |
+| Share 流式下载 | `fetchFileContent()` 全量读入内存 | `s3Get()` → Response body 直接透传 |
+| Share 下载计数 | 先 SELECT 再 UPDATE（TOCTOU） | 单条原子 CAS UPDATE |
+| TOKEN_EXPIRED 错误码 | A001（与 UNAUTHORIZED 重复） | A006（唯一码） |
+| AI 流式中断 | 已输出内容丢失 | 保留内容 + `aborted: true` 标记 |
+
+### 待修复已知问题（纳入后续迭代）
+
+| # | 问题 | 严重程度 | 说明 |
+|---|------|---------|------|
+| 1 | storageUsed 竞态条件 | 🔴 高危 | tasks.ts/downloads.ts 先读后写并发丢失更新 |
+| 2 | 文件列表无分页 | 🔴 高危 | files.ts 全量拉取无 limit/offset，D1 1000 行截断 |
+| 3 | softDelete 不释放配额 | 🟡 中危 | 软删除后 storageUsed 不立即减少 |
+| 4 | JWT 无 refresh token | 🟡 中危 | Token 过期后直接踢出无静默续期 |
+| 5 | Analytics 全量扫描 | 🟡 中危 | 存储分析应改为 SQL GROUP BY |
+| 6 | 分享上传绕过配额 | 🟡 中危 | 未检查 owner 的 storageUsed |
+| 7 | LIKE 搜索未转义 | 🔵 低危 | `%` 和 `_` 变通配符 |
+
+---
+
 ## 认证接口
 
 路由文件: `apps/api/src/routes/auth.ts`

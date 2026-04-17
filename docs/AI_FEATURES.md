@@ -243,6 +243,58 @@ closed（正常）──失败计数≥3──→ open（熔断）
 
 **集成位置**：agentEngine.ts 的 native 和 prompt-based 两条路径
 
+### v4.7.0 安全性与稳定性修复详解 🛡️
+
+#### 9. AI 对话中断恢复（流式输出稳定性）
+
+**问题**：流式输出被中断（卡死/手动停止）时，已输出内容消失。
+
+**修复方案（三层联动）**
+
+| 层级 | 修改 | 效果 |
+|------|------|------|
+| **API 层** (`api.ts`) | 请求前检查 `signal.aborted`；流循环中检查中断信号；统一抛出 `DOMException('AbortError')` | 防止中断后重试逻辑误捕获 |
+| **类型层** (`types.ts`) | `AiChatMessage` 新增 `aborted?: boolean` 字段 | 明确标记中断状态 |
+| **UI 层** (`AIChat.tsx`) | 中断时 `content: m.content \|\| ''` 保留内容；显示"输出已中断" + "重新生成"按钮 | 用户可看到已有输出并继续 |
+
+**前端 UI 表现**
+- 被中断的 assistant 消息底部显示 amber 色提示条：「⏹ 输出已中断」
+- 消息正常展示已接收的文本、工具调用卡片等
+- 消息操作栏显示"重新生成"入口
+- user 消息的 `mentionedFiles` 以 Chip 形式展示引用文件列表
+
+#### 10. 安全漏洞全面修复（22 项）
+
+**P0 — Critical（4 项）**
+
+| 漏洞 | 影响 | 修复方式 |
+|------|------|----------|
+| 跨用户数据泄露 | 用户 A 可遍历用户 B 文件夹 | `collectFolderFiles` 增加 userId 过滤 |
+| WebDAV OOM | 大文件夹 DELETE/MOVE/COPY 崩溃 | 改用 SQL `like(path, ...)` 查询替代内存过滤 |
+| 时序攻击 | 分享密码比对泄露长度信息 | `timingSafeEqual()` 常量时间比较 + KV 限流 |
+| CSRF 绕过 | 未知 origin 回退到白名单首项 | CORS fallback 返回 `undefined` 拒绝 |
+
+**P1 — High（6 项）**
+
+| 漏洞 | 影响 | 修复方式 |
+|------|------|----------|
+| Token 缓存泄漏 | CDN 缓存 Query Token 认证信息 | `Cache-Control: private, no-store, no-cache, must-revalidate` |
+| sortBy SQL 注入 | 动态字段访问导致注入 | `ALLOWED_SORT_FIELDS` 白名单 + switch 映射 |
+| 流式下载 OOM | 大文件下载撑爆 Worker 内存 | `s3Get()` → Response body 直接透传 |
+| TOCTOU 竞态 | 下载计数先读后写丢失更新 | 原子 CAS: `UPDATE ... WHERE count < limit` |
+| WebDAV 暴力破解 | 无限次密码尝试 | IP 维度 KV 限流 5min/10次 → HTTP 429 |
+| 直链滥用 | 无限制调用直链下载 | IP+Token 双维度限流 60次/分钟 |
+
+**P2/P3 — Medium/Low（8 项）**
+
+- 广播过滤器字段修正（`role` → `emailVerified`）
+- 错误码去重（`TOKEN_EXPIRED`: A001 → A006）
+- 类型安全强化（`any[]` → 具体泛型类型）
+- 权限常量提取（消除重复定义）
+- 缩略图参数边界校验（`clamp(16, 2048)`）
+- ESM require 冗余清理
+- 魔术数字命名常量化
+
 ### v4.6.0 AI 新功能详解
 
 #### 1. 对话式权限管理

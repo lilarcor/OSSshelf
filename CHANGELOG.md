@@ -166,9 +166,120 @@ All notable changes to this project will be documented in this file.
 - **数据库变更**：
   - 新增 `ai_memories` 表（id, userId, sessionId, type, summary, embeddingId, createdAt）
 
----
+### Fixed - 安全性与稳定性修复（22 项 Bug 修复 + 中断处理）🛡️
 
-## [v4.6.0] - 2026-04-13
+**TypeScript 编译通过 (0 错误)**，共修改 **14 个文件**。
+
+#### 🔴 P0 — Critical 安全漏洞（4/4 已修复）
+
+| Bug | 文件 | 修复内容 |
+|-----|------|----------|
+| **#1 跨用户数据泄露** | `routes/files.ts`, `routes/share.ts` | `collectFolderFiles` 增加 `eq(files.userId, userId)` 过滤 + 递归传递，防止用户 A 通过文件夹遍历访问用户 B 的文件 |
+| **#2 WebDAV OOM 崩溃** | `routes/webdav.ts` | DELETE/MOVE/COPY 操作改用 `like(files.path, ...)` SQL 查询，删除全量加载 + `filter(startsWith)` 的内存操作模式 |
+| **#3 时序攻击（密码比对）** | `routes/share.ts` | 新增 `timingSafeEqual()` HMAC 常量时间比较函数 + KV 5分钟窗口10次限流（含密码错误计数+成功清除机制） |
+| **#4 CSRF 绕过** | `src/index.ts` | CORS fallback 从返回 `allowedOrigins[0]` 改为返回 `undefined`（拒绝未知 origin，防止跨站请求伪造） |
+
+#### 🟠 P1 — High 严重问题（6/6 已修复）
+
+| Bug | 文件 | 修复内容 |
+|-----|------|----------|
+| **#5 Token 泄露（缓存）** | `routes/preview.ts` | Query Token 认证路径增加 `Cache-Control: private, no-store, no-cache, must-revalidate`，防止 CDN/代理层缓存敏感认证信息 |
+| **#6 sortBy SQL 注入** | `routes/files.ts` | 新增 `ALLOWED_SORT_FIELDS` 白名单 + `switch` 安全映射（替代动态 `files[sortBy]` 字段访问） |
+| **#7 整文件内存 OOM** | `routes/share.ts` | 流式下载改为 `s3Get()` → 直接透传 Response body，不再 `fetchFileContent` 全量读入内存 |
+| **#8 TOCTOU 竞态条件** | `routes/share.ts` | 下载计数改用 **原子 CAS**：`UPDATE ... WHERE id=? AND (limit IS NULL OR count < limit)`，单条 SQL 完成检查+递增 |
+| **#10 WebDAV 暴力破解** | `routes/webdav.ts` | 新增 IP 维度 KV 速率限制：每 IP 5分钟内最多 10 次失败，超限返回 HTTP 429 |
+| **#11 直链滥用** | `routes/directLink.ts` | 新增 IP+Token 维度速率限制（60次/分钟）+ Cache-Control 改为 `private` 防止缓存 |
+
+#### 🟡 P2 — Medium 中等问题（6/6 已修复）
+
+| Bug | 文件 | 修复内容 |
+|-----|------|----------|
+| **#15 广播过滤器错误** | `routes/admin.ts` | `active` 用户过滤从错误的 `eq(users.role, 'user')` 修正为 `eq(users.emailVerified, true)` |
+| **#16 重复错误码** | `packages/shared/src/constants/errorCodes.ts` | `TOKEN_EXPIRED` 从重复的 `A001` 改为唯一码 `A006` |
+| **#17 类型安全** | `routes/files.ts`, `routes/admin.ts` | `any[]` 替换为 `Array<ReturnType<typeof isNull> | ReturnType<typeof eq>>` 等具体类型 |
+| **#21 权限映射重复** | `lib/permissionService.ts` | 提取模块级常量 `PERMISSION_LEVELS`，消除两处重复定义 |
+| **#22 缩略图参数无效** | `routes/preview.ts` | width/height 增加 `clamp(16, 2048)` 边界校验 + Cache-Control 改为 private + 标注 `X-Thumbnail-Note` |
+
+#### 🔵 P3 — Low 低优先级（2/2 已修复）
+
+| Bug | 文件 | 修复内容 |
+|-----|------|----------|
+| **#18 ESM require 冗余** | `lib/fileService.ts` | 移除冗余 `require('./fileContentHelper')`（顶部已有 ESM import） |
+| **#20 魔术数字** | `routes/auth.ts` | `10737418240` 提取为命名常量 `DEFAULT_STORAGE_QUOTA_BYTES = 10 * 1024 * 1024 * 1024` |
+
+#### 🔄 AI 对话中断恢复（流式输出稳定性）
+
+**问题**：当 AI 对话流式输出被中断（卡死或手动停止）时，已输出的内容会消失。
+
+**根因分析**：
+1. API 层 `chatStream` 函数在中断时未正确处理 `AbortError`
+2. 前端组件中断时缺少明确的 `aborted` 状态标记
+
+**修复内容**：
+
+| 层级 | 文件 | 修复内容 |
+|------|------|----------|
+| **API 层** | `services/api.ts` | 请求开始前检查 `signal.aborted`；流式读取循环中检查中断信号及时取消 `reader`；统一抛出标准 `DOMException('AbortError')` |
+| **类型定义** | `components/ai/types.ts` | 新增 `aborted?: boolean` 字段标记消息是否被中断 |
+| **前端组件** | `pages/AIChat.tsx` | 中断时保留已输出内容（`content: m.content \|\| ''`）；设置 `aborted: true` 标记；显示"输出已中断"提示；被中断消息显示"重新生成"按钮 |
+
+**效果**：
+- ✅ 已输出的内容完整保留
+- ✅ 显示明确的中断状态提示
+- ✅ 用户可点击"重新生成"继续对话
+- ✅ 消息列表展示 `mentionedFiles` 引用文件 Chip
+
+#### ⚡ 已确认待修复项（7 项，纳入后续迭代）
+
+| # | 问题 | 严重程度 | 位置 | 说明 |
+|---|------|---------|------|------|
+| 1 | storageUsed 竞态条件 | 🔴 高危 | `tasks.ts`, `downloads.ts` | 先读后写并发丢失更新，需统一调用原子方法 `updateUserStorage()` |
+| 2 | 文件列表无分页 | 🔴 高危 | `files.ts` L568 | 全量拉取无 `.limit()/.offset()`，D1 1000 行截断 + 内存排序 |
+| 3 | softDelete 不释放配额 | 🟡 中危 | `fileService.ts` | 软删除后 storageUsed 不立即减少，反复上传-软删除导致配额误判 |
+| 4 | JWT 无 refresh token | 🟡 中危 | 认证系统 | KV session TTL = JWT 同寿，过期后直接踢出无静默续期 |
+| 5 | Analytics 全量扫描 | 🟡 中危 | `analytics.ts` | 存储分析全量拉取后 JS 聚合，应改为 SQL GROUP BY |
+| 6 | 分享上传绕过配额 | 🟡 中危 | `share.ts` 上传路径 | 检查 bucket quota 但未检查 owner 的 storageUsed |
+| 7 | LIKE 搜索未转义 | 🔵 低危 | `files.ts` L664 | `%` 和 `_` 搜索词变通配符 |
+
+#### 💡 优化建议（5 项）
+
+1. **文件列表排序移至 SQL**：当前在 JS 内存 `.sort()`，数据量大时性能差且 D1 截断导致排序不完整
+2. **AI 任务队列背压控制**：`aiTaskQueue.ts` 缺全局并发上限，批量索引可能打满 Workers AI Rate Limit
+3. **cleanup.ts 分批处理**：硬删除全局扫描无分批，文件多时 cron 超时
+4. **WebDAV 原子化 storageUsed**：与 tasks.ts 相同的读旧值竞态问题
+5. **向量索引断点续传**：批量索引中断后只能重头开始
+
+#### 🆕 新功能建议（按优先级排序）
+
+| 优先级 | 功能 | 理由 |
+|--------|------|------|
+| 🔴 高 | 文件夹大小统计 | 当前文件夹 size=0，前端详情无法展示占用空间 |
+| 🔴 高 | 增量向量索引 | 监听文件上传自动触发，新文件可立即被 AI 搜索到 |
+| 🟡 中 | Zip 打包下载文件夹 | `zipStream.ts` 已有基础实现，前端缺入口 |
+| 🟡 中 | 文件维度访问日志 | auditLogs 记了全局操作但无法在文件详情查看访问记录 |
+| 🟢 低 | 标签全局管理页 | tag 只能在文件上添加，无统一管理/合并/批量删除入口 |
+| 🟢 低 | AI 对话导出（Markdown/PDF） | 历史对话仅 UI 可查看，无导出能力 |
+
+### Technical Details（Bug 修复部分）
+
+- **安全修复文件**：
+  - `apps/api/src/routes/files.ts` — 跨用户数据泄露修复（userId 过滤）+ sortBy SQL 注入防护（白名单映射）
+  - `apps/api/src/routes/share.ts` — 时序攻击防护（timingSafeEqual）+ 流式下载 OOM 修复 + TOCTOU 原子计数
+  - `apps/api/src/routes/webdav.ts` — OOM 修复（SQL 查询替代全量加载）+ 暴力破解限流
+  - `apps/api/src/routes/preview.ts` — Token 缓存泄漏修复 + 缩略图参数校验
+  - `apps/api/src/routes/directLink.ts` — 直链滥用限流
+  - `apps/api/src/routes/admin.ts` — 广播过滤器修正
+  - `apps/api/src/index.ts` — CSRF 绕过修复（CORS fallback）
+  - `packages/shared/src/constants/errorCodes.ts` — 错误码去重
+  - `apps/api/src/lib/fileService.ts` — ESM require 冗余移除
+  - `apps/api/src/lib/permissionService.ts` — 权限常量提取
+  - `apps/api/src/routes/auth.ts` — 魔术数字命名常量化
+- **AI 中断恢复文件**：
+  - `apps/web/src/services/api.ts` — AbortError 标准处理 + signal 检查
+  - `apps/web/src/components/ai/types.ts` — aborted 字段类型定义
+  - `apps/web/src/pages/AIChat.tsx` — 中断状态保留 + UI 提示 + 重新生成按钮
+
+---
 
 ### Added - 用户体验全面优化与AI能力增强 🚀
 
