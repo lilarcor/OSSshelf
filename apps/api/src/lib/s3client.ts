@@ -694,6 +694,171 @@ export async function s3Head(config: S3BucketConfig, key: string): Promise<Respo
   return fetch(signed.url, { method: 'HEAD', headers: signed.headers });
 }
 
+export interface S3ObjectInfo {
+  key: string;
+  size: number;
+  etag: string;
+  lastModified: string;
+}
+
+export interface ListObjectsResult {
+  objects: S3ObjectInfo[];
+  isTruncated: boolean;
+  nextContinuationToken?: string;
+  objectCount: number;
+  totalSizeBytes: number;
+}
+
+async function buildListObjectsUrl(
+  config: S3BucketConfig,
+  prefix?: string,
+  continuationToken?: string,
+  maxKeys?: number
+): Promise<{ url: string; host: string; canonicalUri: string; queryString: string }> {
+  const endpoint = resolveEndpoint(config.provider, config.endpoint, config.region);
+  if (!endpoint) throw new Error(`无法解析存储桶 Endpoint（provider: ${config.provider}）`);
+
+  const region = config.region || 'us-east-1';
+  let bucketUrl: string;
+  let host: string;
+  let canonicalUri: string;
+
+  if (config.pathStyle) {
+    bucketUrl = `${endpoint}/${config.bucketName}`;
+    host = new URL(endpoint).host;
+    canonicalUri = `/${config.bucketName}`;
+  } else {
+    const proto = endpoint.match(/^https?:\/\//)?.[0] || 'https://';
+    const rest = endpoint.replace(/^https?:\/\//, '');
+    bucketUrl = `${proto}${config.bucketName}.${rest}`;
+    host = `${config.bucketName}.${new URL(endpoint).host}`;
+    canonicalUri = '/';
+  }
+
+  const queryParams: Record<string, string> = {
+    'list-type': '2',
+    'encoding-type': 'url',
+  };
+
+  if (prefix) queryParams['prefix'] = prefix;
+  if (continuationToken) queryParams['continuation-token'] = continuationToken;
+  if (maxKeys) queryParams['max-keys'] = String(maxKeys);
+
+  const sortedQuery = Object.keys(queryParams)
+    .sort()
+    .map((k) => `${k}=${encodeURIComponent(queryParams[k])}`)
+    .join('&');
+
+  return {
+    url: `${bucketUrl}?${sortedQuery}`,
+    host,
+    canonicalUri,
+    queryString: sortedQuery,
+  };
+}
+
+export async function s3ListObjectsV2(
+  config: S3BucketConfig,
+  options?: { prefix?: string; maxKeys?: number }
+): Promise<ListObjectsResult> {
+  const allObjects: S3ObjectInfo[] = [];
+  let continuationToken: string | undefined;
+  let isTruncated = false;
+  const maxKeysPerRequest = options?.maxKeys || 1000;
+
+  do {
+    const { url, host, canonicalUri, queryString } = await buildListObjectsUrl(
+      config,
+      options?.prefix,
+      continuationToken,
+      maxKeysPerRequest
+    );
+
+    const region = config.region || 'us-east-1';
+    const payloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+
+    const signed = await signRequest({
+      method: 'GET',
+      url,
+      host,
+      canonicalUri,
+      queryString,
+      payloadHash,
+      accessKeyId: config.accessKeyId,
+      secretAccessKey: config.secretAccessKey,
+      region,
+    });
+
+    const res = await fetch(signed.url, { method: 'GET', headers: signed.headers });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`ListObjectsV2 失败 (${res.status}): ${text.slice(0, 300)}`);
+    }
+
+    const xml = await res.text();
+
+    const isTruncatedMatch = xml.match(/<IsTruncated>(true|false)<\/IsTruncated>/);
+    isTruncated = isTruncatedMatch?.[1] === 'true';
+
+    const nextTokenMatch = xml.match(/<NextContinuationToken>([^<]+)<\/NextContinuationToken>/);
+    continuationToken = nextTokenMatch ? decodeURIComponent(nextTokenMatch[1]) : undefined;
+
+    const objectRegex = /<Contents>\s*<Key>([^<]+)<\/Key>\s*<LastModified>[^<]+<\/LastModified>\s*<ETag>"?([^"<]+)"?<\/ETag>\s*<Size>(\d+)<\/Size>/g;
+
+    let match;
+    while ((match = objectRegex.exec(xml)) !== null) {
+      allObjects.push({
+        key: decodeURIComponent(match[1]),
+        size: parseInt(match[3], 10),
+        etag: match[2].replace(/"/g, ''),
+        lastModified: '',
+      });
+    }
+  } while (isTruncated && continuationToken);
+
+  const totalSizeBytes = allObjects.reduce((sum, obj) => sum + obj.size, 0);
+
+  return {
+    objects: allObjects,
+    isTruncated: false,
+    objectCount: allObjects.length,
+    totalSizeBytes,
+  };
+}
+
+export async function s3ListAllBucketsObjects(
+  buckets: Array<{ config: S3BucketConfig; prefix?: string }>
+): Promise<Array<{ bucketId: string; bucketName: string; provider: string; result: ListObjectsResult }>> {
+  const results = await Promise.all(
+    buckets.map(async ({ config, prefix }) => {
+      try {
+        const result = await s3ListObjectsV2(config, { prefix });
+        return {
+          bucketId: config.id,
+          bucketName: config.bucketName,
+          provider: config.provider,
+          result,
+        };
+      } catch (error) {
+        logger.error('STORAGE_AUDIT', `列出存储桶 ${config.bucketName} 文件失败`, { bucketId: config.id }, error);
+        return {
+          bucketId: config.id,
+          bucketName: config.bucketName,
+          provider: config.provider,
+          result: {
+            objects: [],
+            isTruncated: false,
+            objectCount: 0,
+            totalSizeBytes: 0,
+          },
+        };
+      }
+    })
+  );
+  return results;
+}
+
 // ── Bucket resolver helper ────────────────────────────────────────────────
 /**
  * Given a DB row from storage_buckets, return a ready-to-use S3BucketConfig

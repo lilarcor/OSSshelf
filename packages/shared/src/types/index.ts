@@ -159,7 +159,9 @@ export type AuditAction =
   | 'admin.email_config_update'
   | 'admin.email_test'
   | 'admin.email_broadcast'
-  | 'admin.invite_code_revoke';
+  | 'admin.invite_code_revoke'
+  | 'admin.storage_audit'
+  | 'admin.storage_audit_force';
 
 export interface LoginAttempt {
   id: string;

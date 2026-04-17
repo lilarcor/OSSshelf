@@ -703,7 +703,12 @@ export const adminApi = {
     }),
   aiTraceDetail: (traceId: string) =>
     api.get<ApiResponse<AITraceDetail>>(`/api/admin/ai/traces/${traceId}`),
-  aiModelHealth: () => api.get<ApiResponse<ModelHealthInfo[]>>('/api/admin/ai/models/health'),
+
+  // ── 存储审计 ──
+  storageAudit: () => api.get<ApiResponse<StorageAuditReport>>('/api/admin/storage-audit'),
+  storageAuditForce: () => api.post<ApiResponse<StorageAuditReport>>('/api/admin/storage-audit/force'),
+  storageAuditBucket: (bucketId: string) =>
+    api.get<ApiResponse<BucketAuditResult>>(`/api/admin/storage-audit/bucket/${bucketId}`),
 };
 
 // ── AI Trace 类型定义 ──
@@ -740,15 +745,75 @@ export interface AITraceDetail extends AITraceItem {
   memoryRecalled?: string[];
 }
 
-export interface ModelHealthInfo {
-  modelId: string;
-  modelName: string;
-  status: 'healthy' | 'degraded' | 'down';
-  circuitState: 'closed' | 'open' | 'half-open';
-  successRate: number;
-  avgLatencyMs: number;
-  failureCount: number;
-  lastFailureAt?: string;
+// ── 存储审计类型定义 ──
+export interface StorageMismatchItem {
+  r2Key: string;
+  bucketId: string;
+  bucketName: string;
+  size?: number;
+  dbFileId?: string;
+  dbFileName?: string;
+  dbFileSize?: number;
+  s3Size?: number;
+}
+
+export interface BucketAuditResult {
+  bucketId: string;
+  bucketName: string;
+  provider: string;
+  isActive: boolean;
+  s3ObjectCount: number;
+  s3TotalSizeBytes: number;
+  dbFileCount: number;
+  dbTotalSizeBytes: number;
+  orphanFiles: StorageMismatchItem[];
+  missingFiles: StorageMismatchItem[];
+  sizeMismatchFiles: Array<StorageMismatchItem & { dbSize: number; s3Size: number; diffBytes: number }>;
+  matchedFiles: number;
+  consistencyRate: number;
+}
+
+export interface RemediationRecommendation {
+  id: string;
+  category: 'orphan_cleanup' | 'missing_recovery' | 'size_sync' | 'db_repair' | 'bucket_config';
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
+  title: string;
+  description: string;
+  affectedCount: number;
+  affectedSizeBytes: number;
+  action: string;
+  riskLevel: 'safe' | 'caution' | 'dangerous';
+  estimatedTime: string;
+}
+
+export interface AuditSummary {
+  healthScore: number;
+  status: 'healthy' | 'warning' | 'critical' | 'error';
+  topIssues: string[];
+  quickStats: { wasteRatio: number; dataLossRisk: boolean; lastAuditAge: string };
+}
+
+export interface StorageAuditReport {
+  auditId: string;
+  executedAt: string;
+  durationMs: number;
+  totalBuckets: number;
+  auditedBuckets: number;
+  failedBuckets: number;
+  totalS3Objects: number;
+  totalS3SizeBytes: number;
+  totalDbFiles: number;
+  totalDbSizeBytes: number;
+  totalOrphanFiles: number;
+  totalOrphanSizeBytes: number;
+  totalMissingFiles: number;
+  totalMissingSizeBytes: number;
+  totalSizeMismatches: number;
+  overallConsistencyRate: number;
+  buckets: BucketAuditResult[];
+  summary: AuditSummary;
+  recommendations: RemediationRecommendation[];
+  cacheInfo?: { cached: boolean; ageMinutes: number };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

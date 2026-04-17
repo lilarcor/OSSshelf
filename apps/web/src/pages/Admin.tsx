@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminApi, type AdminUser, AITraceItem, ModelHealthInfo } from '@/services/api';
+import { adminApi, type AdminUser, AITraceItem } from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -21,6 +21,7 @@ import { useResponsive } from '@/hooks/useResponsive';
 import { formatBytes, formatDate } from '@/utils';
 import { cn } from '@/utils';
 import { EmailConfig } from '@/components/admin/EmailConfig';
+import { StorageAuditTab } from '@/components/admin/StorageAuditTab';
 import {
   Users,
   Shield,
@@ -43,9 +44,10 @@ import {
   Mail,
   Clock,
   Brain,
+  HardDrive,
 } from 'lucide-react';
 
-type TabKey = 'users' | 'registration' | 'email' | 'stats' | 'audit' | 'ai-trace';
+type TabKey = 'users' | 'registration' | 'email' | 'stats' | 'audit' | 'ai-trace' | 'storage-audit';
 
 export default function Admin() {
   const { user: currentUser } = useAuthStore();
@@ -72,6 +74,7 @@ export default function Admin() {
     { key: 'audit', label: '审计日志', icon: FileText },
     { key: 'stats', label: '系统统计', icon: Server },
     { key: 'ai-trace', label: 'AI 执行日志', icon: Brain },
+    { key: 'storage-audit', label: '存储审计', icon: HardDrive },
   ];
 
   return (
@@ -108,6 +111,7 @@ export default function Admin() {
       {activeTab === 'audit' && <AuditLogTab />}
       {activeTab === 'stats' && <StatsTab />}
       {activeTab === 'ai-trace' && <AITraceTab />}
+      {activeTab === 'storage-audit' && <StorageAuditTab />}
     </div>
   );
 }
@@ -374,12 +378,6 @@ function AITraceTab() {
         .then((r) => r.data.data),
   });
 
-  const { data: modelHealth } = useQuery({
-    queryKey: ['admin', 'ai-model-health'],
-    queryFn: () => adminApi.aiModelHealth().then((r) => r.data.data),
-    refetchInterval: 30000,
-  });
-
   const traces = tracesData?.items ?? [];
   const total = tracesData?.total ?? 0;
   const totalPages = Math.ceil(total / 20);
@@ -488,67 +486,6 @@ function AITraceTab() {
           )}
         </CardContent>
       </Card>
-
-      {/* 模型健康状态 */}
-      {modelHealth && modelHealth.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">模型健康状态</CardTitle>
-            <CardDescription>实时监控 AI 模型的可用性和性能</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {modelHealth.map((model) => (
-                <div
-                  key={model.modelId}
-                  className={cn(
-                    'p-4 rounded-lg border',
-                    model.status === 'healthy'
-                      ? 'border-green-200 bg-green-50/50 dark:bg-green-950/20'
-                      : model.status === 'degraded'
-                        ? 'border-yellow-200 bg-yellow-50/50 dark:bg-yellow-950/20'
-                        : 'border-red-200 bg-red-50/50 dark:bg-red-950/20',
-                  )}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-sm">{model.modelName}</span>
-                    <span
-                      className={cn(
-                        'text-xs px-2 py-0.5 rounded-full',
-                        model.status === 'healthy'
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                          : model.status === 'degraded'
-                            ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
-                            : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
-                      )}
-                    >
-                      {model.circuitState === 'open' ? '熔断中' : model.status === 'healthy' ? '正常' : '降级'}
-                    </span>
-                  </div>
-                  <div className="space-y-1 text-xs text-muted-foreground">
-                    <div className="flex justify-between">
-                      <span>成功率</span>
-                      <span className={cn(model.successRate < 0.9 && 'text-red-500 font-medium')}>
-                        {(model.successRate * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>平均延迟</span>
-                      <span>{(model.avgLatencyMs / 1000).toFixed(2)}s</span>
-                    </div>
-                    {model.failureCount > 0 && (
-                      <div className="flex justify-between">
-                        <span>连续失败</span>
-                        <span className="text-orange-500">{model.failureCount} 次</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

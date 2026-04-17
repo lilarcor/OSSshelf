@@ -862,53 +862,122 @@ app.get('/ai/traces/:traceId', async (c) => {
   });
 });
 
-// ── GET /api/admin/ai/models/health ──────────────────────────────
-// 获取模型健康状态
 
-app.get('/ai/models/health', async (c) => {
-  const models = ['gpt-4o', 'gpt-4o-mini', 'claude-3.5-sonnet', 'gemini-1.5-pro'];
 
-  const healthInfo = await Promise.all(
-    models.map(async (modelId) => {
-      const circuitKey = `circuit:${modelId}`;
-      let circuitState: 'closed' | 'open' | 'half-open' = 'closed';
-      let failureCount = 0;
-      let lastFailureAt: string | undefined;
+// ══════════════════════════════════════════════════════════════
+// 存储审计 API - S3/R2 与数据库文件一致性检查
+// ══════════════════════════════════════════════════════════════
 
-      try {
-        const circuitData = await c.env.KV.get(circuitKey);
-        if (circuitData) {
-          const parsed = JSON.parse(circuitData);
-          circuitState = parsed.state || 'closed';
-          failureCount = parsed.failureCount || 0;
-          lastFailureAt = parsed.lastFailureAt;
-        }
-      } catch {}
+import { performStorageAudit, getLastAuditReport } from '../lib/storageAuditService';
 
-      const successRate = circuitState === 'open' ? 0.3 : circuitState === 'half-open' ? 0.7 : 0.98;
-      const avgLatencyMs = circuitState === 'open' ? 15000 : circuitState === 'half-open' ? 5000 : 1200;
+app.get('/storage-audit', async (c) => {
+  const cachedReport = await getLastAuditReport(c.env.KV);
+  if (cachedReport) {
+    const cacheAge = Date.now() - new Date(cachedReport.executedAt).getTime();
+    const cacheAgeMinutes = Math.floor(cacheAge / 60000);
 
-      const modelNames: Record<string, string> = {
-        'gpt-4o': 'GPT-4o',
-        'gpt-4o-mini': 'GPT-4o Mini',
-        'claude-3.5-sonnet': 'Claude 3.5 Sonnet',
-        'gemini-1.5-pro': 'Gemini 1.5 Pro',
-      };
+    if (cacheAgeMinutes < 30) {
+      return c.json({
+        success: true,
+        data: {
+          ...cachedReport,
+          cacheInfo: { cached: true, ageMinutes: cacheAgeMinutes },
+        },
+      });
+    }
+  }
 
-      return {
-        modelId,
-        modelName: modelNames[modelId] || modelId,
-        status: circuitState === 'open' ? 'down' : circuitState === 'half-open' ? 'degraded' : 'healthy',
-        circuitState,
-        successRate,
-        avgLatencyMs,
-        failureCount,
-        lastFailureAt,
-      };
-    }),
-  );
+  try {
+    const report = await performStorageAudit({ DB: c.env.DB, KV: c.env.KV });
 
-  return c.json({ success: true, data: healthInfo });
+    await createAuditLog({
+      env: c.env,
+      userId: c.get('userId')!,
+      action: 'admin.storage_audit',
+      resourceType: 'system',
+      details: {
+        auditId: report.auditId,
+        consistencyRate: report.overallConsistencyRate,
+        orphanCount: report.totalOrphanFiles,
+        missingCount: report.totalMissingFiles,
+        durationMs: report.durationMs,
+      },
+      ipAddress: getClientIp(c),
+      userAgent: getUserAgent(c),
+    });
+
+    return c.json({ success: true, data: report });
+  } catch (error) {
+    logger.error('STORAGE_AUDIT', '存储审计执行失败', {}, error);
+    return c.json(
+      {
+        success: false,
+        error: { code: 'AUDIT_FAILED', message: `存储审计执行失败: ${(error as Error).message}` },
+      },
+      500
+    );
+  }
+});
+
+app.post('/storage-audit/force', async (c) => {
+  try {
+    const report = await performStorageAudit({ DB: c.env.DB, KV: c.env.KV });
+
+    await createAuditLog({
+      env: c.env,
+      userId: c.get('userId')!,
+      action: 'admin.storage_audit_force',
+      resourceType: 'system',
+      details: {
+        auditId: report.auditId,
+        consistencyRate: report.overallConsistencyRate,
+        durationMs: report.durationMs,
+      },
+      ipAddress: getClientIp(c),
+      userAgent: getUserAgent(c),
+    });
+
+    return c.json({ success: true, data: report });
+  } catch (error) {
+    logger.error('STORAGE_AUDIT', '强制存储审计执行失败', {}, error);
+    return c.json(
+      {
+        success: false,
+        error: { code: 'AUDIT_FAILED', message: `存储审计执行失败: ${(error as Error).message}` },
+      },
+      500
+    );
+  }
+});
+
+app.get('/storage-audit/bucket/:bucketId', async (c) => {
+  const bucketId = c.req.param('bucketId');
+  const db = getDb(c.env.DB);
+
+  const bucket = await db.select().from(storageBuckets).where(eq(storageBuckets.id, bucketId)).get();
+  if (!bucket) {
+    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '存储桶不存在' } }, 404);
+  }
+
+  try {
+    const fullReport = await performStorageAudit({ DB: c.env.DB, KV: c.env.KV });
+    const bucketResult = fullReport.buckets.find((b) => b.bucketId === bucketId);
+
+    if (!bucketResult) {
+      return c.json({ success: false, error: { code: 'BUCKET_NOT_AUDITED', message: '该存储桶未被审计' } }, 404);
+    }
+
+    return c.json({ success: true, data: bucketResult });
+  } catch (error) {
+    logger.error('STORAGE_AUDIT', `单桶审计失败 ${bucketId}`, {}, error);
+    return c.json(
+      {
+        success: false,
+        error: { code: 'AUDIT_FAILED', message: `单桶审计失败: ${(error as Error).message}` },
+      },
+      500
+    );
+  }
 });
 
 export default app;
