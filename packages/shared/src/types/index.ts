@@ -161,7 +161,9 @@ export type AuditAction =
   | 'admin.email_broadcast'
   | 'admin.invite_code_revoke'
   | 'admin.storage_audit'
-  | 'admin.storage_audit_force';
+  | 'admin.storage_audit_force'
+  | 'admin.storage_cleanup_orphans'
+  | 'admin.storage_mark_missing_deleted';
 
 export interface LoginAttempt {
   id: string;

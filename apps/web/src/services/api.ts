@@ -708,6 +708,14 @@ export const adminApi = {
   storageAuditForce: () => api.post<ApiResponse<StorageAuditReport>>('/api/admin/storage-audit/force'),
   storageAuditBucket: (bucketId: string) =>
     api.get<ApiResponse<BucketAuditResult>>(`/api/admin/storage-audit/bucket/${bucketId}`),
+
+  // ── 存储审计 - 清理 & 修复 ──
+  cleanupOrphans: (data: { bucketId: string; keys?: string[]; mode?: 'all' | 'selected' }) =>
+    api.post<ApiResponse<{ deletedCount: number; deletedKeys: string[]; failedKeys: Array<{ key: string; error: string }>; totalSizeBytes: number }>>('/api/admin/storage-audit/cleanup-orphans', data),
+  getMissingFiles: (bucketId: string) =>
+    api.get<ApiResponse<MissingFileDetailResponse>>(`/api/admin/storage-audit/missing-files/${bucketId}`),
+  markMissingDeleted: (bucketId: string, fileIds: string[]) =>
+    api.delete<ApiResponse<{ markedCount: number; message: string }>>(`/api/admin/storage-audit/missing-files/${bucketId}/mark-deleted`, { data: { fileIds } }),
 };
 
 // ── AI Trace 类型定义 ──
@@ -823,6 +831,26 @@ export interface StorageAuditReport {
   summary: AuditSummary;
   recommendations: RemediationRecommendation[];
   cacheInfo?: { cached: boolean; ageMinutes: number };
+}
+
+export interface MissingFileDetail {
+  fileId: string;
+  name: string;
+  r2Key: string;
+  size: number;
+  parentId: string | null;
+  path: string | null;
+  mimeType: string | null;
+  createdAt: string;
+  folderPath: string | null;
+}
+
+export interface MissingFileDetailResponse {
+  bucketId: string;
+  bucketName: string;
+  provider: string;
+  missingCount: number;
+  files: MissingFileDetail[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

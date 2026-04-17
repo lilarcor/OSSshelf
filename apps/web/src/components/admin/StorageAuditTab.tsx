@@ -11,7 +11,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { adminApi, type StorageAuditReport, type BucketAuditResult } from '@/services/api';
+import { adminApi, type StorageAuditReport, type BucketAuditResult, type MissingFileDetailResponse } from '@/services/api';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { useToast } from '@/components/ui/useToast';
@@ -42,6 +42,9 @@ import {
   Ban,
   WifiOff,
   Info,
+  FolderTree,
+  Eraser,
+  FolderOpen,
 } from 'lucide-react';
 
 export function StorageAuditTab() {
@@ -49,6 +52,8 @@ export function StorageAuditTab() {
   const queryClient = useQueryClient();
   const [expandedBucket, setExpandedBucket] = useState<string | null>(null);
   const [showRecommendations, setShowRecommendations] = useState(true);
+  const [showMissingDetails, setShowMissingDetails] = useState<string | null>(null);
+  const [cleaningBucketId, setCleaningBucketId] = useState<string | null>(null);
 
   const {
     data: report,
@@ -69,6 +74,36 @@ export function StorageAuditTab() {
     },
     onError: (e: any) =>
       toast({ title: '审计失败', description: e.response?.data?.error?.message, variant: 'destructive' }),
+  });
+
+  const cleanupOrphansMutation = useMutation({
+    mutationFn: (bucketId: string) =>
+      adminApi.cleanupOrphans({ bucketId, mode: 'all' }).then((r) => r.data),
+    onMutate: (bucketId) => { setCleaningBucketId(bucketId); },
+    onSuccess: (data, bucketId) => {
+      const d = data?.data;
+      if (!d) return;
+      const hasFailures = (d.failedKeys?.length ?? 0) > 0;
+      toast({
+        title: '清理完成',
+        description: `成功删除 ${d.deletedCount ?? 0} 个孤儿文件${hasFailures ? `，${d.failedKeys.length} 个失败` : ''}`,
+        variant: hasFailures ? 'destructive' : undefined,
+      });
+      setCleaningBucketId(null);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'storage-audit'] });
+    },
+    onError: (e: any, bucketId) => {
+      setCleaningBucketId(null);
+      toast({ title: '清理失败', description: e.response?.data?.error?.message, variant: 'destructive' });
+    },
+  });
+
+  const missingFilesQuery = useQuery({
+    queryKey: ['admin', 'storage-audit-missing', showMissingDetails],
+    queryFn: () =>
+      showMissingDetails ? adminApi.getMissingFiles(showMissingDetails).then((r) => r.data.data) : null,
+    enabled: !!showMissingDetails,
+    staleTime: 2 * 60 * 1000,
   });
 
   if (isLoading && !report) {
@@ -269,9 +304,92 @@ export function StorageAuditTab() {
             bucket={bucket}
             isExpanded={expandedBucket === bucket.bucketId}
             onToggle={() => setExpandedBucket(expandedBucket === bucket.bucketId ? null : bucket.bucketId)}
+            onCleanupOrphans={(bid) => cleanupOrphansMutation.mutate(bid)}
+            onShowMissingDetails={(bid) => setShowMissingDetails(bid)}
+            isCleaning={cleaningBucketId === bucket.bucketId && cleanupOrphansMutation.isPending}
           />
         ))}
       </div>
+
+      {/* ── 丢失文件路径穿透面板 ── */}
+      {showMissingDetails && missingFilesQuery.data && (
+        <Card className="border-red-200/50 bg-red-50/20 dark:border-red-800/30 dark:bg-red-950/5">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                  <FolderTree className="h-4 w-4 text-red-500" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">丢失文件 — 文件夹路径穿透</CardTitle>
+                  <CardDescription>
+                    {missingFilesQuery.data.bucketName} ({missingFilesQuery.data.provider}) — 共 {missingFilesQuery.data.missingCount} 个丢失文件
+                  </CardDescription>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowMissingDetails(null)}
+              >
+                <XCircle className="h-4 w-4 mr-1" />
+                关闭
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="pt-0 space-y-2">
+            {missingFilesQuery.isLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+                <span className="text-sm text-muted-foreground">正在解析文件夹路径...</span>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-red-200/40 overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-red-100/50 dark:bg-red-900/10 border-b border-border">
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground w-[35%]">文件名</th>
+                      <th className="px-3 py-2 text-left font-medium text-muted-foreground w-[40%]">所属文件夹路径</th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground w-[12%]">大小</th>
+                      <th className="px-3 py-2 text-right font-medium text-muted-foreground w-[13%]">创建时间</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {missingFilesQuery.data.files.map((f) => (
+                      <tr key={f.fileId} className="hover:bg-background/50 transition-colors">
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1.5">
+                            <FileWarning className="h-3.5 w-3.5 text-red-400 flex-shrink-0" />
+                            <code className="font-mono truncate max-w-[200px]">{f.name}</code>
+                          </div>
+                          <code className="font-mono text-[10px] text-muted-foreground ml-5.5 block truncate max-w-[220px] mt-0.5">{f.r2Key}</code>
+                        </td>
+                        <td className="px-3 py-2">
+                          {f.folderPath ? (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <FolderOpen className="h-3.5 w-3.5 flex-shrink-0 opacity-50" />
+                              <span className="truncate">{f.folderPath}</span>
+                            </div>
+                          ) : f.path ? (
+                            <span className="text-muted-foreground italic">根目录</span>
+                          ) : (
+                            <span className="text-muted-foreground/50">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{formatBytes(f.size)}</td>
+                        <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
+                          {formatDate(f.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── 整改建议 ── */}
       {report.recommendations.length > 0 && (
@@ -362,10 +480,16 @@ function BucketDetailCard({
   bucket,
   isExpanded,
   onToggle,
+  onCleanupOrphans,
+  onShowMissingDetails,
+  isCleaning,
 }: {
   bucket: BucketAuditResult;
   isExpanded: boolean;
   onToggle: () => void;
+  onCleanupOrphans: (bucketId: string) => void;
+  onShowMissingDetails: (bucketId: string) => void;
+  isCleaning: boolean;
 }) {
   // Telegram 跳过的桶
   if (bucket.skipped) {
@@ -486,14 +610,43 @@ function BucketDetailCard({
             {hasIssues && (
               <div className="hidden sm:flex items-center gap-1.5 text-xs">
                 {bucket.orphanFiles.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                    {bucket.orphanFiles.length} 孤儿
-                  </span>
+                  <>
+                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                      {bucket.orphanFiles.length} 孤儿
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCleanupOrphans(bucket.bucketId);
+                      }}
+                      disabled={isCleaning}
+                    >
+                      {isCleaning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Eraser className="h-3 w-3 mr-1" />}
+                      清理
+                    </Button>
+                  </>
                 )}
                 {bucket.missingFiles.length > 0 && (
-                  <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-                    {bucket.missingFiles.length} 丢失
-                  </span>
+                  <>
+                    <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                      {bucket.missingFiles.length} 丢失
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onShowMissingDetails(bucket.bucketId);
+                      }}
+                    >
+                      <FolderTree className="h-3 w-3 mr-1" />
+                      路径
+                    </Button>
+                  </>
                 )}
                 {bucket.sizeMismatchFiles.length > 0 && (
                   <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">

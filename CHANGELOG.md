@@ -297,6 +297,8 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [v4.6.0] - 2026-04-13
+
 ### Added - 用户体验全面优化与AI能力增强 🚀
 
 **核心功能 - 非AI功能优化（5项）**

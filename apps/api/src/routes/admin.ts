@@ -12,8 +12,8 @@
  */
 
 import { Hono } from 'hono';
-import { eq, and, isNull, desc, sql, gte, lte, lt } from 'drizzle-orm';
-import { getDb, users, files, storageBuckets, auditLogs, aiChatSessions, aiChatMessages, aiMemories } from '../db';
+import { eq, and, isNull, desc, sql, gte, lte, lt, inArray } from 'drizzle-orm';
+import { getDb, users, files, storageBuckets, auditLogs, aiChatSessions, aiChatMessages, aiMemories, fileVersions } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { ERROR_CODES, logger } from '@osshelf/shared';
 import { throwAppError } from '../middleware/error';
@@ -978,6 +978,248 @@ app.get('/storage-audit/bucket/:bucketId', async (c) => {
       500
     );
   }
+});
+
+// ══════════════════════════════════════════════════════════════
+// 存储审计 - 孤儿文件清理 & 丢失文件路径穿透
+// ══════════════════════════════════════════════════════════════
+
+import { makeBucketConfigAsync, s3Delete, type S3BucketConfig } from '../lib/s3client';
+import { getEncryptionKey } from '../lib/crypto';
+
+app.post('/storage-audit/cleanup-orphans', async (c) => {
+  const body = await c.req.json().catch(() => ({})) as {
+    bucketId?: string;
+    keys?: string[];
+    mode?: 'all' | 'selected';
+  };
+
+  if (!body.bucketId) {
+    return c.json({ success: false, error: { code: 'BAD_REQUEST', message: '缺少 bucketId' } }, 400);
+  }
+
+  const db = getDb(c.env.DB);
+  const bucket = await db.select().from(storageBuckets).where(eq(storageBuckets.id, body.bucketId)).get();
+  if (!bucket) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: '存储桶不存在' } }, 404);
+  }
+
+  const encKey = getEncryptionKey(c.env);
+  let config: S3BucketConfig;
+  try {
+    config = await makeBucketConfigAsync(bucket, encKey, db);
+  } catch (error) {
+    return c.json(
+      { success: false, error: { code: 'BUCKET_CONFIG_ERROR', message: `无法解析存储桶配置: ${(error as Error).message}` } },
+      500
+    );
+  }
+
+  let keysToDelete: string[] = [];
+
+  if (body.mode === 'selected' && body.keys && body.keys.length > 0) {
+    keysToDelete = body.keys;
+  } else {
+    const report = await performStorageAudit({ DB: c.env.DB, KV: c.env.KV, JWT_SECRET: c.env.JWT_SECRET });
+    const bucketResult = report.buckets.find((b) => b.bucketId === body.bucketId);
+    if (!bucketResult || !bucketResult.connected) {
+      return c.json({ success: false, error: { code: 'AUDIT_NEEDED', message: '请先执行审计获取孤儿文件列表' } }, 400);
+    }
+    keysToDelete = bucketResult.orphanFiles.map((f) => f.r2Key);
+  }
+
+  if (keysToDelete.length === 0) {
+    return c.json({ success: true, data: { deletedCount: 0, failedKeys: [], totalSizeBytes: 0 } });
+  }
+
+  const deletedKeys: string[] = [];
+  const failedKeys: Array<{ key: string; error: string }> = [];
+  let totalDeletedBytes = 0;
+
+  for (const key of keysToDelete) {
+    try {
+      await s3Delete(config, key);
+      deletedKeys.push(key);
+    } catch (error) {
+      failedKeys.push({ key, error: (error as Error).message });
+    }
+  }
+
+  logger.info('STORAGE_AUDIT', '孤儿文件清理完成', {
+    bucketId: body.bucketId,
+    requested: keysToDelete.length,
+    deleted: deletedKeys.length,
+    failed: failedKeys.length,
+  });
+
+  await createAuditLog({
+    env: c.env,
+    userId: c.get('userId')!,
+    action: 'admin.storage_cleanup_orphans',
+    resourceType: 'storage_bucket',
+    details: {
+      bucketId: body.bucketId,
+      bucketName: bucket.bucketName,
+      requestedCount: keysToDelete.length,
+      deletedCount: deletedKeys.length,
+      failedCount: failedKeys.length,
+      mode: body.mode || 'selected',
+    },
+    ipAddress: getClientIp(c),
+    userAgent: getUserAgent(c),
+  });
+
+  return c.json({
+    success: true,
+    data: {
+      deletedCount: deletedKeys.length,
+      deletedKeys,
+      failedKeys,
+      totalSizeBytes: totalDeletedBytes,
+    },
+  });
+});
+
+app.get('/storage-audit/missing-files/:bucketId', async (c) => {
+  const bucketId = c.req.param('bucketId');
+  const db = getDb(c.env.DB);
+
+  const bucket = await db.select().from(storageBuckets).where(eq(storageBuckets.id, bucketId)).get();
+  if (!bucket) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: '存储桶不存在' } }, 404);
+  }
+
+  const dbFiles = await db
+    .select({
+      id: files.id,
+      name: files.name,
+      r2Key: files.r2Key,
+      size: files.size,
+      parentId: files.parentId,
+      path: files.path,
+      mimeType: files.mimeType,
+      createdAt: files.createdAt,
+    })
+    .from(files)
+    .where(and(eq(files.bucketId, bucketId), isNull(files.deletedAt), eq(files.isFolder, false)))
+    .all();
+
+  const allFileIds = dbFiles.map((f) => f.id);
+
+  const BATCH_SIZE = 100;
+  const allVersions: Map<string, { r2Key: string | null; size: number }> = new Map();
+  if (allFileIds.length > 0) {
+    for (let i = 0; i < allFileIds.length; i += BATCH_SIZE) {
+      const batch = allFileIds.slice(i, i + BATCH_SIZE);
+      const results = await db
+        .select({ fileId: fileVersions.fileId, r2Key: fileVersions.r2Key, size: fileVersions.size })
+        .from(fileVersions)
+        .where(inArray(fileVersions.fileId, batch))
+        .all();
+      for (const v of results) {
+        if (!allVersions.has(v.fileId) || (v.r2Key && !allVersions.get(v.fileId)?.r2Key)) {
+          allVersions.set(v.fileId, { r2Key: v.r2Key, size: v.size });
+        }
+      }
+    }
+  }
+
+  const missingFiles = [];
+  for (const f of dbFiles) {
+    const versionInfo = allVersions.get(f.id);
+    const effectiveR2Key = f.r2Key || versionInfo?.r2Key;
+    if (!effectiveR2Key) continue;
+    missingFiles.push({
+      fileId: f.id,
+      name: f.name,
+      r2Key: effectiveR2Key,
+      size: f.size || versionInfo?.size || 0,
+      parentId: f.parentId,
+      path: f.path,
+      mimeType: f.mimeType,
+      createdAt: f.createdAt,
+      folderPath: null as string | null,
+    });
+  }
+
+  if (missingFiles.length > 0) {
+    const parentIds = [...new Set(missingFiles.map((f) => f.parentId).filter((v): v is string => Boolean(v)))];
+    if (parentIds.length > 0) {
+      const parentMap = new Map<string, { name: string; path: string; parentId: string | null }>();
+      for (let i = 0; i < parentIds.length; i += BATCH_SIZE) {
+        const batch = parentIds.slice(i, i + BATCH_SIZE);
+        const parents = await db
+          .select({ id: files.id, name: files.name, path: files.path, parentId: files.parentId })
+          .from(files)
+          .where(inArray(files.id, batch))
+          .all();
+        for (const p of parents) {
+          parentMap.set(p.id, { name: p.name, path: p.path, parentId: p.parentId });
+        }
+      }
+
+      function buildFolderPath(currentParentId: string | null): string | null {
+        if (!currentParentId) return null;
+        const parent = parentMap.get(currentParentId);
+        if (!parent) return null;
+        const parentPath = buildFolderPath(parent.parentId);
+        return parentPath ? `${parentPath}/${parent.name}` : parent.name;
+      }
+
+      for (const mf of missingFiles) {
+        mf.folderPath = buildFolderPath(mf.parentId);
+      }
+    }
+  }
+
+  return c.json({
+    success: true,
+    data: {
+      bucketId,
+      bucketName: bucket.bucketName,
+      provider: bucket.provider,
+      missingCount: missingFiles.length,
+      files: missingFiles,
+    },
+  });
+});
+
+app.delete('/storage-audit/missing-files/:bucketId/mark-deleted', async (c) => {
+  const bucketId = c.req.param('bucketId');
+  const body = await c.req.json().catch(() => ({})) as { fileIds?: string[] };
+
+  if (!body.fileIds || body.fileIds.length === 0) {
+    return c.json({ success: false, error: { code: 'BAD_REQUEST', message: '缺少 fileIds' } }, 400);
+  }
+
+  const db = getDb(c.env.DB);
+
+  const BATCH_SIZE = 100;
+  let updatedCount = 0;
+  for (let i = 0; i < body.fileIds.length; i += BATCH_SIZE) {
+    const batch = body.fileIds.slice(i, i + BATCH_SIZE);
+    await db
+      .update(files)
+      .set({ deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+      .where(inArray(files.id, batch))
+      .run();
+    updatedCount += batch.length;
+  }
+
+  await createAuditLog({
+    env: c.env,
+    userId: c.get('userId')!,
+    action: 'admin.storage_mark_missing_deleted',
+    resourceType: 'system',
+    details: { bucketId, markedCount: body.fileIds.length },
+    ipAddress: getClientIp(c),
+    userAgent: getUserAgent(c),
+  });
+
+  return c.json({
+    success: true,
+    data: { markedCount: body.fileIds.length, message: `已将 ${body.fileIds.length} 个丢失文件标记为已删除` },
+  });
 });
 
 export default app;
