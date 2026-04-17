@@ -10,8 +10,8 @@
  */
 
 import { Hono } from 'hono';
-import { eq, and, desc, sql, count } from 'drizzle-orm';
-import { getDb, aiChatSessions, aiChatMessages, aiConfirmRequests, aiMemories } from '../db';
+import { eq, and, desc, sql, count, inArray, isNull } from 'drizzle-orm';
+import { getDb, aiChatSessions, aiChatMessages, aiConfirmRequests, aiMemories, files } from '../db';
 import { authMiddleware } from '../middleware';
 import { ERROR_CODES, logger } from '@osshelf/shared';
 import type { Env, Variables } from '../types/env';
@@ -129,6 +129,27 @@ app.get('/sessions/:sessionId', async (c) => {
     confirmRequests.map((cr) => [cr.id, cr.status as 'pending' | 'consumed' | 'cancelled' | 'expired'])
   );
 
+  const mentionedFileIds = messages
+    .filter((m) => m.role === 'user' && m.mentionedFiles)
+    .flatMap((m) => {
+      try {
+        return JSON.parse(m.mentionedFiles!) as string[];
+      } catch {
+        return [];
+      }
+    });
+
+  const mentionedFileMap = new Map<string, string>();
+  if (mentionedFileIds.length > 0) {
+    const uniqueIds = [...new Set(mentionedFileIds)];
+    const fileRecords = await db
+      .select({ id: files.id, name: files.name })
+      .from(files)
+      .where(and(inArray(files.id, uniqueIds), eq(files.userId, userId), isNull(files.deletedAt)))
+      .all();
+    fileRecords.forEach((f) => mentionedFileMap.set(f.id, f.name));
+  }
+
   return c.json({
     success: true,
     data: {
@@ -149,12 +170,30 @@ app.get('/sessions/:sessionId', async (c) => {
             return tc;
           });
         }
+
+        let parsedMentionedFiles: Array<{ id: string; name: string }> | undefined;
+        if (m.role === 'user' && m.mentionedFiles) {
+          try {
+            const ids = JSON.parse(m.mentionedFiles) as string[];
+            parsedMentionedFiles = ids
+              .map((id) => {
+                const name = mentionedFileMap.get(id);
+                return name ? { id, name } : null;
+              })
+              .filter(Boolean) as Array<{ id: string; name: string }>;
+            if (parsedMentionedFiles.length === 0) parsedMentionedFiles = undefined;
+          } catch {
+            parsedMentionedFiles = undefined;
+          }
+        }
+
         return {
           ...m,
           sources: m.sources ? JSON.parse(m.sources) : undefined,
           toolCalls,
           reasoning: m.reasoning || undefined,
           aborted: m.aborted || false,
+          mentionedFiles: parsedMentionedFiles,
         };
       }),
     },
@@ -463,6 +502,7 @@ async function handleStreamChat(
       sessionId: actualSessionId,
       role: 'user',
       content: query,
+      mentionedFiles: contextFileIds && contextFileIds.length > 0 ? JSON.stringify(contextFileIds) : undefined,
       createdAt: new Date().toISOString(),
     });
 

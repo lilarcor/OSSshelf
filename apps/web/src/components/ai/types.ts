@@ -46,6 +46,7 @@ export interface Message {
   timestamp: Date;
   isLoading?: boolean;
   aborted?: boolean;
+  mentionedFiles?: Array<{ id: string; name: string }>;
 }
 
 export interface SseChunk {

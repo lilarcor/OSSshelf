@@ -691,6 +691,7 @@ export const aiChatMessages = sqliteTable(
     inputTokens: integer('input_tokens').default(0),
     outputTokens: integer('output_tokens').default(0),
     aborted: integer('aborted', { mode: 'boolean' }).default(false),
+    mentionedFiles: text('mentioned_files'),
     createdAt: text('created_at').notNull(),
   },
   (table) => ({

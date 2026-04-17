@@ -523,12 +523,14 @@ export function AIChat() {
           return idx >= 0 ? prev.slice(0, idx) : prev;
         });
       } else {
+        const currentMentionedFiles = [...mentionedFilesRef.current];
         setMessages((prev) => [
           ...prev,
           {
             id: crypto.randomUUID(),
             role: 'user',
             content: finalQuery,
+            mentionedFiles: currentMentionedFiles.length > 0 ? currentMentionedFiles : undefined,
             timestamp: new Date(),
           },
         ]);
@@ -999,6 +1001,20 @@ export function AIChat() {
                       <AssistantContent content={msg.content} onFileClick={handleFileClick} />
                     ) : (
                       <span className="whitespace-pre-wrap">{msg.content}</span>
+                    )}
+
+                    {msg.role === 'user' && msg.mentionedFiles && msg.mentionedFiles.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-white/20 flex flex-wrap gap-1.5">
+                        {msg.mentionedFiles.map((file) => (
+                          <span
+                            key={file.id}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 text-white/90 text-xs font-medium"
+                          >
+                            <AtSign className="h-3 w-3" />
+                            <span className="max-w-[120px] truncate">{file.name}</span>
+                          </span>
+                        ))}
+                      </div>
                     )}
 
                     {msg.aborted && msg.role === 'assistant' && (
