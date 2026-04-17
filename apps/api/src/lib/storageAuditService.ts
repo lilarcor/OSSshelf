@@ -446,14 +446,30 @@ async function auditSingleBucket(
 
   const bucketFileIds = dbFiles.map((f) => f.id);
 
-  const dbVersionFiles =
-    bucketFileIds.length > 0
-      ? await db
-          .select({ id: fileVersions.id, fileId: fileVersions.fileId, r2Key: fileVersions.r2Key, size: fileVersions.size })
-          .from(fileVersions)
-          .where(inArray(fileVersions.fileId, bucketFileIds))
-          .all()
-      : [];
+  const BATCH_SIZE = 900;
+  const dbVersionFiles: Array<{
+    id: string;
+    fileId: string;
+    r2Key: string | null;
+    size: number;
+  }> = [];
+
+  if (bucketFileIds.length > 0) {
+    for (let i = 0; i < bucketFileIds.length; i += BATCH_SIZE) {
+      const batch = bucketFileIds.slice(i, i + BATCH_SIZE);
+      const batchResults = await db
+        .select({
+          id: fileVersions.id,
+          fileId: fileVersions.fileId,
+          r2Key: fileVersions.r2Key,
+          size: fileVersions.size,
+        })
+        .from(fileVersions)
+        .where(inArray(fileVersions.fileId, batch))
+        .all();
+      dbVersionFiles.push(...batchResults);
+    }
+  }
 
   const allDbR2Keys = new Map<string, { fileId: string; fileName: string; fileSize: number }>();
   for (const f of dbFiles) {
