@@ -224,6 +224,7 @@ export function AIChat() {
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
   const [mentionedFiles, setMentionedFiles] = useState<Array<{ id: string; name: string }>>([]);
+  const mentionedFilesRef = useRef<Array<{ id: string; name: string }>>([]);
   const mentionDropdownRef = useRef<HTMLDivElement>(null);
   const [mentionCursorPos, setMentionCursorPos] = useState(0);
 
@@ -263,7 +264,11 @@ export function AIChat() {
   const selectMentionedFile = useCallback(
     (fileId: string, fileName: string) => {
       if (!mentionedFiles.find((f) => f.id === fileId)) {
-        setMentionedFiles((prev) => [...prev, { id: fileId, name: fileName }]);
+        setMentionedFiles((prev) => {
+          const next = [...prev, { id: fileId, name: fileName }];
+          mentionedFilesRef.current = next;
+          return next;
+        });
       }
       // 移除输入框中的 @xxx 文本
       const currentInput = input;
@@ -279,7 +284,11 @@ export function AIChat() {
 
   // 移除已引用的文件
   const removeMentionedFile = useCallback((fileId: string) => {
-    setMentionedFiles((prev) => prev.filter((f) => f.id !== fileId));
+    setMentionedFiles((prev) => {
+      const next = prev.filter((f) => f.id !== fileId);
+      mentionedFilesRef.current = next;
+      return next;
+    });
   }, []);
 
   // 点击外部关闭下拉框
@@ -441,6 +450,7 @@ export function AIChat() {
         ]);
         setInput('');
         setMentionedFiles([]);
+        mentionedFilesRef.current = [];
         if (inputRef.current) inputRef.current.style.height = 'auto';
       }
 
@@ -468,7 +478,7 @@ export function AIChat() {
           maxFiles: 8,
           includeFileContent: false,
           contextFolderId,
-          contextFileIds: mentionedFiles.length > 0 ? mentionedFiles.map((f) => f.id) : undefined,
+          contextFileIds: mentionedFilesRef.current.length > 0 ? mentionedFilesRef.current.map((f) => f.id) : undefined,
           onChunk: (raw: SseChunk) => {
             if (raw.type === 'plan' && raw.plan) {
               setExecutionPlans((prev) => new Map(prev).set(assistantId, raw.plan!));
