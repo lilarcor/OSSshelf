@@ -247,8 +247,6 @@ export const adminApi = {
   // ── 存储审计 ──
   storageAudit: () => api.get<ApiResponse<StorageAuditReport>>('/api/admin/storage-audit'),
   storageAuditForce: () => api.post<ApiResponse<StorageAuditReport>>('/api/admin/storage-audit/force'),
-  storageAuditBucket: (bucketId: string) =>
-    api.get<ApiResponse<BucketAuditResult>>(`/api/admin/storage-audit/bucket/${bucketId}`),
 
   /** 清理孤立对象 */
   cleanupOrphans: (data: { bucketId: string; keys?: string[]; mode?: 'all' | 'selected' }) =>
@@ -264,9 +262,4 @@ export const adminApi = {
   /** 获取缺失文件详情 */
   getMissingFiles: (bucketId: string) =>
     api.get<ApiResponse<MissingFileDetailResponse>>(`/api/admin/storage-audit/missing-files/${bucketId}`),
-  markMissingDeleted: (bucketId: string, fileIds: string[]) =>
-    api.delete<ApiResponse<{ markedCount: number; message: string }>>(
-      `/api/admin/storage-audit/missing-files/${bucketId}/mark-deleted`,
-      { data: { fileIds } }
-    ),
 };

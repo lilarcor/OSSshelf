@@ -320,19 +320,6 @@ export const groupsApi = {
   list: () => api.get<ApiResponse<{ owned: UserGroup[]; memberOf: UserGroup[] }>>('/api/groups'),
   create: (data: { name: string; description?: string }) => api.post<ApiResponse<UserGroup>>('/api/groups', data),
   get: (id: string) => api.get<ApiResponse<UserGroup>>(`/api/groups/${id}`),
-  getFiles: (id: string) =>
-    api.get<
-      ApiResponse<
-        Array<{
-          id: string;
-          fileId: string;
-          permission: string;
-          createdAt: string;
-          fileName: string | null;
-          filePath: string | null;
-        }>
-      >
-    >(`/api/groups/${id}/files`),
   update: (id: string, data: { name?: string; description?: string }) =>
     api.put<ApiResponse<{ message: string }>>(`/api/groups/${id}`, data),
   delete: (id: string) => api.delete<ApiResponse<{ message: string }>>(`/api/groups/${id}`),
@@ -375,7 +362,6 @@ export const webhooksApi = {
   list: () => api.get<ApiResponse<Webhook[]>>('/api/webhooks'),
   create: (data: { url: string; events: string[]; secret?: string }) =>
     api.post<ApiResponse<Webhook & { secret: string; warning: string }>>('/api/webhooks', data),
-  get: (id: string) => api.get<ApiResponse<Webhook>>(`/api/webhooks/${id}`),
   update: (id: string, data: { url?: string; events?: string[]; isActive?: boolean }) =>
     api.put<ApiResponse<{ message: string }>>(`/api/webhooks/${id}`, data),
   delete: (id: string) => api.delete<ApiResponse<{ message: string }>>(`/api/webhooks/${id}`),

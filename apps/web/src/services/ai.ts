@@ -373,7 +373,6 @@ export const aiApi = {
   getIndexStats: () => api.get<ApiResponse<AIIndexStats>>('/api/ai/index/stats'),
   getVectors: (params?: { page?: number; pageSize?: number; search?: string }) =>
     api.get<ApiResponse<VectorListResponse>>('/api/ai/index/vectors', { params }),
-  getIndexDiagnose: () => api.get<ApiResponse<AIIndexDiagnose>>('/api/ai/index/diagnose'),
   getIndexSample: (fileId: string) => api.get<ApiResponse<AIIndexSample>>(`/api/ai/index/sample/${fileId}`),
 
   // ═══════════════════════════════════════════════════════════════════════════

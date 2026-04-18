@@ -959,36 +959,6 @@ app.post('/storage-audit/force', async (c) => {
   }
 });
 
-app.get('/storage-audit/bucket/:bucketId', async (c) => {
-  const bucketId = c.req.param('bucketId');
-  const db = getDb(c.env.DB);
-
-  const bucket = await db.select().from(storageBuckets).where(eq(storageBuckets.id, bucketId)).get();
-  if (!bucket) {
-    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '存储桶不存在' } }, 404);
-  }
-
-  try {
-    const fullReport = await performStorageAudit({ DB: c.env.DB, KV: c.env.KV, JWT_SECRET: c.env.JWT_SECRET });
-    const bucketResult = fullReport.buckets.find((b) => b.bucketId === bucketId);
-
-    if (!bucketResult) {
-      return c.json({ success: false, error: { code: 'BUCKET_NOT_AUDITED', message: '该存储桶未被审计' } }, 404);
-    }
-
-    return c.json({ success: true, data: bucketResult });
-  } catch (error) {
-    logger.error('STORAGE_AUDIT', `单桶审计失败 ${bucketId}`, {}, error);
-    return c.json(
-      {
-        success: false,
-        error: { code: 'AUDIT_FAILED', message: `单桶审计失败: ${(error as Error).message}` },
-      },
-      500
-    );
-  }
-});
-
 // ══════════════════════════════════════════════════════════════
 // 存储审计 - 孤儿文件清理 & 丢失文件路径穿透
 // ══════════════════════════════════════════════════════════════
@@ -1193,44 +1163,6 @@ app.get('/storage-audit/missing-files/:bucketId', async (c) => {
       missingCount: missingFiles.length,
       files: missingFiles,
     },
-  });
-});
-
-app.delete('/storage-audit/missing-files/:bucketId/mark-deleted', async (c) => {
-  const bucketId = c.req.param('bucketId');
-  const body = (await c.req.json().catch(() => ({}))) as { fileIds?: string[] };
-
-  if (!body.fileIds || body.fileIds.length === 0) {
-    return c.json({ success: false, error: { code: 'BAD_REQUEST', message: '缺少 fileIds' } }, 400);
-  }
-
-  const db = getDb(c.env.DB);
-
-  const BATCH_SIZE = 100;
-  let updatedCount = 0;
-  for (let i = 0; i < body.fileIds.length; i += BATCH_SIZE) {
-    const batch = body.fileIds.slice(i, i + BATCH_SIZE);
-    await db
-      .update(files)
-      .set({ deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
-      .where(inArray(files.id, batch))
-      .run();
-    updatedCount += batch.length;
-  }
-
-  await createAuditLog({
-    env: c.env,
-    userId: c.get('userId')!,
-    action: 'admin.storage_mark_missing_deleted',
-    resourceType: 'system',
-    details: { bucketId, markedCount: body.fileIds.length },
-    ipAddress: getClientIp(c),
-    userAgent: getUserAgent(c),
-  });
-
-  return c.json({
-    success: true,
-    data: { markedCount: body.fileIds.length, message: `已将 ${body.fileIds.length} 个丢失文件标记为已删除` },
   });
 });
 
