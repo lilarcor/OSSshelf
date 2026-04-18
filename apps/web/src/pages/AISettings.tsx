@@ -987,18 +987,14 @@ export function AISettings() {
                           {sampleData.file?.mimeType || '-'}
                         </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">文件大小:</span>
-                        <span>{formatFileSize(sampleData.file?.size || 0)}</span>
-                      </div>
                       <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">索引状态:</span>
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
-                          sampleData.isIndexed
+                          !!sampleData.file?.vectorIndexedAt
                             ? 'bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-300'
                             : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
                         }`}>
-                          {sampleData.isIndexed ? (
+                          {!!sampleData.file?.vectorIndexedAt ? (
                             <>
                               <CheckCircle className="h-3 w-3" />
                               已索引
@@ -1024,13 +1020,13 @@ export function AISettings() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {sampleData.isIndexed ? (
+                    {!!sampleData.file?.vectorIndexedAt ? (
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">索引时间:</span>
                           <span>
-                            {sampleData.indexedAt
-                              ? new Date(sampleData.indexedAt).toLocaleString('zh-CN', {
+                            {sampleData.file?.vectorIndexedAt
+                              ? new Date(sampleData.file.vectorIndexedAt).toLocaleString('zh-CN', {
                                   year: 'numeric',
                                   month: '2-digit',
                                   day: '2-digit',
@@ -1042,12 +1038,16 @@ export function AISettings() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">文本长度:</span>
-                          <span>{sampleData.indexContent?.length?.toLocaleString() || 0} 字符</span>
+                          <span>{sampleData.indexedText?.length?.toLocaleString() || 0} 字符</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">分块数量:</span>
-                          <span>{sampleData.metadata?.chunks || 0} 块</span>
-                        </div>
+                        {sampleData.vectorize?.metadata && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">向量元数据:</span>
+                            <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded max-w-[200px] truncate" title={JSON.stringify(sampleData.vectorize.metadata)}>
+                              {Object.keys(sampleData.vectorize.metadata).join(', ') || '-'}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <p className="text-sm text-muted-foreground italic">
@@ -1058,7 +1058,7 @@ export function AISettings() {
                 </Card>
 
                 {/* 索引文本预览卡片 */}
-                {sampleData.indexContent && (
+                {sampleData.indexedText && (
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base flex items-center gap-2">
@@ -1069,14 +1069,14 @@ export function AISettings() {
                     <CardContent>
                       <div className="bg-muted/50 rounded-lg p-4 max-h-[300px] overflow-y-auto border">
                         <pre className="text-xs whitespace-pre-wrap font-mono leading-relaxed">
-                          {sampleData.indexContent.length > 1000
-                            ? `${sampleData.indexContent.substring(0, 1000)}...`
-                            : sampleData.indexContent}
+                          {sampleData.indexedText.length > 1000
+                            ? `${sampleData.indexedText.substring(0, 1000)}...`
+                            : sampleData.indexedText}
                         </pre>
                       </div>
-                      {sampleData.indexContent.length > 1000 && (
+                      {sampleData.indexedText.length > 1000 && (
                         <p className="text-xs text-muted-foreground mt-2 text-center">
-                          已截断显示，完整内容共 {sampleData.indexContent.length.toLocaleString()} 字符
+                          已截断显示，完整内容共 {sampleData.indexedText.length.toLocaleString()} 字符
                         </p>
                       )}
                     </CardContent>
@@ -1084,7 +1084,7 @@ export function AISettings() {
                 )}
 
                 {/* 元数据JSON卡片 */}
-                {sampleData.metadata && Object.keys(sampleData.metadata).length > 0 && (
+                {sampleData.vectorize?.metadata && Object.keys(sampleData.vectorize.metadata).length > 0 && (
                   <Card>
                     <CardHeader className="pb-3">
                       <details className="cursor-pointer group">
@@ -1099,7 +1099,7 @@ export function AISettings() {
                     </CardHeader>
                     <CardContent>
                       <pre className="bg-muted rounded-lg p-4 text-xs overflow-x-auto font-mono border">
-                        {JSON.stringify(sampleData.metadata, null, 2)}
+                        {JSON.stringify(sampleData.vectorize.metadata, null, 2)}
                       </pre>
                     </CardContent>
                   </Card>
