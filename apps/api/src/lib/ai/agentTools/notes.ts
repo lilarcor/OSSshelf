@@ -14,9 +14,7 @@
 import { eq, and, isNull, desc, like } from 'drizzle-orm';
 import { getDb, files, fileNotes } from '../../../db';
 import type { Env } from '../../../types/env';
-import { logger } from '@osshelf/shared';
 import type { ToolDefinition } from './types';
-import { validateFileAccess, createSuccessResponse, createErrorResponse } from './agentToolUtils';
 import {
   createNote as serviceCreateNote,
   updateNote as serviceUpdateNote,

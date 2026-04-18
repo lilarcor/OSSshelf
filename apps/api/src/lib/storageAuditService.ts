@@ -13,7 +13,7 @@
 import { eq, and, isNull, inArray } from 'drizzle-orm';
 import { getDb, files, fileVersions, storageBuckets } from '../db';
 import { makeBucketConfigAsync } from './s3client';
-import { s3ListObjects, type S3ObjectInfo, type ListObjectsResult } from './s3client';
+import { s3ListObjects, type ListObjectsResult } from './s3client';
 import { getEncryptionKey } from './crypto';
 import { logger } from '@osshelf/shared';
 

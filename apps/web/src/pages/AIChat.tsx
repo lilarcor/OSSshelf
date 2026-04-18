@@ -238,7 +238,6 @@ export function AIChat() {
     content: string;
     role: string;
   } | null>(null);
-  const inputAreaRef = useRef<HTMLDivElement>(null);
 
   // ═══ @文件引用搜索查询 ═══
   const { data: mentionSearchResults = [] } = useQuery({
@@ -359,7 +358,6 @@ export function AIChat() {
   }, []);
 
   const handleQuoteMessage = useCallback((content: string) => {
-    const preview = content.length > 80 ? content.slice(0, 80) + '...' : content;
     setQuotedMessage({ id: `quote_${Date.now()}`, content, role: 'user' });
     setContextMenu(null);
     if (inputRef.current) {

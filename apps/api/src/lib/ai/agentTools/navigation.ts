@@ -14,14 +14,10 @@
  */
 
 import { eq, and, isNull, desc, asc, like, sql, count } from 'drizzle-orm';
-import type { InferSelectModel } from 'drizzle-orm';
 import { getDb, files } from '../../../db';
 import type { Env } from '../../../types/env';
-import { logger } from '@osshelf/shared';
 import type { ToolDefinition, AgentFile } from './types';
 import { formatBytes, getMimeTypeCategory } from '../utils';
-import { validateFolderAccess, createSuccessResponse, createErrorResponse } from './agentToolUtils';
-import { splitKeywords } from '../../../lib/keywordSplitter';
 
 export const definitions: ToolDefinition[] = [
   // 1. navigate_path — 智能路径导航

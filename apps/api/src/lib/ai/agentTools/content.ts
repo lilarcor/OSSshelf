@@ -16,7 +16,7 @@
  */
 
 import { eq, and, isNull } from 'drizzle-orm';
-import { getDb, files, fileNotes } from '../../../db';
+import { getDb, files } from '../../../db';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
 import { ModelGateway } from '../modelGateway';
@@ -31,7 +31,7 @@ import {
 import { readFileContent } from '../../../lib/fileContentHelper';
 import { buildFileTextForVector } from '../vectorIndex';
 import { getAiConfigNumber, getAiConfigString } from '../aiConfigService';
-import { toAgentFile, validateFileAccess, createSuccessResponse, createErrorResponse } from './agentToolUtils';
+import { validateFileAccess, createSuccessResponse, createErrorResponse } from './agentToolUtils';
 import { getFilesByScope as serviceGetFilesByScope } from '../../../lib/fileService';
 
 const DEFAULT_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;

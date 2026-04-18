@@ -8,15 +8,8 @@
 import { eq, and, isNull, inArray, lt, or, desc, isNotNull } from 'drizzle-orm';
 import { getDb, files, filePermissions, users, userGroups, groupMembers } from '../db';
 import type { Env } from '../types/env';
-
-const PERMISSION_LEVELS = { read: 1, write: 2, admin: 3 } as const;
 import { logger } from '@osshelf/shared';
-import {
-  checkPermissionWithCache,
-  invalidatePermissionCache,
-  resolveEffectivePermission,
-  type PermissionLevel,
-} from '../lib/permissionResolver';
+import { resolveEffectivePermission, type PermissionLevel } from '../lib/permissionResolver';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 文件权限检查（核心函数，原位于 routes/permissions.ts）

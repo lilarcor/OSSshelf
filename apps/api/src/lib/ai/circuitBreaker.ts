@@ -30,7 +30,6 @@ interface CircuitState {
   state: 'closed' | 'open' | 'half-open';
 }
 
-const CIRCUIT_BREAKER_PREFIX = 'circuit:';
 const FAILURE_THRESHOLD = 3;
 const RECOVERY_TIMEOUT_MS = 10 * 60 * 1000;
 const circuitCache = new Map<string, CircuitState>();
@@ -49,7 +48,7 @@ export function classifyError(error: unknown): 'model_error' | 'network_timeout'
 
 export async function isModelAvailable(
   modelId: string,
-  env?: { KV: { get: (key: string) => Promise<string | null> } }
+  _env?: { KV: { get: (key: string) => Promise<string | null> } }
 ): Promise<boolean> {
   const cached = circuitCache.get(modelId);
   if (cached && cached.state === 'open') {

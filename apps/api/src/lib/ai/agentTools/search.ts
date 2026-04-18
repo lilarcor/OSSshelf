@@ -15,14 +15,14 @@
 
 import { eq, and, isNull, isNotNull, desc, asc, like, or, inArray, count, gte, lte, sql } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
-import { getDb, files, fileTags, shares, userStars } from '../../../db';
+import { getDb, files, fileTags, shares } from '../../../db';
 import { searchAndFetchFiles } from '../vectorIndex';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
-import type { ToolDefinition, AgentFile, ToolResultBase } from './types';
-import { formatBytes, getMimeTypeCategory } from '../utils';
+import type { ToolDefinition, AgentFile } from './types';
+import { formatBytes } from '../utils';
 import { splitKeywords } from '../../../lib/keywordSplitter';
-import { createSuccessResponse, createErrorResponse } from './agentToolUtils';
+import { createSuccessResponse } from './agentToolUtils';
 
 export const definitions: ToolDefinition[] = [
   // 1. search_files — 主要搜索工具
@@ -750,21 +750,4 @@ function isTextFile(mimeType: string | null | undefined): boolean {
     mimeType.includes('spreadsheet') ||
     mimeType.includes('presentation')
   );
-}
-
-/** 检测搜索意图 */
-function detectSearchIntent(query: string): string {
-  if (query.includes('/') || query.includes('\\')) return 'path';
-  if (query.startsWith('#') || query.includes('标签')) return 'tag';
-  if (/^[\w\-\.]+\.\w{2,4}$/.test(query)) return 'filename';
-  return 'semantic';
-}
-
-/** 从查询中提取可能的标签 */
-function extractTagsFromQuery(query: string): string[] {
-  const tagMatches = query.match(/#(\S+)/g);
-  if (tagMatches) {
-    return tagMatches.map((t) => t.slice(1));
-  }
-  return [];
 }

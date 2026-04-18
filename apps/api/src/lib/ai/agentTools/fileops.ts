@@ -14,13 +14,12 @@
  * - 批量操作支持
  */
 
-import { eq, and, isNull, isNotNull, inArray } from 'drizzle-orm';
+import { eq, and, isNull, inArray } from 'drizzle-orm';
 import { getDb, files } from '../../../db';
 import type { Env } from '../../../types/env';
 import { logger } from '@osshelf/shared';
-import type { ToolDefinition, AgentFile, PendingConfirmResult } from './types';
-import { WRITE_TOOLS } from './types';
-import { formatBytes, getMimeTypeCategory } from '../utils';
+import type { ToolDefinition, PendingConfirmResult } from './types';
+import { formatBytes } from '../utils';
 import {
   createTextFile,
   updateFileContent as serviceUpdateContent,
@@ -1320,7 +1319,6 @@ services:
       }
     }
 
-    const db = getDb(env.DB);
     let successCount = 0;
     let failCount = 0;
 
@@ -1374,7 +1372,6 @@ services:
       }
     }
 
-    const db = getDb(env.DB);
     let successCount = 0;
     let failCount = 0;
 

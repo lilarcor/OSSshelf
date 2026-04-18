@@ -14,7 +14,6 @@
  */
 
 import { eq } from 'drizzle-orm';
-import type { storageBuckets } from '../db/schema';
 import { encryptCredential, decryptCredential, isAesGcmFormat } from './crypto';
 import { logger } from '@osshelf/shared';
 
@@ -218,7 +217,7 @@ export async function s3PresignUrl(
   method: 'PUT' | 'GET',
   key: string,
   expiresIn = 3600,
-  contentType?: string
+  _contentType?: string
 ): Promise<string> {
   const { url, host, canonicalUri } = buildObjectUrl(config, key);
   const region = config.region || 'us-east-1';
@@ -573,6 +572,7 @@ export async function s3Put(
   const extraHeaders: Record<string, string> = {};
   if (metadata) {
     for (const [k, v] of Object.entries(metadata)) {
+      // eslint-disable-next-line no-control-regex -- 需要检测非ASCII字符
       const encodedValue = /[^\x00-\x7F]/.test(v) ? `=?UTF-8?B?${btoa(unescape(encodeURIComponent(v)))}?=` : v;
       extraHeaders[`x-amz-meta-${k.toLowerCase()}`] = encodedValue;
     }
@@ -729,6 +729,7 @@ function extractAllXmlTags(xml: string, containerTag: string): string[] {
   const closeTag = `</${containerTag}>`;
   let searchFrom = 0;
 
+  // eslint-disable-next-line no-constant-condition -- XML解析标准模式
   while (true) {
     const startIdx = xml.indexOf(openTag, searchFrom);
     if (startIdx === -1) break;
@@ -802,7 +803,6 @@ async function buildListObjectsV2Url(
   const endpoint = resolveEndpoint(config.provider, config.endpoint, config.region);
   if (!endpoint) throw new Error(`无法解析存储桶 Endpoint（provider: ${config.provider}）`);
 
-  const region = config.region || 'us-east-1';
   let bucketUrl: string;
   let host: string;
   let canonicalUri: string;
@@ -931,7 +931,6 @@ async function buildListObjectsV1Url(
   const endpoint = resolveEndpoint(config.provider, config.endpoint, config.region);
   if (!endpoint) throw new Error(`无法解析存储桶 Endpoint（provider: ${config.provider}）`);
 
-  const region = config.region || 'us-east-1';
   let bucketUrl: string;
   let host: string;
   let canonicalUri: string;

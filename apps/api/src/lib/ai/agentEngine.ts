@@ -192,7 +192,7 @@ const TOOL_SUMMARY_MAP: Record<string, (args: Record<string, unknown>) => string
   revoke_api_key: (_a) => `撤销 API Key`,
   create_webhook: (_a) => `创建 Webhook`,
   draft_and_create_file: (a) => `草稿创建文件 "${a.fileName || '(未命名)'}"`,
-  list_expired_permissions: (a) => `查询过期授权`,
+  list_expired_permissions: (_a) => `查询过期授权`,
   smart_organize_suggest: (a) => `智能整理建议 (范围: ${a.scope || 'all'})`,
   analyze_file_collection: (a) => `文件集合分析 (类型: ${a.analysisType})`,
 };
@@ -1692,10 +1692,6 @@ function safeForwardPoint(buffer: string): number {
 
 function isAbortError(err: unknown): boolean {
   return (err as Error)?.name === 'AbortError';
-}
-
-function isExpectedAbort(err: unknown, hadToolCalls: boolean): boolean {
-  return isAbortError(err) && hadToolCalls;
 }
 
 function randomId(): string {

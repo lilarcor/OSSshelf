@@ -114,7 +114,7 @@ app.get('/users/:id', async (c) => {
   const db = getDb(c.env.DB);
   const user = await db.select().from(users).where(eq(users.id, id)).get();
   if (!user) throwAppError('USER_NOT_FOUND');
-  const { passwordHash, ...safe } = user;
+  const { passwordHash: _pw, ...safe } = user;
   return c.json({ success: true, data: safe });
 });
 
