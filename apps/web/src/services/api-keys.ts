@@ -35,7 +35,6 @@ export const apiKeysApi = {
   list: () => api.get<ApiResponse<ApiKey[]>>('/api/keys'),
   create: (data: { name: string; scopes: string[]; expiresAt?: string }) =>
     api.post<ApiResponse<ApiKey & { key: string; warning: string }>>('/api/keys', data),
-  get: (id: string) => api.get<ApiResponse<ApiKey>>(`/api/keys/${id}`),
   update: (id: string, data: { name?: string; scopes?: string[]; isActive?: boolean }) =>
     api.patch<ApiResponse<{ message: string }>>(`/api/keys/${id}`, data),
   delete: (id: string) => api.delete<ApiResponse<{ message: string }>>(`/api/keys/${id}`),

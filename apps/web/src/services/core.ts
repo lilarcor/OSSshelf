@@ -305,10 +305,8 @@ export const tasksApi = {
     ),
   list: () => api.get<ApiResponse<UploadTask[]>>('/api/tasks/list'),
   delete: (taskId: string) => api.delete<ApiResponse<{ message: string }>>(`/api/tasks/${taskId}`),
-  clear: () => api.delete<ApiResponse<{ message: string }>>('/api/tasks/clear'),
   clearCompleted: () => api.delete<ApiResponse<{ message: string }>>('/api/tasks/clear-completed'),
   clearFailed: () => api.delete<ApiResponse<{ message: string }>>('/api/tasks/clear-failed'),
-  clearAll: () => api.delete<ApiResponse<{ message: string }>>('/api/tasks/clear-all'),
   telegramPart: (formData: FormData) =>
     api.post<ApiResponse<{ partNumber: number; etag: string }>>('/api/tasks/telegram-part', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -460,10 +458,4 @@ export const notesApi = {
     api.delete<ApiResponse<{ message: string }>>(`/api/notes/${fileId}/${noteId}`),
   pin: (fileId: string, noteId: string) =>
     api.post<ApiResponse<{ isPinned: boolean; message: string }>>(`/api/notes/${fileId}/${noteId}/pin`),
-  history: (fileId: string, noteId: string) =>
-    api.get<ApiResponse<NoteHistoryResponse>>(`/api/notes/${fileId}/${noteId}/history`),
-  unreadMentions: () =>
-    api.get<ApiResponse<Array<{ id: string; noteId: string; createdAt: string }>>>('/api/notes/mentions/unread'),
-  markMentionRead: (mentionId: string) =>
-    api.put<ApiResponse<{ message: string }>>(`/api/notes/mentions/${mentionId}/read`),
 };

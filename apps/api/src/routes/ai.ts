@@ -569,35 +569,6 @@ app.get('/index/vectors', async (c) => {
   });
 });
 
-app.delete('/index/vectors/:fileId', async (c) => {
-  const userId = c.get('userId')!;
-  const fileId = c.req.param('fileId');
-  const db = getDb(c.env.DB);
-
-  const file = await db
-    .select()
-    .from(files)
-    .where(and(eq(files.id, fileId), eq(files.userId, userId)))
-    .get();
-
-  if (!file) {
-    return c.json({ success: false, error: { code: ERROR_CODES.NOT_FOUND, message: '文件不存在' } }, 404);
-  }
-
-  try {
-    if (c.env.VECTORIZE) {
-      await c.env.VECTORIZE.deleteByIds([fileId]);
-    }
-
-    await db.update(files).set({ vectorIndexedAt: null }).where(eq(files.id, fileId));
-
-    return c.json({ success: true, data: { message: '向量索引已删除' } });
-  } catch (error) {
-    logger.error('AI', 'Failed to delete vector', { fileId }, error);
-    return c.json({ success: false, error: { code: ERROR_CODES.INTERNAL_ERROR, message: '删除向量索引失败' } }, 500);
-  }
-});
-
 app.get('/index/diagnose', async (c) => {
   const userId = c.get('userId')!;
   const db = getDb(c.env.DB);

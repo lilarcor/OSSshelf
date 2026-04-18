@@ -373,7 +373,6 @@ export const aiApi = {
   getIndexStats: () => api.get<ApiResponse<AIIndexStats>>('/api/ai/index/stats'),
   getVectors: (params?: { page?: number; pageSize?: number; search?: string }) =>
     api.get<ApiResponse<VectorListResponse>>('/api/ai/index/vectors', { params }),
-  deleteVector: (fileId: string) => api.delete<ApiResponse<{ message: string }>>(`/api/ai/index/vectors/${fileId}`),
   getIndexDiagnose: () => api.get<ApiResponse<AIIndexDiagnose>>('/api/ai/index/diagnose'),
   getIndexSample: (fileId: string) => api.get<ApiResponse<AIIndexSample>>(`/api/ai/index/sample/${fileId}`),
 
@@ -384,7 +383,6 @@ export const aiApi = {
   config: {
     getModels: (capability?: 'chat' | 'vision' | 'embedding') =>
       api.get<ApiResponse<AiModel[]>>('/api/ai-config/models', { params: capability ? { capability } : {} }),
-    getModel: (modelId: string) => api.get<ApiResponse<AiModel>>(`/api/ai-config/models/${modelId}`),
     createModel: (data: CreateAiModelParams) => api.post<ApiResponse<AiModel>>('/api/ai-config/models', data),
     updateModel: (modelId: string, data: Partial<CreateAiModelParams>) =>
       api.put<ApiResponse<AiModel>>(`/api/ai-config/models/${modelId}`, data),
@@ -404,8 +402,6 @@ export const aiApi = {
 
     // ── AI 提供商管理 ──
     getAiProviders: () => api.get<ApiResponse<AiProviderItem[]>>('/api/ai-config/ai-providers'),
-    getAiProvider: (providerId: string) =>
-      api.get<ApiResponse<AiProviderItem>>(`/api/ai-config/ai-providers/${providerId}`),
     createAiProvider: (data: CreateAiProviderParams) =>
       api.post<ApiResponse<AiProviderItem>>('/api/ai-config/ai-providers', data),
     updateAiProvider: (providerId: string, data: Partial<CreateAiProviderParams>) =>
@@ -449,8 +445,6 @@ export const aiApi = {
   chatSession: {
     getSessions: () => api.get<ApiResponse<AiChatSession[]>>('/api/ai-chat/sessions'),
     getSession: (sessionId: string) => api.get<ApiResponse<AiChatSessionDetail>>(`/api/ai-chat/sessions/${sessionId}`),
-    createSession: (data?: { title?: string; modelId?: string }) =>
-      api.post<ApiResponse<AiChatSession>>('/api/ai-chat/sessions', data),
     updateSession: (sessionId: string, data: { title: string }) =>
       api.put<ApiResponse<AiChatSession>>(`/api/ai-chat/sessions/${sessionId}`, data),
     deleteSession: (sessionId: string) =>

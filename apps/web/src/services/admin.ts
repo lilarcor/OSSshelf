@@ -264,8 +264,6 @@ export const adminApi = {
   /** 获取缺失文件详情 */
   getMissingFiles: (bucketId: string) =>
     api.get<ApiResponse<MissingFileDetailResponse>>(`/api/admin/storage-audit/missing-files/${bucketId}`),
-
-  /** 标记缺失文件为已删除 */
   markMissingDeleted: (bucketId: string, fileIds: string[]) =>
     api.delete<ApiResponse<{ markedCount: number; message: string }>>(
       `/api/admin/storage-audit/missing-files/${bucketId}/mark-deleted`,

@@ -27,8 +27,14 @@ import {
   Layers,
   Sliders,
   X,
+  FileText,
+  Sparkles,
+  XCircle,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/useToast';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import {
   ModelCard,
   ModelFormModal,
@@ -48,6 +54,7 @@ export function AISettings() {
   const { tab: urlTab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<TabType>((urlTab as TabType) || 'models');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -175,7 +182,7 @@ export function AISettings() {
   });
 
   const deleteVectorMutation = useMutation({
-    mutationFn: (fileId: string) => aiApi.deleteVector(fileId),
+    mutationFn: (fileId: string) => aiApi.deleteIndex(fileId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-vectors'] });
       setDeletingVectorId(null);
@@ -196,6 +203,24 @@ export function AISettings() {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
+
+  // 向量索引详情相关状态
+  const [sampleData, setSampleData] = useState<any>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const handleViewDetail = async (fileId: string) => {
+    setLoadingDetail(true);
+    try {
+      const res = await aiApi.getIndexSample(fileId);
+      setSampleData(res.data.data);
+      setShowDetailModal(true);
+    } catch (error) {
+      toast({ title: '加载失败', description: '无法获取向量索引详情', variant: 'destructive' });
+    } finally {
+      setLoadingDetail(false);
+    }
   };
 
   const [testResult, setTestResult] = useState<{
@@ -702,6 +727,7 @@ export function AISettings() {
             totalRecords={vectorsData?.pagination.total || 0}
             formatFileSize={formatFileSize}
             onDeleteVector={handleDeleteVector}
+            onViewDetail={handleViewDetail}
             onRefresh={() => refetchVectors()}
             onPageChange={setVectorPage}
           />
@@ -914,6 +940,174 @@ export function AISettings() {
             queryClient.invalidateQueries({ queryKey: ['ai-providers'] });
           }}
         />
+      )}
+
+      {/* 向量索引详情弹窗 */}
+      {showDetailModal && sampleData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowDetailModal(false)}>
+          <div
+            className="bg-background rounded-lg shadow-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  向量索引详情
+                </h2>
+                <button
+                  onClick={() => setShowDetailModal(false)}
+                  className="rounded-sm opacity-70 hover:opacity-100 transition-opacity"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="text-sm text-muted-foreground mb-6">查看文件的向量化详细信息</p>
+
+              <div className="space-y-4">
+                {/* 文件基本信息卡片 */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      文件信息
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">文件名:</span>
+                        <span className="font-medium truncate ml-2 max-w-[200px]" title={sampleData.file?.name}>
+                          {sampleData.file?.name || '-'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">文件类型:</span>
+                        <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                          {sampleData.file?.mimeType || '-'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">文件大小:</span>
+                        <span>{formatFileSize(sampleData.file?.size || 0)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">索引状态:</span>
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
+                          sampleData.isIndexed
+                            ? 'bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-300'
+                            : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                        }`}>
+                          {sampleData.isIndexed ? (
+                            <>
+                              <CheckCircle className="h-3 w-3" />
+                              已索引
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="h-3 w-3" />
+                              未索引
+                            </>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* 索引状态卡片 */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      索引状态
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {sampleData.isIndexed ? (
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">索引时间:</span>
+                          <span>
+                            {sampleData.indexedAt
+                              ? new Date(sampleData.indexedAt).toLocaleString('zh-CN', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
+                              : '-'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">文本长度:</span>
+                          <span>{sampleData.indexContent?.length?.toLocaleString() || 0} 字符</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">分块数量:</span>
+                          <span>{sampleData.metadata?.chunks || 0} 块</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">
+                        该文件尚未建立向量索引
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* 索引文本预览卡片 */}
+                {sampleData.indexContent && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        索引文本预览
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="bg-muted/50 rounded-lg p-4 max-h-[300px] overflow-y-auto border">
+                        <pre className="text-xs whitespace-pre-wrap font-mono leading-relaxed">
+                          {sampleData.indexContent.length > 1000
+                            ? `${sampleData.indexContent.substring(0, 1000)}...`
+                            : sampleData.indexContent}
+                        </pre>
+                      </div>
+                      {sampleData.indexContent.length > 1000 && (
+                        <p className="text-xs text-muted-foreground mt-2 text-center">
+                          已截断显示，完整内容共 {sampleData.indexContent.length.toLocaleString()} 字符
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* 元数据JSON卡片 */}
+                {sampleData.metadata && Object.keys(sampleData.metadata).length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <details className="cursor-pointer group">
+                        <summary className="flex items-center gap-2 list-none">
+                          <Layers className="h-4 w-4" />
+                          <CardTitle className="text-base inline-flex items-center gap-2 group-hover:text-primary transition-colors">
+                            元数据 (JSON)
+                            <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+                          </CardTitle>
+                        </summary>
+                      </details>
+                    </CardHeader>
+                    <CardContent>
+                      <pre className="bg-muted rounded-lg p-4 text-xs overflow-x-auto font-mono border">
+                        {JSON.stringify(sampleData.metadata, null, 2)}
+                      </pre>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
