@@ -132,7 +132,10 @@ export function VectorsTable({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg sm:text-xl font-semibold">向量索引库</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">共 {totalRecords} 条记录</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            共 {totalRecords} 个文件已索引
+            <span className="ml-1 opacity-60">（Vectorize 实际条目数因分块通常更多）</span>
+          </p>
         </div>
         <Button variant="outline" size="sm" onClick={onRefresh} disabled={isLoadingVectors}>
           {isLoadingVectors ? (

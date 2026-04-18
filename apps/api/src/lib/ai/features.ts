@@ -199,11 +199,10 @@ export function isImageFile(mimeType: string | null): boolean {
  * - 批量手动索引时过滤无效文件
  */
 export function shouldIndexFile(mimeType: string | null, fileSize?: number): boolean {
-  // 文件大小限制：超过 10MB 不索引（嵌入 token 成本过高）
-  const MAX_INDEX_SIZE = 10 * 1024 * 1024;
-  if (fileSize && fileSize > MAX_INDEX_SIZE) {
-    return false;
-  }
+  // 注意：不做文件大小限制。
+  // buildFileTextForVector 内部已对内容截断至 50000 字符，
+  // 分块上限 20 块，实际送给 embedding 的 token 量是固定的，
+  // 大文件不会增加嵌入成本。
 
   // 无 MIME 类型时允许尝试（依赖文件名和元数据）
   if (!mimeType) return true;
