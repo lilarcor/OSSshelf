@@ -187,7 +187,7 @@ export default function Dashboard() {
                     {stats.bucketBreakdown.map((b) => {
                       const meta = PROVIDER_META[b.provider as keyof typeof PROVIDER_META];
                       const isBucketUnlimited = !b.storageQuota || b.storageQuota >= 999999 * 1024 ** 3;
-                      const pct = isBucketUnlimited ? null : Math.min(100, (b.storageUsed / b.storageQuota) * 100);
+                      const pct = isBucketUnlimited ? null : Math.min(100, (b.storageUsed / b.storageQuota!) * 100);
                       return (
                         <div key={b.id} className="space-y-1">
                           <div className="flex items-center justify-between text-xs">

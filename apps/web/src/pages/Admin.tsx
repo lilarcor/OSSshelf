@@ -150,7 +150,7 @@ function UsersTab() {
       toast({ title: '用户已更新' });
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       if (variables.id === currentUser?.id) {
-        if (variables.data.storageQuota !== undefined) {
+        if (variables.data.storageQuota !== undefined && variables.data.storageQuota !== null) {
           updateUser({ storageQuota: variables.data.storageQuota });
         }
         if (variables.data.name !== undefined) {
