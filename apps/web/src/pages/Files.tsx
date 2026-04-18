@@ -457,7 +457,7 @@ export default function Files() {
       } catch {
         try {
           const downloadToken = token || useAuthStore.getState().token;
-          const downloadUrl = filesApi.downloadUrl(file.id, downloadToken ?? undefined);
+          const downloadUrl = `${import.meta.env.VITE_API_URL || ''}/api/files/${file.id}/download${downloadToken ? `?token=${encodeURIComponent(downloadToken)}` : ''}`;
           const resp = await fetch(downloadUrl);
           if (!resp.ok) throw new Error('download failed');
           const blob = await resp.blob();

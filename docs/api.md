@@ -201,40 +201,40 @@ JSON
 
 ### 安全修复影响范围
 
-| 接口模块 | 修复项数 | 关键修复 |
-|----------|---------|----------|
-| 文件接口 (`/api/files`) | 3 | 跨用户数据泄露（userId 过滤）、sortBy SQL 注入防护 |
-| 分享接口 (`/api/share`) | 4 | 时序攻击（timingSafeEqual）、流式下载 OOM、TOCTOU 竞态原子化 |
-| WebDAV 接口 (`/webdav`) | 2 | OOM 崩溃（SQL 替代内存加载）、暴力破解限流 |
-| 预览接口 (`/api/preview`) | 2 | Token 缓存泄漏（Cache-Control）、缩略图参数校验 |
-| 直链接口 (`/api/direct-link`) | 1 | 滥用限流（IP+Token 双维度） |
-| 管理员接口 (`/api/admin`) | 1 | 广播过滤器字段修正 |
-| 全局安全 (`src/index.ts`) | 1 | CSRF 绕过修复（CORS fallback） |
+| 接口模块                      | 修复项数 | 关键修复                                                     |
+| ----------------------------- | -------- | ------------------------------------------------------------ |
+| 文件接口 (`/api/files`)       | 3        | 跨用户数据泄露（userId 过滤）、sortBy SQL 注入防护           |
+| 分享接口 (`/api/share`)       | 4        | 时序攻击（timingSafeEqual）、流式下载 OOM、TOCTOU 竞态原子化 |
+| WebDAV 接口 (`/webdav`)       | 2        | OOM 崩溃（SQL 替代内存加载）、暴力破解限流                   |
+| 预览接口 (`/api/preview`)     | 2        | Token 缓存泄漏（Cache-Control）、缩略图参数校验              |
+| 直链接口 (`/api/direct-link`) | 1        | 滥用限流（IP+Token 双维度）                                  |
+| 管理员接口 (`/api/admin`)     | 1        | 广播过滤器字段修正                                           |
+| 全局安全 (`src/index.ts`)     | 1        | CSRF 绕过修复（CORS fallback）                               |
 
 ### v4.7.0 行为变更
 
-| 变更点 | 旧行为 | 新行为 |
-|--------|--------|--------|
-| CORS 未知 origin | 返回 `allowedOrigins[0]`（可能泄露） | 返回 `undefined`（拒绝请求） |
-| 分享密码比对 | 直接 `===` 比较（可被时序攻击） | `timingSafeEqual()` + KV 限流 |
-| sortBy 参数 | 动态字段访问 `files[sortBy]`（SQL 注入风险） | 白名单校验 + switch 安全映射 |
-| WebDAV DELETE/MOVE/COPY | 全量加载文件到内存后 JS 过滤 | SQL `like(path, ...)` 查询直接操作 |
-| Share 流式下载 | `fetchFileContent()` 全量读入内存 | `s3Get()` → Response body 直接透传 |
-| Share 下载计数 | 先 SELECT 再 UPDATE（TOCTOU） | 单条原子 CAS UPDATE |
-| TOKEN_EXPIRED 错误码 | A001（与 UNAUTHORIZED 重复） | A006（唯一码） |
-| AI 流式中断 | 已输出内容丢失 | 保留内容 + `aborted: true` 标记 |
+| 变更点                  | 旧行为                                       | 新行为                             |
+| ----------------------- | -------------------------------------------- | ---------------------------------- |
+| CORS 未知 origin        | 返回 `allowedOrigins[0]`（可能泄露）         | 返回 `undefined`（拒绝请求）       |
+| 分享密码比对            | 直接 `===` 比较（可被时序攻击）              | `timingSafeEqual()` + KV 限流      |
+| sortBy 参数             | 动态字段访问 `files[sortBy]`（SQL 注入风险） | 白名单校验 + switch 安全映射       |
+| WebDAV DELETE/MOVE/COPY | 全量加载文件到内存后 JS 过滤                 | SQL `like(path, ...)` 查询直接操作 |
+| Share 流式下载          | `fetchFileContent()` 全量读入内存            | `s3Get()` → Response body 直接透传 |
+| Share 下载计数          | 先 SELECT 再 UPDATE（TOCTOU）                | 单条原子 CAS UPDATE                |
+| TOKEN_EXPIRED 错误码    | A001（与 UNAUTHORIZED 重复）                 | A006（唯一码）                     |
+| AI 流式中断             | 已输出内容丢失                               | 保留内容 + `aborted: true` 标记    |
 
 ### 已修复 — 额外稳定性问题（7 项）
 
-| # | 问题 | 严重程度 | 修复方案 |
-|---|------|---------|----------|
-| 1 | storageUsed 竞态条件 | 🔴 高危 | 统一原子方法 `updateUserStorage()`，3 处先读后写全部替换 |
-| 2 | 文件列表无分页 | 🔴 高危 | SQL ORDER BY + limit/offset 分页，前端传 page/limit |
-| 3 | softDelete 不释放配额 | 🟡 中危 | 软删除时立即扣减 storageUsed |
-| 4 | JWT 无 refresh token | 🟡 中危 | 新增 refresh token 路由 + 静默续期 |
-| 5 | Analytics 全量扫描 | 🟡 中危 | SQL GROUP BY mime_type, SUM(size) 替代 JS 聚合 |
-| 6 | 分享上传绕过配额 | 🟡 中危 | 上传路径增加 owner 的 storageUsed 校验 |
-| 7 | LIKE 搜索未转义 | 🔵 低危 | `%` 和 `_` 自动转义为 `\%` 和 `\_` |
+| #   | 问题                  | 严重程度 | 修复方案                                                 |
+| --- | --------------------- | -------- | -------------------------------------------------------- |
+| 1   | storageUsed 竞态条件  | 🔴 高危  | 统一原子方法 `updateUserStorage()`，3 处先读后写全部替换 |
+| 2   | 文件列表无分页        | 🔴 高危  | SQL ORDER BY + limit/offset 分页，前端传 page/limit      |
+| 3   | softDelete 不释放配额 | 🟡 中危  | 软删除时立即扣减 storageUsed                             |
+| 4   | JWT 无 refresh token  | 🟡 中危  | 新增 refresh token 路由 + 静默续期                       |
+| 5   | Analytics 全量扫描    | 🟡 中危  | SQL GROUP BY mime_type, SUM(size) 替代 JS 聚合           |
+| 6   | 分享上传绕过配额      | 🟡 中危  | 上传路径增加 owner 的 storageUsed 校验                   |
+| 7   | LIKE 搜索未转义       | 🔵 低危  | `%` 和 `_` 自动转义为 `\%` 和 `\_`                       |
 
 ### 已完成性能优化（5 项）
 
@@ -246,14 +246,14 @@ JSON
 
 ### 已实现新功能（6 项）
 
-| 功能 | 说明 |
-|------|------|
+| 功能           | 说明                             |
+| -------------- | -------------------------------- |
 | 文件夹大小统计 | FileDetailPanel 展示递归占用空间 |
-| 增量向量索引 | 文件上传自动触发索引 |
-| Zip 打包下载 | 前端入口 + zipStream.ts |
-| 文件访问日志 | 文件详情面板新增 Tab |
-| 标签全局管理页 | AISettings 标签管理模块 |
-| AI 对话导出 | Markdown/PDF 导出功能 |
+| 增量向量索引   | 文件上传自动触发索引             |
+| Zip 打包下载   | 前端入口 + zipStream.ts          |
+| 文件访问日志   | 文件详情面板新增 Tab             |
+| 标签全局管理页 | AISettings 标签管理模块          |
+| AI 对话导出    | Markdown/PDF 导出功能            |
 
 ---
 
@@ -684,14 +684,15 @@ Authorization: Bearer <token>
 
 **文件夹专属字段**（仅当 isFolder 为 true 时返回）：
 
-| 字段            | 类型   | 说明                                   |
-| --------------- | ------ | -------------------------------------- |
-| `childFileCount` | number | 直接子文件数                           |
-| `childFolderCount`| number | 直接子文件夹数                         |
-| `totalFileCount` | number | WITH RECURSIVE 递归所有子文件数        |
-| `totalSize`      | number | WITH RECURSIVE 递归所有子文件体积之和（字节） |
+| 字段               | 类型   | 说明                                          |
+| ------------------ | ------ | --------------------------------------------- |
+| `childFileCount`   | number | 直接子文件数                                  |
+| `childFolderCount` | number | 直接子文件夹数                                |
+| `totalFileCount`   | number | WITH RECURSIVE 递归所有子文件数               |
+| `totalSize`        | number | WITH RECURSIVE 递归所有子文件体积之和（字节） |
 
 **说明**:
+
 - 此 API 提供文件的完整元数据信息，包括存储信息、版本信息、AI 信息和分享状态
 - 文件夹类型会额外返回子文件统计信息（使用 D1 的 WITH RECURSIVE 递归查询）
 - activeShareCount 统计当前活跃的分享链接数量

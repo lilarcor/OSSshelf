@@ -16,9 +16,9 @@ All notable changes to this project will be documented in this file.
     interface ExecutionPlan {
       goal: string;
       steps: Array<{
-        id: string;           // step-1, step-2 ...
-        description: string;  // 人类可读描述
-        toolHint?: string;    // 预期使用的工具
+        id: string; // step-1, step-2 ...
+        description: string; // 人类可读描述
+        toolHint?: string; // 预期使用的工具
         dependsOn?: string[]; // 依赖哪些步骤完成
         status: 'pending' | 'running' | 'done' | 'skipped';
       }>;
@@ -172,58 +172,60 @@ All notable changes to this project will be documented in this file.
 
 #### 🔴 P0 — Critical 安全漏洞（4/4 已修复）
 
-| Bug | 文件 | 修复内容 |
-|-----|------|----------|
-| **#1 跨用户数据泄露** | `routes/files.ts`, `routes/share.ts` | `collectFolderFiles` 增加 `eq(files.userId, userId)` 过滤 + 递归传递，防止用户 A 通过文件夹遍历访问用户 B 的文件 |
-| **#2 WebDAV OOM 崩溃** | `routes/webdav.ts` | DELETE/MOVE/COPY 操作改用 `like(files.path, ...)` SQL 查询，删除全量加载 + `filter(startsWith)` 的内存操作模式 |
-| **#3 时序攻击（密码比对）** | `routes/share.ts` | 新增 `timingSafeEqual()` HMAC 常量时间比较函数 + KV 5分钟窗口10次限流（含密码错误计数+成功清除机制） |
-| **#4 CSRF 绕过** | `src/index.ts` | CORS fallback 从返回 `allowedOrigins[0]` 改为返回 `undefined`（拒绝未知 origin，防止跨站请求伪造） |
+| Bug                         | 文件                                 | 修复内容                                                                                                         |
+| --------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| **#1 跨用户数据泄露**       | `routes/files.ts`, `routes/share.ts` | `collectFolderFiles` 增加 `eq(files.userId, userId)` 过滤 + 递归传递，防止用户 A 通过文件夹遍历访问用户 B 的文件 |
+| **#2 WebDAV OOM 崩溃**      | `routes/webdav.ts`                   | DELETE/MOVE/COPY 操作改用 `like(files.path, ...)` SQL 查询，删除全量加载 + `filter(startsWith)` 的内存操作模式   |
+| **#3 时序攻击（密码比对）** | `routes/share.ts`                    | 新增 `timingSafeEqual()` HMAC 常量时间比较函数 + KV 5分钟窗口10次限流（含密码错误计数+成功清除机制）             |
+| **#4 CSRF 绕过**            | `src/index.ts`                       | CORS fallback 从返回 `allowedOrigins[0]` 改为返回 `undefined`（拒绝未知 origin，防止跨站请求伪造）               |
 
 #### 🟠 P1 — High 严重问题（6/6 已修复）
 
-| Bug | 文件 | 修复内容 |
-|-----|------|----------|
-| **#5 Token 泄露（缓存）** | `routes/preview.ts` | Query Token 认证路径增加 `Cache-Control: private, no-store, no-cache, must-revalidate`，防止 CDN/代理层缓存敏感认证信息 |
-| **#6 sortBy SQL 注入** | `routes/files.ts` | 新增 `ALLOWED_SORT_FIELDS` 白名单 + `switch` 安全映射（替代动态 `files[sortBy]` 字段访问） |
-| **#7 整文件内存 OOM** | `routes/share.ts` | 流式下载改为 `s3Get()` → 直接透传 Response body，不再 `fetchFileContent` 全量读入内存 |
-| **#8 TOCTOU 竞态条件** | `routes/share.ts` | 下载计数改用 **原子 CAS**：`UPDATE ... WHERE id=? AND (limit IS NULL OR count < limit)`，单条 SQL 完成检查+递增 |
-| **#10 WebDAV 暴力破解** | `routes/webdav.ts` | 新增 IP 维度 KV 速率限制：每 IP 5分钟内最多 10 次失败，超限返回 HTTP 429 |
-| **#11 直链滥用** | `routes/directLink.ts` | 新增 IP+Token 维度速率限制（60次/分钟）+ Cache-Control 改为 `private` 防止缓存 |
+| Bug                       | 文件                   | 修复内容                                                                                                                |
+| ------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **#5 Token 泄露（缓存）** | `routes/preview.ts`    | Query Token 认证路径增加 `Cache-Control: private, no-store, no-cache, must-revalidate`，防止 CDN/代理层缓存敏感认证信息 |
+| **#6 sortBy SQL 注入**    | `routes/files.ts`      | 新增 `ALLOWED_SORT_FIELDS` 白名单 + `switch` 安全映射（替代动态 `files[sortBy]` 字段访问）                              |
+| **#7 整文件内存 OOM**     | `routes/share.ts`      | 流式下载改为 `s3Get()` → 直接透传 Response body，不再 `fetchFileContent` 全量读入内存                                   |
+| **#8 TOCTOU 竞态条件**    | `routes/share.ts`      | 下载计数改用 **原子 CAS**：`UPDATE ... WHERE id=? AND (limit IS NULL OR count < limit)`，单条 SQL 完成检查+递增         |
+| **#10 WebDAV 暴力破解**   | `routes/webdav.ts`     | 新增 IP 维度 KV 速率限制：每 IP 5分钟内最多 10 次失败，超限返回 HTTP 429                                                |
+| **#11 直链滥用**          | `routes/directLink.ts` | 新增 IP+Token 维度速率限制（60次/分钟）+ Cache-Control 改为 `private` 防止缓存                                          |
 
 #### 🟡 P2 — Medium 中等问题（6/6 已修复）
 
-| Bug | 文件 | 修复内容 |
-|-----|------|----------|
-| **#15 广播过滤器错误** | `routes/admin.ts` | `active` 用户过滤从错误的 `eq(users.role, 'user')` 修正为 `eq(users.emailVerified, true)` |
-| **#16 重复错误码** | `packages/shared/src/constants/errorCodes.ts` | `TOKEN_EXPIRED` 从重复的 `A001` 改为唯一码 `A006` |
-| **#17 类型安全** | `routes/files.ts`, `routes/admin.ts` | `any[]` 替换为 `Array<ReturnType<typeof isNull> | ReturnType<typeof eq>>` 等具体类型 |
-| **#21 权限映射重复** | `lib/permissionService.ts` | 提取模块级常量 `PERMISSION_LEVELS`，消除两处重复定义 |
-| **#22 缩略图参数无效** | `routes/preview.ts` | width/height 增加 `clamp(16, 2048)` 边界校验 + Cache-Control 改为 private + 标注 `X-Thumbnail-Note` |
+| Bug                    | 文件                                          | 修复内容                                                                                            |
+| ---------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| **#15 广播过滤器错误** | `routes/admin.ts`                             | `active` 用户过滤从错误的 `eq(users.role, 'user')` 修正为 `eq(users.emailVerified, true)`           |
+| **#16 重复错误码**     | `packages/shared/src/constants/errorCodes.ts` | `TOKEN_EXPIRED` 从重复的 `A001` 改为唯一码 `A006`                                                   |
+| **#17 类型安全**       | `routes/files.ts`, `routes/admin.ts`          | `any[]` 替换为 `Array<ReturnType<typeof isNull>                                                     | ReturnType<typeof eq>>` 等具体类型 |
+| **#21 权限映射重复**   | `lib/permissionService.ts`                    | 提取模块级常量 `PERMISSION_LEVELS`，消除两处重复定义                                                |
+| **#22 缩略图参数无效** | `routes/preview.ts`                           | width/height 增加 `clamp(16, 2048)` 边界校验 + Cache-Control 改为 private + 标注 `X-Thumbnail-Note` |
 
 #### 🔵 P3 — Low 低优先级（2/2 已修复）
 
-| Bug | 文件 | 修复内容 |
-|-----|------|----------|
-| **#18 ESM require 冗余** | `lib/fileService.ts` | 移除冗余 `require('./fileContentHelper')`（顶部已有 ESM import） |
-| **#20 魔术数字** | `routes/auth.ts` | `10737418240` 提取为命名常量 `DEFAULT_STORAGE_QUOTA_BYTES = 10 * 1024 * 1024 * 1024` |
+| Bug                      | 文件                 | 修复内容                                                                             |
+| ------------------------ | -------------------- | ------------------------------------------------------------------------------------ |
+| **#18 ESM require 冗余** | `lib/fileService.ts` | 移除冗余 `require('./fileContentHelper')`（顶部已有 ESM import）                     |
+| **#20 魔术数字**         | `routes/auth.ts`     | `10737418240` 提取为命名常量 `DEFAULT_STORAGE_QUOTA_BYTES = 10 * 1024 * 1024 * 1024` |
 
 #### 🔄 AI 对话中断恢复（流式输出稳定性）
 
 **问题**：当 AI 对话流式输出被中断（卡死或手动停止）时，已输出的内容会消失。
 
 **根因分析**：
+
 1. API 层 `chatStream` 函数在中断时未正确处理 `AbortError`
 2. 前端组件中断时缺少明确的 `aborted` 状态标记
 
 **修复内容**：
 
-| 层级 | 文件 | 修复内容 |
-|------|------|----------|
-| **API 层** | `services/api.ts` | 请求开始前检查 `signal.aborted`；流式读取循环中检查中断信号及时取消 `reader`；统一抛出标准 `DOMException('AbortError')` |
-| **类型定义** | `components/ai/types.ts` | 新增 `aborted?: boolean` 字段标记消息是否被中断 |
-| **前端组件** | `pages/AIChat.tsx` | 中断时保留已输出内容（`content: m.content \|\| ''`）；设置 `aborted: true` 标记；显示"输出已中断"提示；被中断消息显示"重新生成"按钮 |
+| 层级         | 文件                     | 修复内容                                                                                                                            |
+| ------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **API 层**   | `services/api.ts`        | 请求开始前检查 `signal.aborted`；流式读取循环中检查中断信号及时取消 `reader`；统一抛出标准 `DOMException('AbortError')`             |
+| **类型定义** | `components/ai/types.ts` | 新增 `aborted?: boolean` 字段标记消息是否被中断                                                                                     |
+| **前端组件** | `pages/AIChat.tsx`       | 中断时保留已输出内容（`content: m.content \|\| ''`）；设置 `aborted: true` 标记；显示"输出已中断"提示；被中断消息显示"重新生成"按钮 |
 
 **效果**：
+
 - ✅ 已输出的内容完整保留
 - ✅ 显示明确的中断状态提示
 - ✅ 用户可点击"重新生成"继续对话
@@ -231,15 +233,15 @@ All notable changes to this project will be documented in this file.
 
 #### ⚡ 已修复 — 额外稳定性问题（7 项）
 
-| # | 问题 | 严重程度 | 位置 | 修复方案 |
-|---|------|---------|------|----------|
-| 1 | storageUsed 竞态条件 | 🔴 高危 | `tasks.ts`, `downloads.ts` | 统一调用原子方法 `updateUserStorage()`，三处先读后写全部替换为 `MAX(0, COALESCE(...) + delta)` 原子写法 |
-| 2 | 文件列表无分页 | 🔴 高危 | `files.ts` L568 | 新增 SQL `ORDER BY` + `.limit().offset()` 分页，前端传 page/limit 参数，消除 D1 1000 行截断和内存排序 |
-| 3 | softDelete 不释放 storageUsed | 🟡 中危 | `fileService.ts` | 软删除时立即扣减 `storageUsed`，不再等待 cron 硬删除 |
-| 4 | JWT 无 refresh token | 🟡 中危 | 认证系统 | 新增 refresh token 路由，KV session TTL 与 JWT 解耦，支持静默续期 |
-| 5 | Analytics 全量扫描 | 🟡 中危 | `analytics.ts` | 存储分析改为 SQL `GROUP BY mime_type, SUM(size)` 聚合，消除全量拉取 |
-| 6 | 分享上传绕过配额 | 🟡 中危 | `share.ts` 上传路径 | 上传时增加 owner 的 `storageUsed + uploadSize > storageQuota` 校验 |
-| 7 | LIKE 搜索未转义特殊字符 | 🔵 低危 | `files.ts` L664 | 搜索词中 `%` 和 `_` 字符自动转义为 `\%` 和 `\_` |
+| #   | 问题                          | 严重程度 | 位置                       | 修复方案                                                                                                |
+| --- | ----------------------------- | -------- | -------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 1   | storageUsed 竞态条件          | 🔴 高危  | `tasks.ts`, `downloads.ts` | 统一调用原子方法 `updateUserStorage()`，三处先读后写全部替换为 `MAX(0, COALESCE(...) + delta)` 原子写法 |
+| 2   | 文件列表无分页                | 🔴 高危  | `files.ts` L568            | 新增 SQL `ORDER BY` + `.limit().offset()` 分页，前端传 page/limit 参数，消除 D1 1000 行截断和内存排序   |
+| 3   | softDelete 不释放 storageUsed | 🟡 中危  | `fileService.ts`           | 软删除时立即扣减 `storageUsed`，不再等待 cron 硬删除                                                    |
+| 4   | JWT 无 refresh token          | 🟡 中危  | 认证系统                   | 新增 refresh token 路由，KV session TTL 与 JWT 解耦，支持静默续期                                       |
+| 5   | Analytics 全量扫描            | 🟡 中危  | `analytics.ts`             | 存储分析改为 SQL `GROUP BY mime_type, SUM(size)` 聚合，消除全量拉取                                     |
+| 6   | 分享上传绕过配额              | 🟡 中危  | `share.ts` 上传路径        | 上传时增加 owner 的 `storageUsed + uploadSize > storageQuota` 校验                                      |
+| 7   | LIKE 搜索未转义特殊字符       | 🔵 低危  | `files.ts` L664            | 搜索词中 `%` 和 `_` 字符自动转义为 `\%` 和 `\_`                                                         |
 
 #### ⚡ 性能优化（5 项）
 
@@ -251,14 +253,14 @@ All notable changes to this project will be documented in this file.
 
 #### 🆕 新增功能（6 项）
 
-| 优先级 | 功能 | 实现说明 |
-|--------|------|----------|
-| 🔴 高 | 文件夹大小统计 | 文件夹详情展示递归计算的占用空间大小，前端 FileDetailPanel 显示 |
-| 🔴 高 | 增量向量索引 | 监听文件上传事件自动触发向量索引，新文件立即可被 AI 搜索到 |
-| 🟡 中 | Zip 打包下载文件夹 | 前端新增入口调用 `zipStream.ts`，支持文件夹打包下载 |
-| 🟡 中 | 文件维度访问日志 | 文件详情面板新增访问记录 Tab，展示谁在何时访问了该文件 |
-| 🟢 低 | 标签全局管理页 | AISettings / 标签管理页面，支持标签合并、重命名、批量删除 |
-| 🟢 低 | AI 对话导出（Markdown/PDF） | 对话历史支持一键导出为 Markdown 或 PDF 格式 |
+| 优先级 | 功能                        | 实现说明                                                        |
+| ------ | --------------------------- | --------------------------------------------------------------- |
+| 🔴 高  | 文件夹大小统计              | 文件夹详情展示递归计算的占用空间大小，前端 FileDetailPanel 显示 |
+| 🔴 高  | 增量向量索引                | 监听文件上传事件自动触发向量索引，新文件立即可被 AI 搜索到      |
+| 🟡 中  | Zip 打包下载文件夹          | 前端新增入口调用 `zipStream.ts`，支持文件夹打包下载             |
+| 🟡 中  | 文件维度访问日志            | 文件详情面板新增访问记录 Tab，展示谁在何时访问了该文件          |
+| 🟢 低  | 标签全局管理页              | AISettings / 标签管理页面，支持标签合并、重命名、批量删除       |
+| 🟢 低  | AI 对话导出（Markdown/PDF） | 对话历史支持一键导出为 Markdown 或 PDF 格式                     |
 
 ### Technical Details（Bug 修复部分）
 
@@ -430,7 +432,7 @@ All notable changes to this project will be documented in this file.
       - expiresAt < now → 已过期
       - includeExpiringSoon=true 时额外返回 expiresAt < now + withinDays 的记录
     - 返回：[{ fileId, fileName, userId, permission, expiresAt }]
-    - _next_actions: ['可调用 revoke_permission 批量撤销']
+    - \_next_actions: ['可调用 revoke_permission 批量撤销']
 
 - **toolSelector.ts 改动**
   - PERMISSION_PATTERNS 新增：把.*给|让.*只能看|让.*只读|收回.*权限|过期.*授权|已过期.*权限|快过期|撤销所有
@@ -440,23 +442,23 @@ All notable changes to this project will be documented in this file.
   - 权限意图示例补充：
     - "把设计文件夹给小明只读，30天后过期" → grant_permission(folderId, userId, 'read', expiresInDays=30)
     - "检查财务文件夹谁有写权限" → get_file_permissions(folderId) → 过滤 permission='write'
-    - "清理所有已过期授权" → list_expired_permissions() → 逐个 revoke_permission(_confirmed=true)
+    - "清理所有已过期授权" → list_expired_permissions() → 逐个 revoke_permission(\_confirmed=true)
 
 #### 7. 对话式文件创建（含草稿预览）
 
 - **agentTools/fileops.ts 改动**
   - 新增 `draft_and_create_file` 工具
-    - 参数：{ fileName, targetFolderId?, userRequest, draftContent, _confirmed? }
-    - _confirmed 为 false/undefined：
+    - 参数：{ fileName, targetFolderId?, userRequest, draftContent, \_confirmed? }
+    - \_confirmed 为 false/undefined：
       - 返回 pending_confirm，携带 confirmId, message, draftContent, previewType: 'draft'
-    - _confirmed 为 true：
+    - \_confirmed 为 true：
       - 调用 writeFileContent 写入文件
       - 返回 { success: true, fileId, fileName, path }
 
 - **agentEngine.ts（system prompt）改动**
   - 文件创建意图新增路径描述：
-    - "帮我写一个 README" → draft_and_create_file(fileName='README.md', draftContent=<生成内容>, _confirmed=false)
-    - "生成一个 Python 爬虫脚本放到代码文件夹" → draft_and_create_file(fileName='spider.py', targetFolderId=<ID>, draftContent=<代码>, _confirmed=false)
+    - "帮我写一个 README" → draft_and_create_file(fileName='README.md', draftContent=<生成内容>, \_confirmed=false)
+    - "生成一个 Python 爬虫脚本放到代码文件夹" → draft_and_create_file(fileName='spider.py', targetFolderId=<ID>, draftContent=<代码>, \_confirmed=false)
 
 - **前端改动**
   - `ToolCallCard.tsx` 在 isPendingConfirm 分支新增草稿预览区域
@@ -481,7 +483,7 @@ All notable changes to this project will be documented in this file.
         - missingTags（标签缺失）：aiTags 为空 AND aiSummary 非空
         - relocateSuggestions（归类建议）：根目录文件且同类型>3个时建议归入同一文件夹
         - structureIssues（结构问题）：单文件夹直接子文件数>100 或 路径层级>5
-    - 返回：{ scannedCount, namingIssues, missingTags, relocateSuggestions, structureIssues, _next_actions }
+    - 返回：{ scannedCount, namingIssues, missingTags, relocateSuggestions, structureIssues, \_next_actions }
 
 - **toolSelector.ts 改动**
   - TOOL_GROUPS.ai_enhance 新增 'smart_organize_suggest'
@@ -497,12 +499,12 @@ All notable changes to this project will be documented in this file.
       2. 按 maxFiles 截取，优先取有 aiSummary 的文件
       3. 构建内容摘要列表（有 aiSummary 直接使用，无则 readFileContent 取前500字符）
       4. 返回文件内容摘要集合，由 agentEngine 主模型自行分析
-    - 返回：{ files: [{ id, name, mimeType, size, summary, updatedAt }], totalCount, truncated, analysisType, _next_actions }
+    - 返回：{ files: [{ id, name, mimeType, size, summary, updatedAt }], totalCount, truncated, analysisType, \_next_actions }
 
 - **toolSelector.ts 改动**
   - TOOL_GROUPS.content 新增 'analyze_file_collection'
   - intent === 'content_qa' 时注入此工具
-  - 新增触发 pattern：分析这批|分析这些|这个文件夹.*内容|对比这些文件|提取共同|梳理一下|汇总这些
+  - 新增触发 pattern：分析这批|分析这些|这个文件夹.\*内容|对比这些文件|提取共同|梳理一下|汇总这些
 
 **性能优化 - 懒加载功能**
 

@@ -865,13 +865,13 @@ DELETE /api/resource/:id      # 删除
 
 **关键安全组件（v4.7.0 新增）**
 
-| 组件 | 文件 | 功能 |
-|------|------|------|
-| `timingSafeEqual()` | `routes/share.ts` | HMAC 常量时间比较，防时序攻击 |
-| `ALLOWED_SORT_FIELDS` | `routes/files.ts` | sortBy 字段白名单，防 SQL 注入 |
-| IP KV 速率限制器 | `routes/webdav.ts`, `routes/directLink.ts` | 按 IP 维度限流防暴力破解 |
-| 原子 CAS 计数器 | `routes/share.ts` | 下载计数原子更新，防 TOCTOU |
-| AbortController 链路 | `services/api.ts`, `pages/AIChat.tsx` | AI 流式中断内容保留 |
+| 组件                  | 文件                                       | 功能                           |
+| --------------------- | ------------------------------------------ | ------------------------------ |
+| `timingSafeEqual()`   | `routes/share.ts`                          | HMAC 常量时间比较，防时序攻击  |
+| `ALLOWED_SORT_FIELDS` | `routes/files.ts`                          | sortBy 字段白名单，防 SQL 注入 |
+| IP KV 速率限制器      | `routes/webdav.ts`, `routes/directLink.ts` | 按 IP 维度限流防暴力破解       |
+| 原子 CAS 计数器       | `routes/share.ts`                          | 下载计数原子更新，防 TOCTOU    |
+| AbortController 链路  | `services/api.ts`, `pages/AIChat.tsx`      | AI 流式中断内容保留            |
 
 ---
 
