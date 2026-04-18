@@ -69,7 +69,7 @@ export async function createTextFile(
   // 存储配额检查
   const user = await db.select().from(users).where(eq(users.id, userId)).get();
   const contentBytes = new TextEncoder().encode(content);
-  if (user && user.storageQuota != null && user.storageUsed + contentBytes.length > user.storageQuota) {
+  if (user && user.storageQuota! < 999999 * 1024 ** 3 && user.storageUsed + contentBytes.length > user.storageQuota!) {
     return { success: false, error: '用户存储配额已满' };
   }
 

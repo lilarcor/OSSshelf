@@ -179,7 +179,7 @@ function UsersTab() {
     setEditForm({
       name: user.name || '',
       role: user.role,
-      storageQuota: user.storageQuota ? String(Math.round(user.storageQuota / 1024 ** 3)) : '',
+      storageQuota: user.storageQuota && user.storageQuota < 999999 * 1024 ** 3 ? String(Math.round(user.storageQuota / 1024 ** 3)) : '',
       newPassword: '',
     });
   };
@@ -191,7 +191,7 @@ function UsersTab() {
     const data: Parameters<typeof adminApi.patchUser>[1] = {
       name: editForm.name || undefined,
       role: editForm.role,
-      storageQuota: !isNaN(quotaGB) && editForm.storageQuota.trim() !== '' ? Math.round(quotaGB * 1024 ** 3) : null,
+      storageQuota: !isNaN(quotaGB) && editForm.storageQuota.trim() !== '' ? Math.round(quotaGB * 1024 ** 3) : 999999999 * 1024 ** 3,
       newPassword: trimmedPassword || undefined,
     };
     patchMutation.mutate({ id: editingUser.id, data });
@@ -305,7 +305,7 @@ function UsersTab() {
                           </span>
                           <span className="flex-shrink-0">
                             {formatBytes(user.storageUsed)} /{' '}
-                            {user.storageQuota ? formatBytes(user.storageQuota) : '无限制'}
+                            {user.storageQuota && user.storageQuota < 999999 * 1024 ** 3 ? formatBytes(user.storageQuota) : '无限制'}
                           </span>
                           <span className="flex-shrink-0">{user.fileCount} 文件</span>
                         </div>

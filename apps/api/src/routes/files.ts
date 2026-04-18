@@ -579,7 +579,7 @@ app.post('/upload', async (c) => {
   }
 
   const user = await db.select().from(users).where(eq(users.id, userId)).get();
-  if (user && user.storageQuota != null && user.storageUsed + uploadFile.size > user.storageQuota) {
+  if (user && user.storageQuota! < 999999 * 1024 ** 3 && user.storageUsed + uploadFile.size > user.storageQuota!) {
     throwAppError('STORAGE_EXCEEDED', '用户存储配额已满');
   }
   if (bucketConfig) {
@@ -1265,7 +1265,7 @@ app.post('/create', async (c) => {
   const fileSize = fileBuffer.byteLength;
 
   const user = await db.select().from(users).where(eq(users.id, userId)).get();
-  if (user && user.storageQuota != null && user.storageUsed + fileSize > user.storageQuota) {
+  if (user && user.storageQuota! < 999999 * 1024 ** 3 && user.storageUsed + fileSize > user.storageQuota!) {
     throwAppError('STORAGE_EXCEEDED', '用户存储配额已满');
   }
   if (bucketConfig) {
