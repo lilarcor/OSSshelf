@@ -189,7 +189,7 @@ export default {
         })
     );
   },
-  async queue(batch: MessageBatch<AiTaskMessage>, env: Env, ctx: ExecutionContext) {
+  async queue(batch: MessageBatch<AiTaskMessage>, env: Env, _ctx: ExecutionContext) {
     appLogger.info('QUEUE', '收到队列消息', { count: batch.messages.length });
 
     for (const message of batch.messages) {

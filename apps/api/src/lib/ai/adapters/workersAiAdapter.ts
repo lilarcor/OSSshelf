@@ -19,7 +19,7 @@ import type {
   EmbeddingResponse,
 } from '../types';
 import { logger } from '@osshelf/shared';
-import { extractThinkingContent, hasThinkingTags } from '../utils';
+import { extractThinkingContent } from '../utils';
 
 export class WorkersAiAdapter implements IModelAdapter {
   readonly provider = 'workers_ai' as const;
@@ -155,6 +155,7 @@ export class WorkersAiAdapter implements IModelAdapter {
       let contentBuffer = '';
       let hasEmittedReasoning = false;
 
+      // eslint-disable-next-line no-constant-condition -- 流式读取标准模式
       while (true) {
         const { done, value } = await reader.read();
         if (done || signal?.aborted) break;

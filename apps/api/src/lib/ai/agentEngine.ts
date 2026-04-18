@@ -59,7 +59,6 @@ const DEFAULT_MAX_TOOL_CALLS = 20;
 const DEFAULT_MAX_IDLE_ROUNDS = 3;
 const DEFAULT_AGENT_TEMPERATURE = 0.3;
 const DEFAULT_IMAGE_TIMEOUT_MS = 25000;
-const TOKENS_PER_CHAR = 0.5;
 const TOOL_CALL_REGEX = /```tool(?:_call)?\s*([\s\S]*?)```/;
 
 /**
@@ -153,7 +152,7 @@ const CONFIRM_TTL_MS = 5 * 60 * 1000;
 const TOOL_SUMMARY_MAP: Record<string, (args: Record<string, unknown>) => string> = {
   create_text_file: (a) => `创建文件 "${a.fileName || '(未命名)'}"${a.folderPath ? ` 到 ${a.folderPath}` : ''}`,
   create_code_file: (a) => `创建代码文件 "${a.fileName || '(未命名)'}"${a.targetFolder ? ` 到 ${a.targetFolder}` : ''}`,
-  create_file_from_template: (a) => `从模板 "${a.templateName}" 创建文件`,
+  create_file_from_template: (_a) => `从模板 "${_a.templateName}" 创建文件`,
   edit_file_content: (a) =>
     `编辑文件内容 (ID: ${a.fileId || '?'}, ${Array.isArray(a.edits) ? a.edits.length : 0} 处修改)`,
   append_to_file: (a) => `追加内容到文件 (ID: ${a.fileId || '?'})`,
@@ -162,36 +161,36 @@ const TOOL_SUMMARY_MAP: Record<string, (args: Record<string, unknown>) => string
   move_file: (a) => `移动文件到 ${a.targetFolderId || a.targetFolderPath || '?'}`,
   copy_file: (a) => `复制文件${a.newName ? ` 为 "${a.newName}"` : ''}`,
   delete_file: (a) => `删除文件 (原因: ${a.reason || '用户请求'})`,
-  restore_file: (a) => `从回收站恢复文件`,
+  restore_file: (_a) => `从回收站恢复文件`,
   create_folder: (a) => `创建文件夹 "${a.folderName || '?'}"`,
   batch_rename: (a) =>
     `批量重命名 ${Array.isArray(a.fileIds) ? a.fileIds.length : 0} 个文件 (模板: ${a.template || '?'})`,
-  star_file: (a) => `收藏文件`,
-  unstar_file: (a) => `取消收藏`,
+  star_file: (_a) => `收藏文件`,
+  unstar_file: (_a) => `取消收藏`,
   add_tag: (a) => `添加标签 ${JSON.stringify(a.tagNames || a.tags || [])}`,
   remove_tag: (a) => `移除标签 ${JSON.stringify(a.tagNames || a.tags || [])}`,
   merge_tags: (a) => `合并标签 "${a.sourceTag}" → "${a.targetTag}"`,
   auto_tag_files: (a) => `自动打标签 (${Array.isArray(a.fileIds) ? a.fileIds.length : 0} 个文件)`,
-  tag_folder: (a) => `为文件夹打标签`,
-  create_share: (a) => `创建分享链接`,
-  update_share: (a) => `更新分享设置`,
-  revoke_share: (a) => `撤销分享`,
-  create_direct_link: (a) => `创建直链`,
-  revoke_direct_link: (a) => `撤销直链`,
-  restore_version: (a) => `恢复版本`,
-  set_version_retention: (a) => `设置版本保留策略`,
-  write_note: (a) => `写入笔记`,
-  update_note: (a) => `更新笔记`,
-  delete_note: (a) => `删除笔记`,
+  tag_folder: (_a) => `为文件夹打标签`,
+  create_share: (_a) => `创建分享链接`,
+  update_share: (_a) => `更新分享设置`,
+  revoke_share: (_a) => `撤销分享`,
+  create_direct_link: (_a) => `创建直链`,
+  revoke_direct_link: (_a) => `撤销直链`,
+  restore_version: (_a) => `恢复版本`,
+  set_version_retention: (_a) => `设置版本保留策略`,
+  write_note: (_a) => `写入笔记`,
+  update_note: (_a) => `更新笔记`,
+  delete_note: (_a) => `删除笔记`,
   grant_permission: (a) => `授权 ${a.permission || '?'}`,
-  revoke_permission: (a) => `撤销权限`,
-  set_folder_access_level: (a) => `设置文件夹访问级别`,
-  manage_group_members: (a) => `管理组成员`,
-  set_default_bucket: (a) => `设置默认存储桶`,
-  migrate_file_to_bucket: (a) => `迁移文件到存储桶`,
-  create_api_key: (a) => `创建 API Key`,
-  revoke_api_key: (a) => `撤销 API Key`,
-  create_webhook: (a) => `创建 Webhook`,
+  revoke_permission: (_a) => `撤销权限`,
+  set_folder_access_level: (_a) => `设置文件夹访问级别`,
+  manage_group_members: (_a) => `管理组成员`,
+  set_default_bucket: (_a) => `设置默认存储桶`,
+  migrate_file_to_bucket: (_a) => `迁移文件到存储桶`,
+  create_api_key: (_a) => `创建 API Key`,
+  revoke_api_key: (_a) => `撤销 API Key`,
+  create_webhook: (_a) => `创建 Webhook`,
   draft_and_create_file: (a) => `草稿创建文件 "${a.fileName || '(未命名)'}"`,
   list_expired_permissions: (a) => `查询过期授权`,
   smart_organize_suggest: (a) => `智能整理建议 (范围: ${a.scope || 'all'})`,
@@ -686,7 +685,6 @@ export class AgentEngine {
   ): Promise<{ fullText: string; sources: AgentSource[]; pendingConfirmId?: string; meta: AgentRunMeta }> {
     this.executor.setUserId(userId);
     const traceId = `trace_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
-    const startTime = Date.now();
 
     logger.info('AgentEngine', 'Run started', { traceId, userId, sessionId, queryLength: query.length });
 
