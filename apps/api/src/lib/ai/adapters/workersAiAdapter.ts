@@ -59,6 +59,13 @@ export class WorkersAiAdapter implements IModelAdapter {
         }));
       }
 
+      logger.info('AI', 'Workers AI request body (non-stream)', {
+        modelId: modelConfig.modelId,
+        messageCount: (requestBody.messages as any[]).length,
+        toolCount: requestBody.tools ? (requestBody.tools as any[]).length : 0,
+        toolSchemas: JSON.stringify(requestBody.tools ?? null),
+      });
+
       const response = await (this.env.AI as any).run(modelConfig.modelId, requestBody);
 
       if (signal?.aborted) {
