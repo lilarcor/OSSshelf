@@ -178,7 +178,7 @@ export function MobileBottomNav({ onUpload, onNewFolder, onNavigate }: MobileBot
                     <HardDrive className="h-4 w-4" />
                     <span>存储空间</span>
                   </div>
-                  <StorageBar used={user?.storageUsed || 0} quota={user?.storageQuota || 10737418240} />
+                  <StorageBar used={user?.storageUsed || 0} quota={user?.storageQuota || 0} />
                 </div>
               </div>
 
