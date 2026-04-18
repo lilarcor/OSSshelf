@@ -51,20 +51,33 @@ export class WorkersAiAdapter implements IModelAdapter {
         temperature: request.temperature ?? 0.7,
       };
 
-      if (request.tools && request.tools.length > 0) {
-        requestBody.tools = request.tools.map((t) => ({
-          name: t.function.name,
-          description: t.function.description,
-          parameters: t.function.parameters,
-        }));
-      }
+if (request.tools && request.tools.length > 0) {
+  requestBody.tools = request.tools.map((t) => ({
+    name: t.function.name,
+    description: t.function.description,
+    parameters: stripNestedObjectArrays(t.function.parameters),
+  }));
 
-      logger.info('AI', 'Workers AI request body (non-stream)', {
-        modelId: modelConfig.modelId,
-        messageCount: (requestBody.messages as any[]).length,
-        toolCount: requestBody.tools ? (requestBody.tools as any[]).length : 0,
-        toolSchemas: JSON.stringify(requestBody.tools ?? null),
-      });
+  function stripNestedObjectArrays(schema: any): any {
+    if (!schema || typeof schema !== 'object') return schema;
+    
+    const result = { ...schema };
+    
+    if (result.properties) {
+      result.properties = Object.fromEntries(
+        Object.entries(result.properties).map(([k, v]: [string, any]) => {
+          if (v.type === 'array' && v.items?.type === 'object') {
+            // 降级为 string，让模型传 JSON 字符串
+            return [k, { type: 'string', description: v.description }];
+          }
+          return [k, stripNestedObjectArrays(v)];
+        })
+      );
+    }
+    
+    return result;
+  }
+}
 
       const response = await (this.env.AI as any).run(modelConfig.modelId, requestBody);
 
