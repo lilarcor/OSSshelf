@@ -67,7 +67,7 @@ import {
 import type { FileItem } from '@osshelf/shared';
 import { cn, decodeFileName } from '@/utils';
 
-import { NewFolderDialog, NewFileDialog, FILE_TEMPLATES, ShareDialog, FileListContainer } from '@/components/files';
+import { NewFolderDialog, NewFileDialog, FILE_TEMPLATES, ShareDialog, FileListContainer, Pagination } from '@/components/files';
 import { MobileFilesToolbar, MobileSearchPanel } from '@/components/files/MobileFilesToolbar';
 import { UploadLinkDialog } from '@/components/files/dialogs';
 import { DirectLinkDialog } from '@/components/files/dialogs';
@@ -156,6 +156,10 @@ export default function Files() {
   // ── Phase 7.5: 版本历史 ────────────────────────────────────────────────────
   const [versionHistoryFile, setVersionHistoryFile] = useState<FileItem | null>(null);
 
+  // ── 分页状态 ─────────────────────────────────────────────────────────────
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<20 | 50 | 100>(20);
+
   // ── Phase 7: 搜索历史 ────────────────────────────────────────────────────
   const [showSearchHistory, setShowSearchHistory] = useState(false);
   const { data: searchHistoryData, refetch: refetchHistory } = useQuery({
@@ -226,16 +230,44 @@ export default function Files() {
   });
 
   const {
-    data: files = [],
+    data: filesData,
     isLoading,
     refetch,
-  } = useQuery<FileItem[]>({
-    queryKey: ['files', folderId, showStarred],
-    queryFn: () =>
-      filesApi
-        .list({ parentId: folderId || null, starred: showStarred ? 'true' : undefined })
-        .then((r) => r.data.data ?? []),
+  } = useQuery<{
+    items: FileItem[];
+    total: number;
+    page: number;
+    limit: number;
+  }>({
+    queryKey: ['files', folderId, showStarred, currentPage, pageSize],
+    queryFn: async () => {
+      const res = await filesApi.list({
+        parentId: folderId || null,
+        starred: showStarred ? 'true' : undefined,
+        page: currentPage,
+        limit: pageSize,
+      });
+      const data = res.data.data;
+      if (Array.isArray(data)) {
+        return { items: data, total: data.length, page: currentPage, limit: pageSize };
+      }
+      return data ?? { items: [], total: 0, page: 1, limit: pageSize };
+    },
   });
+
+  const files = filesData?.items ?? [];
+  const totalFiles = filesData?.total ?? 0;
+  const totalPages = Math.ceil(totalFiles / pageSize);
+
+  // ── 分页：切换文件夹/搜索/收藏状态时重置到第1页 ─────────────────────
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [folderId, showStarred]);
+
+  const handlePageSizeChange = (size: 20 | 50 | 100) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
 
   const fileIds = files.map((f) => f.id);
   const { data: fileTagsMap = {} } = useQuery<Record<string, any[]>>({
@@ -1664,6 +1696,15 @@ export default function Files() {
             setVersionHistoryFile(file);
           }
         }}
+      />
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalFiles}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={handlePageSizeChange}
       />
     </div>
   );
