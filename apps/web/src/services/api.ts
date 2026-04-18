@@ -903,6 +903,10 @@ export const tasksApi = {
   clearCompleted: () => api.delete<ApiResponse<{ message: string }>>('/api/tasks/clear-completed'),
   clearFailed: () => api.delete<ApiResponse<{ message: string }>>('/api/tasks/clear-failed'),
   clearAll: () => api.delete<ApiResponse<{ message: string }>>('/api/tasks/clear-all'),
+  telegramPart: (formData: FormData) =>
+    api.post<ApiResponse<{ partNumber: number; etag: string }>>('/api/tasks/telegram-part', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2056,6 +2060,11 @@ export const versionsApi = {
     api.get<Blob>(`/api/versions/${fileId}/versions/${version}/download`, { responseType: 'blob' }),
   delete: (fileId: string, version: number) =>
     api.delete<ApiResponse<{ message: string }>>(`/api/versions/${fileId}/versions/${version}`),
+  updateVersionSettings: (fileId: string, data: { maxVersions?: number; versionRetentionDays?: number }) =>
+    api.patch<ApiResponse<{ message: string; maxVersions: number; versionRetentionDays: number }>>(
+      `/api/versions/${fileId}/version-settings`,
+      data
+    ),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

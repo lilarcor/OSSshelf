@@ -13,7 +13,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { getErrorMessage } from '@/utils';
-import api from '@/services/api';
 import { versionsApi, type VersionInfo } from '@/services/api';
 import { formatBytes } from '@/utils';
 import { FileIcon } from './FileIcon';
@@ -125,7 +124,7 @@ export function VersionHistory({ fileId, fileName, mimeType, onClose, onVersionR
     setActionLoading('settings');
     setError(null);
     try {
-      const response = await api.patch(`/api/versions/${fileId}/version-settings`, settingsForm);
+      const response = await versionsApi.updateVersionSettings(fileId, settingsForm);
       if (response.data.success) {
         setMaxVersions(settingsForm.maxVersions);
         setVersionRetentionDays(settingsForm.versionRetentionDays);
