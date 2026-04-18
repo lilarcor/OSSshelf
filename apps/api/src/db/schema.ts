@@ -18,7 +18,7 @@ export const users = sqliteTable(
     passwordHash: text('password_hash').notNull(),
     name: text('name'),
     role: text('role').default('user').notNull(),
-    storageQuota: integer('storage_quota').default(10737418240).notNull(),
+    storageQuota: integer('storage_quota').default(10737418240),
     storageUsed: integer('storage_used').default(0).notNull(),
     emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
     emailPreferences: text('email_preferences').notNull().default('{}'),

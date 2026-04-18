@@ -16,7 +16,7 @@ export interface User {
   email: string;
   name: string | null;
   role: UserRole;
-  storageQuota: number;
+  storageQuota: number | null;
   storageUsed: number;
   emailVerified: boolean;
   createdAt: string;

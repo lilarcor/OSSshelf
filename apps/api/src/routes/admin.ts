@@ -56,7 +56,7 @@ const patchUserSchema = z
   .object({
     name: z.string().max(100).optional(),
     role: z.enum(['admin', 'user']).optional(),
-    storageQuota: z.number().int().min(0).optional(),
+    storageQuota: z.number().int().min(0).nullable().optional(),
     newPassword: z.string().min(6).optional(),
   })
   .refine((d) => Object.keys(d).length > 0, { message: '至少提供一个更新字段' });

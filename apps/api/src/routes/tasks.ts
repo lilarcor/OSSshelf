@@ -109,7 +109,7 @@ app.post('/create', async (c) => {
   }
 
   const user = await getUserOrFail(db, userId);
-  if (user.storageUsed + fileSize > user.storageQuota) {
+  if (user.storageQuota != null && user.storageUsed + fileSize > user.storageQuota) {
     throwAppError('STORAGE_EXCEEDED', '用户存储配额已满');
   }
 

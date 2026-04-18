@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   name TEXT,
   role TEXT NOT NULL DEFAULT 'user',
-  storage_quota INTEGER NOT NULL DEFAULT 10737418240,
+  storage_quota INTEGER DEFAULT 10737418240,
   storage_used INTEGER NOT NULL DEFAULT 0,
   email_verified INTEGER NOT NULL DEFAULT 0,
   email_preferences TEXT NOT NULL DEFAULT '{}',

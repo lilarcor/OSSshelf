@@ -26,7 +26,7 @@ export interface AdminUser {
   email: string;
   name: string | null;
   role: 'admin' | 'user';
-  storageQuota: number;
+  storageQuota: number | null;
   storageUsed: number;
   fileCount: number;
   bucketCount: number;
@@ -204,7 +204,7 @@ export const adminApi = {
   listUsers: () => api.get<ApiResponse<AdminUser[]>>('/api/admin/users'),
   patchUser: (
     id: string,
-    data: { name?: string; role?: 'admin' | 'user'; storageQuota?: number; newPassword?: string }
+    data: { name?: string; role?: 'admin' | 'user'; storageQuota?: number | null; newPassword?: string }
   ) => api.patch<ApiResponse<{ message: string }>>(`/api/admin/users/${id}`, data),
   deleteUser: (id: string) => api.delete<ApiResponse<{ message: string }>>(`/api/admin/users/${id}`),
 
