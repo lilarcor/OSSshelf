@@ -248,8 +248,14 @@ export default function Files() {
         limit: pageSize,
       });
       const data = res.data.data;
+      const pagination = (res as any).data?.pagination;
       if (Array.isArray(data)) {
-        return { items: data, total: data.length, page: currentPage, limit: pageSize };
+        return {
+          items: data,
+          total: pagination?.total ?? data.length,
+          page: pagination?.page ?? currentPage,
+          limit: pagination?.limit ?? pageSize,
+        };
       }
       return data ?? { items: [], total: 0, page: 1, limit: pageSize };
     },
