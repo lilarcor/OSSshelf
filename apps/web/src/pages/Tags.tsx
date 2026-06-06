@@ -23,7 +23,6 @@ import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/useToast';
 import { formatBytes, formatDate } from '@/utils';
 import type { FileItem, FileTag } from '@osshelf/shared';
-import { TAG_COLORS } from '@osshelf/shared';
 import {
   Tag,
   Loader2,
@@ -37,7 +36,6 @@ import {
   ArrowLeft,
   CheckSquare,
   Square,
-  Plus,
 } from 'lucide-react';
 import { cn } from '@/utils';
 
@@ -62,11 +60,6 @@ export default function Tags() {
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-
-  // 新建标签状态
-  const [showNewTag, setShowNewTag] = useState(false);
-  const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
 
   // 分页状态
   const [page, setPage] = useState(1);
@@ -112,24 +105,6 @@ export default function Tags() {
       setPage(1);
       setSelectedFileIds(new Set());
     }
-  };
-
-  // ── 新建标签 ──
-  const createTagMutation = useMutation({
-    mutationFn: () => permissionsApi.createTag({ name: newTagName.trim(), color: newTagColor }),
-    onSuccess: () => {
-      toast({ title: `标签「${newTagName.trim()}」已创建` });
-      queryClient.invalidateQueries({ queryKey: ['user-tags'] });
-      setNewTagName('');
-      setShowNewTag(false);
-    },
-    onError: (e: any) =>
-      toast({ title: '创建失败', description: e.response?.data?.error?.message, variant: 'destructive' }),
-  });
-
-  const handleCreateTag = () => {
-    if (!newTagName.trim()) return;
-    createTagMutation.mutate();
   };
 
   // ── 标签重命名 ──
@@ -272,47 +247,7 @@ export default function Tags() {
           </h1>
           <p className="text-muted-foreground text-sm mt-0.5">{tagsLoading ? '加载中…' : `${tags.length} 个标签`}</p>
         </div>
-
-        {/* 新建标签按钮 */}
-        <Button
-          size="sm"
-          onClick={() => setShowNewTag(!showNewTag)}
-          className={cn(showNewTag && 'bg-primary/10 text-primary border-primary')}
-        >
-          <Plus className={cn('h-4 w-4', showNewTag ? 'mr-1.5' : '')} />
-          {showNewTag ? '取消新建' : '新建标签'}
-        </Button>
       </div>
-
-      {/* 新建标签表单 */}
-      {showNewTag && (
-        <div className="flex items-center gap-3 p-4 rounded-lg border bg-card">
-          <Input
-            placeholder="输入标签名称"
-            value={newTagName}
-            onChange={(e) => setNewTagName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleCreateTag()}
-            className="max-w-[200px]"
-            autoFocus
-          />
-          <div className="flex items-center gap-1">
-            {TAG_COLORS.slice(0, 8).map((color) => (
-              <button
-                key={color}
-                onClick={() => setNewTagColor(color)}
-                className={cn(
-                  'w-5 h-5 rounded-full border-2 transition-transform',
-                  newTagColor === color ? 'scale-125 border-foreground' : 'border-transparent'
-                )}
-                style={{ backgroundColor: color }}
-              />
-            ))}
-          </div>
-          <Button size="sm" onClick={handleCreateTag} disabled={!newTagName.trim()}>
-            创建
-          </Button>
-        </div>
-      )}
 
       {/* Search */}
       <div className="relative max-w-md">
