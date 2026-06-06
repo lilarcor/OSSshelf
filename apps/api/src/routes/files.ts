@@ -829,8 +829,11 @@ app.get('/', async (c) => {
     // 如果指定了 parentId，查询该目录下的文件
     // 用户需要有权限访问该目录（已在上面检查）
     conditions.push(eq(files.parentId, parentId));
+  } else if (tagNames.length > 0) {
+    // 标签筛选模式：只返回用户自己打标签的文件（tags 已限定 ID 范围）
+    conditions.push(eq(files.userId, userId));
   } else if (!starred) {
-    // 未指定 parentId 且未指定收藏筛选，返回：
+    // 未指定 parentId 且无标签/收藏筛选，返回：
     // 1. 用户自己的根目录文件
     // 2. 被授权访问的文件（无论在哪个目录）
 
