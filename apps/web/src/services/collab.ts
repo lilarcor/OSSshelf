@@ -275,6 +275,11 @@ export const permissionsApi = {
   getUserTags: () => api.get<ApiResponse<FileTag[]>>('/api/permissions/tags/user'),
   getBatchFileTags: (fileIds: string[]) =>
     api.post<ApiResponse<Record<string, FileTag[]>>>('/api/permissions/tags/batch', { fileIds }),
+  getTagStats: () => api.get<ApiResponse<Array<{ name: string; count: number }>>>('/api/permissions/tags/stats'),
+  renameTag: (data: { oldName: string; newName: string }) =>
+    api.put<ApiResponse<{ message: string }>>('/api/permissions/tags/rename', data),
+  deleteTag: (tagName: string) =>
+    api.delete<ApiResponse<{ message: string; affectedRows: number }>>(`/api/permissions/tags/${encodeURIComponent(tagName)}`),
 
   // ── 全局权限视图 ──
   getAllPermissions: () => api.get<ApiResponse<{ permissions: GlobalPermission[] }>>('/api/permissions/all'),

@@ -10,7 +10,7 @@
  */
 
 import { Hono } from 'hono';
-import { eq, and, inArray, like, isNull } from 'drizzle-orm';
+import { eq, and, inArray, like, isNull, count, desc } from 'drizzle-orm';
 import { getDb, files, filePermissions, users, fileTags, userGroups, groupMembers } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { ERROR_CODES, logger } from '@osshelf/shared';
@@ -598,6 +598,90 @@ app.get('/tags/file/:fileId', async (c) => {
   const tags = await db.select().from(fileTags).where(eq(fileTags.fileId, fileId)).all();
 
   return c.json({ success: true, data: tags });
+});
+
+// ── 标签统计（按使用次数排序）──
+app.get('/tags/stats', async (c) => {
+  const userId = c.get('userId')!;
+  const db = getDb(c.env.DB);
+
+  const results = await db
+    .select({ name: fileTags.name, count: count() })
+    .from(fileTags)
+    .where(eq(fileTags.userId, userId))
+    .groupBy(fileTags.name)
+    .orderBy(desc(count()))
+    .limit(100)
+    .all();
+
+  return c.json({
+    success: true,
+    data: results.map((r) => ({ name: r.name, count: Number(r.count) })),
+  });
+});
+
+// ── 重命名标签（批量更新该用户所有同名标签）──
+const renameTagSchema = z.object({
+  oldName: z.string().min(1).max(50),
+  newName: z.string().min(1).max(50),
+});
+
+app.put('/tags/rename', async (c) => {
+  const userId = c.get('userId')!;
+  const body = await c.req.json();
+  const result = renameTagSchema.safeParse(body);
+
+  if (!result.success) {
+    return c.json(
+      { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: result.error.errors[0].message } },
+      400
+    );
+  }
+
+  const { oldName, newName } = result.data;
+
+  if (oldName === newName) {
+    return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '新名称与原名称相同' } }, 400);
+  }
+
+  const db = getDb(c.env.DB);
+
+  // 检查新名称是否已存在
+  const existing = await db
+    .select()
+    .from(fileTags)
+    .where(and(eq(fileTags.userId, userId), eq(fileTags.name, newName)))
+    .get();
+
+  if (existing) {
+    return c.json({ success: false, error: { code: 'TAG_EXISTS', message: `标签 "${newName}" 已存在` } }, 409);
+  }
+
+  // 批量更新
+  await db
+    .update(fileTags)
+    .set({ name: newName })
+    .where(and(eq(fileTags.userId, userId), eq(fileTags.name, oldName)));
+
+  logger.info('Permissions', 'Tag renamed', { userId, oldName, newName });
+
+  return c.json({ success: true, data: { message: '标签已重命名' } });
+});
+
+// ── 删除标签（从该用户所有文件中移除）──
+app.delete('/tags/:tagName', async (c) => {
+  const userId = c.get('userId')!;
+  const tagName = decodeURIComponent(c.req.param('tagName'));
+  const db = getDb(c.env.DB);
+
+  const result = await db
+    .delete(fileTags)
+    .where(and(eq(fileTags.userId, userId), eq(fileTags.name, tagName)))
+    .run();
+
+  logger.info('Permissions', 'Tag deleted', { userId, tagName, affectedRows: result.meta.changes });
+
+  return c.json({ success: true, data: { message: '标签已删除', affectedRows: result.meta.changes } });
 });
 
 app.get('/check/:fileId', async (c) => {

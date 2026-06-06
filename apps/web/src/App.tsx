@@ -32,6 +32,7 @@ import {
   LazyPermissions,
   LazyAnalytics,
   LazyStarred,
+  LazyTags,
   LazyAIChat,
   LazyAISettings,
   LazyWrapper,
@@ -250,6 +251,14 @@ function App() {
           element={
             <LazyWrapper>
               <LazyStarred />
+            </LazyWrapper>
+          }
+        />
+        <Route
+          path="/tags"
+          element={
+            <LazyWrapper>
+              <LazyTags />
             </LazyWrapper>
           }
         />
