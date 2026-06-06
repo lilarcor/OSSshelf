@@ -23,6 +23,7 @@ import {
   userStars,
   shares,
   auditLogs,
+  fileTags,
 } from '../db';
 import { checkFilePermission } from './permissions';
 import { inheritParentPermissions } from './permissions';
@@ -771,6 +772,10 @@ app.get('/', async (c) => {
   const sortOrder = c.req.query('sortOrder') || 'desc';
   const starred = c.req.query('starred') === 'true';
 
+  // 标签筛选（逗号分隔或重复参数）
+  const rawTags = c.req.query('tags');
+  const tagNames = rawTags ? rawTags.split(',').map((t) => t.trim()).filter(Boolean) : [];
+
   // 分页参数（默认第1页，每页50条，最大100条）
   const page = Math.max(1, parseInt(c.req.query('page') || '1', 10));
   const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit') || '50', 10)));
@@ -805,6 +810,19 @@ app.get('/', async (c) => {
         starredFileIds.map((s) => s.fileId)
       )
     );
+  }
+
+  // 标签筛选
+  if (tagNames.length > 0) {
+    const taggedFileIds = await db
+      .select({ fileId: fileTags.fileId })
+      .from(fileTags)
+      .where(and(eq(fileTags.userId, userId), inArray(fileTags.name, tagNames)))
+      .all();
+    if (taggedFileIds.length === 0) {
+      return c.json({ success: true, data: { files: [], total: 0 }, pagination: { page, limit, total: 0, totalPages: 0 } });
+    }
+    conditions.push(inArray(files.id, taggedFileIds.map((t) => t.fileId)));
   }
 
   if (parentId) {

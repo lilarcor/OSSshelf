@@ -5,17 +5,18 @@
  * 功能:
  * - 查看所有标签及使用统计
  * - 搜索标签
- * - 点击标签查看关联文件
- * - 重命名标签
- * - 删除标签（从所有文件移除）
+ * - 点击标签查看关联文件（分页，每页10条）
+ * - 文件勾选 + 批量删除/批量移除标签
+ * - 单条文件：删除、移除该标签、跳转预览
+ * - 重命名 / 删除标签
  */
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { permissionsApi } from '@/services/api';
-import { filesApi } from '@/services/api';
+import { permissionsApi, filesApi, batchApi } from '@/services/api';
 import { FileIcon } from '@/components/files/FileIcon';
+import { Pagination } from '@/components/files/Pagination';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/useToast';
@@ -32,8 +33,22 @@ import {
   Check,
   Files,
   ArrowLeft,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import { cn } from '@/utils';
+
+const TAG_PAGE_SIZE = 10;
+
+interface PaginatedFilesResponse {
+  data: FileItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
 
 export default function Tags() {
   const navigate = useNavigate();
@@ -44,6 +59,12 @@ export default function Tags() {
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  // 分页状态
+  const [page, setPage] = useState(1);
+
+  // 勾选状态
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
 
   // 获取所有用户标签
   const { data: tags = [], isLoading: tagsLoading } = useQuery<FileTag[]>({
@@ -59,16 +80,35 @@ export default function Tags() {
     staleTime: 30000,
   });
 
-  // 获取选中标签的文件列表
-  const { data: tagFiles = [], isLoading: filesLoading } = useQuery<FileItem[]>({
-    queryKey: ['tag-files', selectedTag],
+  // 获取选中标签的文件列表（带分页）
+  const { data: tagData, isLoading: filesLoading } = useQuery<PaginatedFilesResponse>({
+    queryKey: ['tag-files', selectedTag, page],
     queryFn: () =>
-      filesApi.list({ tags: [selectedTag!] }).then((r) => r.data.data ?? []),
+      filesApi
+        .list({ tags: [selectedTag!], page, limit: TAG_PAGE_SIZE })
+        .then((r) => ({
+          data: (r.data.data as FileItem[]) ?? [],
+          pagination: (r.data as any).pagination ?? { page, limit: TAG_PAGE_SIZE, total: 0, totalPages: 0 },
+        })),
     enabled: !!selectedTag,
     staleTime: 30000,
   });
 
-  // 重命名标签 mutation
+  const tagFiles = tagData?.data ?? [];
+  const filePagination = tagData?.pagination ?? { page: 1, limit: TAG_PAGE_SIZE, total: 0, totalPages: 0 };
+
+  // 切换标签时重置分页和选中
+  const handleSelectTag = (tagName: string) => {
+    if (selectedTag === tagName) {
+      setSelectedTag(null);
+    } else {
+      setSelectedTag(tagName);
+      setPage(1);
+      setSelectedFileIds(new Set());
+    }
+  };
+
+  // ── 标签重命名 ──
   const renameMutation = useMutation({
     mutationFn: ({ oldName, newName }: { oldName: string; newName: string }) =>
       permissionsApi.renameTag({ oldName, newName }),
@@ -76,21 +116,15 @@ export default function Tags() {
       toast({ title: '标签已重命名' });
       queryClient.invalidateQueries({ queryKey: ['user-tags'] });
       queryClient.invalidateQueries({ queryKey: ['tag-stats'] });
-      if (selectedTag === editingTag) {
-        setSelectedTag(editName);
-      }
+      if (selectedTag === editingTag) setSelectedTag(editName);
       setEditingTag(null);
       setEditName('');
     },
     onError: (e: any) =>
-      toast({
-        title: '重命名失败',
-        description: e.response?.data?.error?.message,
-        variant: 'destructive',
-      }),
+      toast({ title: '重命名失败', description: e.response?.data?.error?.message, variant: 'destructive' }),
   });
 
-  // 删除标签 mutation
+  // ── 删除标签 ──
   const deleteMutation = useMutation({
     mutationFn: (tagName: string) => permissionsApi.deleteTag(tagName),
     onSuccess: () => {
@@ -99,21 +133,79 @@ export default function Tags() {
       queryClient.invalidateQueries({ queryKey: ['tag-stats'] });
       if (selectedTag === deleteConfirm) {
         setSelectedTag(null);
+        setSelectedFileIds(new Set());
       }
       setDeleteConfirm(null);
     },
     onError: (e: any) =>
-      toast({
-        title: '删除失败',
-        description: e.response?.data?.error?.message,
-        variant: 'destructive',
-      }),
+      toast({ title: '删除失败', description: e.response?.data?.error?.message, variant: 'destructive' }),
+  });
+
+  // ── 单个文件移除当前标签 ──
+  const removeTagFromFileMutation = useMutation({
+    mutationFn: (fileId: string) => permissionsApi.removeTag({ fileId, tagName: selectedTag! }),
+    onSuccess: () => {
+      toast({ title: '已移除标签' });
+      queryClient.invalidateQueries({ queryKey: ['tag-files'] });
+      queryClient.invalidateQueries({ queryKey: ['tag-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['user-tags'] });
+      setSelectedFileIds((prev) => {
+        const next = new Set(prev);
+        return next;
+      });
+    },
+    onError: (e: any) =>
+      toast({ title: '移除失败', description: e.response?.data?.error?.message, variant: 'destructive' }),
+  });
+
+  // ── 单个文件删除 ──
+  const deleteFileMutation = useMutation({
+    mutationFn: (fileId: string) => filesApi.delete(fileId),
+    onSuccess: () => {
+      toast({ title: '已移入回收站' });
+      queryClient.invalidateQueries({ queryKey: ['tag-files'] });
+      queryClient.invalidateQueries({ queryKey: ['tag-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['user-tags'] });
+      setSelectedFileIds((prev) => {
+        const next = new Set(prev);
+        return next;
+      });
+    },
+    onError: (e: any) =>
+      toast({ title: '删除失败', description: e.response?.data?.error?.message, variant: 'destructive' }),
+  });
+
+  // ── 批量删除文件 ──
+  const batchDeleteMutation = useMutation({
+    mutationFn: (fileIds: string[]) => batchApi.delete(fileIds),
+    onSuccess: (res) => {
+      const data = res.data.data;
+      toast({ title: '批量删除完成', description: `成功 ${data?.success || 0} 个，失败 ${data?.failed || 0} 个` });
+      queryClient.invalidateQueries({ queryKey: ['tag-files'] });
+      queryClient.invalidateQueries({ queryKey: ['tag-stats'] });
+      setSelectedFileIds(new Set());
+    },
+    onError: (e: any) =>
+      toast({ title: '批量删除失败', description: e.response?.data?.error?.message, variant: 'destructive' }),
+  });
+
+  // ── 批量移除标签 ──
+  const batchRemoveTagMutation = useMutation({
+    mutationFn: (fileIds: string[]) =>
+      Promise.all(fileIds.map((fid) => permissionsApi.removeTag({ fileId: fid, tagName: selectedTag! }))),
+    onSuccess: () => {
+      toast({ title: `已从 ${selectedFileIds.size} 个文件移除标签「${selectedTag}」` });
+      queryClient.invalidateQueries({ queryKey: ['tag-files'] });
+      queryClient.invalidateQueries({ queryKey: ['tag-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['user-tags'] });
+      setSelectedFileIds(new Set());
+    },
+    onError: (e: any) =>
+      toast({ title: '批量移除失败', description: e.response?.data?.error?.message, variant: 'destructive' }),
   });
 
   // 筛选标签
-  const filteredTags = searchQuery
-    ? tags.filter((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    : tags;
+  const filteredTags = searchQuery ? tags.filter((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase())) : tags;
 
   // 获取标签使用次数
   const getTagCount = (tagName: string) => {
@@ -121,13 +213,28 @@ export default function Tags() {
     return stat?.count || 0;
   };
 
+  // 勾选切换
+  const toggleSelect = (fileId: string) => {
+    setSelectedFileIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedFileIds.size === tagFiles.length && tagFiles.length > 0) {
+      setSelectedFileIds(new Set());
+    } else {
+      setSelectedFileIds(new Set(tagFiles.map((f) => f.id)));
+    }
+  };
+
   // 处理文件点击
   const handleFileClick = (file: FileItem) => {
-    if (file.isFolder) {
-      navigate(`/files/${file.id}`);
-    } else {
-      navigate(`/files?preview=${file.id}`);
-    }
+    if (file.isFolder) navigate(`/files/${file.id}`);
+    else navigate(`/files?preview=${file.id}`);
   };
 
   // 处理重命名确认
@@ -139,6 +246,15 @@ export default function Tags() {
     renameMutation.mutate({ oldName, newName: editName.trim() });
   };
 
+  // 分页切换时清空选中
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    setSelectedFileIds(new Set());
+  };
+
+  const allSelected = tagFiles.length > 0 && selectedFileIds.size === tagFiles.length;
+  const someSelected = selectedFileIds.size > 0 && !allSelected;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -147,24 +263,17 @@ export default function Tags() {
           <Tag className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
           标签管理
         </h1>
-        <p className="text-muted-foreground text-sm mt-0.5">
-          {tagsLoading ? '加载中…' : `${tags.length} 个标签`}
-        </p>
+        <p className="text-muted-foreground text-sm mt-0.5">{tagsLoading ? '加载中…' : `${tags.length} 个标签`}</p>
       </div>
 
       {/* Search */}
-      <div className="relative">
+      <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="搜索标签..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+        <Input placeholder="搜索标签..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
       </div>
 
       <div className={cn('grid gap-6', selectedTag ? 'lg:grid-cols-[320px_1fr]' : 'lg:grid-cols-1')}>
-        {/* Tags List */}
+        {/* ── 左侧：标签列表 ── */}
         <div className="space-y-3">
           {tagsLoading ? (
             <div className="flex items-center justify-center py-12">
@@ -189,20 +298,11 @@ export default function Tags() {
                     key={tag.id}
                     className={cn(
                       'group flex items-center gap-3 p-3 rounded-lg border transition-colors',
-                      isSelected
-                        ? 'bg-primary/10 border-primary/30'
-                        : 'bg-card hover:bg-accent/40 border-transparent'
+                      isSelected ? 'bg-primary/10 border-primary/30' : 'bg-card hover:bg-accent/40 border-transparent'
                     )}
                   >
-                    {/* Tag Color & Name */}
-                    <button
-                      onClick={() => setSelectedTag(isSelected ? null : tag.name)}
-                      className="flex-1 flex items-center gap-2.5 min-w-0 text-left"
-                    >
-                      <span
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: tag.color }}
-                      />
+                    <button onClick={() => handleSelectTag(tag.name)} className="flex-1 flex items-center gap-2.5 min-w-0 text-left">
+                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
                       {isEditing ? (
                         <Input
                           value={editName}
@@ -223,89 +323,33 @@ export default function Tags() {
                       )}
                     </button>
 
-                    {/* Actions */}
+                    {/* 标签操作按钮 */}
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {isEditing ? (
                         <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRenameConfirm(tag.name);
-                            }}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); handleRenameConfirm(tag.name); }}>
                             <Check className="h-3.5 w-3.5 text-green-600" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingTag(null);
-                            }}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setEditingTag(null); }}>
                             <X className="h-3.5 w-3.5" />
                           </Button>
                         </>
                       ) : isDeleting ? (
                         <>
-                          <span className="text-xs text-destructive mr-1">确定删除?</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteMutation.mutate(tag.name);
-                            }}
-                            disabled={deleteMutation.isPending}
-                          >
-                            {deleteMutation.isPending ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin text-destructive" />
-                            ) : (
-                              <Check className="h-3.5 w-3.5 text-destructive" />
-                            )}
+                          <span className="text-xs text-destructive mr-1">确定?</span>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(tag.name); }} disabled={deleteMutation.isPending}>
+                            {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin text-destructive" /> : <Check className="h-3.5 w-3.5 text-destructive" />}
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteConfirm(null);
-                            }}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(null); }}>
                             <X className="h-3.5 w-3.5" />
                           </Button>
                         </>
                       ) : (
                         <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingTag(tag.name);
-                              setEditName(tag.name);
-                            }}
-                            title="重命名"
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setEditingTag(tag.name); setEditName(tag.name); }} title="重命名">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteConfirm(tag.name);
-                            }}
-                            title="删除"
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(tag.name); }} title="删除标签">
                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>
                         </>
@@ -318,28 +362,65 @@ export default function Tags() {
           )}
         </div>
 
-        {/* Selected Tag Files */}
+        {/* ── 右侧：选中标签的文件列表 ── */}
         {selectedTag && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            {/* 工具栏 */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedTag(null)}
-                  className="text-muted-foreground"
-                >
+                <Button variant="ghost" size="sm" onClick={() => { setSelectedTag(null); setSelectedFileIds(new Set()); }} className="text-muted-foreground">
                   <ArrowLeft className="h-4 w-4 mr-1" />
                   返回
                 </Button>
                 <div className="h-4 w-px bg-border" />
-                <h2 className="font-semibold">「{selectedTag}」相关文件</h2>
+                <h2 className="font-semibold">「{selectedTag}」</h2>
+                <span className="text-sm text-muted-foreground">共 {filePagination.total} 个文件</span>
               </div>
-              <span className="text-sm text-muted-foreground">
-                {filesLoading ? '...' : `${tagFiles.length} 个文件`}
-              </span>
+
+              {/* 批量操作栏 */}
+              {someSelected && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">已选 {selectedFileIds.size} 项</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => batchRemoveTagMutation.mutate(Array.from(selectedFileIds))}
+                    disabled={batchRemoveTagMutation.isPending}
+                  >
+                    {batchRemoveTagMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                    移除标签
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => batchDeleteMutation.mutate(Array.from(selectedFileIds))}
+                    disabled={batchDeleteMutation.isPending}
+                  >
+                    {batchDeleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
+                    删除
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedFileIds(new Set())}>
+                    取消
+                  </Button>
+                </div>
+              )}
             </div>
 
+            {/* 表头（全选） */}
+            {tagFiles.length > 0 && (
+              <div className="flex items-center gap-3 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
+                <button onClick={toggleSelectAll} className="flex items-center justify-center">
+                  {allSelected ? (
+                    <CheckSquare className="h-4 w-4 text-primary" />
+                  ) : (
+                    <Square className="h-4 w-4" />
+                  )}
+                </button>
+                <span>文件名</span>
+              </div>
+            )}
+
+            {/* 文件列表 */}
             {filesLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -350,34 +431,105 @@ export default function Tags() {
                 <p className="text-sm font-medium">暂无相关文件</p>
               </div>
             ) : (
-              <div className="grid gap-2">
-                {tagFiles.map((file) => (
-                  <div
-                    key={file.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/40 transition-colors cursor-pointer group overflow-hidden"
-                    onClick={() => handleFileClick(file)}
-                  >
-                    <FileIcon mimeType={file.mimeType} isFolder={file.isFolder} size="md" />
-
-                    <div className="flex-1 min-w-0 overflow-hidden">
-                      <p className="font-medium truncate text-sm">{file.name}</p>
-                      <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
-                        <p className="flex items-center gap-1.5 overflow-hidden">
-                          {!file.isFolder && <span className="flex-shrink-0">{formatBytes(file.size)}</span>}
-                          {!file.isFolder && <span className="flex-shrink-0">·</span>}
-                          <span className="flex-shrink-0 truncate">{formatDate(file.updatedAt)}</span>
-                        </p>
-                        {file.path && (
-                          <p className="flex items-center gap-1 overflow-hidden">
-                            <FolderOpen className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{file.path}</span>
-                          </p>
+              <div className="grid gap-1">
+                {tagFiles.map((file) => {
+                  const checked = selectedFileIds.has(file.id);
+                  return (
+                    <div
+                      key={file.id}
+                      className={cn(
+                        'flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/40 transition-colors group overflow-hidden',
+                        checked && 'bg-primary/5 border-primary/20'
+                      )}
+                    >
+                      {/* 勾选框 */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleSelect(file.id); }}
+                        className="flex-shrink-0 touch-target-sm"
+                      >
+                        {checked ? (
+                          <CheckSquare className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Square className="h-4 w-4 text-muted-foreground" />
                         )}
+                      </button>
+
+                      {/* 文件信息（可点击） */}
+                      <div className="flex-1 min-w-0 overflow-hidden cursor-pointer" onClick={() => handleFileClick(file)}>
+                        <div className="flex items-center gap-3">
+                          <FileIcon mimeType={file.mimeType} isFolder={file.isFolder} size="md" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate text-sm">{file.name}</p>
+                            <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+                              <p className="flex items-center gap-1.5 overflow-hidden">
+                                {!file.isFolder && <span className="flex-shrink-0">{formatBytes(file.size)}</span>}
+                                {!file.isFolder && <span className="flex-shrink-0">·</span>}
+                                <span className="flex-shrink-0 truncate">{formatDate(file.updatedAt)}</span>
+                              </p>
+                              {file.path && (
+                                <p className="flex items-center gap-1 overflow-hidden">
+                                  <FolderOpen className="h-3 w-3 flex-shrink-0" />
+                                  <span className="truncate">{file.path}</span>
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 单条操作按钮 */}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeTagFromFileMutation.mutate(file.id);
+                          }}
+                          disabled={removeTagFromFileMutation.isPending}
+                          title={`移除标签「${selectedTag}」`}
+                        >
+                          {removeTagFromFileMutation.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <X className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteFileMutation.mutate(file.id);
+                          }}
+                          disabled={deleteFileMutation.isPending}
+                          title="删除文件"
+                        >
+                          {deleteFileMutation.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin text-destructive" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          )}
+                        </Button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+            )}
+
+            {/* 分页 */}
+            {!filesLoading && tagFiles.length > 0 && (
+              <Pagination
+                currentPage={filePagination.page}
+                totalPages={filePagination.totalPages}
+                totalItems={filePagination.total}
+                pageSize={TAG_PAGE_SIZE as 20}
+                onPageChange={handlePageChange}
+                onPageSizeChange={() => {}}
+              />
             )}
           </div>
         )}
