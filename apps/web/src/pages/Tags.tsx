@@ -259,7 +259,7 @@ export default function Tags() {
   const handlePageChange = (newPage: number) => { setPage(newPage); setSelectedFileIds(new Set()); };
 
   const allSelected = tagFiles.length > 0 && selectedFileIds.size === tagFiles.length;
-  const someSelected = selectedFileIds.size > 0 && !allSelected;
+  const hasSelection = selectedFileIds.size > 0;
 
   return (
     <div className="space-y-6">
@@ -420,43 +420,46 @@ export default function Tags() {
               <span className="text-sm text-muted-foreground">共 {filePagination.total} 个文件</span>
             </div>
 
-            {/* 批量操作栏 — 固定醒目展示 */}
-            {someSelected && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                <CheckSquare className="h-4 w-4 text-primary flex-shrink-0" />
-                <span className="text-sm font-medium">已选 <span className="text-primary">{selectedFileIds.size}</span> 项</span>
-                <div className="h-4 w-px bg-border" />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => batchRemoveTagMutation.mutate(Array.from(selectedFileIds))}
-                  disabled={batchRemoveTagMutation.isPending}
-                >
-                  {batchRemoveTagMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
-                  移除标签
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => batchDeleteMutation.mutate(Array.from(selectedFileIds))}
-                  disabled={batchDeleteMutation.isPending}
-                >
-                  {batchDeleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
-                  删除
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedFileIds(new Set())}>
-                  取消
-                </Button>
-              </div>
-            )}
-
-            {/* 表头（全选） */}
+            {/* 批量操作栏 — 始终可见，无选中时禁用 */}
             {tagFiles.length > 0 && !filesLoading && (
-              <div className="flex items-center gap-3 px-3 py-2 text-xs font-medium text-muted-foreground border-b">
-                <button onClick={toggleSelectAll} className="flex items-center justify-center">
-                  {allSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4" />}
+              <div className={cn(
+                'flex items-center gap-3 p-3 rounded-lg border transition-colors',
+                hasSelection ? 'bg-primary/5 border-primary/20' : 'bg-muted/30 border-transparent'
+              )}>
+                <button onClick={toggleSelectAll} className="flex items-center justify-center touch-target-sm" title={allSelected ? '取消全选' : '全选'}>
+                  {allSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4 text-muted-foreground" />}
                 </button>
-                <span>文件名</span>
+                {hasSelection ? (
+                  <>
+                    <span className="text-sm font-medium">已选 <span className="text-primary">{selectedFileIds.size}</span> / {tagFiles.length} 项</span>
+                    <div className="h-4 w-px bg-border" />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => batchRemoveTagMutation.mutate(Array.from(selectedFileIds))}
+                      disabled={batchRemoveTagMutation.isPending}
+                    >
+                      {batchRemoveTagMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                      移除标签
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => batchDeleteMutation.mutate(Array.from(selectedFileIds))}
+                      disabled={batchDeleteMutation.isPending}
+                    >
+                      {batchDeleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
+                      删除
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedFileIds(new Set())}>
+                      取消
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs text-muted-foreground">勾选文件后可批量操作</span>
+                  </>
+                )}
               </div>
             )}
 
