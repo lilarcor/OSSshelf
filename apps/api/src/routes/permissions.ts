@@ -13,7 +13,7 @@ import { Hono } from 'hono';
 import { eq, and, inArray, like, isNull, count, desc } from 'drizzle-orm';
 import { getDb, files, filePermissions, users, fileTags, userGroups, groupMembers } from '../db';
 import { authMiddleware } from '../middleware/auth';
-import { ERROR_CODES, logger } from '@osshelf/shared';
+import { ERROR_CODES, logger, TAG_COLORS } from '@osshelf/shared';
 import { throwAppError } from '../middleware/error';
 import type { Env, Variables } from '../types/env';
 import { z } from 'zod';
@@ -825,6 +825,57 @@ app.delete('/:permissionId', async (c) => {
   });
 
   return c.json({ success: true, data: { message: '权限已删除' } });
+});
+
+// ── 独立创建标签（不依赖文件）──
+const createTagSchema = z.object({
+  name: z.string().min(1).max(50),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+});
+
+app.post('/tags/create', async (c) => {
+  const userId = c.get('userId')!;
+  const body = await c.req.json();
+  const result = createTagSchema.safeParse(body);
+
+  if (!result.success) {
+    return c.json(
+      { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: result.error.errors[0].message } },
+      400
+    );
+  }
+
+  const { name, color } = result.data;
+  const db = getDb(c.env.DB);
+
+  // 检查是否已存在同名标签
+  const existing = await db
+    .select()
+    .from(fileTags)
+    .where(and(eq(fileTags.userId, userId), eq(fileTags.name, name)))
+    .get();
+
+  if (existing) {
+    return c.json({ success: false, error: { code: 'TAG_EXISTS', message: `标签 "${name}" 已存在` } }, 409);
+  }
+
+  // 插入一条"空引用"标签（fileId 为占位符）
+  const newTag = await db
+    .insert(fileTags)
+    .values({
+      id: crypto.randomUUID(),
+      fileId: `__placeholder_${Date.now()}`,
+      userId,
+      name,
+      color: color || TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)],
+      createdAt: new Date().toISOString(),
+    })
+    .returning()
+    .get();
+
+  logger.info('Permissions', 'Tag created', { userId, name });
+
+  return c.json({ success: true, data: newTag });
 });
 
 export default app;

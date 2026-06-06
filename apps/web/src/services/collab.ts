@@ -280,6 +280,8 @@ export const permissionsApi = {
     api.put<ApiResponse<{ message: string }>>('/api/permissions/tags/rename', data),
   deleteTag: (tagName: string) =>
     api.delete<ApiResponse<{ message: string; affectedRows: number }>>(`/api/permissions/tags/${encodeURIComponent(tagName)}`),
+  createTag: (data: { name: string; color?: string }) =>
+    api.post<ApiResponse<FileTag>>('/api/permissions/tags/create', data),
 
   // ── 全局权限视图 ──
   getAllPermissions: () => api.get<ApiResponse<{ permissions: GlobalPermission[] }>>('/api/permissions/all'),
