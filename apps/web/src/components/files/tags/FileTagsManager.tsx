@@ -12,6 +12,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { permissionsApi } from '@/services/api';
+import { TAG_COLORS } from '@osshelf/shared';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/useToast';
@@ -28,6 +29,9 @@ export function FileTagsManager({ fileId, onTagClick }: FileTagsManagerProps) {
   const queryClient = useQueryClient();
   const [showPicker, setShowPicker] = useState(true);
   const [tagSearch, setTagSearch] = useState('');
+  const [newTagName, setNewTagName] = useState('');
+  const [selectedColor, setSelectedColor] = useState<string>(TAG_COLORS[0] ?? '#6366f1');
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   // 当前文件的标签
   const { data: fileTags = [], isLoading: fileTagsLoading } = useQuery({
@@ -66,6 +70,32 @@ export function FileTagsManager({ fileId, onTagClick }: FileTagsManagerProps) {
     onError: (e: any) =>
       toast({ title: '添加失败', description: e.response?.data?.error?.message, variant: 'destructive' }),
   });
+
+  // ── 新建标签并添加到文件 ──
+  const createAndAddMutation = useMutation({
+    mutationFn: (data: { name: string; color: string }) =>
+      permissionsApi.createTag(data),
+    onSuccess: (res) => {
+      const tag = res.data.data;
+      if (!tag) return;
+      toast({ title: '标签已创建' });
+      addTagMutation.mutate({ name: tag.name, color: tag.color });
+      setNewTagName('');
+      setShowCreateForm(false);
+    },
+    onError: (e: any) =>
+      toast({ title: '创建失败', description: e.response?.data?.error?.message, variant: 'destructive' }),
+  });
+
+  const handleCreateAndAdd = () => {
+    const name = newTagName.trim();
+    if (!name) return;
+    if (allTags.some((t) => t.name === name)) {
+      toast({ title: '标签已存在，可直接选择', variant: 'destructive' });
+      return;
+    }
+    createAndAddMutation.mutate({ name, color: selectedColor });
+  };
 
   // ── 移除标签 ──
   const removeTagMutation = useMutation({
@@ -139,16 +169,17 @@ export function FileTagsManager({ fileId, onTagClick }: FileTagsManagerProps) {
             <Input
               placeholder="搜索已有标签..."
               value={tagSearch}
-              onChange={(e) => { setTagSearch(e.target.value); }}
+              onChange={(e) => { setTagSearch(e.target.value); setShowCreateForm(false); }}
               onKeyDown={(e) => { if (e.key === 'Escape') setShowPicker(false); }}
               className="pl-8 h-8 text-xs"
               autoFocus
             />
           </div>
 
-          {/* 已有标签列表（最多显示10个） */}
-          <>
-            {tagsLoading ? (
+          {/* 已有标签列表 / 新建表单 */}
+          {!showCreateForm ? (
+            <>
+              {tagsLoading ? (
                 <div className="flex justify-center py-4">
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 </div>
@@ -174,7 +205,67 @@ export function FileTagsManager({ fileId, onTagClick }: FileTagsManagerProps) {
                   {allTags.length === 0 ? '暂无标签' : '无匹配结果'}
                 </p>
               )}
+
+              {/* + 新建标签 按钮 */}
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className={cn(
+                  'w-full mt-2 py-2 rounded-md border border-dashed text-xs text-muted-foreground',
+                  'hover:border-primary/50 hover:text-primary transition-colors'
+                )}
+              >
+                + 新建标签
+              </button>
             </>
+          ) : (
+            /* ── 新建标签表单 ── */
+            <div className="space-y-2 pt-1">
+              <Input
+                placeholder="输入标签名称..."
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCreateAndAdd(); }}
+                className="h-8 text-xs"
+                autoFocus
+              />
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground">颜色</span>
+                <div className="flex gap-1.5 flex-wrap">
+                  {TAG_COLORS.slice(0, 8).map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setSelectedColor(c)}
+                      className={cn(
+                        'w-5 h-5 rounded-full border-2 transition-transform',
+                        selectedColor === c ? 'border-foreground scale-110' : 'border-transparent hover:scale-105'
+                      )}
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="h-7 text-xs"
+                  disabled={!newTagName.trim() || createAndAddMutation.isPending}
+                  onClick={handleCreateAndAdd}
+                >
+                  {createAndAddMutation.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                  创建并添加
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs"
+                  onClick={() => { setShowCreateForm(false); setNewTagName(''); }}
+                >
+                  取消
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

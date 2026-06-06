@@ -267,6 +267,8 @@ export const permissionsApi = {
     api.get<ApiResponse<SearchableUser[]>>('/api/permissions/users/search', { params: { q: query } }),
 
   // ── 标签管理 ──
+  createTag: (data: { name: string; color: string }) =>
+    api.post<ApiResponse<FileTag>>('/api/permissions/tags/create', data),
   addTag: (data: { fileId: string; name: string; color?: string }) =>
     api.post<ApiResponse<FileTag>>('/api/permissions/tags/add', data),
   removeTag: (data: { fileId: string; tagName: string }) =>

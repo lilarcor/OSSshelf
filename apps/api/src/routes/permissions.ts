@@ -20,6 +20,7 @@ import { z } from 'zod';
 import { createAuditLog, getClientIp, getUserAgent } from '../lib/audit';
 import { checkPermissionWithCache, invalidatePermissionCache, type PermissionLevel } from '../lib/permissionResolver';
 import { createNotification, sendNotification, getUserInfo } from '../lib/notificationUtils';
+import { TAG_COLORS } from '@osshelf/shared';
 
 export {
   checkFilePermission,
@@ -411,6 +412,57 @@ app.post('/revoke', async (c) => {
   });
 
   return c.json({ success: true, data: { message: '权限已撤销' } });
+});
+
+app.post('/tags/create', async (c) => {
+  const userId = c.get('userId')!;
+  const body = await c.req.json();
+
+  const createSchema = z.object({
+    name: z.string().min(1).max(50),
+    color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  });
+  const result = createSchema.safeParse(body);
+  if (!result.success) {
+    return c.json(
+      { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: result.error.errors[0].message } },
+      400
+    );
+  }
+
+  const { name, color } = result.data;
+  const db = getDb(c.env.DB);
+
+  // 检查是否已存在同名标签
+  const existing = await db
+    .select()
+    .from(fileTags)
+    .where(and(eq(fileTags.userId, userId), eq(fileTags.name, name)))
+    .get();
+  if (existing) {
+    return c.json({ success: false, error: { code: 'TAG_EXISTS', message: '标签名称已存在' } }, 409);
+  }
+
+  const tagId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const resolvedColor = color || TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)] || '#6366f1';
+
+  // 插入一条"种子"记录（fileId 为空字符串表示这是标签定义）
+  await db.insert(fileTags).values({
+    id: tagId,
+    fileId: '',
+    userId,
+    name,
+    color: resolvedColor,
+    createdAt: now,
+  });
+
+  logger.info('Permissions', 'Tag created', { userId, name, color: resolvedColor });
+
+  return c.json({
+    success: true,
+    data: { id: tagId, name, color: resolvedColor, createdAt: now },
+  });
 });
 
 app.post('/tags/add', async (c) => {

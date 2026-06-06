@@ -59,7 +59,6 @@ import {
   History,
   Trash2 as TrashIcon,
   Sparkles,
-  Star,
   Download,
   Wand2,
   MessageSquare,
@@ -86,7 +85,6 @@ export default function Files() {
   const { folderId } = useParams<{ folderId: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const showStarred = searchParams.get('starred') === 'true';
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { token } = useAuthStore();
@@ -239,11 +237,10 @@ export default function Files() {
     page: number;
     limit: number;
   }>({
-    queryKey: ['files', folderId, showStarred, currentPage, pageSize],
+    queryKey: ['files', folderId, currentPage, pageSize],
     queryFn: async () => {
       const res = await filesApi.list({
         parentId: folderId || null,
-        starred: showStarred ? 'true' : undefined,
         page: currentPage,
         limit: pageSize,
       });
@@ -265,10 +262,10 @@ export default function Files() {
   const totalFiles = filesData?.total ?? 0;
   const totalPages = Math.ceil(totalFiles / pageSize);
 
-  // ── 分页：切换文件夹/搜索/收藏状态时重置到第1页 ─────────────────────
+  // ── 分页：切换文件夹/搜索时重置到第1页 ─────────────────────
   useEffect(() => {
     setCurrentPage(1);
-  }, [folderId, showStarred]);
+  }, [folderId]);
 
   const handlePageSizeChange = (size: 20 | 50 | 100) => {
     setPageSize(size);
@@ -1075,23 +1072,6 @@ export default function Files() {
 
           <Button variant="outline" size="sm" onClick={() => refetch()} title="刷新当前目录">
             <RefreshCw className="h-4 w-4" />
-          </Button>
-
-          <Button
-            variant={showStarred ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => {
-              if (showStarred) {
-                searchParams.delete('starred');
-              } else {
-                searchParams.set('starred', 'true');
-              }
-              setSearchParams(searchParams);
-            }}
-            title={showStarred ? '显示全部文件' : '只显示收藏文件'}
-          >
-            <Star className={cn('h-4 w-4', showStarred && 'fill-current')} />
-            {showStarred ? '全部' : '收藏'}
           </Button>
 
           <Button variant="outline" size="sm" onClick={() => setShowNewFileDialog(true)} className="hidden sm:flex">
