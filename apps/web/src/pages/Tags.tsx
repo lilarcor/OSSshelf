@@ -85,7 +85,7 @@ export default function Tags() {
     queryKey: ['tag-files', selectedTag, page],
     queryFn: () =>
       filesApi
-        .list({ tags: [selectedTag!], page, limit: TAG_PAGE_SIZE })
+        .list({ tags: [selectedTag!].join(',') as any, page, limit: TAG_PAGE_SIZE })
         .then((r) => ({
           data: (r.data.data as FileItem[]) ?? [],
           pagination: (r.data as any).pagination ?? { page, limit: TAG_PAGE_SIZE, total: 0, totalPages: 0 },
