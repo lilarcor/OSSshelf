@@ -796,6 +796,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
           token={token || ''}
           onClose={() => setIsPreviewOpen(false)}
           onDownload={(file) => { setIsPreviewOpen(false); handleDownload(previewFile!); }}
+          onShare={(fileId) => { /* 团队工作区暂不支持分享 */ }}
         />
       )}
 
