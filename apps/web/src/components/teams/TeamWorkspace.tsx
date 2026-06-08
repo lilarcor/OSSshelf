@@ -1,23 +1,34 @@
 /**
- * TeamWorkspace.tsx — 团队工作区 V3（修复版）
+ * TeamWorkspace.tsx — 团队工作区 V4（完整复用主文件管理能力）
  *
- * 修复：
- * - 使用 api 客户端（带 auth token）替代裸 fetch
- * - 调用 /workspace/all-files 端点（合并挂载+团队自有文件）
- * - 上传功能接入 presignUpload 流程
+ * 复用自 Files.tsx 的核心能力：
+ * - 文件图标按类型（FileIcon）
+ * - 拖拽上传（useFileDragDrop）
+ * - 上传进度条（per-file progress）
+ * - 预签名上传/下载（presignUpload / getPresignedDownloadUrl）
+ * - 文件预览（FilePreview）
+ * - 右键菜单位置跟随鼠标
+ * - 搜索、排序、分页、全选、重命名、键盘快捷键
  */
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/useToast';
 import { teamsApi, type WorkspaceFile } from '@/services/collab';
 import api from '@/services/api-client';
+import { getPresignedDownloadUrl, presignUpload } from '@/services/presignUpload';
+import { filesApi } from '@/services/api';
+import { FilePreview } from '@/components/files/FilePreview';
+import { FileIcon } from '@/components/files/FileIcon';
+import { useAuthStore } from '@/stores/auth';
+import { useFileDragDrop } from '@/hooks/useFileDragDrop';
 import {
-  FolderOpen, File, HardDrive, Users, Loader2, Grid, List,
+  FolderOpen, HardDrive, Users, Loader2, Grid, List,
   RefreshCw, Lock, Edit, Crown, Plus, Upload, Trash2,
-  FolderPlus, Eye, Download, ChevronRight, X,
+  FolderPlus, Eye, Download, ChevronRight, Search, SortAsc, SortDesc,
+  CheckSquare, X, Pencil,
 } from 'lucide-react';
 import { cn, formatBytes } from '@/utils';
 import type { ViewMode } from '@/stores/files';
@@ -33,6 +44,9 @@ interface TeamWorkspaceProps {
 
 type WorkspaceTab = 'files' | 'activity';
 
+type SortField = 'fileName' | 'size' | 'mountedAt';
+type SortOrder = 'asc' | 'desc';
+
 const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRole, isOwner }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -43,11 +57,55 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined);
   const [contextMenuFile, setContextMenuFile] = useState<WorkspaceFile | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<WorkspaceFile | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── 搜索 & 排序 ──
+  const [searchInput, setSearchInput] = useState('');
+  const [sortBy, setSortBy] = useState<SortField>('fileName');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
+  // ── 分页 ──
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
+
+  // ── 重命名 ──
+  const [renamingFileId, setRenamingFileId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  // ── 上传进度 ──
+  const [uploadProgresses, setUploadProgresses] = useState<Record<string, number>>({});
+
   const canWrite = userRole === 'admin' || userRole === 'owner' || isOwner;
+  const { token } = useAuthStore();
+
+  // 切换目录时重置分页和选择
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedFileIds(new Set());
+    setSearchInput('');
+  }, [currentFolderId]);
+
+  // ── 面包屑导航：动态查询父级文件夹链 ──
+  interface BreadcrumbItem { id: string; name: string }
+  const { data: breadcrumbs = [] } = useQuery<BreadcrumbItem[]>({
+    queryKey: ['team-breadcrumbs', teamId, currentFolderId],
+    enabled: !!currentFolderId,
+    queryFn: async () => {
+      const crumbs: BreadcrumbItem[] = [];
+      let currentId: string | null = currentFolderId!;
+      while (currentId) {
+        const res = await filesApi.get(currentId);
+        const folder = res.data.data;
+        if (!folder) break;
+        crumbs.unshift({ id: folder.id, name: folder.name });
+        currentId = (folder as any).parentId ?? null;
+      }
+      return crumbs;
+    },
+  });
 
   // ★ 使用 all-files 端点（合并挂载资源 + 团队自有文件）
   const { data: filesData, isLoading: isFilesLoading, refetch: refetchFiles } = useQuery({
@@ -63,15 +121,52 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
     queryFn: () => teamsApi.getStorageStats(teamId).then((r) => r.data.data),
   });
 
-  const files = filesData?.files ?? [];
+  const rawFiles = filesData?.files ?? [];
   const total = filesData?.total ?? 0;
 
-  // ── 新建文件夹（使用 api 客户端，自动带 auth）──
+  // ── 搜索过滤 ──
+  const filteredFiles = rawFiles.filter(f =>
+    !searchInput || f.fileName.toLowerCase().includes(searchInput.toLowerCase())
+  );
+
+  // ── 排序 ──
+  const sortedFiles = [...filteredFiles].sort((a, b) => {
+    // 文件夹始终排在前面
+    if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
+    let cmp = 0;
+    switch (sortBy) {
+      case 'fileName':
+        cmp = a.fileName.localeCompare(b.fileName, 'zh-CN'); break;
+      case 'size':
+        cmp = (a.size ?? 0) - (b.size ?? 0); break;
+      case 'mountedAt':
+        cmp = new Date(a.mountedAt).getTime() - new Date(b.mountedAt).getTime(); break;
+    }
+    return sortOrder === 'asc' ? cmp : -cmp;
+  });
+
+  // ── 分页 ──
+  const totalPages = Math.ceil(sortedFiles.length / pageSize);
+  const pagedFiles = sortedFiles.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const files = pagedFiles;
+
+  // ── 拖拽上传 ──
+  const { isDragActive, handleDragOver, handleDragLeave, handleDrop } = useFileDragDrop({
+    folderId: currentFolderId ?? null,
+    setUploadProgresses,
+  });
+
+  // 拖拽上传完成后刷新文件列表
+  useEffect(() => {
+    if (!isDragActive) refetchFiles();
+  }, [isDragActive]);
+
+  // ── 新建文件夹（传递当前目录 parentId）──
   const createFolderMutation = useMutation({
     mutationFn: (name: string) =>
       api.post<{ success: boolean; data: { id: string; name: string }; error?: { message: string } }>(
         `/api/teams/${teamId}/workspace/folder`,
-        { name }
+        { name, parentId: currentFolderId || null }
       ),
     onSuccess: (res) => {
       const body = res.data;
@@ -89,7 +184,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
     },
   });
 
-  // ── 删除文件（使用 api 客户端）──
+  // ── 删除文件 ──
   const deleteMutation = useMutation({
     mutationFn: (fileId: string) =>
       api.delete<{ success: boolean; error?: { message: string } }>(`/api/files/${fileId}`),
@@ -100,7 +195,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
         return;
       }
       toast({ title: '已删除' });
-      setSelectedFileIds(new Set());
+      setSelectedFileIds(prev => { const next = new Set(prev); return next; });
       refetchFiles();
     },
     onError: (e: any) => {
@@ -108,7 +203,22 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
     },
   });
 
-  // ── 上传文件（使用 presignUpload）──
+  // ── 重命名 ──
+  const renameMutation = useMutation({
+    mutationFn: ({ fileId, name }: { fileId: string; name: string }) =>
+      filesApi.update(fileId, { name }),
+    onSuccess: () => {
+      toast({ title: '重命名成功' });
+      setRenamingFileId(null);
+      setRenameValue('');
+      refetchFiles();
+    },
+    onError: (e: any) => {
+      toast({ title: '重命名失败', description: e.response?.data?.error?.message || e.message, variant: 'destructive' });
+    },
+  });
+
+  // ── 上传文件（使用 presignUpload，带进度）──
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
@@ -117,28 +227,28 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
     const fileList = e.target.files;
     if (!fileList || fileList.length === 0) return;
 
-    try {
-      // 动态导入 presignUpload 避免未使用时的加载开销
-      const { presignUpload } = await import('@/services/presignUpload');
-
-      for (const file of Array.from(fileList)) {
-        try {
-          await presignUpload({ file, parentId: null }); // 上传到用户根目录（后续可指定团队文件夹）
-          toast({ title: `${file.name} 上传成功` });
-        } catch (uploadErr: any) {
-          toast({ title: `${file.name} 上传失败`, description: uploadErr.message, variant: 'destructive' });
-        }
+    for (const file of Array.from(fileList)) {
+      const key = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      setUploadProgresses(p => ({ ...p, [key]: 0 }));
+      try {
+        await presignUpload({
+          file,
+          parentId: currentFolderId || null,
+          onProgress: (progress) => setUploadProgresses(prev => ({ ...prev, [key]: progress })),
+        });
+        setUploadProgresses(p => { const n = { ...p }; delete n[key]; return n; });
+        toast({ title: `${file.name} 上传成功` });
+      } catch (uploadErr: any) {
+        setUploadProgresses(p => { const n = { ...p }; delete n[key]; return n; });
+        toast({ title: `${file.name} 上传失败`, description: uploadErr.message, variant: 'destructive' });
       }
-
-      // 清空 input 以便重复选择同一文件
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      refetchFiles();
-    } catch (err) {
-      toast({ title: '上传模块加载失败', variant: 'destructive' });
     }
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    refetchFiles();
   };
 
-  // ── 选择/取消选择 ──
+  // ── 选择/取消选择 / 全选 ──
   const toggleSelect = useCallback((fileId: string) => {
     setSelectedFileIds(prev => {
       const next = new Set(prev);
@@ -146,6 +256,50 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
       return next;
     });
   }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedFileIds(new Set(files.map(f => f.fileId)));
+  }, [files]);
+
+  const clearSelection = useCallback(() => setSelectedFileIds(new Set()), []);
+
+  // ── 排序切换 ──
+  const handleSort = (field: SortField) => {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // ── 键盘快捷键 ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // 忽略输入框内的按键
+      if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedFileIds.size > 0 && canWrite) {
+          if (confirm(`确定删除选中的 ${selectedFileIds.size} 个项目？`)) {
+            selectedFileIds.forEach(id => deleteMutation.mutate(id));
+          }
+        }
+      }
+      if (e.key === 'a' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        selectAll();
+      }
+      if (e.key === 'Escape') {
+        clearSelection();
+        setContextMenuFile(null);
+        setIsPreviewOpen(false);
+        setRenamingFileId(null);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedFileIds, canWrite, files, selectAll, clearSelection]);
 
   const PermissionBadge = ({ permission }: { permission: string }) => {
     if (permission === 'admin') return <Crown className="h-3.5 w-3.5 text-purple-500" />;
@@ -158,20 +312,72 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
     createFolderMutation.mutate(newFolderName.trim());
   };
 
-  // ── 下载文件 ──
-  const handleDownload = (file: WorkspaceFile) => {
-    const downloadUrl = `/api/files/${file.fileId}/download`;
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = file.fileName;
-    a.target = '_blank';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const handleRenameStart = (file: WorkspaceFile) => {
+    setRenamingFileId(file.fileId);
+    setRenameValue(file.fileName);
   };
 
+  const handleRenameConfirm = () => {
+    if (!renameValue.trim() || !renamingFileId) return;
+    renameMutation.mutate({ fileId: renamingFileId, name: renameValue.trim() });
+  };
+
+  // ── 下载文件（使用预签名 URL）──
+  const handleDownload = async (file: WorkspaceFile) => {
+    const forceBlobDownload = (blob: Blob, name: string) => {
+      const forceBlob = new Blob([blob], { type: 'application/octet-stream' });
+      const blobUrl = URL.createObjectURL(forceBlob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    };
+
+    try {
+      const result = await getPresignedDownloadUrl(file.fileId);
+      const { url, fileName } = result;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('download failed');
+      const blob = await resp.blob();
+      forceBlobDownload(blob, fileName || file.fileName);
+    } catch {
+      const dlToken = token || useAuthStore.getState().token;
+      const dlUrl = `${import.meta.env.VITE_API_URL || ''}/api/files/${file.fileId}/download${dlToken ? `?token=${encodeURIComponent(dlToken)}` : ''}`;
+      try {
+        const resp = await fetch(dlUrl);
+        if (!resp.ok) throw new Error('download failed');
+        const blob = await resp.blob();
+        forceBlobDownload(blob, file.fileName);
+      } catch {
+        toast({ title: '下载失败', variant: 'destructive' });
+      }
+    }
+  };
+
+  // ── 获取显示日期（优先 createdAt，fallback mountedAt）──
+  const getFileDate = (file: WorkspaceFile) => {
+    const ts = (file as any).createdAt || file.mountedAt;
+    return ts ? new Date(ts).toLocaleDateString('zh-CN') : '-';
+  };
+
+  // 上传中的文件列表
+  const activeUploads = Object.entries(uploadProgresses);
+
   return (
-    <div className="space-y-4" onClick={() => setContextMenuFile(null)}>
+    <div className="space-y-4" onClick={() => setContextMenuFile(null)} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+      {/* 拖拽上传遮罩 */}
+      {isDragActive && (
+        <div className="fixed inset-0 z-50 bg-primary/10 flex items-center justify-center pointer-events-none">
+          <div className="bg-card border-2 border-dashed border-primary rounded-xl p-12 text-center shadow-2xl">
+            <Upload className="h-14 w-14 mx-auto mb-4 text-primary" />
+            <p className="text-lg font-semibold">松开上传</p>
+          </div>
+        </div>
+      )}
+
       {/* 头部信息 */}
       <div className="flex items-center justify-between">
         <div>
@@ -184,15 +390,28 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
           <p className="text-sm text-muted-foreground mt-1">团队共享空间 · {total} 个项目</p>
           {/* 面包屑导航 */}
           {currentFolderId && (
-            <div className="flex items-center gap-1 text-sm mt-1">
+            <div className="flex items-center gap-1 text-sm mt-1 flex-wrap">
               <button
                 onClick={() => setCurrentFolderId(undefined)}
                 className="flex items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <FolderOpen className="h-3.5 w-3.5" /> 根目录
               </button>
-              <ChevronRight className="h-3 w-3 text-muted-foreground" />
-              <span className="text-foreground font-medium">子文件夹</span>
+              {breadcrumbs.map((crumb, idx) => (
+                <React.Fragment key={crumb.id}>
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                  {idx === breadcrumbs.length - 1 ? (
+                    <span className="text-foreground font-medium">{crumb.name}</span>
+                  ) : (
+                    <button
+                      onClick={() => setCurrentFolderId(crumb.id)}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {crumb.name}
+                    </button>
+                  )}
+                </React.Fragment>
+              ))}
             </div>
           )}
         </div>
@@ -232,11 +451,41 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
           {/* 工具栏 */}
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-1">
-              <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('list')}>
-                <List className="h-4 w-4" />
+              {/* 视图切换 */}
+              <div className="flex border rounded-md overflow-hidden">
+                <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" className={cn('rounded-none h-8 w-8', viewMode === 'list' && 'bg-accent')} onClick={() => setViewMode('list')} title="列表视图">
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="icon" className={cn('rounded-none h-8 w-8', viewMode === 'grid' && 'bg-accent')} onClick={() => setViewMode('grid')} title="网格视图">
+                  <Grid className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* 搜索框 */}
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  className="pl-8 pr-7 h-8 w-40 sm:w-48 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="搜索文件..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+                {searchInput && (
+                  <button
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setSearchInput('')}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* 排序按钮 */}
+              <Button variant="outline" size="sm" onClick={() => handleSort('fileName')} className="hidden sm:flex gap-1">
+                名称{sortBy === 'fileName' && (sortOrder === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />)}
               </Button>
-              <Button variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('grid')}>
-                <Grid className="h-4 w-4" />
+              <Button variant="outline" size="sm" onClick={() => handleSort('size')} className="hidden sm:flex gap-1">
+                大小{sortBy === 'size' && (sortOrder === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />)}
               </Button>
             </div>
 
@@ -269,7 +518,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                 </>
               )}
 
-              {/* ★ 上传文件（隐藏 input + 触发按钮） */}
+              {/* 上传文件 */}
               {canWrite && (
                 <>
                   <input
@@ -283,6 +532,13 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                     <Upload className="h-4 w-4 mr-1" /> 上传文件
                   </Button>
                 </>
+              )}
+
+              {/* 全选 */}
+              {files.length > 0 && (
+                <Button variant="outline" size="sm" onClick={selectAll} disabled={selectedFileIds.size === files.length}>
+                  <CheckSquare className="h-4 w-4 mr-1" /> 全选
+                </Button>
               )}
 
               {/* 批量删除 */}
@@ -302,28 +558,63 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
             </div>
           </div>
 
+          {/* 上传进度条 */}
+          {activeUploads.length > 0 && (
+            <div className="space-y-2">
+              {activeUploads.map(([key, progress]) => (
+                <div key={key} className="bg-card border rounded-lg px-4 py-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium truncate flex-1 min-w-0">
+                      {key.split('-').slice(0, -2).join('-')}
+                    </span>
+                    <span className="text-sm text-muted-foreground ml-2">{progress}%</span>
+                  </div>
+                  <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* 文件列表 */}
           {isFilesLoading ? (
             <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>
           ) : files.length === 0 ? (
             <div className="text-center py-16 bg-muted/20 rounded-lg border border-dashed">
               <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-              <p className="text-muted-foreground">工作区暂无文件</p>
+              <p className="text-muted-foreground">
+                {searchInput ? '没有匹配的文件' : (currentFolderId ? '此文件夹为空' : '工作区暂无文件')}
+              </p>
               <p className="text-sm text-muted-foreground mt-1">
-                {canWrite ? '新建文件夹或上传文件开始协作' : '等待团队成员添加文件'}
+                {!searchInput && (canWrite
+                  ? (currentFolderId ? '在此文件夹中新建或上传文件' : '新建文件夹或上传文件开始协作')
+                  : '等待团队成员添加文件'
+                )}
               </p>
             </div>
           ) : viewMode === 'list' ? (
             <div className="rounded-lg border overflow-hidden">
               <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-muted/50 text-xs font-medium text-muted-foreground border-b">
                 <div className="col-span-6">
-                  <input type="checkbox" disabled className="rounded" />
-                  名称
+                  <input
+                    type="checkbox"
+                    checked={selectedFileIds.size === files.length && files.length > 0}
+                    onChange={(e) => e.target.checked ? selectAll() : clearSelection()}
+                    className="rounded"
+                  />
+                  <span className="ml-2 cursor-pointer select-none" onClick={() => handleSort('fileName')}>
+                    名称 {sortBy === 'fileName' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  </span>
                 </div>
-                <div className="col-span-1.5">大小</div>
+                <div className="col-span-1.5 cursor-pointer select-none" onClick={() => handleSort('size')}>
+                  大小 {sortBy === 'size' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </div>
                 <div className="col-span-1.5">权限</div>
                 <div className="col-span-2">操作</div>
-                <div className="col-span-1">日期</div>
+                <div className="col-span-1 cursor-pointer select-none" onClick={() => handleSort('mountedAt')}>
+                  日期 {sortBy === 'mountedAt' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </div>
               </div>
               {files.map(file => (
                 <div
@@ -338,7 +629,8 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                   }}
                   onClick={(e) => {
                     if ((e.target as HTMLInputElement).type !== 'checkbox' &&
-                        (e.target as HTMLElement).closest('button') === null) {
+                        (e.target as HTMLElement).closest('button') === null &&
+                        !(e.target as HTMLElement).closest('input[type="text"]')) {
                       toggleSelect(file.fileId);
                     }
                     setContextMenuFile(null);
@@ -346,6 +638,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                   onContextMenu={(e) => {
                     e.preventDefault();
                     setContextMenuFile(file);
+                    setContextMenuPos({ x: e.clientX, y: e.clientY });
                   }}
                   className={cn(
                     'grid grid-cols-12 gap-2 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors items-center group',
@@ -360,8 +653,25 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                       className="rounded"
                       onClick={(e) => e.stopPropagation()}
                     />
-                    {file.isFolder ? <FolderOpen className="h-4 w-4 text-blue-500 flex-shrink-0" /> : <File className="h-4 w-4 text-gray-400 flex-shrink-0" />}
-                    <span className="truncate">{file.fileName}</span>
+                    {renamingFileId === file.fileId ? (
+                      <div className="flex items-center gap-1 flex-1 min-w-0" onClick={e => e.stopPropagation()}>
+                        <Input
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          className="h-6 text-sm flex-1"
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleRenameConfirm(); if (e.key === 'Escape') setRenamingFileId(null); }}
+                          autoFocus
+                        />
+                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); handleRenameConfirm(); }}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <FileIcon mimeType={file.mimeType} isFolder={file.isFolder} size="sm" />
+                        <span className="truncate">{file.fileName}</span>
+                      </>
+                    )}
                   </div>
                   <div className="col-span-1.5 text-sm text-muted-foreground">
                     {file.isFolder ? '-' : formatBytes(file.size)}
@@ -381,6 +691,14 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                       </>
                     )}
                     {canWrite && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7"
+                        onClick={(e) => { e.stopPropagation(); handleRenameStart(file); }}
+                        title="重命名"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {canWrite && (
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={(e) => { e.stopPropagation();
                           if (confirm(`确定删除「${file.fileName}」？`)) deleteMutation.mutate(file.fileId);
@@ -390,7 +708,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                     )}
                   </div>
                   <div className="col-span-1 text-xs text-muted-foreground">
-                    {new Date(file.mountedAt).toLocaleDateString('zh-CN')}
+                    {getFileDate(file)}
                   </div>
                 </div>
               ))}
@@ -408,14 +726,14 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                     if ((e.target as HTMLElement).closest('button') === null) toggleSelect(file.fileId);
                     setContextMenuFile(null);
                   }}
-                  onContextMenu={(e) => { e.preventDefault(); setContextMenuFile(file); }}
+                  onContextMenu={(e) => { e.preventDefault(); setContextMenuFile(file); setContextMenuPos({ x: e.clientX, y: e.clientY }); }}
                   className={cn(
                     'flex flex-col items-center p-4 rounded-lg border hover:border-primary/50 hover:bg-muted/30 cursor-pointer transition-colors relative group',
                     selectedFileIds.has(file.fileId) && 'border-primary bg-primary/5'
                   )}
                 >
-                  {file.isFolder ? <FolderOpen className="h-10 w-10 text-blue-500 mb-2" /> : <File className="h-10 w-10 text-gray-400 mb-2" />}
-                  <span className="text-sm text-center truncate w-full">{file.fileName}</span>
+                  <FileIcon mimeType={file.mimeType} isFolder={file.isFolder} size="lg" />
+                  <span className="text-sm text-center truncate w-full mt-2">{file.fileName}</span>
                   <PermissionBadge permission={file.permission} />
                   {/* 操作按钮 */}
                   <div className="flex items-center justify-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -431,9 +749,32 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                         </Button>
                       </>
                     )}
+                    {canWrite && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7"
+                        onClick={(e) => { e.stopPropagation(); handleRenameStart(file); }}
+                        title="重命名"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* 分页 */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>
+                上一页
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {currentPage} / {totalPages}
+              </span>
+              <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                下一页
+              </Button>
             </div>
           )}
         </div>
@@ -442,46 +783,27 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
       {/* ====== 动态 Tab ====== */}
       {activeTab === 'activity' && <TeamActivityFeed teamId={teamId} />}
 
-      {/* 文件预览弹窗 */}
-      {isPreviewOpen && previewFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setIsPreviewOpen(false)}>
-          <div className="bg-card rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <File className="h-5 w-5 flex-shrink-0" />
-                <span className="font-medium truncate">{previewFile.fileName}</span>
-                <span className="text-xs text-muted-foreground">{formatBytes(previewFile.size)}</span>
-              </div>
-              <button onClick={() => setIsPreviewOpen(false)} className="p-1 rounded hover:bg-muted">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="flex-1 p-8 overflow-auto flex items-center justify-center bg-muted/20 min-h-[300px]">
-              <div className="text-center space-y-3">
-                <File className="h-16 w-16 mx-auto text-muted-foreground/30" />
-                <p className="text-muted-foreground">此文件类型暂不支持在线预览</p>
-                <Button variant="outline" size="sm" onClick={() => { setIsPreviewOpen(false); handleDownload(previewFile!); }}>
-                  <Download className="h-4 w-4 mr-1" /> 下载文件
-                </Button>
-              </div>
-            </div>
-            <div className="p-4 border-t flex justify-end flex-shrink-0">
-              <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>关闭</Button>
-            </div>
-          </div>
-        </div>
+      {/* 文件预览（复用主文件管理的 FilePreview 组件） */}
+      {isPreviewOpen && previewFile && !previewFile.isFolder && (
+        <FilePreview
+          file={{
+            id: previewFile.fileId,
+            name: previewFile.fileName,
+            size: previewFile.size,
+            mimeType: previewFile.mimeType,
+            isFolder: false,
+          } as any}
+          token={token || ''}
+          onClose={() => setIsPreviewOpen(false)}
+          onDownload={(file) => { setIsPreviewOpen(false); handleDownload(previewFile!); }}
+        />
       )}
 
-      {/* 右键菜单 */}
+      {/* 右键菜单（位置跟随鼠标） */}
       {contextMenuFile && (
         <div
           className="fixed z-[100] bg-card rounded-lg shadow-xl border py-1 min-w-[160px]"
-          ref={(el) => {
-            if (el) {
-              el.style.left = `${window.innerWidth / 2}px`;
-              el.style.top = `${window.innerHeight / 2}px`;
-            }
-          }}
+          style={{ left: contextMenuPos.x, top: contextMenuPos.y }}
         >
           <button
             className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
@@ -495,6 +817,14 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
               onClick={() => { setContextMenuFile(null); handleDownload(contextMenuFile); }}
             >
               <Download className="h-4 w-4" /> 下载
+            </button>
+          )}
+          {canWrite && (
+            <button
+              className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+              onClick={() => { setContextMenuFile(null); handleRenameStart(contextMenuFile); }}
+            >
+              <Pencil className="h-4 w-4" /> 重命名
             </button>
           )}
           {canWrite && (
