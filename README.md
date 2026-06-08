@@ -9,7 +9,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20.0.0-green.svg)](https://nodejs.org)
 [![Cloudflare](https://img.shields.io/badge/Cloudflare-Workers-orange.svg)](https://workers.cloudflare.com)
-[![Version](https://img.shields.io/badge/version-4.7.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.0.0-blue.svg)](CHANGELOG.md)
 [![zread](https://img.shields.io/badge/Ask_Zread-_.svg?style=flat&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff)](https://zread.ai/Zoroaaa/OSSshelf)
 
 [功能特性](#-功能特性) • [快速开始](#-快速开始) • [部署指南](#-部署指南) • [API文档](#-api-文档)
@@ -239,6 +239,14 @@
   - **CSV**: 表格视图、搜索、排序、分页
 - 📜 **版本控制**: 可编辑文本文件的版本历史管理、版本回滚（仅支持代码、配置、Markdown 等文本文件）
 - 🔐 **权限管理 v2**: 用户组管理、权限继承、时效性权限、RBAC 权限模型
+- 🏢 **团队协作 v5.0.0**:
+  - 团队空间：创建团队作为协作组织单元
+  - 成员管理：四级角色体系（owner/admin/member/guest）
+  - 资源挂载：将个人文件挂载到团队空间共享访问
+  - 角色模板：viewer/editor/manager 一键授权替代手动设置
+  - 权限申请与审批：成员发起申请 → 管理员审批 → 自动授权工作流
+  - 批量权限操作：多文件一次性授权/撤销
+  - 详细说明: [CHANGELOG.md](CHANGELOG.md) 的 v5.0.0 章节
 - 🔑 **API Keys**: 创建和管理 API 密钥，支持细粒度权限控制，实现程序化访问
 - 🌐 **RESTful v1 API**: 标准化 API 接口，支持 OpenAPI 文档和 Swagger UI
 - 🔔 **Webhook**: 文件事件订阅，支持第三方系统集成
@@ -595,6 +603,7 @@ curl https://your-api.workers.dev/api/auth/registration-config
 - 发送测试邮件验证配置 (v4.0.0+)
 - 群发系统公告邮件 (v4.0.0+)
 - 查看系统统计和审计日志
+- 创建和管理团队空间 (v5.0.0)
 
 ---
 
@@ -608,13 +617,13 @@ ossshelf/
 │   │   │   ├── db/             # 数据库连接与 Schema
 │   │   │   ├── lib/            # 核心库（AI、存储、权限等）
 │   │   │   ├── middleware/     # 中间件
-│   │   │   ├── routes/         # API 路由
+│   │   │   ├── routes/         # API 路由（含 teams.ts / permissions.ts 扩展）
 │   │   │   └── index.ts        # 入口
 │   │   ├── migrations/         # 数据库迁移（按功能模块分类）
 │   │   └── wrangler.toml       # Cloudflare 配置
 │   └── web/                    # 前端应用
 │       └── src/
-│           ├── components/     # UI 组件
+│   │           ├── components/     # UI 组件（含 teams/ / permissions/ 协作组件）
 │           ├── pages/          # 页面组件
 │           ├── hooks/          # 自定义 Hooks
 │           ├── services/       # API 服务
@@ -646,12 +655,14 @@ ossshelf/
 | `/api/downloads`     | 离线下载                              |
 | `/api/batch`         | 批量操作                              |
 | `/api/search`        | 文件搜索                              |
-| `/api/permissions`   | 权限与标签                            |
+| `/api/permissions`   | 权限与标签 + 团队权限/批量操作/审批流（v5.0.0 扩展）         |
 | `/api/preview`       | 文件预览                              |
 | `/api/versions`      | 版本控制                              |
 | `/api/notes`         | 文件笔记                              |
 | `/api/api-keys`      | API Keys 管理                         |
 | `/api/groups`        | 用户组管理                            |
+| `/api/teams`          | 团队空间管理（v5.0.0 新增）            |
+| `/api/roles/templates`| 角色模板查询（v5.0.0 新增）           |
 | `/api/webhooks`      | Webhook 管理                          |
 | `/api/ai`            | AI 文件处理功能 (v4.3.0 增强)         |
 | `/api/ai-config`     | AI 配置管理、系统配置 (v4.3.0 增强)   |

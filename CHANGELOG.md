@@ -2,6 +2,244 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v5.0.0] - 2026-06-08
+
+### Added - 团队协作能力全面升级 🏆
+
+本次版本为 **重大架构升级**，核心亮点是权限管理系统从「个人中心」模式升级为「团队协作」模式，同时整合了 v4.7.0 以来所有中间版本的优化更新。
+
+---
+
+#### 核心新功能（一）：团队空间（Team Workspace）
+
+- **新增团队实体**：创建独立的工作空间，作为团队协作的组织单元
+  - 团队 CRUD：创建、查看、更新、删除
+  - 自动角色分配：创建者成为 `owner`，可邀请成员并分配角色
+
+- **团队成员管理**：
+  - 四级角色体系：`owner`（全部管理权）→ `admin`（成员/资源/权限管理）→ `member`（访问资源）→ `guest`（仅被授权资源）
+  - 成员添加/移除/角色变更，含完整的权限校验
+  - 防止误操作：不能移除 owner、admin 不能移除 admin、用户可自行退出
+
+- **团队资源挂载**：
+  - 将个人文件/文件夹挂载到团队空间，使团队成员可基于团队权限访问
+  - 挂载/卸载操作，含文件存在性和权限校验
+  - 防重复挂载机制
+
+#### 核心新功能（二）：角色模板与快速授权
+
+- **内置三种角色模板**：
+
+  | 模板 | 权限 | 说明 |
+  |------|------|------|
+  | `viewer` | read | 可查看和下载 |
+  | `editor` | write | 可上传、修改、删除、重命名 |
+  | `manager` | admin | 可管理权限并可再授权 |
+
+- 授权时选择角色模板替代手动设置 read/write/admin，一键完成授权
+- 权限对话框 UI 重构为三卡片选择器，直观展示各模板能力范围
+
+#### 核心新功能（三）：权限申请与审批工作流
+
+- **申请端**：成员对无权访问的文件发起访问申请
+  - 选择申请的权限级别（只读/读写/管理）
+  - 填写申请原因（可选）
+  - 指定目标团队（可选）
+- **审批端**：文件所有者或团队 admin 收到待审批列表
+  - 批准 → 自动授予权限 + 通知申请人
+  - 拒绝 → 记录拒绝原因 + 通知申请人
+  - 防重复申请（同一文件 pending 状态不重复创建）
+- **查询端**：「我的申请」+「待审批」双视图
+
+#### 核心新功能（四）：批量权限操作
+
+- 支持对多个文件一次性授权给用户/组/团队角色
+- 支持批量撤销权限
+- 返回成功/失败统计，便于排查问题
+- 前端支持多选文件时的批量操作模式
+
+#### 核心新功能（五）：权限解析器 Team 维度扩展
+
+- 解析链升级为 **8 级优先级**：
+  ```
+  owner > explicit(user) > explicit(group) > explicit(team)
+    > inherited(user) > inherited(group) > inherited(team) > no access
+  ```
+- 新增 `resolveTeamDefaultPermission()` — 基于团队成员角色的默认访问权限映射
+- 缓存机制兼容 team 维度，成员变更时自动失效相关缓存
+
+---
+
+### Added - 标签统一管理系统 🏷️
+
+**v4.7.0 ~ v5.0.0 中间版本累积更新**
+
+- **全局标签管理页面** (`/tags`)
+  - 标签列表展示（名称、使用次数、关联文件数）
+  - 标签合并：将重复或相似的标签合并为一个
+  - 标签重命名：批量修改标签名称
+  - 标签批量删除
+  - 标签搜索与筛选
+
+- **标签功能增强**
+  - AI 设置页面集成标签管理入口
+  - 文件详情面板标签展示优化
+  - 标签 API 扩展（合并/重命名/统计）
+
+### Added - 存储审计系统 📊
+
+- **存储审计功能**
+  - 存储使用量趋势分析
+  - 大文件排行 Top N
+  - 文件类型分布统计
+  - 用户配额使用情况
+  - 审计日志记录关键操作
+
+### Changed - 分页系统增强 📄
+
+- **页码分页功能**
+  - 文件列表支持页码分页（替代原有无限滚动）
+  - 分页参数标准化（page, limit）
+  - 后端 SQL 层分页，消除 D1 1000 行截断问题
+  - 前端分页组件统一
+
+### Improved - 架构与工程优化 ⚡
+
+- **API 服务层重构**
+  - `api.ts` 拆分为模块化服务（`core.ts`, `storage.ts`, `admin.ts`, `ai.ts`, `collab.ts`）
+  - API Client 统一封装，类型安全增强
+  - 错误处理和重试机制完善
+
+- **前端服务层扩展**
+  - `collab.ts` 大幅扩展（+422 行），覆盖分享、权限、群组、团队、角色模板、权限申请等全量协作 API
+  - 新增 `api-client.ts` 统一 HTTP 客户端
+  - 新增 `api-keys.ts` API 密钥管理服务
+  - `presignUpload.ts` 预签名上传优化
+
+- **AI 服务层增强**
+  - `ai.ts` 服务层重构（+609 行），AI 对话流程优化
+  - 流式输出稳定性提升（中断恢复、内容保留）
+  - AI 设置页面功能扩展（记忆管理等）
+
+- **文档更新**
+  - `architecture.md` 新增架构说明
+  - `AI_FEATURES.md` / `API_AI.md` / `api.md` 同步更新至最新
+  - 移除过时的 `osshelf-ai-enhancement-plan.md`
+
+---
+
+### Database Changes
+
+**新增迁移文件 `100_team_collaboration.sql`：**
+
+| 表名 | 用途 | 关键字段 |
+|------|------|----------|
+| `teams` | 团队实体 | id, owner_id, name, description, settings |
+| `team_members` | 团队成员 | id, team_id, user_id, role, added_by |
+| `team_resources` | 团队资源挂载 | id, team_id, file_id, mounted_by |
+| `permission_requests` | 权限申请 | id, file_id, requester_id, status, reviewed_by |
+| `role_templates` | 角色模板 | id, name, slug, permissions, is_builtin |
+| `file_permissions` 扩展 | 新增 team_id 字段 | 支持 subjectType='team' 的权限记录 |
+
+**内置角色模板数据：**
+- `rt-viewer` (查看者): ["read"]
+- `rt-editor` (编辑者): ["read", "write"]
+- `rt-manager` (管理者): ["read", "write", "admin"]
+
+---
+
+### New Files
+
+**后端（12 个新文件）：**
+
+```
+apps/api/
+├── migrations/100_team_collaboration.sql          # 数据库迁移
+└── src/
+    ├── lib/teamService.ts                           # 团队管理服务（CRUD + 成员 + 资源挂载）
+    └── routes/teams.ts                              # 团队 API 路由（12 个端点）
+```
+
+**前端（11 个新文件）：**
+
+```
+apps/web/src/
+├── pages/Teams.tsx                                  # 团队管理页面
+├── components/teams/                                # 团队组件（6 个文件）
+│   ├── index.ts
+│   ├── TeamList.tsx
+│   ├── TeamCreateDialog.tsx
+│   ├── TeamDetail.tsx
+│   ├── TeamMemberDialog.tsx
+│   └── TeamResourceMountDialog.tsx
+├── components/permissions/                          # 权限申请组件（3 个文件）
+│   ├── PermissionRequestButton.tsx
+│   ├── PermissionRequestDialog.tsx
+│   └── ApprovalPanel.tsx
+└── pages/Tags.tsx                                   # 标签管理页面（中间版本）
+```
+
+### Modified Files（核心改造）
+
+**后端（5 个文件大幅修改）：**
+
+| 文件 | 改动量 | 说明 |
+|------|--------|------|
+| `src/db/schema.ts` | +107 行 | 新增 5 张表定义 + filePermissions.teamId 字段 |
+| `src/lib/permissionResolver.ts` | +177 行 | team 维度解析链 + resolveTeamDefaultPermission |
+| `src/lib/permissionService.ts` | +615 行 | 6 个新函数（角色模板/申请审批/批量操作） |
+| `src/routes/permissions.ts` | +237 行 | 7 个新端点 + grant/revoke team 扩展 |
+| `src/index.ts` | +2 行 | 注册 /api/teams 路由 |
+
+**前端（4 个文件大幅修改）：**
+
+| 文件 | 改动量 | 说明 |
+|------|--------|------|
+| `services/collab.ts` | +171 行 | teamsApi(12方法) + permissionRequestsApi(4) + rolesApi + permissionsApi扩展 |
+| `components/files/permissions/FilePermissionsDialog.tsx` | +340/-135 行 | 三Tab切换 + 角色模板卡片 + 来源标签 + 批量模式 |
+| `App.tsx` | +9 行 | /teams 路由注册 |
+| `components/layouts/MainLayout.tsx` | +2 行 | 导航入口 |
+
+### API Endpoints Summary
+
+**团队管理 API（12 个端点）：**
+
+| 方法 | 路径 | 功能 |
+|------|------|------|
+| GET | `/api/teams` | 列出用户的团队（owned + joined） |
+| POST | `/api/teams` | 创建团队 |
+| GET | `/api/teams/:id` | 获取团队详情 |
+| PUT | `/api/teams/:id` | 更新团队信息 |
+| DELETE | `/api/teams/:id` | 删除团队 |
+| GET | `/api/teams/:id/members` | 列出团队成员 |
+| POST | `/api/teams/:id/members` | 添加成员 |
+| DELETE | `/api/teams/:id/members/:userId` | 移除成员 |
+| PUT | `/api/teams/:id/members/:userId/role` | 变更角色 |
+| POST | `/api/teams/:id/resources` | 挂载资源到团队 |
+| DELETE | `/api/teams/:id/resources/:fileId` | 卸载资源 |
+| GET | `/api/teams/:id/resources/list` | 列出团队资源 |
+
+**权限扩展 API（7 个新端点）：**
+
+| 方法 | 路径 | 功能 |
+|------|------|------|
+| POST | `/api/permissions/requests` | 发起权限申请 |
+| GET | `/api/permissions/requests/my` | 我的申请列表 |
+| GET | `/api/permissions/requests/pending` | 待审批列表 |
+| PUT | `/api/permissions/requests/:id/review` | 审批申请 |
+| POST | `/api/permissions/batch-grant` | 批量授权 |
+| POST | `/api/permissions/batch-revoke` | 批量撤销 |
+| GET | `/api/roles/templates` | 获取角色模板列表 |
+
+**现有 API 扩展：**
+
+| 端点 | 扩展内容 |
+|------|---------|
+| POST `/api/permissions/grant` | 新增 subjectType='team' + teamId 参数 |
+| POST `/api/permissions/revoke` | 新增 teamId 参数支持团队权限撤销 |
+
+---
+
 ## [v4.7.0] - 2026-04-17
 
 ### Added - AI Agent 全面增强：Planning 层、跨会话记忆、交互体验升级 🧠

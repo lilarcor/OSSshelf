@@ -45,6 +45,7 @@ import {
   Star,
   Cpu,
   Tag,
+  Users,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/utils';
@@ -62,6 +63,7 @@ const baseNavItems = [
   { path: '/trash', label: '回收站', icon: Trash2, exact: false },
   { path: '/buckets', label: '存储桶', icon: Database, exact: false },
   { path: '/permissions', label: '权限管理', icon: ShieldCheck, exact: false },
+  { path: '/teams', label: '团队', icon: Users, exact: false },
   { path: '/ai-settings', label: 'AI 配置', icon: Cpu, exact: false },
   { path: '/settings', label: '设置', icon: Settings, exact: false },
 ];

@@ -227,11 +227,12 @@ export const permissionsApi = {
     fileId: string;
     userId?: string;
     groupId?: string;
+    teamId?: string;
     permission: 'read' | 'write' | 'admin';
-    subjectType?: 'user' | 'group';
+    subjectType?: 'user' | 'group' | 'team';
     expiresAt?: string;
   }) => api.post<ApiResponse<{ message: string }>>('/api/permissions/grant', data),
-  revoke: (data: { fileId: string; userId?: string; groupId?: string }) =>
+  revoke: (data: { fileId: string; userId?: string; groupId?: string; teamId?: string }) =>
     api.post<ApiResponse<{ message: string }>>('/api/permissions/revoke', data),
 
   /** 获取文件的完整权限列表（含继承关系） */
@@ -289,6 +290,38 @@ export const permissionsApi = {
     api.delete<ApiResponse<{ message: string }>>(`/api/permissions/${permissionId}`),
   updatePermission: (permissionId: string, permission: 'read' | 'write' | 'admin', expiresAt?: string) =>
     api.patch<ApiResponse<{ message: string }>>(`/api/permissions/${permissionId}`, { permission, expiresAt }),
+
+  // ── 团队协作扩展 ──
+  grantWithTemplate: (data: {
+    fileId: string;
+    targetUserId?: string;
+    targetGroupId?: string;
+    targetTeamId?: string;
+    roleTemplate: 'viewer' | 'editor' | 'manager';
+    expiresAt?: string;
+  }) => api.post<ApiResponse<{ message: string }>>('/api/permissions/grant', {
+    ...data,
+    // 将 roleTemplate 映射为 permission: viewer→read, editor→write, manager→admin
+    permission: data.roleTemplate === 'viewer' ? 'read' : data.roleTemplate === 'editor' ? 'write' : 'admin',
+    subjectType: data.targetTeamId ? 'team' : data.targetGroupId ? 'group' : 'user',
+  }),
+
+  batchGrant: (data: {
+    fileIds: string[];
+    targetUserId?: string;
+    targetGroupId?: string;
+    targetTeamId?: string;
+    permission: 'read' | 'write' | 'admin';
+    subjectType?: 'user' | 'group' | 'team';
+  }) => api.post<ApiResponse<{ succeeded: number; failed: number; errors: string[] }>>('/api/permissions/batch-grant', data),
+
+  batchRevoke: (data: {
+    fileIds: string[];
+    targetUserId?: string;
+    targetGroupId?: string;
+    targetTeamId?: string;
+    subjectType?: 'user' | 'group' | 'team';
+  }) => api.post<ApiResponse<{ succeeded: number; failed: number }>>('/api/permissions/batch-revoke', data),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -419,4 +452,138 @@ export const notificationsApi = {
       credentials: 'include',
       signal: options?.signal,
     }),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 类型定义 — 团队相关
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 团队 */
+export interface Team {
+  id: string;
+  ownerId: string;
+  name: string;
+  description: string | null;
+  settings: string;
+  memberCount: number;
+  userRole: string;
+  isOwner: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 团队成员 */
+export interface TeamMember {
+  id: string;
+  teamId: string;
+  userId: string;
+  role: 'owner' | 'admin' | 'member' | 'guest';
+  addedBy: string | null;
+  createdAt: string;
+  name: string | null;
+  email: string;
+}
+
+/** 团队资源 */
+export interface TeamResource {
+  id: string;
+  teamId: string;
+  fileId: string;
+  fileName: string;
+  filePath: string | null;
+  isFolder: boolean;
+  mimeType: string | null;
+  size: number;
+  mountedBy: string;
+  mountedAt: string;
+}
+
+/** 角色模板 */
+export interface RoleTemplate {
+  id: string;
+  name: string;
+  slug: string;
+  permissions: string[];
+  isBuiltin: boolean;
+  description: string | null;
+}
+
+/** 权限申请 */
+export interface PermissionRequest {
+  id: string;
+  fileId: string;
+  fileName?: string;
+  requesterId: string;
+  targetTeamId: string | null;
+  requestedPermission: string;
+  reason: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewComment: string | null;
+  createdAt: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Teams — 团队管理
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const teamsApi = {
+  list: () => api.get<ApiResponse<{ owned: Team[]; joined: Team[] }>>('/api/teams'),
+  create: (data: { name: string; description?: string }) =>
+    api.post<ApiResponse<Team>>('/api/teams', data),
+  get: (id: string) => api.get<ApiResponse<Team>>(`/api/teams/${id}`),
+  update: (id: string, data: { name?: string; description?: string }) =>
+    api.put<ApiResponse<{ message: string }>>(`/api/teams/${id}`, data),
+  delete: (id: string) => api.delete<ApiResponse<{ message: string }>>(`/api/teams/${id}`),
+  getMembers: (id: string) =>
+    api.get<ApiResponse<TeamMember[]>>(`/api/teams/${id}/members`),
+  addMember: (teamId: string, data: { userId: string; role?: string }) =>
+    api.post<ApiResponse<Record<string, unknown>>>(`/api/teams/${teamId}/members`, data),
+  removeMember: (teamId: string, userId: string) =>
+    api.delete<ApiResponse<{ message: string }>>(`/api/teams/${teamId}/members/${userId}`),
+  updateMemberRole: (teamId: string, userId: string, role: string) =>
+    api.put<ApiResponse<{ message: string }>>(`/api/teams/${teamId}/members/${userId}/role`, { role }),
+  mountResource: (teamId: string, fileId: string) =>
+    api.post<ApiResponse<Record<string, unknown>>>(`/api/teams/${teamId}/resources`, { fileId }),
+  unmountResource: (teamId: string, fileId: string) =>
+    api.delete<ApiResponse<{ message: string }>>(`/api/teams/${teamId}/resources/${fileId}`),
+  listResources: (teamId: string) =>
+    api.get<ApiResponse<TeamResource[]>>(`/api/teams/${teamId}/resources/list`),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Roles — 角色模板管理
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const rolesApi = {
+  getTemplates: () => api.get<ApiResponse<RoleTemplate[]>>('/api/roles/templates'),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Permission Requests — 权限申请管理
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const permissionRequestsApi = {
+  create: (data: {
+    fileId: string;
+    requestedPermission: 'read' | 'write' | 'admin';
+    reason?: string;
+    targetTeamId?: string;
+  }) => api.post<ApiResponse<Record<string, unknown>>>('/api/permissions/requests', data),
+
+  listMy: (params?: { page?: number; limit?: number }) =>
+    api.get<ApiResponse<{ items: PermissionRequest[]; total: number; page: number; totalPages: number }>>(
+      '/api/permissions/requests/my',
+      { params }
+    ),
+
+  listPending: (params?: { page?: number; limit?: number }) =>
+    api.get<ApiResponse<{ items: PermissionRequest[]; total: number; page: number; totalPages: number }>>(
+      '/api/permissions/requests/pending',
+      { params }
+    ),
+
+  review: (requestId: string, data: { action: 'approve' | 'reject'; comment?: string }) =>
+    api.put<ApiResponse<Record<string, unknown>>>(`/api/permissions/requests/${requestId}/review`, data),
 };
