@@ -166,7 +166,7 @@ const TeamResourceMountDialog: React.FC<TeamResourceMountDialogProps> = ({ teamI
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleUnmount(resource.id, resource.fileName)}
+                    onClick={() => handleUnmount(resource.fileId, resource.fileName)}
                     disabled={unmountMutation.isPending}
                     title="卸载资源"
                   >

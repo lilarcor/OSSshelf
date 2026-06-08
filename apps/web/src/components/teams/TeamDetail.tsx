@@ -119,6 +119,19 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
     },
   });
 
+  const unmountMutation = useMutation({
+    mutationFn: (fileId: string) =>
+      teamsApi.unmountResource(teamId, fileId).then(r => r.data),
+    onSuccess: () => {
+      toast({ title: '资源已卸载' });
+      queryClient.invalidateQueries({ queryKey: ['team-resources', teamId] });
+      queryClient.invalidateQueries({ queryKey: ['team-workspace-all', teamId] });
+    },
+    onError: () => {
+      toast({ title: '卸载失败', variant: 'destructive' });
+    },
+  });
+
   const isOwner = teamData?.isOwner ?? false;
 
   if (isTeamLoading) {
@@ -209,6 +222,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
           isLoading={isResourcesLoading}
           teamId={teamId}
           isOwner={isOwner}
+          onUnmount={(id) => unmountMutation.mutate(id)}
         />
       )}
 
@@ -288,9 +302,10 @@ interface ResourcesSectionProps {
   isLoading: boolean;
   teamId: string;
   isOwner: boolean;
+  onUnmount?: (resourceId: string) => void;
 }
 
-const ResourcesSection: React.FC<ResourcesSectionProps> = ({ resources, isLoading, teamId, isOwner }) => {
+const ResourcesSection: React.FC<ResourcesSectionProps> = ({ resources, isLoading, teamId, isOwner, onUnmount }) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -310,15 +325,36 @@ const ResourcesSection: React.FC<ResourcesSectionProps> = ({ resources, isLoadin
 
   return (
     <div className="space-y-2">
-      {resources.map((resource) => (
-        <div key={resource.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+      {resources?.map((resource) => (
+        <div key={resource.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 group">
           <FolderOpen className="h-5 w-5 text-muted-foreground flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{resource.fileName}</p>
             <p className="text-xs text-muted-foreground">挂载于 {new Date(resource.mountedAt).toLocaleDateString('zh-CN')}</p>
           </div>
+          {(isOwner || true) && onUnmount && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => {
+                if (confirm(`确定要卸载「${resource.fileName}」吗？团队成员将失去访问权限。`)) {
+                  onUnmount(resource.fileId);
+                }
+              }}
+              title="卸载资源"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       ))}
+      {!resources?.length && (
+        <div className="text-center py-8 text-muted-foreground text-sm">
+          <FolderOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          暂无挂载资源
+        </div>
+      )}
     </div>
   );
 };
@@ -334,10 +370,17 @@ interface SettingsSectionProps {
 }
 
 const SettingsSection: React.FC<SettingsSectionProps> = ({ teamData, onUpdate, onDelete, isUpdating, isDeleting }) => {
+  const { data: storageStats } = useQuery({
+    queryKey: ['team-storage-settings', teamData.id],
+    queryFn: () => teamsApi.getStorageStats(teamData.id).then(r => r.data.data),
+  });
+
   const [name, setName] = useState(teamData.name);
   const [description, setDescription] = useState(teamData.description ?? '');
   const [storageQuotaMB, setStorageQuotaMB] = useState(
-    teamData.storageQuota ? Math.round(teamData.storageQuota / 1024 / 1024) : 5120
+    (storageStats?.storageQuota ?? teamData.storageQuota)
+      ? Math.round((storageStats?.storageQuota ?? teamData.storageQuota!) / 1024 / 1024)
+      : 5120
   );
 
   return (

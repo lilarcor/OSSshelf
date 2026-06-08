@@ -15,6 +15,7 @@ import { cn } from '@/utils';
 import TeamCreateDialog from './TeamCreateDialog';
 import TeamMemberDialog from './TeamMemberDialog';
 import TeamResourceMountDialog from './TeamResourceMountDialog';
+import TeamDetail from './TeamDetail';
 
 interface TeamListProps {
   className?: string;
@@ -29,6 +30,7 @@ const TeamList: React.FC<TeamListProps> = ({ className, mode = 'default' }) => {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [isMemberDialogOpen, setIsMemberDialogOpen] = useState(false);
   const [isResourceDialogOpen, setIsResourceDialogOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const { data: teamsData, isLoading } = useQuery({
     queryKey: ['user-teams'],
@@ -65,6 +67,11 @@ const TeamList: React.FC<TeamListProps> = ({ className, mode = 'default' }) => {
   const handleManageResources = (teamId: string) => {
     setSelectedTeamId(teamId);
     setIsResourceDialogOpen(true);
+  };
+
+  const handleOpenDetail = (teamId: string) => {
+    setSelectedTeamId(teamId);
+    setIsDetailOpen(true);
   };
 
   if (isLoading) {
@@ -121,7 +128,7 @@ const TeamList: React.FC<TeamListProps> = ({ className, mode = 'default' }) => {
               onDelete={handleDelete}
               isDeleting={deleteMutation.isPending}
               onNavigateWorkspace={(teamId) => navigate(`/teams/${teamId}/workspace`)}
-              onNavigateSettings={(teamId) => navigate(`/teams/${teamId}`)}
+              onNavigateSettings={handleOpenDetail}
             />
           ))}
         </div>
@@ -157,6 +164,22 @@ const TeamList: React.FC<TeamListProps> = ({ className, mode = 'default' }) => {
             setSelectedTeamId(null);
           }}
         />
+      )}
+
+      {isDetailOpen && selectedTeamId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card rounded-lg shadow-lg w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="p-5 flex-1 overflow-y-auto">
+              <TeamDetail
+                teamId={selectedTeamId}
+                onClose={() => {
+                  setIsDetailOpen(false);
+                  setSelectedTeamId(null);
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

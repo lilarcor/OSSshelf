@@ -17,7 +17,7 @@ import api from '@/services/api-client';
 import {
   FolderOpen, File, HardDrive, Users, Loader2, Grid, List,
   RefreshCw, Lock, Edit, Crown, Plus, Upload, Trash2,
-  FolderPlus,
+  FolderPlus, Eye, Download, ChevronRight, X,
 } from 'lucide-react';
 import { cn, formatBytes } from '@/utils';
 import type { ViewMode } from '@/stores/files';
@@ -41,16 +41,20 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
+  const [currentFolderId, setCurrentFolderId] = useState<string | undefined>(undefined);
+  const [contextMenuFile, setContextMenuFile] = useState<WorkspaceFile | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<WorkspaceFile | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canWrite = userRole === 'admin' || userRole === 'owner' || isOwner;
 
   // ★ 使用 all-files 端点（合并挂载资源 + 团队自有文件）
   const { data: filesData, isLoading: isFilesLoading, refetch: refetchFiles } = useQuery({
-    queryKey: ['team-workspace-all', teamId],
+    queryKey: ['team-workspace-all', teamId, currentFolderId],
     queryFn: () =>
       api.get<{ success: boolean; data: { files: (WorkspaceFile & { source: string })[]; total: number } }>(
-        `/api/teams/${teamId}/workspace/all-files`
+        `/api/teams/${teamId}/workspace/all-files${currentFolderId ? `?folderId=${currentFolderId}` : ''}`
       ).then((r) => r.data.data),
   });
 
@@ -154,8 +158,20 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
     createFolderMutation.mutate(newFolderName.trim());
   };
 
+  // ── 下载文件 ──
+  const handleDownload = (file: WorkspaceFile) => {
+    const downloadUrl = `/api/files/${file.fileId}/download`;
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = file.fileName;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" onClick={() => setContextMenuFile(null)}>
       {/* 头部信息 */}
       <div className="flex items-center justify-between">
         <div>
@@ -166,6 +182,19 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
             </span>
           </div>
           <p className="text-sm text-muted-foreground mt-1">团队共享空间 · {total} 个项目</p>
+          {/* 面包屑导航 */}
+          {currentFolderId && (
+            <div className="flex items-center gap-1 text-sm mt-1">
+              <button
+                onClick={() => setCurrentFolderId(undefined)}
+                className="flex items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <FolderOpen className="h-3.5 w-3.5" /> 根目录
+              </button>
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              <span className="text-foreground font-medium">子文件夹</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {storageData && (
@@ -291,16 +320,35 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                   <input type="checkbox" disabled className="rounded" />
                   名称
                 </div>
-                <div className="col-span-2">大小</div>
-                <div className="col-span-2">权限</div>
-                <div className="col-span-2">日期</div>
+                <div className="col-span-1.5">大小</div>
+                <div className="col-span-1.5">权限</div>
+                <div className="col-span-2">操作</div>
+                <div className="col-span-1">日期</div>
               </div>
               {files.map(file => (
                 <div
                   key={file.fileId}
-                  onClick={(e) => { if ((e.target as HTMLInputElement).type !== 'checkbox') toggleSelect(file.fileId); }}
+                  onDoubleClick={() => {
+                    if (file.isFolder) {
+                      setCurrentFolderId(file.fileId);
+                    } else {
+                      setPreviewFile(file);
+                      setIsPreviewOpen(true);
+                    }
+                  }}
+                  onClick={(e) => {
+                    if ((e.target as HTMLInputElement).type !== 'checkbox' &&
+                        (e.target as HTMLElement).closest('button') === null) {
+                      toggleSelect(file.fileId);
+                    }
+                    setContextMenuFile(null);
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenuFile(file);
+                  }}
                   className={cn(
-                    'grid grid-cols-12 gap-2 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors items-center',
+                    'grid grid-cols-12 gap-2 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors items-center group',
                     selectedFileIds.has(file.fileId) && 'bg-primary/5'
                   )}
                 >
@@ -315,11 +363,33 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                     {file.isFolder ? <FolderOpen className="h-4 w-4 text-blue-500 flex-shrink-0" /> : <File className="h-4 w-4 text-gray-400 flex-shrink-0" />}
                     <span className="truncate">{file.fileName}</span>
                   </div>
-                  <div className="col-span-2 text-sm text-muted-foreground">
+                  <div className="col-span-1.5 text-sm text-muted-foreground">
                     {file.isFolder ? '-' : formatBytes(file.size)}
                   </div>
-                  <div className="col-span-2"><PermissionBadge permission={file.permission} /></div>
-                  <div className="col-span-2 text-xs text-muted-foreground">
+                  <div className="col-span-1.5"><PermissionBadge permission={file.permission} /></div>
+                  <div className="col-span-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {!file.isFolder && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-7 w-7"
+                          onClick={(e) => { e.stopPropagation(); handleDownload(file); }}>
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7"
+                          onClick={(e) => { e.stopPropagation(); setPreviewFile(file); setIsPreviewOpen(true); }}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
+                    {canWrite && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => { e.stopPropagation();
+                          if (confirm(`确定删除「${file.fileName}」？`)) deleteMutation.mutate(file.fileId);
+                        }}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="col-span-1 text-xs text-muted-foreground">
                     {new Date(file.mountedAt).toLocaleDateString('zh-CN')}
                   </div>
                 </div>
@@ -330,15 +400,38 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
               {files.map(file => (
                 <div
                   key={file.fileId}
-                  onClick={() => toggleSelect(file.fileId)}
+                  onDoubleClick={() => {
+                    if (file.isFolder) setCurrentFolderId(file.fileId);
+                    else { setPreviewFile(file); setIsPreviewOpen(true); }
+                  }}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('button') === null) toggleSelect(file.fileId);
+                    setContextMenuFile(null);
+                  }}
+                  onContextMenu={(e) => { e.preventDefault(); setContextMenuFile(file); }}
                   className={cn(
-                    'flex flex-col items-center p-4 rounded-lg border hover:border-primary/50 hover:bg-muted/30 cursor-pointer transition-colors relative',
+                    'flex flex-col items-center p-4 rounded-lg border hover:border-primary/50 hover:bg-muted/30 cursor-pointer transition-colors relative group',
                     selectedFileIds.has(file.fileId) && 'border-primary bg-primary/5'
                   )}
                 >
                   {file.isFolder ? <FolderOpen className="h-10 w-10 text-blue-500 mb-2" /> : <File className="h-10 w-10 text-gray-400 mb-2" />}
                   <span className="text-sm text-center truncate w-full">{file.fileName}</span>
                   <PermissionBadge permission={file.permission} />
+                  {/* 操作按钮 */}
+                  <div className="flex items-center justify-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {!file.isFolder && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-7 w-7"
+                          onClick={(e) => { e.stopPropagation(); handleDownload(file); }}>
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7"
+                          onClick={(e) => { e.stopPropagation(); setPreviewFile(file); setIsPreviewOpen(true); }}>
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -348,6 +441,74 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
 
       {/* ====== 动态 Tab ====== */}
       {activeTab === 'activity' && <TeamActivityFeed teamId={teamId} />}
+
+      {/* 文件预览弹窗 */}
+      {isPreviewOpen && previewFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setIsPreviewOpen(false)}>
+          <div className="bg-card rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <File className="h-5 w-5 flex-shrink-0" />
+                <span className="font-medium truncate">{previewFile.fileName}</span>
+                <span className="text-xs text-muted-foreground">{formatBytes(previewFile.size)}</span>
+              </div>
+              <button onClick={() => setIsPreviewOpen(false)} className="p-1 rounded hover:bg-muted">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 p-8 overflow-auto flex items-center justify-center bg-muted/20 min-h-[300px]">
+              <div className="text-center space-y-3">
+                <File className="h-16 w-16 mx-auto text-muted-foreground/30" />
+                <p className="text-muted-foreground">此文件类型暂不支持在线预览</p>
+                <Button variant="outline" size="sm" onClick={() => { setIsPreviewOpen(false); handleDownload(previewFile!); }}>
+                  <Download className="h-4 w-4 mr-1" /> 下载文件
+                </Button>
+              </div>
+            </div>
+            <div className="p-4 border-t flex justify-end flex-shrink-0">
+              <Button variant="outline" onClick={() => setIsPreviewOpen(false)}>关闭</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 右键菜单 */}
+      {contextMenuFile && (
+        <div
+          className="fixed z-[100] bg-card rounded-lg shadow-xl border py-1 min-w-[160px]"
+          ref={(el) => {
+            if (el) {
+              el.style.left = `${window.innerWidth / 2}px`;
+              el.style.top = `${window.innerHeight / 2}px`;
+            }
+          }}
+        >
+          <button
+            className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+            onClick={() => { setContextMenuFile(null); setPreviewFile(contextMenuFile); setIsPreviewOpen(true); }}
+          >
+            <Eye className="h-4 w-4" /> 预览
+          </button>
+          {!contextMenuFile.isFolder && (
+            <button
+              className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
+              onClick={() => { setContextMenuFile(null); handleDownload(contextMenuFile); }}
+            >
+              <Download className="h-4 w-4" /> 下载
+            </button>
+          )}
+          {canWrite && (
+            <button
+              className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 text-destructive"
+              onClick={() => { setContextMenuFile(null);
+                if (confirm(`确定删除「${contextMenuFile.fileName}」？`)) deleteMutation.mutate(contextMenuFile.fileId);
+              }}
+            >
+              <Trash2 className="h-4 w-4" /> 删除
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
