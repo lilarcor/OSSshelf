@@ -524,6 +524,67 @@ export interface PermissionRequest {
   createdAt: string;
 }
 
+/** 工作区文件条目 */
+export interface WorkspaceFile {
+  fileId: string;
+  fileName: string;
+  filePath: string | null;
+  fileType: string | null;
+  mimeType: string | null;
+  size: number;
+  isFolder: boolean;
+  mountedAt: string;
+  permission: 'read' | 'write' | 'admin';
+}
+
+/** 邀请信息（创建后返回） */
+export interface TeamInvite {
+  id: string;
+  teamId: string;
+  teamName: string;
+  inviterName: string | null;
+  inviterEmail: string | null;
+  role: string;
+  message: string | null;
+  expiresAt: string | null;
+  inviteUrl: string;
+  inviteCode: string | null;
+}
+
+/** 待定邀请条目 */
+export interface PendingInvite {
+  id: string;
+  inviteToken: string;
+  inviteCode: string | null;
+  email: string | null;
+  role: string;
+  message: string | null;
+  inviterName: string | null;
+  inviterEmail: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+/** 活动条目 */
+export interface TeamActivity {
+  id: string;
+  userId: string;
+  userName: string | null;
+  action: string;
+  resourceType: string | null;
+  resourceId: string | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+/** 团队存储统计 */
+export interface TeamStorageStats {
+  storageQuota: number;
+  storageUsed: number;
+  usagePercent: number;
+  fileCount: number;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Teams — 团队管理
 // ─────────────────────────────────────────────────────────────────────────────
@@ -550,6 +611,55 @@ export const teamsApi = {
     api.delete<ApiResponse<{ message: string }>>(`/api/teams/${teamId}/resources/${fileId}`),
   listResources: (teamId: string) =>
     api.get<ApiResponse<TeamResource[]>>(`/api/teams/${teamId}/resources/list`),
+
+  // ── 工作区文件 ─-
+
+  /** 获取团队工作区文件列表 */
+  getWorkspaceFiles: (teamId: string, params?: { folderId?: string; limit?: number; offset?: number }) =>
+    api.get<ApiResponse<{ files: WorkspaceFile[]; total: number }>>(
+      `/api/teams/${teamId}/workspace/files`,
+      { params: params ?? {} }
+    ),
+
+  // ── 邀请管理 ─-
+
+  /** 创建邀请链接 */
+  createInvite: (teamId: string, data: {
+    role?: 'member' | 'guest';
+    email?: string;
+    message?: string;
+    expiresInDays?: number;
+  }) =>
+    api.post<ApiResponse<TeamInvite>>(`/api/teams/${teamId}/invites`, data),
+
+  /** 列出待定邀请 */
+  listInvites: (teamId: string) =>
+    api.get<ApiResponse<{ invites: PendingInvite[] }>>(`/api/teams/${teamId}/invites`),
+
+  /** 撤销邀请 */
+  revokeInvite: (teamId: string, inviteId: string) =>
+    api.delete<ApiResponse<{ message: string }>>(`/api/teams/${teamId}/invites/${inviteId}`),
+
+  /** 接受邀请 */
+  acceptInvite: (teamId: string, token: string) =>
+    api.post<ApiResponse<{ teamId: string; teamName: string; role: string }>>(
+      `/api/teams/${teamId}/invites/${token}/accept`
+    ),
+
+  // ── 活动流 ─-
+
+  /** 获取团队活动时间线 */
+  getActivities: (teamId: string, params?: { limit?: number; offset?: number }) =>
+    api.get<ApiResponse<{ items: TeamActivity[]; total: number }>>(
+      `/api/teams/${teamId}/activities`,
+      { params: params ?? {} }
+    ),
+
+  // ── 存储统计 ─-
+
+  /** 获取团队存储统计 */
+  getStorageStats: (teamId: string) =>
+    api.get<ApiResponse<TeamStorageStats>>(`/api/teams/${teamId}/storage`),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

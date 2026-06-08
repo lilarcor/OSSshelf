@@ -36,6 +36,7 @@ import {
   LazyAIChat,
   LazyAISettings,
   LazyTeams,
+  LazyTeamWorkspace,
   LazyWrapper,
 } from './LazyComponents';
 
@@ -300,6 +301,22 @@ function App() {
           element={
             <LazyWrapper>
               <LazyTeams />
+            </LazyWrapper>
+          }
+        />
+        <Route
+          path="/teams/:teamId"
+          element={
+            <LazyWrapper>
+              <LazyTeams />
+            </LazyWrapper>
+          }
+        />
+        <Route
+          path="/teams/:teamId/workspace"
+          element={
+            <LazyWrapper>
+              <LazyTeamWorkspace />
             </LazyWrapper>
           }
         />

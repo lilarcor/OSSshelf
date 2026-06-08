@@ -28,6 +28,7 @@ export const LazyTags = lazy(() => import('./pages/Tags'));
 export const LazyAIChat = lazy(() => import('./pages/AIChat').then((m) => ({ default: m.AIChat })));
 export const LazyAISettings = lazy(() => import('./pages/AISettings').then((m) => ({ default: m.AISettings })));
 export const LazyTeams = lazy(() => import('./pages/Teams'));
+export const LazyTeamWorkspace = lazy(() => import('./pages/TeamWorkspace'));
 
 interface LazyWrapperProps {
   children: React.ReactNode;

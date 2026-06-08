@@ -813,6 +813,9 @@ export const teams = sqliteTable(
     name: text('name').notNull(),
     description: text('description'),
     settings: text('settings').default('{}'),
+    storageQuota: integer('storage_quota').default(5368709120),
+    storageUsed: integer('storage_used').default(0).notNull(),
+    defaultMemberRole: text('default_member_role').default('member'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
@@ -888,6 +891,60 @@ export const permissionRequests = sqliteTable(
     statusIdx: index('idx_permission_requests_status').on(table.status),
     fileIdx: index('idx_permission_requests_file').on(table.fileId),
     targetTeamIdx: index('idx_permission_requests_target_team').on(table.targetTeamId),
+  })
+);
+
+// 团队邀请表 — 支持链接邀请 + 邮件邀请
+export const teamInvitations = sqliteTable(
+  'team_invitations',
+  {
+    id: text('id').primaryKey(),
+    teamId: text('team_id')
+      .notNull()
+      .references(() => teams.id, { onDelete: 'cascade' }),
+    invitedBy: text('invited_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    inviteToken: text('invite_token').notNull().unique(),
+    inviteCode: text('invite_code').unique(),
+    email: text('email'),
+    role: text('role').notNull().default('member'),
+    message: text('message'),
+    expiresAt: text('expires_at'),
+    acceptedBy: text('accepted_by').references(() => users.id, { onDelete: 'set null' }),
+    acceptedAt: text('accepted_at'),
+    status: text('status').notNull().default('pending'), // pending | accepted | expired | revoked
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => ({
+    teamIdx: index('idx_team_invitations_team').on(table.teamId),
+    tokenIdx: index('idx_team_invitations_token').on(table.inviteToken),
+    statusIdx: index('idx_team_invitations_status').on(table.status),
+    expiresIdx: index('idx_team_invitations_expires').on(table.expiresAt),
+  })
+);
+
+// 团队活动流表 — 记录团队内操作审计
+export const teamActivities = sqliteTable(
+  'team_activities',
+  {
+    id: text('id').primaryKey(),
+    teamId: text('team_id')
+      .notNull()
+      .references(() => teams.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'set null' }),
+    action: text('action').notNull(),
+    resourceType: text('resource_type'),
+    resourceId: text('resource_id'),
+    details: text('details'),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => ({
+    teamIdx: index('idx_team_activities_team').on(table.teamId, table.createdAt),
+    userIdx: index('idx_team_activities_user').on(table.userId),
+    actionIdx: index('idx_team_activities_action').on(table.action),
   })
 );
 

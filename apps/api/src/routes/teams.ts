@@ -28,7 +28,11 @@ import {
   mountResourceToTeam,
   unmountResourceFromTeam,
   listTeamResources,
+  getTeamFiles,
+  getTeamStorageStats,
 } from '../lib/teamService';
+import { createInvite, listPendingInvites, revokeInvite, type InviteInfo } from '../lib/inviteService';
+import { listTeamActivities } from '../lib/teamActivityService';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use('/*', authMiddleware);
@@ -466,6 +470,170 @@ app.get('/:id/resources/list', async (c) => {
   );
 
   return c.json({ success: true, data: resourcesWithFileInfo });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// 工作区文件浏览
+// ════════════════════════════════════════════════════════════════════════════
+
+/** 获取团队工作区文件列表 */
+app.get('/:id/workspace/files', async (c) => {
+  const userId = c.get('userId')!;
+  const teamId = c.req.param('id');
+  const folderId = c.req.query('folderId') || undefined;
+  const limit = parseInt(c.req.query('limit') || '50', 10);
+  const offset = parseInt(c.req.query('offset') || '0', 10);
+
+  try {
+    const result = await getTeamFiles(c.env, teamId, userId, { folderId, limit, offset });
+    return c.json({ success: true, data: result });
+  } catch (e: any) {
+    throwAppError('WORKSPACE_ERROR', (e as Error).message || '获取工作区文件失败');
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// 邀请管理
+// ════════════════════════════════════════════════════════════════════════════
+
+/** 创建邀请链接 */
+app.post('/:id/invites', async (c) => {
+  const userId = c.get('userId')!;
+  const teamId = c.req.param('id');
+  const body = await c.req.json();
+
+  const createInviteSchema = z.object({
+    role: z.enum(['member', 'guest']).default('member'),
+    email: z.string().email('邮箱格式不正确').optional(),
+    message: z.string().max(200).optional(),
+    expiresInDays: z.number().min(1).max(30).default(7),
+  });
+  const parseResult = createInviteSchema.safeParse(body);
+  if (!parseResult.success) {
+    return c.json({
+      success: false,
+      error: { code: ERROR_CODES.VALIDATION_ERROR, message: parseResult.error.errors[0].message },
+    }, 400);
+  }
+
+  const result = await createInvite(c.env, userId, {
+    teamId,
+    inviterUserId: userId,
+    ...parseResult.data,
+  });
+
+  if (!result.success) {
+    throwAppError('INVITE_CREATE_FAILED', (result as { error: string }).error);
+  }
+
+  await createAuditLog({
+    env: c.env, userId,
+    action: 'team.invite.create' as never,
+    resourceType: 'team_invite',
+    resourceId: teamId,
+    details: parseResult.data,
+    ipAddress: getClientIp(c),
+    userAgent: getUserAgent(c),
+  });
+
+  return c.json({ success: true, data: (result as { invite: InviteInfo }).invite });
+});
+
+/** 列出待定邀请 */
+app.get('/:id/invites', async (c) => {
+  const userId = c.get('userId')!;
+  const teamId = c.req.param('id');
+  const db = getDb(c.env.DB);
+
+  const membership = await db
+    .select()
+    .from(teamMembers)
+    .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)))
+    .get();
+  if (!membership || (membership.role !== 'admin' && membership.role !== 'owner')) {
+    throwAppError('FORBIDDEN', '只有管理员可查看邀请列表');
+  }
+
+  const invites = await listPendingInvites(db, teamId);
+  return c.json({ success: true, data: { invites } });
+});
+
+/** 撤销邀请 */
+app.delete('/:id/invites/:inviteId', async (c) => {
+  const userId = c.get('userId')!;
+  const teamId = c.req.param('id');
+  const inviteId = c.req.param('inviteId');
+
+  const result = await revokeInvite(c.env, teamId, inviteId, userId);
+  if (!result.success) {
+    throwAppError('INVITE_REVOKE_FAILED', (result as { error: string }).error);
+  }
+
+  return c.json({ success: true, data: { message: '邀请已撤销' } });
+});
+
+/** 接受邀请（已登录用户通过 API） */
+app.post('/:id/invites/:token/accept', async (c) => {
+  const userId = c.get('userId')!;
+  const token = c.req.param('token');
+
+  const { acceptInvite } = await import('../lib/inviteService');
+  const result = await acceptInvite(c.env, token, userId);
+  if (!result.success) {
+    throwAppError('INVITE_ACCEPT_FAILED', (result as { error: string }).error);
+  }
+
+  return c.json({ success: true, data: result });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// 团队活动流
+// ════════════════════════════════════════════════════════════════════════════
+
+/** 获取团队活动时间线 */
+app.get('/:id/activities', async (c) => {
+  const userId = c.get('userId')!;
+  const teamId = c.req.param('id');
+  const db = getDb(c.env.DB);
+  const limit = parseInt(c.req.query('limit') || '30', 10);
+  const offset = parseInt(c.req.query('offset') || '0', 10);
+
+  const membership = await db
+    .select()
+    .from(teamMembers)
+    .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)))
+    .get();
+  if (!membership) {
+    throwAppError('TEAM_ACCESS_DENIED', '您不是该团队成员');
+  }
+
+  const result = await listTeamActivities(db, { teamId, limit, offset });
+  return c.json({ success: true, data: result });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// 存储统计
+// ════════════════════════════════════════════════════════════════════════════
+
+/** 获取团队存储统计 */
+app.get('/:id/storage', async (c) => {
+  const userId = c.get('userId')!;
+  const teamId = c.req.param('id');
+  const db = getDb(c.env.DB);
+
+  const membership = await db
+    .select()
+    .from(teamMembers)
+    .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)))
+    .get();
+  if (!membership) {
+    throwAppError('TEAM_ACCESS_DENIED', '您不是该团队成员');
+  }
+
+  const stats = await getTeamStorageStats(db, teamId);
+  if (!stats) throwAppError('TEAM_NOT_FOUND', '团队不存在');
+
+  return c.json({ success: true, data: stats });
 });
 
 export default app;

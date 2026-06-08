@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/useToast';
@@ -22,6 +23,7 @@ interface TeamListProps {
 const TeamList: React.FC<TeamListProps> = ({ className }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [isMemberDialogOpen, setIsMemberDialogOpen] = useState(false);
@@ -105,6 +107,7 @@ const TeamList: React.FC<TeamListProps> = ({ className }) => {
               onManageResources={handleManageResources}
               onDelete={handleDelete}
               isDeleting={deleteMutation.isPending}
+              onNavigateWorkspace={(teamId) => navigate(`/teams/${teamId}/workspace`)}
             />
           ))}
         </div>
@@ -151,9 +154,10 @@ interface TeamCardProps {
   onManageResources: (teamId: string) => void;
   onDelete: (teamId: string, teamName: string) => void;
   isDeleting: boolean;
+  onNavigateWorkspace: (teamId: string) => void;
 }
 
-const TeamCard: React.FC<TeamCardProps> = ({ team, onManageMembers, onManageResources, onDelete, isDeleting }) => {
+const TeamCard: React.FC<TeamCardProps> = ({ team, onManageMembers, onManageResources, onDelete, isDeleting, onNavigateWorkspace }) => {
   return (
     <div className="bg-card rounded-lg border p-4 hover:border-primary/50 transition-colors">
       <div className="flex items-start justify-between">
@@ -180,6 +184,10 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, onManageMembers, onManageReso
           <Button variant="ghost" size="sm" onClick={() => onManageMembers(team.id)} title="管理成员">
             <UserPlus className="h-4 w-4 mr-1" />
             成员
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => onNavigateWorkspace(team.id)} title="工作区">
+            <FolderOpen className="h-4 w-4 mr-1" />
+            工作区
           </Button>
           <Button variant="ghost" size="sm" onClick={() => onManageResources(team.id)} title="管理资源">
             <FolderOpen className="h-4 w-4 mr-1" />

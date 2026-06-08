@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/useToast';
 import { teamsApi, type TeamMember, type TeamResource } from '@/services/collab';
+import TeamActivityFeed from './TeamActivityFeed';
 import {
   Users,
   UserPlus,
@@ -32,7 +33,7 @@ interface TeamDetailProps {
   onClose?: () => void;
 }
 
-type TabType = 'members' | 'resources' | 'settings';
+type TabType = 'members' | 'resources' | 'activity' | 'settings';
 
 const roleColorMap: Record<string, { bg: string; text: string; label: string; icon: React.ReactNode }> = {
   owner: {
@@ -129,6 +130,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
   const tabs: { key: TabType; label: string; icon: React.ReactNode }[] = [
     { key: 'members', label: '成员', icon: <Users className="h-4 w-4" /> },
     { key: 'resources', label: '资源', icon: <FolderOpen className="h-4 w-4" /> },
+    { key: 'activity', label: '动态', icon: <Clock className="h-4 w-4" /> },
   ];
 
   if (isOwner) {
@@ -164,6 +166,9 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
               创建于 {teamData?.createdAt ? new Date(teamData.createdAt).toLocaleDateString('zh-CN') : '-'}
             </span>
           </div>
+          <Button size="sm" variant="default" onClick={() => window.location.href = `/teams/${teamId}/workspace`} className="mt-2">
+            <FolderOpen className="h-4 w-4 mr-1" /> 进入工作区
+          </Button>
         </div>
       </div>
 
@@ -204,6 +209,8 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
           isOwner={isOwner}
         />
       )}
+
+      {activeTab === 'activity' && <TeamActivityFeed teamId={teamId} />}
 
       {activeTab === 'settings' && isOwner && (
         <SettingsSection
