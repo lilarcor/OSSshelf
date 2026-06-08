@@ -675,12 +675,12 @@ app.post('/:id/workspace/folder', async (c) => {
 
   // 如果指定了 parentId，验证它属于这个团队或已挂载到这个团队
   if (parentId) {
-    const parentFile = await db.select({ id: files.id, teamId: files.teamId }).from(files)
+    const parentFile = await db.select({ id: files.id, fileTeamId: files.teamId }).from(files)
       .where(and(eq(files.id, parentId), isNull(files.deletedAt))).get();
     if (!parentFile) throwAppError('NOT_FOUND', '父文件夹不存在');
     const mountedToTeam = await db.select().from(teamResources)
       .where(and(eq(teamResources.teamId, teamId), eq(teamResources.fileId, parentId))).get();
-    if (parentFile.teamId !== teamId && !mountedToTeam) {
+    if (parentFile.fileTeamId !== teamId && !mountedToTeam) {
       throwAppError('FORBIDDEN', '只能在团队空间内的文件夹中创建子文件夹');
     }
   }

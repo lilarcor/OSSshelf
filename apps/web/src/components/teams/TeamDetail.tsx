@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -64,6 +65,7 @@ const roleColorMap: Record<string, { bg: string; text: string; label: string; ic
 
 const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('members');
 
@@ -166,7 +168,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
               创建于 {teamData?.createdAt ? new Date(teamData.createdAt).toLocaleDateString('zh-CN') : '-'}
             </span>
           </div>
-          <Button size="sm" variant="default" onClick={() => window.location.href = `/teams/${teamId}/workspace`} className="mt-2">
+          <Button size="sm" variant="default" onClick={() => navigate(`/teams/${teamId}/workspace`)} className="mt-2">
             <FolderOpen className="h-4 w-4 mr-1" /> 进入工作区
           </Button>
         </div>

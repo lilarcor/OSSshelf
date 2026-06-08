@@ -1,25 +1,23 @@
 /**
- * TeamWorkspace.tsx — 团队工作区 V2（完整文件管理器）
+ * TeamWorkspace.tsx — 团队工作区 V3（修复版）
  *
- * 功能:
- * - 文件列表（合并挂载资源 + 团队自有文件）
- * - 新建文件夹（团队空间内）
- * - 上传文件（团队空间内）
- * - 文件预览/下载
- * - 删除文件（有权限时）
- * - 动态时间线 Tab
+ * 修复：
+ * - 使用 api 客户端（带 auth token）替代裸 fetch
+ * - 调用 /workspace/all-files 端点（合并挂载+团队自有文件）
+ * - 上传功能接入 presignUpload 流程
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/useToast';
 import { teamsApi, type WorkspaceFile } from '@/services/collab';
+import api from '@/services/api-client';
 import {
   FolderOpen, File, HardDrive, Users, Loader2, Grid, List,
   RefreshCw, Lock, Edit, Crown, Plus, Upload, Trash2,
-  FolderPlus, Download, Eye,
+  FolderPlus,
 } from 'lucide-react';
 import { cn, formatBytes } from '@/utils';
 import type { ViewMode } from '@/stores/files';
@@ -43,14 +41,17 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canWrite = userRole === 'admin' || userRole === 'owner' || isOwner;
 
-  // 使用已有的 getWorkspaceFiles API（后续可切换到 all-files 端点获得更完整体验）
+  // ★ 使用 all-files 端点（合并挂载资源 + 团队自有文件）
   const { data: filesData, isLoading: isFilesLoading, refetch: refetchFiles } = useQuery({
     queryKey: ['team-workspace-all', teamId],
     queryFn: () =>
-      teamsApi.getWorkspaceFiles(teamId, { limit: 100 }).then((r) => r.data.data),
+      api.get<{ success: boolean; data: { files: (WorkspaceFile & { source: string })[]; total: number } }>(
+        `/api/teams/${teamId}/workspace/all-files`
+      ).then((r) => r.data.data),
   });
 
   const { data: storageData } = useQuery({
@@ -61,39 +62,77 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
   const files = filesData?.files ?? [];
   const total = filesData?.total ?? 0;
 
-  // ── 新建文件夹 ──
+  // ── 新建文件夹（使用 api 客户端，自动带 auth）──
   const createFolderMutation = useMutation({
     mutationFn: (name: string) =>
-      fetch(`/api/teams/${teamId}/workspace/folder`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      }).then(r => r.json()),
-    onSuccess: () => {
+      api.post<{ success: boolean; data: { id: string; name: string }; error?: { message: string } }>(
+        `/api/teams/${teamId}/workspace/folder`,
+        { name }
+      ),
+    onSuccess: (res) => {
+      const body = res.data;
+      if (!body.success) {
+        toast({ title: '创建失败', description: body.error?.message || '未知错误', variant: 'destructive' });
+        return;
+      }
       toast({ title: '文件夹创建成功' });
       setIsCreatingFolder(false);
       setNewFolderName('');
       queryClient.invalidateQueries({ queryKey: ['team-workspace-all'] });
-      queryClient.invalidateQueries({ queryKey: ['team-workspace-files'] });
     },
     onError: (e: any) => {
-      toast({ title: '创建失败', description: e.message, variant: 'destructive' });
+      toast({ title: '创建失败', description: e.response?.data?.error?.message || e.message, variant: 'destructive' });
     },
   });
 
-  // ── 删除文件 ──
+  // ── 删除文件（使用 api 客户端）──
   const deleteMutation = useMutation({
     mutationFn: (fileId: string) =>
-      fetch(`/api/files/${fileId}`, { method: 'DELETE' }).then(r => r.json()),
-    onSuccess: () => {
+      api.delete<{ success: boolean; error?: { message: string } }>(`/api/files/${fileId}`),
+    onSuccess: (res) => {
+      const body = res.data;
+      if (!body.success) {
+        toast({ title: '删除失败', description: body.error?.message, variant: 'destructive' });
+        return;
+      }
       toast({ title: '已删除' });
       setSelectedFileIds(new Set());
       refetchFiles();
     },
-    onError: () => {
-      toast({ title: '删除失败', variant: 'destructive' });
+    onError: (e: any) => {
+      toast({ title: '删除失败', description: e.response?.data?.error?.message || e.message, variant: 'destructive' });
     },
   });
+
+  // ── 上传文件（使用 presignUpload）──
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    try {
+      // 动态导入 presignUpload 避免未使用时的加载开销
+      const { presignUpload } = await import('@/services/presignUpload');
+
+      for (const file of Array.from(fileList)) {
+        try {
+          await presignUpload({ file, parentId: null }); // 上传到用户根目录（后续可指定团队文件夹）
+          toast({ title: `${file.name} 上传成功` });
+        } catch (uploadErr: any) {
+          toast({ title: `${file.name} 上传失败`, description: uploadErr.message, variant: 'destructive' });
+        }
+      }
+
+      // 清空 input 以便重复选择同一文件
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      refetchFiles();
+    } catch (err) {
+      toast({ title: '上传模块加载失败', variant: 'destructive' });
+    }
+  };
 
   // ── 选择/取消选择 ──
   const toggleSelect = useCallback((fileId: string) => {
@@ -201,11 +240,20 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                 </>
               )}
 
-              {/* 上传按钮（提示用户拖拽或点击） */}
+              {/* ★ 上传文件（隐藏 input + 触发按钮） */}
               {canWrite && (
-                <Button variant="outline" size="sm" title="上传文件到团队空间">
-                  <Upload className="h-4 w-4 mr-1" /> 上传
-                </Button>
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  <Button variant="outline" size="sm" onClick={handleUploadClick}>
+                    <Upload className="h-4 w-4 mr-1" /> 上传文件
+                  </Button>
+                </>
               )}
 
               {/* 批量删除 */}

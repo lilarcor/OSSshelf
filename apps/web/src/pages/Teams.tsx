@@ -58,15 +58,6 @@ const Teams: React.FC = () => {
         <Button size="sm" className="mt-4" onClick={() => setIsCreateOpen(true)}>
           <Plus className="h-4 w-4 mr-1" /> 创建团队
         </Button>
-        {isCreateOpen && (
-          <TeamCreateDialog
-            onClose={() => setIsCreateOpen(false)}
-            onCreated={() => {
-              setIsCreateOpen(false);
-              queryClient.invalidateQueries({ queryKey: ['user-teams'] });
-            }}
-          />
-        )}
       </div>
     );
   }

@@ -89,7 +89,7 @@ const TeamList: React.FC<TeamListProps> = ({ className, mode = 'default' }) => {
         {mode === 'management' ? (
           <Button variant="outline" size="sm" onClick={() => setIsCreateOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
-            邀请成员
+            创建团队
           </Button>
         ) : (
           <Button onClick={() => setIsCreateOpen(true)}>
@@ -121,6 +121,7 @@ const TeamList: React.FC<TeamListProps> = ({ className, mode = 'default' }) => {
               onDelete={handleDelete}
               isDeleting={deleteMutation.isPending}
               onNavigateWorkspace={(teamId) => navigate(`/teams/${teamId}/workspace`)}
+              onNavigateSettings={(teamId) => navigate(`/teams/${teamId}`)}
             />
           ))}
         </div>
@@ -169,9 +170,10 @@ interface TeamCardProps {
   onDelete: (teamId: string, teamName: string) => void;
   isDeleting: boolean;
   onNavigateWorkspace: (teamId: string) => void;
+  onNavigateSettings?: (teamId: string) => void;
 }
 
-const TeamCard: React.FC<TeamCardProps> = ({ team, mode = 'default', onManageMembers, onManageResources, onDelete, isDeleting, onNavigateWorkspace }) => {
+const TeamCard: React.FC<TeamCardProps> = ({ team, mode = 'default', onManageMembers, onManageResources, onDelete, isDeleting, onNavigateWorkspace, onNavigateSettings }) => {
   const isManagement = mode === 'management';
 
   return (
@@ -243,7 +245,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, mode = 'default', onManageMem
               </Button>
               {team.isOwner && (
                 <>
-                  <Button variant="ghost" size="icon" className="h-9 w-9" title="设置">
+                  <Button variant="ghost" size="icon" className="h-9 w-9" title="设置" onClick={() => onNavigateSettings?.(team.id)}>
                     <Settings className="h-4 w-4" />
                   </Button>
                   <Button
