@@ -21,6 +21,8 @@ export interface CreateTeamInput {
 export interface UpdateTeamInput {
   name?: string;
   description?: string;
+  storageQuota?: number;
+  defaultMemberRole?: string;
 }
 
 export interface ManageTeamMembersInput {
@@ -134,7 +136,7 @@ export async function updateTeam(
   const db = getDb(env.DB);
   const { name, description } = input;
 
-  if (!name && !description) {
+  if (name === undefined && description === undefined && input.storageQuota === undefined && input.defaultMemberRole === undefined) {
     return { success: false, error: '至少需要更新一个字段' };
   }
 
@@ -157,6 +159,8 @@ export async function updateTeam(
   const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
   if (name !== undefined) updates.name = name.trim();
   if (description !== undefined) updates.description = description?.trim() || null;
+  if (input.storageQuota !== undefined) updates.storageQuota = input.storageQuota;
+  if (input.defaultMemberRole !== undefined) updates.defaultMemberRole = input.defaultMemberRole;
 
   await db.update(teams).set(updates).where(eq(teams.id, teamId));
 
@@ -198,36 +202,83 @@ export async function deleteTeam(
 export async function listTeams(
   db: DrizzleDb,
   userId: string
-): Promise<{ owned: Array<{ id: string; name: string; memberCount: number }>; joined: Array<{ id: string; name: string; role: string }> }> {
+): Promise<{
+  owned: Array<{
+    id: string; name: string; description: string | null;
+    memberCount: number; userRole: string; isOwner: boolean;
+    createdAt: string; updatedAt: string;
+  }>;
+  joined: Array<{
+    id: string; name: string; description: string | null;
+    memberCount: number; userRole: string; isOwner: boolean;
+    createdAt: string; updatedAt: string;
+  }>;
+}> {
+  // 用户拥有的团队
   const ownedTeams = await db
-    .select({ id: teams.id, name: teams.name })
+    .select({
+      id: teams.id,
+      name: teams.name,
+      description: teams.description,
+      createdAt: teams.createdAt,
+      updatedAt: teams.updatedAt,
+    })
     .from(teams)
     .where(eq(teams.ownerId, userId))
     .all();
 
   const ownedWithCounts = await Promise.all(
     ownedTeams.map(async (team) => {
-      const count = await db
-        .select({ id: teamMembers.id })
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
         .from(teamMembers)
         .where(eq(teamMembers.teamId, team.id))
-        .all();
-      return { ...team, memberCount: count.length };
+        .get();
+      return {
+        ...team,
+        memberCount: Number(countResult?.count ?? 0),
+        userRole: 'owner' as const,
+        isOwner: true,
+      };
     })
   );
 
+  // 用户加入的团队（非 owner）
   const joinedTeams = await db
     .select({
       id: teams.id,
       name: teams.name,
+      description: teams.description,
       role: teamMembers.role,
+      createdAt: teams.createdAt,
+      updatedAt: teams.updatedAt,
     })
     .from(teamMembers)
     .innerJoin(teams, eq(teamMembers.teamId, teams.id))
     .where(and(eq(teamMembers.userId, userId), sql`${teamMembers.role} != 'owner'`))
     .all();
 
-  return { owned: ownedWithCounts, joined: joinedTeams };
+  const joinedWithCounts = await Promise.all(
+    joinedTeams.map(async (team) => {
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(teamMembers)
+        .where(eq(teamMembers.teamId, team.id))
+        .get();
+      return {
+        id: team.id,
+        name: team.name,
+        description: team.description,
+        memberCount: Number(countResult?.count ?? 0),
+        userRole: team.role,
+        isOwner: false,
+        createdAt: team.createdAt,
+        updatedAt: team.updatedAt,
+      };
+    })
+  );
+
+  return { owned: ownedWithCounts, joined: joinedWithCounts };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

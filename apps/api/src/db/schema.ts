@@ -53,6 +53,7 @@ export const files = sqliteTable(
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
     deletedAt: text('deleted_at'),
+    teamId: text('team_id'), // 可空：属于哪个团队的共享空间
     bucketId: text('bucket_id'),
     directLinkToken: text('direct_link_token').unique(),
     directLinkExpiresAt: text('direct_link_expires_at'),
@@ -82,6 +83,7 @@ export const files = sqliteTable(
     aiSummaryIdx: index('idx_files_ai_summary').on(table.userId, table.aiSummaryAt),
     aiTagsIdx: index('idx_files_ai_tags').on(table.userId, table.aiTagsAt),
     isStarredIdx: index('idx_files_is_starred').on(table.userId, table.isStarred, table.updatedAt),
+    teamIdx: index('idx_files_team').on(table.teamId),
   })
 );
 

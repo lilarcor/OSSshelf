@@ -26,7 +26,7 @@ import {
   EyeOff,
   Clock,
 } from 'lucide-react';
-import { cn } from '@/utils';
+import { cn, formatBytes } from '@/utils';
 
 interface TeamDetailProps {
   teamId: string;
@@ -85,7 +85,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: { name?: string; description?: string }) =>
+    mutationFn: (data: { name?: string; description?: string; storageQuota?: number; defaultMemberRole?: string }) =>
       teamsApi.update(teamId, data).then((r) => r.data),
     onSuccess: () => {
       toast({ title: '团队信息已更新' });
@@ -324,8 +324,8 @@ const ResourcesSection: React.FC<ResourcesSectionProps> = ({ resources, isLoadin
 // ── 设置 Section ──
 
 interface SettingsSectionProps {
-  teamData: { id: string; name: string; description: string | null };
-  onUpdate: (data: { name?: string; description?: string }) => void;
+  teamData: { id: string; name: string; description: string | null; storageQuota?: number };
+  onUpdate: (data: { name?: string; description?: string; storageQuota?: number }) => void;
   onDelete: () => void;
   isUpdating: boolean;
   isDeleting: boolean;
@@ -334,6 +334,9 @@ interface SettingsSectionProps {
 const SettingsSection: React.FC<SettingsSectionProps> = ({ teamData, onUpdate, onDelete, isUpdating, isDeleting }) => {
   const [name, setName] = useState(teamData.name);
   const [description, setDescription] = useState(teamData.description ?? '');
+  const [storageQuotaMB, setStorageQuotaMB] = useState(
+    teamData.storageQuota ? Math.round(teamData.storageQuota / 1024 / 1024) : 5120
+  );
 
   return (
     <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
@@ -359,6 +362,24 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({ teamData, onUpdate, o
           />
         </div>
 
+        {/* 存储配额 */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">存储配额</label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              value={Math.round(storageQuotaMB || 0)}
+              onChange={(e) => setStorageQuotaMB(Number(e.target.value))}
+              placeholder="单位: MB"
+              min={50}
+              max={1048576}
+              className="w-32"
+            />
+            <span className="text-sm text-muted-foreground">MB ({formatBytes((storageQuotaMB || 0) * 1024 * 1024)})</span>
+          </div>
+          <p className="text-xs text-muted-foreground">范围: 50MB ~ 1TB，修改后立即生效</p>
+        </div>
+
         <div className="flex justify-between pt-2">
           <Button
             variant="destructive"
@@ -371,8 +392,19 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({ teamData, onUpdate, o
           </Button>
           <Button
             size="sm"
-            onClick={() => onUpdate({ name: name.trim(), description: description.trim() || undefined })}
-            disabled={isUpdating || (name.trim() === teamData.name && (description.trim() || null) === teamData.description)}
+            onClick={() =>
+              onUpdate({
+                name: name.trim(),
+                description: description.trim() || undefined,
+                storageQuota: (storageQuotaMB || 0) * 1024 * 1024,
+              })
+            }
+            disabled={
+              isUpdating ||
+              (name.trim() === teamData.name &&
+                (description.trim() || null) === teamData.description &&
+                (storageQuotaMB || 0) * 1024 * 1024 === (teamData.storageQuota ?? 5368709120))
+            }
           >
             {isUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Pencil className="h-4 w-4 mr-1" />}
             保存更改

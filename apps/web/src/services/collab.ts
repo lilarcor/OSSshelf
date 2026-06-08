@@ -465,6 +465,7 @@ export interface Team {
   name: string;
   description: string | null;
   settings: string;
+  storageQuota?: number;
   memberCount: number;
   userRole: string;
   isOwner: boolean;
@@ -594,7 +595,7 @@ export const teamsApi = {
   create: (data: { name: string; description?: string }) =>
     api.post<ApiResponse<Team>>('/api/teams', data),
   get: (id: string) => api.get<ApiResponse<Team>>(`/api/teams/${id}`),
-  update: (id: string, data: { name?: string; description?: string }) =>
+  update: (id: string, data: { name?: string; description?: string; storageQuota?: number; defaultMemberRole?: string }) =>
     api.put<ApiResponse<{ message: string }>>(`/api/teams/${id}`, data),
   delete: (id: string) => api.delete<ApiResponse<{ message: string }>>(`/api/teams/${id}`),
   getMembers: (id: string) =>

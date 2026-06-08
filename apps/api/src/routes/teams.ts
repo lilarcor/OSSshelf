@@ -9,7 +9,7 @@
  */
 
 import { Hono } from 'hono';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { getDb, teams, teamMembers, teamResources, files, users } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { throwAppError } from '../middleware/error';
@@ -33,6 +33,7 @@ import {
 } from '../lib/teamService';
 import { createInvite, listPendingInvites, revokeInvite, type InviteInfo } from '../lib/inviteService';
 import { listTeamActivities } from '../lib/teamActivityService';
+import { recordActivityWithEnv } from '../lib/teamActivityService';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use('/*', authMiddleware);
@@ -49,6 +50,8 @@ const createTeamSchema = z.object({
 const updateTeamSchema = z.object({
   name: z.string().min(1, '团队名称不能为空').max(100, '团队名称过长').optional(),
   description: z.string().max(500, '描述过长').optional(),
+  storageQuota: z.number().min(52428800, '最小 50MB').max(1099511627776, '最大 1TB').optional(),
+  defaultMemberRole: z.enum(['member', 'guest', 'admin']).optional(),
 });
 
 const addMemberSchema = z.object({
@@ -231,15 +234,24 @@ app.get('/:id/members', async (c) => {
 
   const members = await listTeamMembers(db, teamId);
 
-  // 补充 userEmail
-  const membersWithEmail = await Promise.all(
+  // 补充 name 和 email
+  const membersWithInfo = await Promise.all(
     members.map(async (m) => {
-      const user = await db.select({ email: users.email }).from(users).where(eq(users.id, m.userId)).get();
-      return { ...m, userEmail: user?.email ?? null };
+      const user = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, m.userId)).get();
+      return {
+        id: m.id,
+        teamId,
+        userId: m.userId,
+        role: m.role,
+        addedBy: null,
+        createdAt: m.createdAt,
+        name: user?.name ?? m.userName ?? null,
+        email: user?.email ?? null,
+      };
     })
   );
 
-  return c.json({ success: true, data: membersWithEmail });
+  return c.json({ success: true, data: membersWithInfo });
 });
 
 /** 添加成员 */
@@ -634,6 +646,135 @@ app.get('/:id/storage', async (c) => {
   if (!stats) throwAppError('TEAM_NOT_FOUND', '团队不存在');
 
   return c.json({ success: true, data: stats });
+});
+
+// ════════════════════════════════════════════════════════════════
+// 团队共享空间 — 文件操作（类似个人 Files 的子集）
+// ════════════════════════════════════════════════════════════════
+
+/** 在团队空间中新建文件夹 */
+app.post('/:id/workspace/folder', async (c) => {
+  const userId = c.get('userId')!;
+  const teamId = c.req.param('id');
+  const body = await c.req.json();
+  const db = getDb(c.env.DB);
+
+  // 验证权限：admin 或 owner 或有 write 权限的成员
+  const membership = await db.select().from(teamMembers)
+    .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId))).get();
+  if (!membership) throwAppError('TEAM_ACCESS_DENIED', '您不是该团队成员');
+  if (membership.role !== 'owner' && membership.role !== 'admin') {
+    throwAppError('FORBIDDEN', '只有管理员可以在团队空间中创建文件夹');
+  }
+
+  const nameSchema = z.object({ name: z.string().min(1).max(255), parentId: z.string().optional() });
+  const result = nameSchema.safeParse(body);
+  if (!result.success) return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: result.error.errors[0].message } }, 400);
+
+  const { name, parentId } = result.data;
+
+  // 如果指定了 parentId，验证它属于这个团队或已挂载到这个团队
+  if (parentId) {
+    const parentFile = await db.select({ id: files.id, teamId: files.teamId }).from(files)
+      .where(and(eq(files.id, parentId), isNull(files.deletedAt))).get();
+    if (!parentFile) throwAppError('NOT_FOUND', '父文件夹不存在');
+    const mountedToTeam = await db.select().from(teamResources)
+      .where(and(eq(teamResources.teamId, teamId), eq(teamResources.fileId, parentId))).get();
+    if (parentFile.teamId !== teamId && !mountedToTeam) {
+      throwAppError('FORBIDDEN', '只能在团队空间内的文件夹中创建子文件夹');
+    }
+  }
+
+  const now = new Date().toISOString();
+  const folderId = crypto.randomUUID();
+  const folderPath = parentId ? `${teamId}/` : `/teams/${teamId}/`;
+
+  await db.insert(files).values({
+    id: folderId,
+    userId,
+    parentId: parentId || null,
+    name: name.trim(),
+    path: folderPath + name.trim(),
+    size: 0,
+    r2Key: `teams/${teamId}/${folderId}/${name.trim()}`,
+    isFolder: true,
+    refCount: 0,
+    createdAt: now,
+    updatedAt: now,
+    teamId, // ★ 标记为团队文件
+  });
+
+  await recordActivityWithEnv(c.env, {
+    teamId, userId, action: 'file_uploaded', resourceType: 'file',
+    resourceId: folderId, details: { fileName: name, isFolder: true },
+  });
+
+  return c.json({
+    success: true,
+    data: { id: folderId, name: name.trim(), isFolder: true, createdAt: now },
+  });
+});
+
+/** 列出团队空间的所有文件（挂载的 + 团队自有的） */
+app.get('/:id/workspace/all-files', async (c) => {
+  const userId = c.get('userId')!;
+  const teamId = c.req.param('id');
+  const folderId = c.req.query('folderId') || undefined;
+  const limit = parseInt(c.req.query('limit') || '50', 10);
+  const offset = parseInt(c.req.query('offset') || '0', 10);
+  const db = getDb(c.env.DB);
+
+  const membership = await db.select().from(teamMembers)
+    .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId))).get();
+  if (!membership) throwAppError('TEAM_ACCESS_DENIED', '您不是该团队成员');
+
+  // 1. 团队自有的文件/文件夹
+  const teamFilesQuery = db
+    .select({
+      id: files.id, name: files.name, path: files.path, type: files.type,
+      mimeType: files.mimeType, size: files.size, isFolder: files.isFolder,
+      parentId: files.parentId, createdAt: files.createdAt, updatedAt: files.updatedAt,
+      userId: files.userId,
+    })
+    .from(files)
+    .where(and(
+      eq(files.teamId, teamId),
+      isNull(files.deletedAt),
+      folderId ? eq(files.parentId, folderId) : isNull(files.parentId),
+    ));
+
+  const teamFiles = await teamFilesQuery.all();
+
+  // 2. 已挂载的资源（复用 getTeamFiles 的逻辑）
+  const workspaceResult = await getTeamFiles(c.env, teamId, userId, { folderId, limit: 999, offset: 0 });
+
+  // 合并去重（以 fileId 为准，挂载的优先显示挂载信息）
+  const mountedIds = new Set(workspaceResult.files.map(f => f.fileId));
+  const allFiles = [
+    ...workspaceResult.files.map(f => ({
+      ...f,
+      source: 'mounted' as const,
+    })),
+    ...teamFiles
+      .filter(f => !mountedIds.has(f.id))
+      .map(f => ({
+        fileId: f.id,
+        fileName: f.name,
+        filePath: f.path,
+        fileType: f.type,
+        mimeType: f.mimeType,
+        size: f.size,
+        isFolder: f.isFolder,
+        mountedAt: f.createdAt,
+        permission: f.userId === userId ? 'admin' as const : (membership.role === 'admin' || membership.role === 'owner' ? 'write' as const : 'read' as const),
+        source: 'owned' as const,
+      })),
+  ];
+
+  const total = allFiles.length;
+  const paged = allFiles.slice(offset, offset + limit);
+
+  return c.json({ success: true, data: { files: paged, total } });
 });
 
 export default app;

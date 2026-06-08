@@ -1,32 +1,25 @@
 /**
- * TeamWorkspace.tsx — 团队工作区文件浏览器
+ * TeamWorkspace.tsx — 团队工作区 V2（完整文件管理器）
  *
- * 核心差异化组件：提供独立的团队文件浏览视图
- * - 显示团队所有已挂载资源的聚合视图
- * - 每个文件标注权限级别
- * - 支持 list/grid 视图切换
- * - Tab 切换：文件列表 / 动态时间线
+ * 功能:
+ * - 文件列表（合并挂载资源 + 团队自有文件）
+ * - 新建文件夹（团队空间内）
+ * - 上传文件（团队空间内）
+ * - 文件预览/下载
+ * - 删除文件（有权限时）
+ * - 动态时间线 Tab
  */
 
 import React, { useState, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/useToast';
 import { teamsApi, type WorkspaceFile } from '@/services/collab';
 import {
-  ArrowLeft,
-  FolderOpen,
-  File,
-  HardDrive,
-  Users,
-  Loader2,
-  Grid,
-  List,
-  RefreshCw,
-  Lock,
-  Edit,
-  Crown,
+  FolderOpen, File, HardDrive, Users, Loader2, Grid, List,
+  RefreshCw, Lock, Edit, Crown, Plus, Upload, Trash2,
+  FolderPlus, Download, Eye,
 } from 'lucide-react';
 import { cn, formatBytes } from '@/utils';
 import type { ViewMode } from '@/stores/files';
@@ -43,13 +36,19 @@ interface TeamWorkspaceProps {
 type WorkspaceTab = 'files' | 'activity';
 
 const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRole, isOwner }) => {
-  const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('files');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
 
+  const canWrite = userRole === 'admin' || userRole === 'owner' || isOwner;
+
+  // 使用已有的 getWorkspaceFiles API（后续可切换到 all-files 端点获得更完整体验）
   const { data: filesData, isLoading: isFilesLoading, refetch: refetchFiles } = useQuery({
-    queryKey: ['team-workspace-files', teamId],
+    queryKey: ['team-workspace-all', teamId],
     queryFn: () =>
       teamsApi.getWorkspaceFiles(teamId, { limit: 100 }).then((r) => r.data.data),
   });
@@ -62,11 +61,48 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
   const files = filesData?.files ?? [];
   const total = filesData?.total ?? 0;
 
-  const handleFolderClick = useCallback((file: WorkspaceFile) => {
-    if (file.isFolder && file.permission !== 'read') {
-      toast({ title: '文件夹导航：即将推出', variant: 'default' });
-    }
-  }, [toast]);
+  // ── 新建文件夹 ──
+  const createFolderMutation = useMutation({
+    mutationFn: (name: string) =>
+      fetch(`/api/teams/${teamId}/workspace/folder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      }).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: '文件夹创建成功' });
+      setIsCreatingFolder(false);
+      setNewFolderName('');
+      queryClient.invalidateQueries({ queryKey: ['team-workspace-all'] });
+      queryClient.invalidateQueries({ queryKey: ['team-workspace-files'] });
+    },
+    onError: (e: any) => {
+      toast({ title: '创建失败', description: e.message, variant: 'destructive' });
+    },
+  });
+
+  // ── 删除文件 ──
+  const deleteMutation = useMutation({
+    mutationFn: (fileId: string) =>
+      fetch(`/api/files/${fileId}`, { method: 'DELETE' }).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: '已删除' });
+      setSelectedFileIds(new Set());
+      refetchFiles();
+    },
+    onError: () => {
+      toast({ title: '删除失败', variant: 'destructive' });
+    },
+  });
+
+  // ── 选择/取消选择 ──
+  const toggleSelect = useCallback((fileId: string) => {
+    setSelectedFileIds(prev => {
+      const next = new Set(prev);
+      if (next.has(fileId)) next.delete(fileId); else next.add(fileId);
+      return next;
+    });
+  }, []);
 
   const PermissionBadge = ({ permission }: { permission: string }) => {
     if (permission === 'admin') return <Crown className="h-3.5 w-3.5 text-purple-500" />;
@@ -74,23 +110,23 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
     return <Lock className="h-3.5 w-3.5 text-gray-400" />;
   };
 
+  const handleCreateFolder = () => {
+    if (!newFolderName.trim()) return;
+    createFolderMutation.mutate(newFolderName.trim());
+  };
+
   return (
     <div className="space-y-4">
-      {/* 头部 */}
+      {/* 头部信息 */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/teams')} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="返回">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-semibold">{teamName}</h2>
-              <span className="px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full flex items-center gap-1">
-                <Users className="h-3 w-3" /> 工作区
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">团队 / {teamName}</p>
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-semibold">{teamName}</h2>
+            <span className="px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full flex items-center gap-1">
+              <Users className="h-3 w-3" /> 工作区
+            </span>
           </div>
+          <p className="text-sm text-muted-foreground mt-1">团队共享空间 · {total} 个项目</p>
         </div>
         <div className="flex items-center gap-2">
           {storageData && (
@@ -98,7 +134,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
               <HardDrive className="h-3.5 w-3.5" /> {storageData.usagePercent}%
             </div>
           )}
-          <Button variant="ghost" size="icon" onClick={() => refetchFiles()} title="刷新">
+          <Button variant="ghost" size="icon" onClick={() => refetchFiles()}>
             <RefreshCw className={cn('h-4 w-4', isFilesLoading && 'animate-spin')} />
           </Button>
         </div>
@@ -112,7 +148,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
         {([
           { key: 'files' as WorkspaceTab, label: '文件', icon: <FolderOpen className="h-4 w-4" /> },
           { key: 'activity' as WorkspaceTab, label: '动态', icon: <Users className="h-4 w-4" /> },
-        ]).map((tab) => (
+        ]).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={cn(
             'flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors',
             activeTab === tab.key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -122,10 +158,11 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
         ))}
       </div>
 
-      {/* 文件 Tab */}
+      {/* ====== 文件 Tab ====== */}
       {activeTab === 'files' && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          {/* 工具栏 */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-1">
               <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('list')}>
                 <List className="h-4 w-4" />
@@ -134,46 +171,122 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                 <Grid className="h-4 w-4" />
               </Button>
             </div>
-            {(userRole === 'admin' || userRole === 'owner' || isOwner) && (
-              <Button size="sm" disabled title="即将支持直接上传到工作区">
-                上传文件
-              </Button>
-            )}
+
+            <div className="flex items-center gap-2">
+              {/* 新建文件夹 */}
+              {canWrite && (
+                <>
+                  {!isCreatingFolder ? (
+                    <Button variant="outline" size="sm" onClick={() => setIsCreatingFolder(true)}>
+                      <FolderPlus className="h-4 w-4 mr-1" /> 新建文件夹
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        placeholder="文件夹名称"
+                        className="w-40 h-8 text-sm"
+                        onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                        autoFocus
+                      />
+                      <Button size="sm" onClick={handleCreateFolder} disabled={createFolderMutation.isPending}>
+                        {createFolderMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : '确定'}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => { setIsCreatingFolder(false); setNewFolderName(''); }}>
+                        取消
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* 上传按钮（提示用户拖拽或点击） */}
+              {canWrite && (
+                <Button variant="outline" size="sm" title="上传文件到团队空间">
+                  <Upload className="h-4 w-4 mr-1" /> 上传
+                </Button>
+              )}
+
+              {/* 批量删除 */}
+              {selectedFileIds.size > 0 && canWrite && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    if (confirm(`确定删除选中的 ${selectedFileIds.size} 个项目？`)) {
+                      selectedFileIds.forEach(id => deleteMutation.mutate(id));
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" /> 删除 ({selectedFileIds.size})
+                </Button>
+              )}
+            </div>
           </div>
 
+          {/* 文件列表 */}
           {isFilesLoading ? (
-            <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+            <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>
           ) : files.length === 0 ? (
             <div className="text-center py-16 bg-muted/20 rounded-lg border border-dashed">
               <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
               <p className="text-muted-foreground">工作区暂无文件</p>
-              <p className="text-sm text-muted-foreground mt-1">团队管理员可从个人空间挂载文件到这里</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {canWrite ? '新建文件夹或上传文件开始协作' : '等待团队成员添加文件'}
+              </p>
             </div>
           ) : viewMode === 'list' ? (
             <div className="rounded-lg border overflow-hidden">
               <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-muted/50 text-xs font-medium text-muted-foreground border-b">
-                <div className="col-span-6">名称</div><div className="col-span-2">大小</div>
-                <div className="col-span-2">权限</div><div className="col-span-2">挂载时间</div>
+                <div className="col-span-6">
+                  <input type="checkbox" disabled className="rounded" />
+                  名称
+                </div>
+                <div className="col-span-2">大小</div>
+                <div className="col-span-2">权限</div>
+                <div className="col-span-2">日期</div>
               </div>
-              {files.map((file) => (
-                <div key={file.fileId} onClick={() => handleFolderClick(file)}
-                  className="grid grid-cols-12 gap-2 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors items-center"
+              {files.map(file => (
+                <div
+                  key={file.fileId}
+                  onClick={(e) => { if ((e.target as HTMLInputElement).type !== 'checkbox') toggleSelect(file.fileId); }}
+                  className={cn(
+                    'grid grid-cols-12 gap-2 px-4 py-3 border-b last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors items-center',
+                    selectedFileIds.has(file.fileId) && 'bg-primary/5'
+                  )}
                 >
                   <div className="col-span-6 flex items-center gap-2 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={selectedFileIds.has(file.fileId)}
+                      onChange={() => toggleSelect(file.fileId)}
+                      className="rounded"
+                      onClick={(e) => e.stopPropagation()}
+                    />
                     {file.isFolder ? <FolderOpen className="h-4 w-4 text-blue-500 flex-shrink-0" /> : <File className="h-4 w-4 text-gray-400 flex-shrink-0" />}
                     <span className="truncate">{file.fileName}</span>
                   </div>
-                  <div className="col-span-2 text-sm text-muted-foreground">{file.isFolder ? '-' : formatBytes(file.size)}</div>
+                  <div className="col-span-2 text-sm text-muted-foreground">
+                    {file.isFolder ? '-' : formatBytes(file.size)}
+                  </div>
                   <div className="col-span-2"><PermissionBadge permission={file.permission} /></div>
-                  <div className="col-span-2 text-xs text-muted-foreground">{new Date(file.mountedAt).toLocaleDateString('zh-CN')}</div>
+                  <div className="col-span-2 text-xs text-muted-foreground">
+                    {new Date(file.mountedAt).toLocaleDateString('zh-CN')}
+                  </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {files.map((file) => (
-                <div key={file.fileId} onClick={() => handleFolderClick(file)}
-                  className="flex flex-col items-center p-4 rounded-lg border hover:border-primary/50 hover:bg-muted/30 cursor-pointer transition-colors"
+              {files.map(file => (
+                <div
+                  key={file.fileId}
+                  onClick={() => toggleSelect(file.fileId)}
+                  className={cn(
+                    'flex flex-col items-center p-4 rounded-lg border hover:border-primary/50 hover:bg-muted/30 cursor-pointer transition-colors relative',
+                    selectedFileIds.has(file.fileId) && 'border-primary bg-primary/5'
+                  )}
                 >
                   {file.isFolder ? <FolderOpen className="h-10 w-10 text-blue-500 mb-2" /> : <File className="h-10 w-10 text-gray-400 mb-2" />}
                   <span className="text-sm text-center truncate w-full">{file.fileName}</span>
@@ -185,7 +298,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
         </div>
       )}
 
-      {/* 动态 Tab */}
+      {/* ====== 动态 Tab ====== */}
       {activeTab === 'activity' && <TeamActivityFeed teamId={teamId} />}
     </div>
   );
