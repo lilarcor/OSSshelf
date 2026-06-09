@@ -15,9 +15,14 @@ const INVITE_RATE_LIMIT = 30; // 每分钟最大请求数
 const INVITE_RATE_WINDOW = 60_000; // 1 分钟窗口
 
 function checkRateLimit(ip: string): boolean {
+  // 惰性清理：每次检查时顺便清除过期条目
   const now = Date.now();
+  for (const [k, v] of inviteRateMap) {
+    if (now > v.resetAt) inviteRateMap.delete(k);
+  }
+
   const entry = inviteRateMap.get(ip);
-  if (!entry || now > entry.resetAt) {
+  if (!entry) {
     inviteRateMap.set(ip, { count: 1, resetAt: now + INVITE_RATE_WINDOW });
     return true;
   }
@@ -25,14 +30,6 @@ function checkRateLimit(ip: string): boolean {
   entry.count++;
   return true;
 }
-
-// 定期清理过期条目（每 5 分钟）
-setInterval(() => {
-  const now = Date.now();
-  for (const [k, v] of inviteRateMap) {
-    if (now > v.resetAt) inviteRateMap.delete(k);
-  }
-}, 300_000);
 
 const publicApp = new Hono<{ Bindings: Env; Variables: Variables }>();
 
