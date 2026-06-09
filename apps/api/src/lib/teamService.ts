@@ -646,7 +646,7 @@ export async function mountResourceToTeam(
       subjectType: 'team',
       permission: 'read', // 默认只读，管理员可后续提升
       grantedBy: userId,
-      inheritToChildren: true,
+      inheritToChildren: options?.penetrate ?? true, // 默认穿透，反映用户选择
       scope: 'explicit',
       createdAt: now,
       updatedAt: now,
@@ -703,7 +703,7 @@ export async function mountResourceToTeam(
             subjectType: 'team',
             permission: 'read',
             grantedBy: userId,
-            inheritToChildren: true,
+            inheritToChildren: options?.penetrate ?? true, // 与父级保持一致，默认穿透
             scope: 'explicit',
             createdAt: now,
             updatedAt: now,
@@ -868,38 +868,62 @@ export async function getTeamFiles(
     .get();
   if (!membership) return { files: [], total: 0 };
 
-  // 获取所有已挂载的资源（根据 targetFolderId 过滤）
-  const mountConditions = [eq(teamResources.teamId, teamId)];
-  if (folderId) {
-    // 在子文件夹中浏览时，只显示挂载到该文件夹的资源
-    mountConditions.push(eq(teamResources.targetFolderId, folderId));
-  } else {
-    // 在根目录浏览时，只显示 targetFolderId 为 NULL 的资源（即挂载到根目录的）
-    mountConditions.push(isNull(teamResources.targetFolderId));
+  // ═══════════════════════════════════════════════════════════════
+  // Phase 1: 识别"当前位置"的类型 — 这是整个函数的核心分发点
+  // ═══════════════════════════════════════════════════════════════
+  //
+  // 团队空间中有两类可浏览节点：
+  //   A) 团队自有文件/文件夹 (files.teamId = teamId) → 通过 parentId 组织层级
+  //   B) 挂载的资源 (team_resources 记录) → 通过 targetFolderId 映射显示位置
+  //
+  // 当用户点击进入某个节点时，前端传来的 folderId 可能属于 A 或 B，
+  // 必须先判断类型才能决定用什么方式查询内容。
+
+  if (!folderId) {
+    // ── 根目录：合并两类内容 ──
+    return getTeamRootContent(db, env, teamId, viewerUserId);
   }
 
-  const mounts = await db
-    .select({
-      fileId: teamResources.fileId,
-      mountedAt: teamResources.mountedAt,
-      targetFolderId: teamResources.targetFolderId,
-    })
+  // 判断 folderId 属于哪类
+  const isTeamOwnFile = await db
+    .select({ id: files.id, isFolder: files.isFolder })
+    .from(files)
+    .where(and(eq(files.id, folderId), eq(files.teamId, teamId), isNull(files.deletedAt)))
+    .get();
+
+  if (isTeamOwnFile) {
+    // ── 分支A：团队自有文件夹 → 用 parentId 查子文件 ──
+    return getTeamOwnFolderContent(db, env, teamId, viewerUserId, folderId);
+  }
+
+  const isMountedResource = await db
+    .select({ id: teamResources.id, fileId: teamResources.fileId })
     .from(teamResources)
-    .where(and(...mountConditions))
-    .all();
+    .where(and(eq(teamResources.teamId, teamId), eq(teamResources.fileId, folderId)))
+    .get();
 
-  if (mounts.length === 0) return { files: [], total: 0 };
+  if (isMountedResource) {
+    // ── 分支B：挂载的文件夹 → 展示其原始子文件（基于权限）──
+    return getMountedFolderContent(db, env, teamId, viewerUserId, folderId);
+  }
 
-  const mountedFileIds = mounts.map((m) => m.fileId);
-  const mountedAtMap = new Map(mounts.map((m) => [m.fileId, m.mountedAt]));
-  const targetFolderMap = new Map(mounts.map((m) => [m.fileId, m.targetFolderId]));
+  // folderId 不属于任何已知节点
+  return { files: [], total: 0 };
+}
 
-  // 查询这些文件的基本信息
-  // 注意：不使用 files.parentId 过滤！因为挂载文件的 parentId 是其原始位置，
-  // 而非目标挂载目录。目标目录过滤已在上面通过 targetFolderId 完成。
-  const baseConditions = [inArray(files.id, mountedFileIds), isNull(files.deletedAt)];
+// ═══════════════════════════════════════════════════════════════
+// 分支实现
+// ═══════════════════════════════════════════════════════════════
 
-  const allFiles = await db
+/** 根目录：团队自有根级文件 + 挂载到根目录的资源 */
+async function getTeamRootContent(
+  db: DrizzleDb,
+  env: Env,
+  teamId: string,
+  viewerUserId: string
+): Promise<{ files: TeamFileItem[]; total: number }> {
+  // 团队自有文件：parentId IS NULL 且 teamId = teamId
+  const ownFiles = await db
     .select({
       id: files.id,
       name: files.name,
@@ -908,25 +932,204 @@ export async function getTeamFiles(
       mimeType: files.mimeType,
       size: files.size,
       isFolder: files.isFolder,
-      parentId: files.parentId,
-      deletedAt: files.deletedAt,
       userId: files.userId,
     })
     .from(files)
-    .where(and(...baseConditions))
+    .where(and(eq(files.teamId, teamId), isNull(files.parentId), isNull(files.deletedAt)))
     .all();
 
-  // 对每个文件检查权限（批量查询，避免 N+1）
-  const allFileIds = allFiles.map((f) => f.id).filter(Boolean);
-  const permsMap = new Map<string, { permission: string }>();
+  // 挂载资源：targetFolderId IS NULL
+  const mounts = await db
+    .select({
+      fileId: teamResources.fileId,
+      mountedAt: teamResources.mountedAt,
+    })
+    .from(teamResources)
+    .where(and(eq(teamResources.teamId, teamId), isNull(teamResources.targetFolderId)))
+    .all();
 
-  if (allFileIds.length > 0) {
+  const mountedFileIds = mounts.map((m) => m.fileId);
+  const mountedAtMap = new Map(mounts.map((m) => [m.fileId, m.mountedAt]));
+
+  const mountedFiles = mountedFileIds.length > 0
+    ? await db
+        .select({
+          id: files.id,
+          name: files.name,
+          path: files.path,
+          type: files.type,
+          mimeType: files.mimeType,
+          size: files.size,
+          isFolder: files.isFolder,
+          userId: files.userId,
+        })
+        .from(files)
+        .where(and(inArray(files.id, mountedFileIds), isNull(files.deletedAt)))
+        .all()
+    : [];
+
+  // 合并并检查权限
+  const allItems = [...ownFiles, ...mountedFiles];
+  const result = await filterByPermission(db, allItems, teamId, viewerUserId, mountedAtMap, null);
+
+  return { files: result, total: result.length };
+}
+
+/** 团队自有文件夹：通过 parentId 查子文件 + 挂载到此文件夹的资源 */
+async function getTeamOwnFolderContent(
+  db: DrizzleDb,
+  env: Env,
+  teamId: string,
+  viewerUserId: string,
+  folderId: string
+): Promise<{ files: TeamFileItem[]; total: number }> {
+  // 团队自有子文件
+  const ownChildren = await db
+    .select({
+      id: files.id,
+      name: files.name,
+      path: files.path,
+      type: files.type,
+      mimeType: files.mimeType,
+      size: files.size,
+      isFolder: files.isFolder,
+      userId: files.userId,
+    })
+    .from(files)
+    .where(and(eq(files.teamId, teamId), eq(files.parentId, folderId), isNull(files.deletedAt)))
+    .all();
+
+  // 挂载到此文件夹的资源
+  const mounts = await db
+    .select({
+      fileId: teamResources.fileId,
+      mountedAt: teamResources.mountedAt,
+    })
+    .from(teamResources)
+    .where(and(eq(teamResources.teamId, teamId), eq(teamResources.targetFolderId, folderId)))
+    .all();
+
+  const mountedFileIds = mounts.map((m) => m.fileId);
+  const mountedAtMap = new Map(mounts.map((m) => [m.fileId, m.mountedAt]));
+
+  const mountedFiles = mountedFileIds.length > 0
+    ? await db
+        .select({
+          id: files.id,
+          name: files.name,
+          path: files.path,
+          type: files.type,
+          mimeType: files.mimeType,
+          size: files.size,
+          isFolder: files.isFolder,
+          userId: files.userId,
+        })
+        .from(files)
+        .where(and(inArray(files.id, mountedFileIds), isNull(files.deletedAt)))
+        .all()
+    : [];
+
+  const allItems = [...ownChildren, ...mountedFiles];
+  const result = await filterByPermission(db, allItems, teamId, viewerUserId, mountedAtMap, folderId);
+
+  return { files: result, total: result.length };
+}
+
+/** 挂载的文件夹：展示其原始空间的直接子文件（基于权限过滤） */
+async function getMountedFolderContent(
+  db: DrizzleDb,
+  env: Env,
+  teamId: string,
+  viewerUserId: string,
+  mountedFolderId: string
+): Promise<{ files: TeamFileItem[]; total: number }> {
+  // 获取挂载文件夹的信息（原始路径和所有者）
+  const folderInfo = await db
+    .select({ path: files.path, userId: files.userId })
+    .from(files)
+    .where(eq(files.id, mountedFolderId))
+    .get();
+
+  if (!folderInfo) return { files: [], total: 0 };
+
+  const folderPath = folderInfo.path.endsWith('/') ? folderInfo.path.slice(0, -1) : folderInfo.path;
+
+  // 查询原始空间中该文件夹的直接子文件
+  const childFiles = await db
+    .select({
+      id: files.id,
+      name: files.name,
+      path: files.path,
+      type: files.type,
+      mimeType: files.mimeType,
+      size: files.size,
+      isFolder: files.isFolder,
+      userId: files.userId,
+    })
+    .from(files)
+    .where(
+      and(
+        eq(files.userId, folderInfo.userId),
+        isNull(files.deletedAt),
+        like(files.path, `${folderPath}/%`)
+      )
+    )
+    .all();
+
+  // 只保留直接子级（排除更深层的嵌套）
+  const directChildren = childFiles.filter((f) => {
+    const relativePath = (f.path ?? '').replace(`${folderPath}/`, '');
+    return !relativePath.includes('/');
+  });
+
+  // 权限过滤
+  const result = await filterByPermission(
+    db,
+    directChildren,
+    teamId,
+    viewerUserId,
+    new Map(), // 子文件没有独立的挂载时间
+    mountedFolderId // targetFolderId 设为父文件夹ID
+  );
+
+  return { files: result, total: result.length };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 共享：权限过滤 + 格式化
+// ═══════════════════════════════════════════════════════════════
+
+/** 统一的权限过滤 + 格式化为 TeamFileItem */
+async function filterByPermission(
+  db: DrizzleDb,
+  items: Array<{
+    id: string;
+    name: string;
+    path: string | null;
+    type: string | null;
+    mimeType: string | null;
+    size: number;
+    isFolder: boolean;
+    userId: string;
+  }>,
+  teamId: string,
+  viewerUserId: string,
+  mountedAtMap: Map<string, string>,
+  targetFolderId: string | null
+): Promise<TeamFileItem[]> {
+  if (items.length === 0) return [];
+
+  const fileIds = items.map((f) => f.id).filter(Boolean);
+
+  // 批量权限查询
+  const permsMap = new Map<string, string>();
+  if (fileIds.length > 0) {
     const perms = await db
       .select({ fileId: filePermissions.fileId, permission: filePermissions.permission })
       .from(filePermissions)
       .where(
         and(
-          inArray(filePermissions.fileId, allFileIds),
+          inArray(filePermissions.fileId, fileIds),
           or(
             and(eq(filePermissions.subjectType, 'user'), eq(filePermissions.userId, viewerUserId)),
             and(eq(filePermissions.subjectType, 'team'), eq(filePermissions.teamId, teamId))
@@ -934,65 +1137,60 @@ export async function getTeamFiles(
         )
       )
       .all();
-
-    // 同一文件多条权限记录时取最高权限: admin > write > read
     for (const p of perms) {
       const existing = permsMap.get(p.fileId);
-      if (!existing || permissionRank(p.permission) > permissionRank(existing.permission)) {
-        permsMap.set(p.fileId, { permission: p.permission });
+      const pPerm = p.permission as string;
+      if (!existing || permissionRank(pPerm) > permissionRank(existing)) {
+        permsMap.set(p.fileId, pPerm);
       }
     }
   }
 
-  const filesWithPerm: TeamFileItem[] = [];
-
-  for (const file of allFiles) {
-    if (!file.id) continue;
+  // 过滤 + 格式化
+  const result: TeamFileItem[] = [];
+  for (const f of items) {
+    if (!f.id) continue;
 
     // 文件所有者总有完全权限
-    if (file.userId === viewerUserId) {
-      filesWithPerm.push({
-        fileId: file.id,
-        fileName: file.name,
-        filePath: file.path,
-        fileType: file.type,
-        mimeType: file.mimeType,
-        size: file.size,
-        isFolder: file.isFolder,
-        mountedAt: mountedAtMap.get(file.id) || '',
+    if (f.userId === viewerUserId) {
+      result.push({
+        fileId: f.id,
+        fileName: f.name,
+        filePath: f.path,
+        fileType: f.type,
+        mimeType: f.mimeType,
+        size: Number(f.size ?? 0),
+        isFolder: Boolean(f.isFolder),
+        mountedAt: mountedAtMap.get(f.id) || new Date().toISOString(),
         permission: 'admin',
-        targetFolderId: targetFolderMap.get(file.id) ?? null,
+        targetFolderId,
       });
       continue;
     }
 
-    // 从批量结果中查找权限
-    const perm = permsMap.get(file.id);
-
+    const perm = permsMap.get(f.id);
     if (perm) {
-      filesWithPerm.push({
-        fileId: file.id,
-        fileName: file.name,
-        filePath: file.path,
-        fileType: file.type,
-        mimeType: file.mimeType,
-        size: file.size,
-        isFolder: file.isFolder,
-        mountedAt: mountedAtMap.get(file.id) || '',
-        permission: perm.permission as 'read' | 'write' | 'admin',
-        targetFolderId: targetFolderMap.get(file.id) ?? null,
+      result.push({
+        fileId: f.id,
+        fileName: f.name,
+        filePath: f.path,
+        fileType: f.type,
+        mimeType: f.mimeType,
+        size: Number(f.size ?? 0),
+        isFolder: Boolean(f.isFolder),
+        mountedAt: mountedAtMap.get(f.id) || new Date().toISOString(),
+        permission: perm as 'read' | 'write' | 'admin',
+        targetFolderId,
       });
     }
+    // 无权限的文件不加入结果
   }
 
-  const total = filesWithPerm.length;
-  const paged = filesWithPerm.slice(offset, offset + limit);
-
-  return { files: paged, total };
+  return result;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ★ 新增：团队存储统计
+// ★ 团队存储统计
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getTeamStorageStats(

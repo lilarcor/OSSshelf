@@ -347,7 +347,7 @@ app.post('/grant', async (c) => {
         permission,
         grantedBy: userId,
         expiresAt: expiresAt || null,
-        inheritToChildren: true,
+        inheritToChildren, // 反映用户真实选择，resolver据此决定是否继承
         scope: 'explicit',
         createdAt: now,
         updatedAt: now,
@@ -496,6 +496,18 @@ app.post('/revoke', async (c) => {
   }
 
   await db.delete(filePermissions).where(whereClause);
+
+  // 团队权限撤销时，同步清理挂载记录（与 unmountResourceFromTeam 保持一致）
+  if (teamId) {
+    const mountRecord = await db
+      .select()
+      .from(teamResources)
+      .where(and(eq(teamResources.teamId, teamId), eq(teamResources.fileId, fileId)))
+      .get();
+    if (mountRecord) {
+      await db.delete(teamResources).where(and(eq(teamResources.teamId, teamId), eq(teamResources.fileId, fileId)));
+    }
+  }
 
   await invalidatePermissionCache(c.env, fileId);
 
@@ -968,6 +980,25 @@ app.delete('/:permissionId', async (c) => {
   }
 
   await db.delete(filePermissions).where(eq(filePermissions.id, permissionId));
+
+  // 团队权限删除时，同步清理挂载记录
+  if (existingPermission.subjectType === 'team' && existingPermission.teamId) {
+    const mountRecord = await db
+      .select()
+      .from(teamResources)
+      .where(
+        and(
+          eq(teamResources.teamId, existingPermission.teamId),
+          eq(teamResources.fileId, existingPermission.fileId)
+        )
+      )
+      .get();
+    if (mountRecord) {
+      await db
+        .delete(teamResources)
+        .where(and(eq(teamResources.teamId, existingPermission.teamId), eq(teamResources.fileId, existingPermission.fileId)));
+    }
+  }
 
   await invalidatePermissionCache(c.env, existingPermission.fileId);
 
