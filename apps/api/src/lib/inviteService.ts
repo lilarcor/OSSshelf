@@ -9,7 +9,7 @@
  * - 清理过期邀请
  */
 
-import { eq, and, lt, desc } from 'drizzle-orm';
+import { eq, and, lt, desc, sql } from 'drizzle-orm';
 import { getDb, teamInvitations, teams, teamMembers, users } from '../db';
 import type { DrizzleDb } from '../db';
 import type { Env } from '../types/env';
@@ -261,7 +261,87 @@ export async function revokeInvite(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 列出待定邀请
+// 列出所有邀请记录（支持状态筛选）
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface InviteRecordItem extends PendingInviteItem {
+  status: 'pending' | 'accepted' | 'expired' | 'revoked';
+  acceptedBy: string | null;
+  acceptedAt: string | null;
+  acceptedUserName: string | null;
+}
+
+/**
+ * 列出团队的所有邀请记录
+ * @param status 可选状态筛选，不传则返回所有状态
+ */
+export async function listAllInvites(
+  db: DrizzleDb,
+  teamId: string,
+  status?: 'pending' | 'accepted' | 'expired' | 'revoked'
+): Promise<InviteRecordItem[]> {
+  const conditions = [eq(teamInvitations.teamId, teamId)];
+  if (status) {
+    conditions.push(eq(teamInvitations.status, status));
+  }
+
+  const invites = await db
+    .select({
+      id: teamInvitations.id,
+      inviteToken: teamInvitations.inviteToken,
+      inviteCode: teamInvitations.inviteCode,
+      email: teamInvitations.email,
+      role: teamInvitations.role,
+      message: teamInvitations.message,
+      status: teamInvitations.status,
+      inviterName: users.name,
+      inviterEmail: users.email,
+      expiresAt: teamInvitations.expiresAt,
+      createdAt: teamInvitations.createdAt,
+      acceptedBy: teamInvitations.acceptedBy,
+      acceptedAt: teamInvitations.acceptedAt,
+    })
+    .from(teamInvitations)
+    .innerJoin(users, eq(teamInvitations.invitedBy, users.id))
+    .leftJoin(users.as('acceptor'), eq(teamInvitations.acceptedBy, (users as any).id)) // 需要别名，这里简化处理
+    .where(and(...conditions))
+    .orderBy(desc(teamInvitations.createdAt))
+    .all();
+
+  // 批量查询接受者信息（避免 N+1）
+  const acceptorIds = [...new Set(invites.map((inv) => inv.acceptedBy).filter(Boolean))] as string[];
+  const acceptorMap = new Map<string, { name: string | null }>();
+  if (acceptorIds.length > 0) {
+    const acceptors = await db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(/* 使用 inArray 需要额外导入 */ sql`${users.id} IN (${acceptorIds.join(',')})`)
+      .all();
+    for (const a of acceptors) {
+      acceptorMap.set(a.id, { name: a.name });
+    }
+  }
+
+  return invites.map((inv) => ({
+    id: inv.id,
+    inviteToken: inv.inviteToken,
+    inviteCode: inv.inviteCode,
+    email: inv.email,
+    role: inv.role,
+    message: inv.message,
+    status: inv.status as InviteRecordItem['status'],
+    inviterName: inv.inviterName,
+    inviterEmail: inv.inviterEmail,
+    expiresAt: inv.expiresAt,
+    createdAt: inv.createdAt,
+    acceptedBy: inv.acceptedBy,
+    acceptedAt: inv.acceptedAt,
+    acceptedUserName: inv.acceptedBy ? acceptorMap.get(inv.acceptedBy)?.name ?? null : null,
+  }));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 列出待定邀请（保持向后兼容）
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PendingInviteItem {

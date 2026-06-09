@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/useToast';
 import { teamsApi, type TeamMember, type TeamResource } from '@/services/collab';
 import TeamActivityFeed from './TeamActivityFeed';
+import TeamInviteRecords from './TeamInviteRecords';
 import {
   Users,
   FolderOpen,
@@ -24,6 +25,7 @@ import {
   User,
   EyeOff,
   Clock,
+  Mail,
 } from 'lucide-react';
 import { cn, formatBytes } from '@/utils';
 
@@ -32,7 +34,7 @@ interface TeamDetailProps {
   onClose?: () => void;
 }
 
-type TabType = 'members' | 'resources' | 'activity' | 'settings';
+type TabType = 'members' | 'invites' | 'resources' | 'activity' | 'settings';
 
 const roleColorMap: Record<string, { bg: string; text: string; label: string; icon: React.ReactNode }> = {
   owner: {
@@ -66,6 +68,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('members');
+  const [showInviteRecords, setShowInviteRecords] = useState(false);
 
   const { data: teamData, isLoading: isTeamLoading } = useQuery({
     queryKey: ['team', teamId],
@@ -141,6 +144,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
 
   const tabs: { key: TabType; label: string; icon: React.ReactNode }[] = [
     { key: 'members', label: '成员', icon: <Users className="h-4 w-4" /> },
+    { key: 'invites', label: '邀请记录', icon: <Mail className="h-4 w-4" /> },
     { key: 'resources', label: '资源', icon: <FolderOpen className="h-4 w-4" /> },
     { key: 'activity', label: '动态', icon: <Clock className="h-4 w-4" /> },
   ];
@@ -204,6 +208,30 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
       {/* Tab 内容 */}
       {activeTab === 'members' && (
         <MembersSection members={members} isLoading={isMembersLoading} teamId={teamId} isOwner={isOwner} />
+      )}
+
+      {activeTab === 'invites' && (
+        <div className="rounded-lg border bg-muted/30 p-4 text-center">
+          <p className="text-sm text-muted-foreground mb-3">查看和管理团队邀请记录</p>
+          <Button
+            size="sm"
+            onClick={() => {
+              // 使用状态或直接渲染 TeamInviteRecords 组件
+              setShowInviteRecords(true);
+            }}
+          >
+            <Mail className="h-4 w-4 mr-1" /> 打开邀请记录面板
+          </Button>
+        </div>
+      )}
+
+      {showInviteRecords && (
+        <TeamInviteRecords
+          teamId={teamId}
+          teamName={teamData?.name || ''}
+          userRole={teamData?.userRole || ''}
+          onClose={() => setShowInviteRecords(false)}
+        />
       )}
 
       {activeTab === 'resources' && (

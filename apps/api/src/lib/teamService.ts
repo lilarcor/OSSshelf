@@ -808,7 +808,16 @@ export async function getTeamFiles(
     .get();
   if (!membership) return { files: [], total: 0 };
 
-  // 获取所有已挂载的资源
+  // 获取所有已挂载的资源（根据 targetFolderId 过滤）
+  const mountConditions = [eq(teamResources.teamId, teamId)];
+  if (folderId) {
+    // 在子文件夹中浏览时，只显示挂载到该文件夹的资源
+    mountConditions.push(eq(teamResources.targetFolderId, folderId));
+  } else {
+    // 在根目录浏览时，只显示 targetFolderId 为 NULL 的资源（即挂载到根目录的）
+    mountConditions.push(isNull(teamResources.targetFolderId));
+  }
+
   const mounts = await db
     .select({
       fileId: teamResources.fileId,
@@ -816,7 +825,7 @@ export async function getTeamFiles(
       targetFolderId: teamResources.targetFolderId,
     })
     .from(teamResources)
-    .where(eq(teamResources.teamId, teamId))
+    .where(and(...mountConditions))
     .all();
 
   if (mounts.length === 0) return { files: [], total: 0 };

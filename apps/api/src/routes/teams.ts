@@ -31,7 +31,13 @@ import {
   getTeamFiles,
   getTeamStorageStats,
 } from '../lib/teamService';
-import { createInvite, listPendingInvites, revokeInvite, type InviteInfo } from '../lib/inviteService';
+import {
+  createInvite,
+  listPendingInvites,
+  listAllInvites,
+  revokeInvite,
+  type InviteInfo,
+} from '../lib/inviteService';
 import { listTeamActivities } from '../lib/teamActivityService';
 import { recordActivityWithEnv } from '../lib/teamActivityService';
 
@@ -588,6 +594,35 @@ app.get('/:id/invites', async (c) => {
   }
 
   const invites = await listPendingInvites(db, teamId);
+  return c.json({ success: true, data: { invites } });
+});
+
+/** 列出所有邀请记录（支持状态筛选）- 增强版 */
+app.get('/:id/invites/all', async (c) => {
+  const userId = c.get('userId')!;
+  const teamId = c.req.param('id');
+  const status = c.req.query('status') as 'pending' | 'accepted' | 'expired' | 'revoked' | undefined;
+  const db = getDb(c.env.DB);
+
+  // 权限验证：只有团队成员可以查看邀请记录
+  const membership = await db
+    .select()
+    .from(teamMembers)
+    .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)))
+    .get();
+  if (!membership) {
+    throwAppError('TEAM_ACCESS_DENIED', '您不是该团队的成员');
+  }
+
+  // 验证状态参数合法性
+  if (status && !['pending', 'accepted', 'expired', 'revoked'].includes(status)) {
+    return c.json(
+      { success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '无效的状态值' } },
+      400
+    );
+  }
+
+  const invites = await listAllInvites(db, teamId, status);
   return c.json({ success: true, data: { invites } });
 });
 
