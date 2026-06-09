@@ -65,7 +65,7 @@ const TeamResourceMountDialog: React.FC<TeamResourceMountDialogProps> = ({ teamI
     queryKey: ['mount-file-search', searchQuery],
     queryFn: async () => {
       if (!searchQuery.trim()) return [];
-      const res = await filesApi.list({ search: searchQuery.trim(), limit: 20 });
+      const res = await filesApi.list({ search: searchQuery.trim(), limit: 20, scope: 'all' });
       return (res.data?.data ?? []).map((f: any) => ({
         id: f.id,
         name: f.name,

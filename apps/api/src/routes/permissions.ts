@@ -106,6 +106,7 @@ app.get('/all', async (c) => {
           subjectType: filePermissions.subjectType,
           userId: filePermissions.userId,
           groupId: filePermissions.groupId,
+          teamId: filePermissions.teamId,
           permission: filePermissions.permission,
           expiresAt: filePermissions.expiresAt,
           createdAt: filePermissions.createdAt,
@@ -116,11 +117,13 @@ app.get('/all', async (c) => {
           userName: users.name,
           userEmail: users.email,
           groupName: userGroups.name,
+          teamName: teams.name,
         })
         .from(filePermissions)
         .innerJoin(files, eq(filePermissions.fileId, files.id))
         .leftJoin(users, eq(filePermissions.userId, users.id))
         .leftJoin(userGroups, eq(filePermissions.groupId, userGroups.id))
+        .leftJoin(teams, eq(filePermissions.teamId, teams.id))
         .where(inArray(filePermissions.fileId, chunk))
         .all()
     )
@@ -131,8 +134,11 @@ app.get('/all', async (c) => {
   const formattedPermissions = permissions.map((p) => ({
     id: p.id,
     subjectType: p.subjectType,
-    subjectId: p.subjectType === 'user' ? p.userId : p.groupId,
-    subjectName: p.subjectType === 'user' ? p.userName || p.userEmail || '未知用户' : p.groupName || '未知组',
+    subjectId: p.subjectType === 'user' ? p.userId : (p.subjectType === 'group' ? p.groupId : p.teamId),
+    subjectName:
+      p.subjectType === 'user' ? p.userName || p.userEmail || '未知用户'
+      : p.subjectType === 'group' ? p.groupName || '未知组'
+      : p.teamName || '未知团队',
     fileId: p.fileId,
     fileName: p.fileName,
     filePath: p.filePath,

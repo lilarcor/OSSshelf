@@ -781,6 +781,7 @@ app.get('/', async (c) => {
   const page = Math.max(1, parseInt(c.req.query('page') || '1', 10));
   const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit') || '50', 10)));
   const offset = (page - 1) * limit;
+  const scope = c.req.query('scope'); // 'all' 表示搜索用户全部文件（不限目录层级）
 
   const db = getDb(c.env.DB);
 
@@ -868,11 +869,12 @@ app.get('/', async (c) => {
       ...groupPermittedFiles.map((p) => p.fileId),
     ]);
 
-    // 根目录查询条件：
-    // - 用户自己的根目录文件 (userId = current AND parentId IS NULL)
+    // 根目录查询条件（或全局搜索模式）：
+    // - 默认：用户自己的根目录文件 (userId = current AND parentId IS NULL)
     // - 或被授权访问的文件 (id IN permittedIds)
+    // - scope=all 时：用户自己的全部文件 + 被授权访问的文件
     const ownershipCondition = or(
-      and(eq(files.userId, userId), isNull(files.parentId)),
+      and(eq(files.userId, userId), scope === 'all' ? sql`1=1` : isNull(files.parentId)),
       permittedIds.size > 0 ? inArray(files.id, Array.from(permittedIds)) : sql`0=1`
     );
     if (ownershipCondition) conditions.push(ownershipCondition);

@@ -37,6 +37,7 @@ import {
   LazyAISettings,
   LazyTeams,
   LazyTeamWorkspace,
+  LazyAcceptInvite,
   LazyWrapper,
 } from './LazyComponents';
 
@@ -124,6 +125,16 @@ function App() {
         element={
           <LazyWrapper>
             <LazySharePage />
+          </LazyWrapper>
+        }
+      />
+
+      {/* 公开：团队邀请接受页面（登录前后均可访问） */}
+      <Route
+        path="/invite/:token"
+        element={
+          <LazyWrapper>
+            <LazyAcceptInvite />
           </LazyWrapper>
         }
       />
