@@ -835,10 +835,9 @@ export async function getTeamFiles(
   const targetFolderMap = new Map(mounts.map((m) => [m.fileId, m.targetFolderId]));
 
   // 查询这些文件的基本信息
+  // 注意：不使用 files.parentId 过滤！因为挂载文件的 parentId 是其原始位置，
+  // 而非目标挂载目录。目标目录过滤已在上面通过 targetFolderId 完成。
   const baseConditions = [inArray(files.id, mountedFileIds), isNull(files.deletedAt)];
-  if (folderId) {
-    baseConditions.push(eq(files.parentId, folderId));
-  }
 
   const allFiles = await db
     .select({
