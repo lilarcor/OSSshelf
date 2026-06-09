@@ -845,6 +845,8 @@ export interface TeamFileItem {
   permission: 'read' | 'write' | 'admin';
   /** 挂载目标文件夹ID（NULL=根目录） */
   targetFolderId: string | null;
+  /** 来源类型：owned=团队自有文件，mounted=挂载的外部资源 */
+  source: 'owned' | 'mounted';
 }
 
 /**
@@ -968,9 +970,9 @@ async function getTeamRootContent(
         .all()
     : [];
 
-  // 合并并检查权限
+  // 合并并检查权限（ownFiles=owned, mountedFiles=mounted）
   const allItems = [...ownFiles, ...mountedFiles];
-  const result = await filterByPermission(db, allItems, teamId, viewerUserId, mountedAtMap, null);
+  const result = await filterByPermission(db, allItems, teamId, viewerUserId, mountedAtMap, null, false, 'owned');
 
   return { files: result, total: result.length };
 }
@@ -1030,7 +1032,7 @@ async function getTeamOwnFolderContent(
     : [];
 
   const allItems = [...ownChildren, ...mountedFiles];
-  const result = await filterByPermission(db, allItems, teamId, viewerUserId, mountedAtMap, folderId);
+  const result = await filterByPermission(db, allItems, teamId, viewerUserId, mountedAtMap, folderId, false, 'owned');
 
   return { files: result, total: result.length };
 }
@@ -1076,20 +1078,24 @@ async function getMountedFolderContent(
     )
     .all();
 
-  // 只保留直接子级（排除更深层的嵌套）
+  // 只保留直接子级（排除更深层的嵌套，但保留直接子文件夹）
   const directChildren = childFiles.filter((f) => {
     const relativePath = (f.path ?? '').replace(`${folderPath}/`, '');
-    return !relativePath.includes('/');
+    // 直接子文件：不含 / ；直接子文件夹：/ 仅出现在末尾
+    const slashIndex = relativePath.indexOf('/');
+    return slashIndex === -1 || slashIndex === relativePath.length - 1;
   });
 
-  // 权限过滤
+  // 权限过滤（viaMountedFolder=true: 子文件无独立权限时继承父级展示；defaultSource=mounted）
   const result = await filterByPermission(
     db,
     directChildren,
     teamId,
     viewerUserId,
-    new Map(), // 子文件没有独立的挂载时间
-    mountedFolderId // targetFolderId 设为父文件夹ID
+    new Map(), // 子文件没有独立的挂载记录
+    mountedFolderId, // targetFolderId 设为父文件夹ID
+    true, // viaMountedFolder: 通过挂载文件夹访问
+    'mounted' // 所有子文件都来源自挂载
   );
 
   return { files: result, total: result.length };
@@ -1115,7 +1121,11 @@ async function filterByPermission(
   teamId: string,
   viewerUserId: string,
   mountedAtMap: Map<string, string>,
-  targetFolderId: string | null
+  targetFolderId: string | null,
+  /** 是否通过挂载文件夹访问（此时无独立权限也应展示） */
+  viaMountedFolder: boolean = false,
+  /** 无挂载记录时的默认来源（由调用方根据上下文决定） */
+  defaultSource: 'owned' | 'mounted' = 'owned'
 ): Promise<TeamFileItem[]> {
   if (items.length === 0) return [];
 
@@ -1151,6 +1161,11 @@ async function filterByPermission(
   for (const f of items) {
     if (!f.id) continue;
 
+    // 判断是否有挂载记录（用于区分"团队自有"和"挂载资源"）
+    const hasMountRecord = mountedAtMap.has(f.id);
+    // source 判断：有挂载记录=mounted，否则由调用方上下文决定
+    const source = hasMountRecord ? 'mounted' : defaultSource;
+
     // 文件所有者总有完全权限
     if (f.userId === viewerUserId) {
       result.push({
@@ -1161,15 +1176,17 @@ async function filterByPermission(
         mimeType: f.mimeType,
         size: Number(f.size ?? 0),
         isFolder: Boolean(f.isFolder),
-        mountedAt: mountedAtMap.get(f.id) || new Date().toISOString(),
+        mountedAt: hasMountRecord ? (mountedAtMap.get(f.id) ?? '') : '',
         permission: 'admin',
         targetFolderId,
+        source,
       });
       continue;
     }
 
     const perm = permsMap.get(f.id);
     if (perm) {
+      // 有独立权限记录 → 展示
       result.push({
         fileId: f.id,
         fileName: f.name,
@@ -1178,12 +1195,28 @@ async function filterByPermission(
         mimeType: f.mimeType,
         size: Number(f.size ?? 0),
         isFolder: Boolean(f.isFolder),
-        mountedAt: mountedAtMap.get(f.id) || new Date().toISOString(),
+        mountedAt: hasMountRecord ? (mountedAtMap.get(f.id) ?? '') : '',
         permission: perm as 'read' | 'write' | 'admin',
         targetFolderId,
+        source,
+      });
+    } else if (viaMountedFolder) {
+      // 通过挂载文件夹访问、子文件无独立权限 → 继承父级权限展示
+      result.push({
+        fileId: f.id,
+        fileName: f.name,
+        filePath: f.path,
+        fileType: f.type,
+        mimeType: f.mimeType,
+        size: Number(f.size ?? 0),
+        isFolder: Boolean(f.isFolder),
+        mountedAt: '',
+        permission: 'read', // 通过父级文件夹权限访问，默认只读
+        targetFolderId,
+        source, // viaMountedFolder 时 defaultSource 由调用方决定
       });
     }
-    // 无权限的文件不加入结果
+    // 无权限且非挂载文件夹访问 → 不加入结果
   }
 
   return result;
