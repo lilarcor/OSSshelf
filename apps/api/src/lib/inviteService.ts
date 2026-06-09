@@ -9,11 +9,12 @@
  * - 清理过期邀请
  */
 
-import { eq, and, isNull, lt, desc } from 'drizzle-orm';
+import { eq, and, lt, desc } from 'drizzle-orm';
 import { getDb, teamInvitations, teams, teamMembers, users } from '../db';
 import type { DrizzleDb } from '../db';
 import type { Env } from '../types/env';
 import { logger } from '@osshelf/shared';
+import { recordActivity } from './teamActivityService';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 类型定义
@@ -87,13 +88,27 @@ export async function createInvite(
     createdAt: now,
   });
 
-  const inviter = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, inviterUserId)).get();
+  const inviter = await db
+    .select({ name: users.name, email: users.email })
+    .from(users)
+    .where(eq(users.id, inviterUserId))
+    .get();
   // 优先使用请求传入的 baseUrl，其次环境变量，最后 fallback
   let baseUrl = input.requestBaseUrl || getBaseUrl(env);
   // 确保 baseUrl 不以 / 结尾
   if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
 
   logger.info('InviteService', '创建邀请', { teamId, inviterUserId, role, token: token.slice(0, 8) + '...' });
+
+  // 记录活动流
+  await recordActivity(db, {
+    teamId,
+    userId: inviterUserId,
+    action: 'invite_sent',
+    resourceType: 'invite',
+    resourceId: token,
+    details: { targetEmail: email || null, targetCode: code, role },
+  });
 
   return {
     success: true,
@@ -158,11 +173,14 @@ export async function acceptInvite(
 
   const now = new Date().toISOString();
 
-  await db.update(teamInvitations).set({
-    status: 'accepted',
-    acceptedBy: acceptorUserId,
-    acceptedAt: now,
-  }).where(eq(teamInvitations.id, invite.id));
+  await db
+    .update(teamInvitations)
+    .set({
+      status: 'accepted',
+      acceptedBy: acceptorUserId,
+      acceptedAt: now,
+    })
+    .where(eq(teamInvitations.id, invite.id));
 
   await db.insert(teamMembers).values({
     id: crypto.randomUUID(),
@@ -174,6 +192,18 @@ export async function acceptInvite(
   });
 
   logger.info('InviteService', '接受邀请', { token: token.slice(0, 8) + '...', acceptorUserId, teamId: invite.teamId });
+
+  // 记录活动流
+  const acceptor = await db.select({ name: users.name }).from(users).where(eq(users.id, acceptorUserId)).get();
+  await recordActivity(db, {
+    teamId: invite.teamId,
+    userId: acceptorUserId,
+    action: 'invite_accepted',
+    resourceType: 'invite',
+    resourceId: invite.id,
+    details: { targetUserName: acceptor?.name || null },
+  });
+
   return { success: true, teamId: invite.teamId, teamName: team.name, role: invite.role };
 }
 
@@ -290,13 +320,7 @@ export async function cleanupExpiredInvites(db: DrizzleDb): Promise<number> {
   const result = await db
     .update(teamInvitations)
     .set({ status: 'expired' })
-    .where(
-      and(
-        eq(teamInvitations.status, 'pending'),
-        isNull(teamInvitations.expiresAt),
-        lt(teamInvitations.expiresAt, now)
-      )
-    );
+    .where(and(eq(teamInvitations.status, 'pending'), lt(teamInvitations.expiresAt, now)));
   if (result.meta.changes > 0) {
     logger.info('InviteService', '清理过期邀请', { count: result.meta.changes });
   }
@@ -322,6 +346,8 @@ function getBaseUrl(env: Env): string {
   try {
     const envObj = env as unknown as Record<string, unknown>;
     if (envObj.APP_URL && typeof envObj.APP_URL === 'string') return envObj.APP_URL;
-  } catch {}
+  } catch {
+    // ignore: APP_URL may not be set
+  }
   return 'http://localhost:8788';
 }

@@ -88,9 +88,7 @@ const TeamList: React.FC<TeamListProps> = ({ className, mode = 'default' }) => {
         <div>
           <h2 className="text-xl font-semibold">{mode === 'management' ? '团队管理' : '我的团队'}</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            {mode === 'management'
-              ? '管理所有团队的协作资源与成员'
-              : '创建或加入团队以协作管理资源'}
+            {mode === 'management' ? '管理所有团队的协作资源与成员' : '创建或加入团队以协作管理资源'}
           </p>
         </div>
         {mode === 'management' ? (
@@ -196,33 +194,41 @@ interface TeamCardProps {
   onNavigateSettings?: (teamId: string) => void;
 }
 
-const TeamCard: React.FC<TeamCardProps> = ({ team, mode = 'default', onManageMembers, onManageResources, onDelete, isDeleting, onNavigateWorkspace, onNavigateSettings }) => {
+const TeamCard: React.FC<TeamCardProps> = ({
+  team,
+  mode = 'default',
+  onManageMembers,
+  onManageResources,
+  onDelete,
+  isDeleting,
+  onNavigateWorkspace,
+  onNavigateSettings,
+}) => {
   const isManagement = mode === 'management';
 
   return (
-    <div className={cn(
-      "bg-card rounded-lg border p-4 hover:border-primary/50 transition-colors",
-      isManagement && "p-3"
-    )}>
+    <div
+      className={cn('bg-card rounded-lg border p-4 hover:border-primary/50 transition-colors', isManagement && 'p-3')}
+    >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className={cn("font-medium", isManagement && "text-sm")}>{team.name}</h3>
+            <h3 className={cn('font-medium', isManagement && 'text-sm')}>{team.name}</h3>
             {team.isOwner ? (
               <span className="px-2 py-0.5 text-xs bg-primary/10 text-primary rounded">所有者</span>
             ) : (
-              isManagement && (
-                <span className="px-2 py-0.5 text-xs bg-muted text-muted-foreground rounded">成员</span>
-              )
+              isManagement && <span className="px-2 py-0.5 text-xs bg-muted text-muted-foreground rounded">成员</span>
             )}
           </div>
           {!isManagement && team.description && (
             <p className="text-sm text-muted-foreground mt-1">{team.description}</p>
           )}
-          <div className={cn(
-            "flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap",
-            isManagement && "gap-3"
-          )}>
+          <div
+            className={cn(
+              'flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap',
+              isManagement && 'gap-3'
+            )}
+          >
             <span className="flex items-center gap-1">
               <Users className="h-3 w-3" />
               {team.memberCount} 成员
@@ -240,7 +246,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, mode = 'default', onManageMem
             )}
           </div>
         </div>
-        <div className={cn("flex items-center gap-2 shrink-0", isManagement && "gap-1")}>
+        <div className={cn('flex items-center gap-2 shrink-0', isManagement && 'gap-1')}>
           {isManagement ? (
             <>
               <Button variant="ghost" size="sm" onClick={() => onNavigateWorkspace(team.id)} title="进入工作区">
@@ -268,7 +274,13 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, mode = 'default', onManageMem
               </Button>
               {team.isOwner && (
                 <>
-                  <Button variant="ghost" size="icon" className="h-9 w-9" title="设置" onClick={() => onNavigateSettings?.(team.id)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                    title="设置"
+                    onClick={() => onNavigateSettings?.(team.id)}
+                  >
                     <Settings className="h-4 w-4" />
                   </Button>
                   <Button

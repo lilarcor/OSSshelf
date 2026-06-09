@@ -21,14 +21,19 @@ const TeamStorageBar: React.FC<TeamStorageBarProps> = ({ stats }) => {
         <div className="flex items-center gap-1.5 font-medium">
           <HardDrive className="h-4 w-4" /> 团队存储空间
         </div>
-        <span className="text-muted-foreground">{formatBytes(storageUsed)} / {formatBytes(storageQuota)}</span>
+        <span className="text-muted-foreground">
+          {formatBytes(storageUsed)} / {formatBytes(storageQuota)}
+        </span>
       </div>
       <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-        <div className={cn('h-full rounded-full transition-all', barColor)} style={{ width: `${Math.min(usagePercent, 100)}%` }} />
+        <div
+          className={cn('h-full rounded-full transition-all', barColor)}
+          style={{ width: `${Math.min(usagePercent, 100)}%` }}
+        />
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>已用 {usagePercent}%</span>
-        <span>{fileCount} 个已挂载资源</span>
+        <span>{fileCount} 个资源</span>
       </div>
     </div>
   );

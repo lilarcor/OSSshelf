@@ -10,12 +10,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { useToast } from '@/components/ui/useToast';
-import { teamsApi, type TeamResource } from '@/services/collab';
+import { teamsApi } from '@/services/collab';
 import { filesApi } from '@/services/core';
 import api from '@/services/api-client';
-import { Loader2, X, FolderPlus, Trash2, FolderOpen, Link, Search, FileIcon as FileIconLucide, Check, ChevronRight } from 'lucide-react';
+import { Loader2, X, FolderPlus, FolderOpen, Link2Off, Search, Check, ChevronRight } from 'lucide-react';
 import { cn, formatBytes } from '@/utils';
 
 interface TeamResourceMountDialogProps {
@@ -96,7 +95,11 @@ const TeamResourceMountDialog: React.FC<TeamResourceMountDialogProps> = ({ teamI
   const mountMutation = useMutation({
     mutationFn: () => {
       if (!selectedFile) throw new Error('未选择文件');
-      return teamsApi.mountResource(teamId, selectedFile.id).then((r) => r.data);
+      return teamsApi
+        .mountResource(teamId, selectedFile.id, {
+          targetFolderId: selectedFolderId,
+        })
+        .then((r) => r.data);
     },
     onSuccess: () => {
       toast({ title: '资源已挂载' });
@@ -111,8 +114,7 @@ const TeamResourceMountDialog: React.FC<TeamResourceMountDialogProps> = ({ teamI
 
   // ── 卸载 mutation ──
   const unmountMutation = useMutation({
-    mutationFn: (resourceId: string) =>
-      teamsApi.unmountResource(teamId, resourceId).then((r) => r.data),
+    mutationFn: (resourceId: string) => teamsApi.unmountResource(teamId, resourceId).then((r) => r.data),
     onSuccess: () => {
       toast({ title: '资源已卸载' });
       queryClient.invalidateQueries({ queryKey: ['team-resources', teamId] });
@@ -287,7 +289,12 @@ const TeamResourceMountDialog: React.FC<TeamResourceMountDialogProps> = ({ teamI
               {/* 已选择的文件信息 */}
               {selectedFile && (
                 <div className="flex items-center gap-2 p-2 rounded bg-background border text-xs">
-                  <FolderOpen className={cn('h-4 w-4 shrink-0', selectedFile.isFolder ? 'text-amber-500' : 'text-muted-foreground')} />
+                  <FolderOpen
+                    className={cn(
+                      'h-4 w-4 shrink-0',
+                      selectedFile.isFolder ? 'text-amber-500' : 'text-muted-foreground'
+                    )}
+                  />
                   <span className="truncate font-medium">已选择：{selectedFile.name}</span>
                   <span className="text-muted-foreground ml-auto">
                     {selectedFile.isFolder ? '文件夹' : formatBytes(selectedFile.size)}
@@ -295,12 +302,7 @@ const TeamResourceMountDialog: React.FC<TeamResourceMountDialogProps> = ({ teamI
                 </div>
               )}
 
-              <Button
-                type="submit"
-                size="sm"
-                className="w-full"
-                disabled={!selectedFile || mountMutation.isPending}
-              >
+              <Button type="submit" size="sm" className="w-full" disabled={!selectedFile || mountMutation.isPending}>
                 {mountMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-1" />
                 ) : (
@@ -347,7 +349,7 @@ const TeamResourceMountDialog: React.FC<TeamResourceMountDialogProps> = ({ teamI
                     {unmountMutation.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Link className="h-4 w-4" />
+                      <Link2Off className="h-4 w-4" />
                     )}
                   </Button>
                 </div>

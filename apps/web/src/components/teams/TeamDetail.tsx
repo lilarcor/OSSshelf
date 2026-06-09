@@ -13,9 +13,7 @@ import { teamsApi, type TeamMember, type TeamResource } from '@/services/collab'
 import TeamActivityFeed from './TeamActivityFeed';
 import {
   Users,
-  UserPlus,
   FolderOpen,
-  FolderPlus,
   Loader2,
   X,
   Shield,
@@ -120,8 +118,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
   });
 
   const unmountMutation = useMutation({
-    mutationFn: (fileId: string) =>
-      teamsApi.unmountResource(teamId, fileId).then(r => r.data),
+    mutationFn: (fileId: string) => teamsApi.unmountResource(teamId, fileId).then((r) => r.data),
     onSuccess: () => {
       toast({ title: '资源已卸载' });
       queryClient.invalidateQueries({ queryKey: ['team-resources', teamId] });
@@ -168,9 +165,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
               <span className="px-2 py-0.5 text-xs bg-primary/10 text-primary rounded">所有者</span>
             )}
           </div>
-          {teamData?.description && (
-            <p className="text-sm text-muted-foreground mt-1">{teamData.description}</p>
-          )}
+          {teamData?.description && <p className="text-sm text-muted-foreground mt-1">{teamData.description}</p>}
           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <Users className="h-3 w-3" />
@@ -208,12 +203,7 @@ const TeamDetail: React.FC<TeamDetailProps> = ({ teamId, onClose }) => {
 
       {/* Tab 内容 */}
       {activeTab === 'members' && (
-        <MembersSection
-          members={members}
-          isLoading={isMembersLoading}
-          teamId={teamId}
-          isOwner={isOwner}
-        />
+        <MembersSection members={members} isLoading={isMembersLoading} teamId={teamId} isOwner={isOwner} />
       )}
 
       {activeTab === 'resources' && (
@@ -253,7 +243,7 @@ interface MembersSectionProps {
   isOwner: boolean;
 }
 
-const MembersSection: React.FC<MembersSectionProps> = ({ members, isLoading, teamId, isOwner }) => {
+const MembersSection: React.FC<MembersSectionProps> = ({ members, isLoading, teamId: _teamId, isOwner: _isOwner }) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -284,7 +274,13 @@ const MembersSection: React.FC<MembersSectionProps> = ({ members, isLoading, tea
               <p className="text-sm font-medium truncate">{member.name || member.email}</p>
               <p className="text-xs text-muted-foreground truncate">{member.email}</p>
             </div>
-            <span className={cn('flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium', roleStyle.bg, roleStyle.text)}>
+            <span
+              className={cn(
+                'flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium',
+                roleStyle.bg,
+                roleStyle.text
+              )}
+            >
               {roleStyle.icon}
               {roleStyle.label}
             </span>
@@ -305,7 +301,13 @@ interface ResourcesSectionProps {
   onUnmount?: (resourceId: string) => void;
 }
 
-const ResourcesSection: React.FC<ResourcesSectionProps> = ({ resources, isLoading, teamId, isOwner, onUnmount }) => {
+const ResourcesSection: React.FC<ResourcesSectionProps> = ({
+  resources,
+  isLoading,
+  teamId: _teamId,
+  isOwner,
+  onUnmount,
+}) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -330,9 +332,11 @@ const ResourcesSection: React.FC<ResourcesSectionProps> = ({ resources, isLoadin
           <FolderOpen className="h-5 w-5 text-muted-foreground flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{resource.fileName}</p>
-            <p className="text-xs text-muted-foreground">挂载于 {new Date(resource.mountedAt).toLocaleDateString('zh-CN')}</p>
+            <p className="text-xs text-muted-foreground">
+              挂载于 {new Date(resource.mountedAt).toLocaleDateString('zh-CN')}
+            </p>
           </div>
-          {(isOwner || true) && onUnmount && (
+          {isOwner && onUnmount && (
             <Button
               variant="ghost"
               size="sm"
@@ -362,8 +366,8 @@ const ResourcesSection: React.FC<ResourcesSectionProps> = ({ resources, isLoadin
 // ── 设置 Section ──
 
 interface SettingsSectionProps {
-  teamData: { id: string; name: string; description: string | null; storageQuota?: number };
-  onUpdate: (data: { name?: string; description?: string; storageQuota?: number }) => void;
+  teamData: { id: string; name: string; description: string | null; storageQuota?: number; defaultMemberRole?: string };
+  onUpdate: (data: { name?: string; description?: string; storageQuota?: number; defaultMemberRole?: string }) => void;
   onDelete: () => void;
   isUpdating: boolean;
   isDeleting: boolean;
@@ -372,16 +376,15 @@ interface SettingsSectionProps {
 const SettingsSection: React.FC<SettingsSectionProps> = ({ teamData, onUpdate, onDelete, isUpdating, isDeleting }) => {
   const { data: storageStats } = useQuery({
     queryKey: ['team-storage-settings', teamData.id],
-    queryFn: () => teamsApi.getStorageStats(teamData.id).then(r => r.data.data),
+    queryFn: () => teamsApi.getStorageStats(teamData.id).then((r) => r.data.data),
   });
 
   const [name, setName] = useState(teamData.name);
   const [description, setDescription] = useState(teamData.description ?? '');
   // 优先使用 storageStats（从存储统计API获取的最新值），其次用 teamData，最后默认5GB
   const effectiveQuota = storageStats?.storageQuota ?? teamData?.storageQuota ?? 5368709120;
-  const [storageQuotaMB, setStorageQuotaMB] = useState(
-    Math.round(effectiveQuota / 1024 / 1024)
-  );
+  const [storageQuotaMB, setStorageQuotaMB] = useState(Math.round(effectiveQuota / 1024 / 1024));
+  const [defaultMemberRole, setDefaultMemberRole] = useState(teamData?.defaultMemberRole || 'member');
 
   // 当 storageStats 异步加载完成后，同步最新配额值
   useEffect(() => {
@@ -427,18 +430,36 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({ teamData, onUpdate, o
               max={1048576}
               className="w-32"
             />
-            <span className="text-sm text-muted-foreground">MB ({formatBytes((storageQuotaMB || 0) * 1024 * 1024)})</span>
+            <span className="text-sm text-muted-foreground">
+              MB ({formatBytes((storageQuotaMB || 0) * 1024 * 1024)})
+            </span>
           </div>
           <p className="text-xs text-muted-foreground">范围: 50MB ~ 1TB，修改后立即生效</p>
         </div>
 
+        {/* 默认成员角色 */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">默认成员角色</label>
+          <div className="flex gap-2">
+            {(['member', 'guest', 'admin'] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setDefaultMemberRole(r)}
+                className={cn(
+                  'px-3 py-1.5 rounded-md text-sm font-medium transition-colors border',
+                  defaultMemberRole === r ? 'bg-primary/10 text-primary border-primary/30' : 'hover:bg-muted'
+                )}
+              >
+                {r === 'member' ? '成员' : r === 'guest' ? '访客' : '管理员'}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">新成员加入时的默认角色</p>
+        </div>
+
         <div className="flex justify-between pt-2">
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={onDelete}
-            disabled={isDeleting}
-          >
+          <Button variant="destructive" size="sm" onClick={onDelete} disabled={isDeleting}>
             {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
             删除团队
           </Button>
@@ -449,13 +470,15 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({ teamData, onUpdate, o
                 name: name.trim(),
                 description: description.trim() || undefined,
                 storageQuota: (storageQuotaMB || 0) * 1024 * 1024,
+                defaultMemberRole,
               })
             }
             disabled={
               isUpdating ||
               (name.trim() === teamData.name &&
                 (description.trim() || null) === teamData.description &&
-                (storageQuotaMB || 0) * 1024 * 1024 === (teamData.storageQuota ?? 5368709120))
+                (storageQuotaMB || 0) * 1024 * 1024 === (teamData.storageQuota ?? 5368709120) &&
+                defaultMemberRole === (teamData.defaultMemberRole || 'member'))
             }
           >
             {isUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Pencil className="h-4 w-4 mr-1" />}

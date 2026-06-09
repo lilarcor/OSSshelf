@@ -25,10 +25,29 @@ import { FileIcon } from '@/components/files/FileIcon';
 import { useAuthStore } from '@/stores/auth';
 import { useFileDragDrop } from '@/hooks/useFileDragDrop';
 import {
-  FolderOpen, HardDrive, Users, Loader2, Grid, List,
-  RefreshCw, Lock, Edit, Crown, Plus, Upload, Trash2,
-  FolderPlus, Eye, Download, ChevronRight, Search, SortAsc, SortDesc,
-  CheckSquare, X, Pencil, Link2Off,
+  FolderOpen,
+  HardDrive,
+  Users,
+  Loader2,
+  Grid,
+  List,
+  RefreshCw,
+  Lock,
+  Edit,
+  Crown,
+  Upload,
+  Trash2,
+  FolderPlus,
+  Eye,
+  Download,
+  ChevronRight,
+  Search,
+  SortAsc,
+  SortDesc,
+  CheckSquare,
+  X,
+  Pencil,
+  Link2Off,
 } from 'lucide-react';
 import { cn, formatBytes } from '@/utils';
 import type { ViewMode } from '@/stores/files';
@@ -88,32 +107,46 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
     setSearchInput('');
   }, [currentFolderId]);
 
-  // ── 面包屑导航：动态查询父级文件夹链 ──
-  interface BreadcrumbItem { id: string; name: string }
+  // ── 面包屑导航：动态查询父级文件夹链（带 5min 缓存避免重复请求）──
+  interface BreadcrumbItem {
+    id: string;
+    name: string;
+  }
   const { data: breadcrumbs = [] } = useQuery<BreadcrumbItem[]>({
     queryKey: ['team-breadcrumbs', teamId, currentFolderId],
     enabled: !!currentFolderId,
+    staleTime: 5 * 60 * 1000, // 5 分钟缓存
     queryFn: async () => {
       const crumbs: BreadcrumbItem[] = [];
       let currentId: string | null = currentFolderId!;
-      while (currentId) {
+      // 防止无限循环（最多查 10 级）
+      let maxDepth = 10;
+      while (currentId && maxDepth > 0) {
         const res = await filesApi.get(currentId);
         const folder = res.data.data;
         if (!folder) break;
         crumbs.unshift({ id: folder.id, name: folder.name });
         currentId = (folder as any).parentId ?? null;
+        maxDepth--;
       }
       return crumbs;
     },
   });
 
   // ★ 使用 all-files 端点（合并挂载资源 + 团队自有文件）
-  const { data: filesData, isLoading: isFilesLoading, refetch: refetchFiles } = useQuery({
+  const {
+    data: filesData,
+    isLoading: isFilesLoading,
+    refetch: refetchFiles,
+  } = useQuery({
     queryKey: ['team-workspace-all', teamId, currentFolderId],
     queryFn: () =>
-      api.get<{ success: boolean; data: { files: (WorkspaceFile & { source: string })[]; total: number } }>(
-        `/api/teams/${teamId}/workspace/all-files${currentFolderId ? `?folderId=${currentFolderId}` : ''}`
-      ).then((r) => r.data.data),
+      api
+        .get<{
+          success: boolean;
+          data: { files: (WorkspaceFile & { source: string })[]; total: number };
+        }>(`/api/teams/${teamId}/workspace/all-files${currentFolderId ? `?folderId=${currentFolderId}` : ''}`)
+        .then((r) => r.data.data),
   });
 
   const { data: storageData } = useQuery({
@@ -125,8 +158,8 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
   const total = filesData?.total ?? 0;
 
   // ── 搜索过滤 ──
-  const filteredFiles = rawFiles.filter(f =>
-    !searchInput || f.fileName.toLowerCase().includes(searchInput.toLowerCase())
+  const filteredFiles = rawFiles.filter(
+    (f) => !searchInput || f.fileName.toLowerCase().includes(searchInput.toLowerCase())
   );
 
   // ── 排序 ──
@@ -136,11 +169,14 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
     let cmp = 0;
     switch (sortBy) {
       case 'fileName':
-        cmp = a.fileName.localeCompare(b.fileName, 'zh-CN'); break;
+        cmp = a.fileName.localeCompare(b.fileName, 'zh-CN');
+        break;
       case 'size':
-        cmp = (a.size ?? 0) - (b.size ?? 0); break;
+        cmp = (a.size ?? 0) - (b.size ?? 0);
+        break;
       case 'mountedAt':
-        cmp = new Date(a.mountedAt).getTime() - new Date(b.mountedAt).getTime(); break;
+        cmp = new Date(a.mountedAt).getTime() - new Date(b.mountedAt).getTime();
+        break;
     }
     return sortOrder === 'asc' ? cmp : -cmp;
   });
@@ -185,18 +221,35 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
     },
   });
 
-  // ── 删除文件 ──
+  // ── 删除文件 / 卸载挂载资源 ──
+  const handleRemoveFile = (file: WorkspaceFile) => {
+    const isMounted = (file as any).source === 'mounted';
+    if (isMounted) {
+      if (confirm(`确定卸载挂载资源「${file.fileName}」？（仅移除挂载，不删除原文件）`)) {
+        unmountMutation.mutate(file.fileId);
+      }
+    } else {
+      if (confirm(`确定删除「${file.fileName}」？`)) {
+        deleteMutation.mutate(file.fileId);
+      }
+    }
+  };
+
   const deleteMutation = useMutation({
     mutationFn: (fileId: string) =>
       api.delete<{ success: boolean; error?: { message: string } }>(`/api/files/${fileId}`),
-    onSuccess: (res) => {
-      const body = res.data;
+    onSuccess: (_res, fileId) => {
+      const body = _res.data;
       if (!body.success) {
         toast({ title: '删除失败', description: body.error?.message, variant: 'destructive' });
         return;
       }
       toast({ title: '已删除' });
-      setSelectedFileIds(prev => { const next = new Set(prev); return next; });
+      setSelectedFileIds((prev) => {
+        const next = new Set(prev);
+        next.delete(fileId);
+        return next;
+      });
       refetchFiles();
     },
     onError: (e: any) => {
@@ -206,11 +259,14 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
 
   // ── 卸载挂载资源（仅对 source='mounted' 的文件）──
   const unmountMutation = useMutation({
-    mutationFn: (fileId: string) =>
-      teamsApi.unmountResource(teamId, fileId).then((r) => r.data),
-    onSuccess: () => {
+    mutationFn: (fileId: string) => teamsApi.unmountResource(teamId, fileId).then((r) => r.data),
+    onSuccess: (_data, fileId) => {
       toast({ title: '已卸载' });
-      setSelectedFileIds(prev => { const next = new Set(prev); return next; });
+      setSelectedFileIds((prev) => {
+        const next = new Set(prev);
+        next.delete(fileId);
+        return next;
+      });
       refetchFiles();
     },
     onError: (e: any) => {
@@ -220,8 +276,14 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
 
   // ── 重命名 ──
   const renameMutation = useMutation({
-    mutationFn: ({ fileId, name }: { fileId: string; name: string }) =>
-      filesApi.update(fileId, { name }),
+    mutationFn: async ({ fileId, name }: { fileId: string; name: string }) => {
+      // 挂载的资源不允许重命名（无权修改原始文件）
+      const file = files.find((f) => f.fileId === fileId);
+      if ((file as any)?.source === 'mounted') {
+        throw new Error('挂载的资源不允许重命名');
+      }
+      await filesApi.update(fileId, { name });
+    },
     onSuccess: () => {
       toast({ title: '重命名成功' });
       setRenamingFileId(null);
@@ -229,7 +291,11 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
       refetchFiles();
     },
     onError: (e: any) => {
-      toast({ title: '重命名失败', description: e.response?.data?.error?.message || e.message, variant: 'destructive' });
+      toast({
+        title: '重命名失败',
+        description: e.response?.data?.error?.message || e.message,
+        variant: 'destructive',
+      });
     },
   });
 
@@ -244,18 +310,26 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
 
     for (const file of Array.from(fileList)) {
       const key = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      setUploadProgresses(p => ({ ...p, [key]: 0 }));
+      setUploadProgresses((p) => ({ ...p, [key]: 0 }));
       try {
         await presignUpload({
           file,
           parentId: currentFolderId || null,
           teamId,
-          onProgress: (progress) => setUploadProgresses(prev => ({ ...prev, [key]: progress })),
+          onProgress: (progress) => setUploadProgresses((prev) => ({ ...prev, [key]: progress })),
         });
-        setUploadProgresses(p => { const n = { ...p }; delete n[key]; return n; });
+        setUploadProgresses((p) => {
+          const n = { ...p };
+          delete n[key];
+          return n;
+        });
         toast({ title: `${file.name} 上传成功` });
       } catch (uploadErr: any) {
-        setUploadProgresses(p => { const n = { ...p }; delete n[key]; return n; });
+        setUploadProgresses((p) => {
+          const n = { ...p };
+          delete n[key];
+          return n;
+        });
         toast({ title: `${file.name} 上传失败`, description: uploadErr.message, variant: 'destructive' });
       }
     }
@@ -266,15 +340,16 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
 
   // ── 选择/取消选择 / 全选 ──
   const toggleSelect = useCallback((fileId: string) => {
-    setSelectedFileIds(prev => {
+    setSelectedFileIds((prev) => {
       const next = new Set(prev);
-      if (next.has(fileId)) next.delete(fileId); else next.add(fileId);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
       return next;
     });
   }, []);
 
   const selectAll = useCallback(() => {
-    setSelectedFileIds(new Set(files.map(f => f.fileId)));
+    setSelectedFileIds(new Set(files.map((f) => f.fileId)));
   }, [files]);
 
   const clearSelection = useCallback(() => setSelectedFileIds(new Set()), []);
@@ -282,7 +357,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
   // ── 排序切换 ──
   const handleSort = (field: SortField) => {
     if (sortBy === field) {
-      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortBy(field);
       setSortOrder('asc');
@@ -297,8 +372,9 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedFileIds.size > 0 && canWrite) {
-          if (confirm(`确定删除选中的 ${selectedFileIds.size} 个项目？`)) {
-            selectedFileIds.forEach(id => deleteMutation.mutate(id));
+          const targetFiles = files.filter((f) => selectedFileIds.has(f.fileId));
+          if (confirm(`确定对选中的 ${selectedFileIds.size} 个项目执行操作？（挂载资源将被卸载，团队文件将被删除）`)) {
+            targetFiles.forEach((f) => handleRemoveFile(f));
           }
         }
       }
@@ -383,7 +459,13 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
   const activeUploads = Object.entries(uploadProgresses);
 
   return (
-    <div className="space-y-4" onClick={() => setContextMenuFile(null)} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
+    <div
+      className="space-y-4"
+      onClick={() => setContextMenuFile(null)}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {/* 拖拽上传遮罩 */}
       {isDragActive && (
         <div className="fixed inset-0 z-50 bg-primary/10 flex items-center justify-center pointer-events-none">
@@ -448,14 +530,20 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
 
       {/* Tab 切换 */}
       <div className="flex gap-1 border-b">
-        {([
+        {[
           { key: 'files' as WorkspaceTab, label: '文件', icon: <FolderOpen className="h-4 w-4" /> },
           { key: 'activity' as WorkspaceTab, label: '动态', icon: <Users className="h-4 w-4" /> },
-        ]).map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={cn(
-            'flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-            activeTab === tab.key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-          )}>
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={cn(
+              'flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+              activeTab === tab.key
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            )}
+          >
             {tab.icon} {tab.label} {tab.key === 'files' && ` (${total})`}
           </button>
         ))}
@@ -469,10 +557,22 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
             <div className="flex items-center gap-1">
               {/* 视图切换 */}
               <div className="flex border rounded-md overflow-hidden">
-                <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" className={cn('rounded-none h-8 w-8', viewMode === 'list' && 'bg-accent')} onClick={() => setViewMode('list')} title="列表视图">
+                <Button
+                  variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className={cn('rounded-none h-8 w-8', viewMode === 'list' && 'bg-accent')}
+                  onClick={() => setViewMode('list')}
+                  title="列表视图"
+                >
                   <List className="h-4 w-4" />
                 </Button>
-                <Button variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="icon" className={cn('rounded-none h-8 w-8', viewMode === 'grid' && 'bg-accent')} onClick={() => setViewMode('grid')} title="网格视图">
+                <Button
+                  variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  className={cn('rounded-none h-8 w-8', viewMode === 'grid' && 'bg-accent')}
+                  onClick={() => setViewMode('grid')}
+                  title="网格视图"
+                >
                   <Grid className="h-4 w-4" />
                 </Button>
               </div>
@@ -497,11 +597,20 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
               </div>
 
               {/* 排序按钮 */}
-              <Button variant="outline" size="sm" onClick={() => handleSort('fileName')} className="hidden sm:flex gap-1">
-                名称{sortBy === 'fileName' && (sortOrder === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />)}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleSort('fileName')}
+                className="hidden sm:flex gap-1"
+              >
+                名称
+                {sortBy === 'fileName' &&
+                  (sortOrder === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />)}
               </Button>
               <Button variant="outline" size="sm" onClick={() => handleSort('size')} className="hidden sm:flex gap-1">
-                大小{sortBy === 'size' && (sortOrder === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />)}
+                大小
+                {sortBy === 'size' &&
+                  (sortOrder === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />)}
               </Button>
             </div>
 
@@ -526,7 +635,14 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                       <Button size="sm" onClick={handleCreateFolder} disabled={createFolderMutation.isPending}>
                         {createFolderMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : '确定'}
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => { setIsCreatingFolder(false); setNewFolderName(''); }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsCreatingFolder(false);
+                          setNewFolderName('');
+                        }}
+                      >
                         取消
                       </Button>
                     </div>
@@ -537,13 +653,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
               {/* 上传文件 */}
               {canWrite && (
                 <>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={handleFileSelect}
-                  />
+                  <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />
                   <Button variant="outline" size="sm" onClick={handleUploadClick}>
                     <Upload className="h-4 w-4 mr-1" /> 上传文件
                   </Button>
@@ -552,7 +662,12 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
 
               {/* 全选 */}
               {files.length > 0 && (
-                <Button variant="outline" size="sm" onClick={selectAll} disabled={selectedFileIds.size === files.length}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={selectAll}
+                  disabled={selectedFileIds.size === files.length}
+                >
                   <CheckSquare className="h-4 w-4 mr-1" /> 全选
                 </Button>
               )}
@@ -563,8 +678,13 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                   variant="destructive"
                   size="sm"
                   onClick={() => {
-                    if (confirm(`确定删除选中的 ${selectedFileIds.size} 个项目？`)) {
-                      selectedFileIds.forEach(id => deleteMutation.mutate(id));
+                    const targetFiles = files.filter((f) => selectedFileIds.has(f.fileId));
+                    if (
+                      confirm(
+                        `确定对选中的 ${selectedFileIds.size} 个项目执行操作？（挂载资源将被卸载，团队文件将被删除）`
+                      )
+                    ) {
+                      targetFiles.forEach((f) => handleRemoveFile(f));
                     }
                   }}
                 >
@@ -595,18 +715,22 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
 
           {/* 文件列表 */}
           {isFilesLoading ? (
-            <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin" /></div>
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
           ) : files.length === 0 ? (
             <div className="text-center py-16 bg-muted/20 rounded-lg border border-dashed">
               <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
               <p className="text-muted-foreground">
-                {searchInput ? '没有匹配的文件' : (currentFolderId ? '此文件夹为空' : '工作区暂无文件')}
+                {searchInput ? '没有匹配的文件' : currentFolderId ? '此文件夹为空' : '工作区暂无文件'}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                {!searchInput && (canWrite
-                  ? (currentFolderId ? '在此文件夹中新建或上传文件' : '新建文件夹或上传文件开始协作')
-                  : '等待团队成员添加文件'
-                )}
+                {!searchInput &&
+                  (canWrite
+                    ? currentFolderId
+                      ? '在此文件夹中新建或上传文件'
+                      : '新建文件夹或上传文件开始协作'
+                    : '等待团队成员添加文件')}
               </p>
             </div>
           ) : viewMode === 'list' ? (
@@ -616,7 +740,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                   <input
                     type="checkbox"
                     checked={selectedFileIds.size === files.length && files.length > 0}
-                    onChange={(e) => e.target.checked ? selectAll() : clearSelection()}
+                    onChange={(e) => (e.target.checked ? selectAll() : clearSelection())}
                     className="rounded"
                   />
                   <span className="ml-2 cursor-pointer select-none" onClick={() => handleSort('fileName')}>
@@ -632,7 +756,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                   日期 {sortBy === 'mountedAt' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </div>
               </div>
-              {files.map(file => (
+              {files.map((file) => (
                 <div
                   key={file.fileId}
                   onDoubleClick={() => {
@@ -644,9 +768,11 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                     }
                   }}
                   onClick={(e) => {
-                    if ((e.target as HTMLInputElement).type !== 'checkbox' &&
-                        (e.target as HTMLElement).closest('button') === null &&
-                        !(e.target as HTMLElement).closest('input[type="text"]')) {
+                    if (
+                      (e.target as HTMLInputElement).type !== 'checkbox' &&
+                      (e.target as HTMLElement).closest('button') === null &&
+                      !(e.target as HTMLElement).closest('input[type="text"]')
+                    ) {
                       toggleSelect(file.fileId);
                     }
                     setContextMenuFile(null);
@@ -670,15 +796,26 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                       onClick={(e) => e.stopPropagation()}
                     />
                     {renamingFileId === file.fileId ? (
-                      <div className="flex items-center gap-1 flex-1 min-w-0" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-1 flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
                         <Input
                           value={renameValue}
                           onChange={(e) => setRenameValue(e.target.value)}
                           className="h-6 text-sm flex-1"
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleRenameConfirm(); if (e.key === 'Escape') setRenamingFileId(null); }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleRenameConfirm();
+                            if (e.key === 'Escape') setRenamingFileId(null);
+                          }}
                           autoFocus
                         />
-                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); handleRenameConfirm(); }}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRenameConfirm();
+                          }}
+                        >
                           <Pencil className="h-3 w-3" />
                         </Button>
                       </div>
@@ -698,68 +835,105 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                   <div className="col-span-1.5 text-sm text-muted-foreground">
                     {file.isFolder ? '-' : formatBytes(file.size)}
                   </div>
-                  <div className="col-span-1.5"><PermissionBadge permission={file.permission} /></div>
+                  <div className="col-span-1.5">
+                    <PermissionBadge permission={file.permission} />
+                  </div>
                   <div className="col-span-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     {!file.isFolder && (
                       <>
-                        <Button variant="ghost" size="icon" className="h-7 w-7"
-                          onClick={(e) => { e.stopPropagation(); handleDownload(file); }}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownload(file);
+                          }}
+                        >
                           <Download className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7"
-                          onClick={(e) => { e.stopPropagation(); setPreviewFile(file); setIsPreviewOpen(true); }}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewFile(file);
+                            setIsPreviewOpen(true);
+                          }}
+                        >
                           <Eye className="h-3.5 w-3.5" />
                         </Button>
                       </>
                     )}
                     {canWrite && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7"
-                        onClick={(e) => { e.stopPropagation(); handleRenameStart(file); }}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRenameStart(file);
+                        }}
                         title="重命名"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                     )}
-                    {canWrite && ((file as any).source === 'mounted' ? (
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
-                        onClick={(e) => { e.stopPropagation();
-                          if (confirm(`确定卸载挂载资源「${file.fileName}」？`)) unmountMutation.mutate(file.fileId);
-                        }}
-                        title="卸载（仅移除挂载，不删除原文件）"
-                      >
-                        <Link2Off className="h-3.5 w-3.5" />
-                      </Button>
-                    ) : (
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => { e.stopPropagation();
-                          if (confirm(`确定删除「${file.fileName}」？`)) deleteMutation.mutate(file.fileId);
-                        }}
-                        title="删除"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    ))}
+                    {canWrite &&
+                      ((file as any).source === 'mounted' ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`确定卸载挂载资源「${file.fileName}」？`)) unmountMutation.mutate(file.fileId);
+                          }}
+                          title="卸载（仅移除挂载，不删除原文件）"
+                        >
+                          <Link2Off className="h-3.5 w-3.5" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`确定删除「${file.fileName}」？`)) deleteMutation.mutate(file.fileId);
+                          }}
+                          title="删除"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      ))}
                   </div>
-                  <div className="col-span-1 text-xs text-muted-foreground">
-                    {getFileDate(file)}
-                  </div>
+                  <div className="col-span-1 text-xs text-muted-foreground">{getFileDate(file)}</div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              {files.map(file => (
+              {files.map((file) => (
                 <div
                   key={file.fileId}
                   onDoubleClick={() => {
                     if (file.isFolder) setCurrentFolderId(file.fileId);
-                    else { setPreviewFile(file); setIsPreviewOpen(true); }
+                    else {
+                      setPreviewFile(file);
+                      setIsPreviewOpen(true);
+                    }
                   }}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest('button') === null) toggleSelect(file.fileId);
                     setContextMenuFile(null);
                   }}
-                  onContextMenu={(e) => { e.preventDefault(); setContextMenuFile(file); setContextMenuPos({ x: e.clientX, y: e.clientY }); }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenuFile(file);
+                    setContextMenuPos({ x: e.clientX, y: e.clientY });
+                  }}
                   className={cn(
                     'flex flex-col items-center p-4 rounded-lg border hover:border-primary/50 hover:bg-muted/30 cursor-pointer transition-colors relative group',
                     selectedFileIds.has(file.fileId) && 'border-primary bg-primary/5'
@@ -778,19 +952,40 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                   <div className="flex items-center justify-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     {!file.isFolder && (
                       <>
-                        <Button variant="ghost" size="icon" className="h-7 w-7"
-                          onClick={(e) => { e.stopPropagation(); handleDownload(file); }}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownload(file);
+                          }}
+                        >
                           <Download className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7"
-                          onClick={(e) => { e.stopPropagation(); setPreviewFile(file); setIsPreviewOpen(true); }}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewFile(file);
+                            setIsPreviewOpen(true);
+                          }}
+                        >
                           <Eye className="h-3.5 w-3.5" />
                         </Button>
                       </>
                     )}
                     {canWrite && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7"
-                        onClick={(e) => { e.stopPropagation(); handleRenameStart(file); }}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRenameStart(file);
+                        }}
                         title="重命名"
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -805,13 +1000,23 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
           {/* 分页 */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-2">
-              <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
+              >
                 上一页
               </Button>
               <span className="text-sm text-muted-foreground">
                 {currentPage} / {totalPages}
               </span>
-              <Button variant="outline" size="sm" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+              >
                 下一页
               </Button>
             </div>
@@ -825,17 +1030,24 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
       {/* 文件预览（复用主文件管理的 FilePreview 组件） */}
       {isPreviewOpen && previewFile && !previewFile.isFolder && (
         <FilePreview
-          file={{
-            id: previewFile.fileId,
-            name: previewFile.fileName,
-            size: previewFile.size,
-            mimeType: previewFile.mimeType,
-            isFolder: false,
-          } as any}
+          file={
+            {
+              id: previewFile.fileId,
+              name: previewFile.fileName,
+              size: previewFile.size,
+              mimeType: previewFile.mimeType,
+              isFolder: false,
+            } as any
+          }
           token={token || ''}
           onClose={() => setIsPreviewOpen(false)}
-          onDownload={(file) => { setIsPreviewOpen(false); handleDownload(previewFile!); }}
-          onShare={(fileId) => { /* 团队工作区暂不支持分享 */ }}
+          onDownload={(_file) => {
+            setIsPreviewOpen(false);
+            handleDownload(previewFile!);
+          }}
+          onShare={(_fileId) => {
+            /* 团队工作区暂不支持分享 */
+          }}
         />
       )}
 
@@ -847,14 +1059,21 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
         >
           <button
             className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
-            onClick={() => { setContextMenuFile(null); setPreviewFile(contextMenuFile); setIsPreviewOpen(true); }}
+            onClick={() => {
+              setContextMenuFile(null);
+              setPreviewFile(contextMenuFile);
+              setIsPreviewOpen(true);
+            }}
           >
             <Eye className="h-4 w-4" /> 预览
           </button>
           {!contextMenuFile.isFolder && (
             <button
               className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
-              onClick={() => { setContextMenuFile(null); handleDownload(contextMenuFile); }}
+              onClick={() => {
+                setContextMenuFile(null);
+                handleDownload(contextMenuFile);
+              }}
             >
               <Download className="h-4 w-4" /> 下载
             </button>
@@ -862,7 +1081,10 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
           {canWrite && (
             <button
               className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"
-              onClick={() => { setContextMenuFile(null); handleRenameStart(contextMenuFile); }}
+              onClick={() => {
+                setContextMenuFile(null);
+                handleRenameStart(contextMenuFile);
+              }}
             >
               <Pencil className="h-4 w-4" /> 重命名
             </button>
@@ -870,8 +1092,10 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
           {canWrite && (contextMenuFile as any).source === 'mounted' ? (
             <button
               className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 text-amber-600"
-              onClick={() => { setContextMenuFile(null);
-                if (confirm(`确定卸载挂载资源「${contextMenuFile.fileName}」？`)) unmountMutation.mutate(contextMenuFile.fileId);
+              onClick={() => {
+                setContextMenuFile(null);
+                if (confirm(`确定卸载挂载资源「${contextMenuFile.fileName}」？`))
+                  unmountMutation.mutate(contextMenuFile.fileId);
               }}
             >
               <Link2Off className="h-4 w-4" /> 卸载资源
@@ -879,8 +1103,9 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
           ) : canWrite ? (
             <button
               className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 text-destructive"
-              onClick={() => { setContextMenuFile(null);
-                if (confirm(`确定删除「${contextMenuFile.fileName}」？`)) deleteMutation.mutate(contextMenuFile.fileId);
+              onClick={() => {
+                setContextMenuFile(null);
+                handleRemoveFile(contextMenuFile);
               }}
             >
               <Trash2 className="h-4 w-4" /> 删除

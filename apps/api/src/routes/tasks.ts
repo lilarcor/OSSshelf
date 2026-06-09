@@ -11,7 +11,7 @@
 
 import { Hono } from 'hono';
 import { eq, and, inArray } from 'drizzle-orm';
-import { getDb, uploadTasks, users, storageBuckets, files, telegramFileRefs, telegramFileChunks } from '../db';
+import { getDb, uploadTasks, storageBuckets, files, telegramFileRefs, telegramFileChunks } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import {
   ERROR_CODES,
@@ -360,7 +360,6 @@ app.delete('/clear-failed', async (c) => {
 
   return c.json({ success: true, data: { message: '已清空失败/过期/取消的任务' } });
 });
-
 
 app.post('/start', async (c) => {
   const userId = c.get('userId')!;
@@ -792,10 +791,15 @@ app.post('/complete', async (c) => {
     let resolvedTeamId: string | null = task.teamId || null;
     if (!resolvedTeamId && task.parentId) {
       try {
-        const parentFile = await db.select({ teamId: files.teamId }).from(files)
-          .where(eq(files.id, task.parentId)).get();
+        const parentFile = await db
+          .select({ teamId: files.teamId })
+          .from(files)
+          .where(eq(files.id, task.parentId))
+          .get();
         if (parentFile?.teamId) resolvedTeamId = parentFile.teamId;
-      } catch { /* 父文件夹不存在时忽略 */ }
+      } catch {
+        /* 父文件夹不存在时忽略 */
+      }
     }
 
     // Telegram 小文件任务：写入 files + telegramFileRefs

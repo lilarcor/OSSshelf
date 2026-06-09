@@ -30,12 +30,14 @@ const TeamInviteDialog: React.FC<TeamInviteDialogProps> = ({ teamId, teamName, o
 
   const inviteMutation = useMutation({
     mutationFn: () =>
-      teamsApi.createInvite(teamId, {
-        role,
-        email: email.trim() || undefined,
-        message: message.trim() || undefined,
-        expiresInDays,
-      }).then((r) => r.data.data),
+      teamsApi
+        .createInvite(teamId, {
+          role,
+          email: email.trim() || undefined,
+          message: message.trim() || undefined,
+          expiresInDays,
+        })
+        .then((r) => r.data.data),
     onSuccess: (data) => {
       setInviteUrl(data?.inviteUrl ?? '');
       toast({ title: '邀请已生成' });
@@ -84,29 +86,23 @@ const TeamInviteDialog: React.FC<TeamInviteDialogProps> = ({ teamId, teamName, o
               <label className="text-sm font-medium flex items-center gap-1.5">
                 <Mail className="h-3.5 w-3.5" /> 邀请邮箱（可选）
               </label>
-              <Input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="留空则生成通用邀请链接"
-              />
+              <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="留空则生成通用邀请链接" />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium">角色</label>
               <div className="flex gap-2">
-                {([
+                {[
                   { value: 'member' as const, label: '成员' },
                   { value: 'guest' as const, label: '访客' },
-                ]).map((opt) => (
+                ].map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
                     onClick={() => setRole(opt.value)}
                     className={cn(
                       'flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border',
-                      role === opt.value
-                        ? 'bg-primary/10 text-primary border-primary/30'
-                        : 'hover:bg-muted',
+                      role === opt.value ? 'bg-primary/10 text-primary border-primary/30' : 'hover:bg-muted'
                     )}
                   >
                     {opt.label}
@@ -125,9 +121,7 @@ const TeamInviteDialog: React.FC<TeamInviteDialogProps> = ({ teamId, teamName, o
                     onClick={() => setExpiresInDays(d)}
                     className={cn(
                       'flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border',
-                      expiresInDays === d
-                        ? 'bg-primary/10 text-primary border-primary/30'
-                        : 'hover:bg-muted',
+                      expiresInDays === d ? 'bg-primary/10 text-primary border-primary/30' : 'hover:bg-muted'
                     )}
                   >
                     {d === 1 ? '1天' : d === 7 ? '7天' : '30天'}

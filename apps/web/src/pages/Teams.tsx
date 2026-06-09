@@ -6,12 +6,13 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { teamsApi, type Team } from '@/services/collab';
+import { teamsApi } from '@/services/collab';
 import TeamWorkspace from '@/components/teams/TeamWorkspace';
 import TeamInviteDialog from '@/components/teams/TeamInviteDialog';
 import TeamCreateDialog from '@/components/teams/TeamCreateDialog';
+import TeamMemberDialog from '@/components/teams/TeamMemberDialog';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Users, Plus, ChevronDown, UserPlus } from 'lucide-react';
+import { Loader2, Users, Plus, ChevronDown, UserPlus, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/utils';
 
@@ -29,11 +30,10 @@ const Teams: React.FC = () => {
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isMemberOpen, setIsMemberOpen] = useState(false);
 
   // 当团队列表加载完成后，自动选中第一个
-  const currentTeam = activeTeamId
-    ? allTeams.find((t) => t.id === activeTeamId)
-    : allTeams[0] ?? null;
+  const currentTeam = activeTeamId ? allTeams.find((t) => t.id === activeTeamId) : (allTeams[0] ?? null);
 
   React.useEffect(() => {
     if (!activeTeamId && allTeams.length > 0) {
@@ -72,7 +72,7 @@ const Teams: React.FC = () => {
             <div className="relative group">
               <button
                 className={cn(
-                  'flex items-center gap-2 px-3 py-2 rounded-lg border hover:border-primary/50 transition-colors bg-card',
+                  'flex items-center gap-2 px-3 py-2 rounded-lg border hover:border-primary/50 transition-colors bg-card'
                 )}
               >
                 <span className="font-semibold">{currentTeam?.name}</span>
@@ -82,7 +82,7 @@ const Teams: React.FC = () => {
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </button>
               {/* 下拉菜单：其他团队列表 */}
-              <div className="absolute top-full left-0 mt-1 w-64 rounded-lg border bg-card shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1">
+              <div className="absolute top-full left-0 mt-1 w-64 rounded-lg border bg-card shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1 max-h-[320px] overflow-y-auto">
                 <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b">切换团队</div>
                 {allTeams.map((team) => (
                   <button
@@ -90,7 +90,7 @@ const Teams: React.FC = () => {
                     onClick={() => setActiveTeamId(team.id)}
                     className={cn(
                       'w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-muted transition-colors',
-                      team.id === currentTeam?.id && 'bg-primary/5 text-primary font-medium',
+                      team.id === currentTeam?.id && 'bg-primary/5 text-primary font-medium'
                     )}
                   >
                     <span className="truncate flex-1">{team.name}</span>
@@ -122,6 +122,9 @@ const Teams: React.FC = () => {
               <Button variant="outline" size="sm" onClick={() => setIsInviteOpen(true)}>
                 <UserPlus className="h-4 w-4 mr-1" /> 邀请成员
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setIsMemberOpen(true)}>
+                <Settings className="h-4 w-4 mr-1" /> 成员管理
+              </Button>
             </>
           )}
           <Button variant="ghost" size="sm" onClick={() => setIsCreateOpen(true)}>
@@ -142,11 +145,7 @@ const Teams: React.FC = () => {
 
       {/* ── 邀请对话框 ── */}
       {isInviteOpen && currentTeam && (
-        <TeamInviteDialog
-          teamId={currentTeam.id}
-          teamName={currentTeam.name}
-          onClose={() => setIsInviteOpen(false)}
-        />
+        <TeamInviteDialog teamId={currentTeam.id} teamName={currentTeam.name} onClose={() => setIsInviteOpen(false)} />
       )}
 
       {/* ── 创建团队对话框 ── */}
@@ -158,6 +157,11 @@ const Teams: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['user-teams'] });
           }}
         />
+      )}
+
+      {/* ── 成员管理对话框 ── */}
+      {isMemberOpen && currentTeam && (
+        <TeamMemberDialog teamId={currentTeam.id} teamName={currentTeam.name} onClose={() => setIsMemberOpen(false)} />
       )}
     </div>
   );

@@ -9,11 +9,42 @@ import { authMiddleware } from '../middleware/auth';
 import { throwAppError } from '../middleware/error';
 import type { Env, Variables } from '../types/env';
 
+// ── 简易速率限制器（生产环境建议使用 Cloudflare Rate Limiting Rules）──
+const inviteRateMap = new Map<string, { count: number; resetAt: number }>();
+const INVITE_RATE_LIMIT = 30; // 每分钟最大请求数
+const INVITE_RATE_WINDOW = 60_000; // 1 分钟窗口
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = inviteRateMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    inviteRateMap.set(ip, { count: 1, resetAt: now + INVITE_RATE_WINDOW });
+    return true;
+  }
+  if (entry.count >= INVITE_RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
+// 定期清理过期条目（每 5 分钟）
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of inviteRateMap) {
+    if (now > v.resetAt) inviteRateMap.delete(k);
+  }
+}, 300_000);
+
 const publicApp = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // ── 公开：查看邀请详情（不需要登录）──
 
 publicApp.get('/:token', async (c) => {
+  // 速率限制：防止暴力探测邀请 token
+  const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown';
+  if (!checkRateLimit(ip)) {
+    throwAppError('RATE_LIMITED', '请求过于频繁，请稍后再试');
+  }
+
   const token = c.req.param('token');
   const db = getDb(c.env.DB);
 

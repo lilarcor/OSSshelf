@@ -54,6 +54,7 @@ export const files = sqliteTable(
     updatedAt: text('updated_at').notNull(),
     deletedAt: text('deleted_at'),
     teamId: text('team_id'), // 可空：属于哪个团队的共享空间
+    accessLevel: text('access_level'), // 文件夹访问级别: private | team | public_read | public_write
     bucketId: text('bucket_id'),
     directLinkToken: text('direct_link_token').unique(),
     directLinkExpiresAt: text('direct_link_expires_at'),
@@ -862,6 +863,8 @@ export const teamResources = sqliteTable(
       .notNull()
       .references(() => users.id),
     mountedAt: text('mounted_at').notNull(),
+    /** 挂载目标文件夹ID（NULL=根目录） */
+    targetFolderId: text('target_folder_id'),
   },
   (table) => ({
     teamIdx: index('idx_team_resources_team').on(table.teamId),
@@ -951,15 +954,12 @@ export const teamActivities = sqliteTable(
   })
 );
 
-export const roleTemplates = sqliteTable(
-  'role_templates',
-  {
-    id: text('id').primaryKey(),
-    name: text('name').notNull(),
-    slug: text('slug').notNull().unique(),
-    permissions: text('permissions').notNull().default('[]'),
-    isBuiltin: integer('is_builtin', { mode: 'boolean' }).notNull().default(false),
-    description: text('description'),
-    createdAt: text('created_at').notNull(),
-  }
-);
+export const roleTemplates = sqliteTable('role_templates', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  permissions: text('permissions').notNull().default('[]'),
+  isBuiltin: integer('is_builtin', { mode: 'boolean' }).notNull().default(false),
+  description: text('description'),
+  createdAt: text('created_at').notNull(),
+});

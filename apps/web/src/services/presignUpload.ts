@@ -137,7 +137,10 @@ export async function presignUpload({
 }: PresignUploadOptions): Promise<UploadedFile> {
   const uploadCtx = { corsErrorDetected: false };
   if (file.size > MULTIPART_THRESHOLD) {
-    return multipartUpload({ file, parentId, bucketId, teamId, onProgress, onFallback, signal, taskId, skipParts }, uploadCtx);
+    return multipartUpload(
+      { file, parentId, bucketId, teamId, onProgress, onFallback, signal, taskId, skipParts },
+      uploadCtx
+    );
   }
   return singlePresignUpload({ file, parentId, bucketId, onProgress, onFallback, signal }, uploadCtx);
 }
@@ -640,6 +643,7 @@ async function proxyUpload({
   formData.append('file', file);
   if (parentId) formData.append('parentId', parentId);
   if (bucketId) formData.append('bucketId', bucketId);
+  if (teamId) formData.append('teamId', teamId);
 
   const res = await axios.post<{ success: boolean; data: UploadedFile; error?: { message: string } }>(
     `${API_BASE}/api/files/upload`,

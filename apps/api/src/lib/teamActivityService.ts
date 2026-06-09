@@ -7,10 +7,9 @@
  */
 
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { getDb, teamActivities, teams, teamMembers, users } from '../db';
+import { getDb, teamActivities, users } from '../db';
 import type { DrizzleDb } from '../db';
 import type { Env } from '../types/env';
-import { logger } from '@osshelf/shared';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 类型定义
@@ -96,7 +95,12 @@ export async function listTeamActivities(db: DrizzleDb, input: ListActivitiesInp
 
   const conditions = [eq(teamActivities.teamId, teamId)];
   if (actions && actions.length > 0) {
-    conditions.push(sql`${teamActivities.action} IN (${sql.join(actions.map(a => sql`${a}`), sql`, `)})`);
+    conditions.push(
+      sql`${teamActivities.action} IN (${sql.join(
+        actions.map((a) => sql`${a}`),
+        sql`, `
+      )})`
+    );
   }
 
   const items = await db

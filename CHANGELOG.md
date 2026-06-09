@@ -30,11 +30,11 @@ All notable changes to this project will be documented in this file.
 
 - **内置三种角色模板**：
 
-  | 模板 | 权限 | 说明 |
-  |------|------|------|
-  | `viewer` | read | 可查看和下载 |
-  | `editor` | write | 可上传、修改、删除、重命名 |
-  | `manager` | admin | 可管理权限并可再授权 |
+  | 模板      | 权限  | 说明                       |
+  | --------- | ----- | -------------------------- |
+  | `viewer`  | read  | 可查看和下载               |
+  | `editor`  | write | 可上传、修改、删除、重命名 |
+  | `manager` | admin | 可管理权限并可再授权       |
 
 - 授权时选择角色模板替代手动设置 read/write/admin，一键完成授权
 - 权限对话框 UI 重构为三卡片选择器，直观展示各模板能力范围
@@ -132,16 +132,17 @@ All notable changes to this project will be documented in this file.
 
 **新增迁移文件 `100_team_collaboration.sql`：**
 
-| 表名 | 用途 | 关键字段 |
-|------|------|----------|
-| `teams` | 团队实体 | id, owner_id, name, description, settings |
-| `team_members` | 团队成员 | id, team_id, user_id, role, added_by |
-| `team_resources` | 团队资源挂载 | id, team_id, file_id, mounted_by |
-| `permission_requests` | 权限申请 | id, file_id, requester_id, status, reviewed_by |
-| `role_templates` | 角色模板 | id, name, slug, permissions, is_builtin |
-| `file_permissions` 扩展 | 新增 team_id 字段 | 支持 subjectType='team' 的权限记录 |
+| 表名                    | 用途              | 关键字段                                       |
+| ----------------------- | ----------------- | ---------------------------------------------- |
+| `teams`                 | 团队实体          | id, owner_id, name, description, settings      |
+| `team_members`          | 团队成员          | id, team_id, user_id, role, added_by           |
+| `team_resources`        | 团队资源挂载      | id, team_id, file_id, mounted_by               |
+| `permission_requests`   | 权限申请          | id, file_id, requester_id, status, reviewed_by |
+| `role_templates`        | 角色模板          | id, name, slug, permissions, is_builtin        |
+| `file_permissions` 扩展 | 新增 team_id 字段 | 支持 subjectType='team' 的权限记录             |
 
 **内置角色模板数据：**
+
 - `rt-viewer` (查看者): ["read"]
 - `rt-editor` (编辑者): ["read", "write"]
 - `rt-manager` (管理者): ["read", "write", "admin"]
@@ -183,60 +184,60 @@ apps/web/src/
 
 **后端（5 个文件大幅修改）：**
 
-| 文件 | 改动量 | 说明 |
-|------|--------|------|
-| `src/db/schema.ts` | +107 行 | 新增 5 张表定义 + filePermissions.teamId 字段 |
+| 文件                            | 改动量  | 说明                                           |
+| ------------------------------- | ------- | ---------------------------------------------- |
+| `src/db/schema.ts`              | +107 行 | 新增 5 张表定义 + filePermissions.teamId 字段  |
 | `src/lib/permissionResolver.ts` | +177 行 | team 维度解析链 + resolveTeamDefaultPermission |
-| `src/lib/permissionService.ts` | +615 行 | 6 个新函数（角色模板/申请审批/批量操作） |
-| `src/routes/permissions.ts` | +237 行 | 7 个新端点 + grant/revoke team 扩展 |
-| `src/index.ts` | +2 行 | 注册 /api/teams 路由 |
+| `src/lib/permissionService.ts`  | +615 行 | 6 个新函数（角色模板/申请审批/批量操作）       |
+| `src/routes/permissions.ts`     | +237 行 | 7 个新端点 + grant/revoke team 扩展            |
+| `src/index.ts`                  | +2 行   | 注册 /api/teams 路由                           |
 
 **前端（4 个文件大幅修改）：**
 
-| 文件 | 改动量 | 说明 |
-|------|--------|------|
-| `services/collab.ts` | +171 行 | teamsApi(12方法) + permissionRequestsApi(4) + rolesApi + permissionsApi扩展 |
-| `components/files/permissions/FilePermissionsDialog.tsx` | +340/-135 行 | 三Tab切换 + 角色模板卡片 + 来源标签 + 批量模式 |
-| `App.tsx` | +9 行 | /teams 路由注册 |
-| `components/layouts/MainLayout.tsx` | +2 行 | 导航入口 |
+| 文件                                                     | 改动量       | 说明                                                                        |
+| -------------------------------------------------------- | ------------ | --------------------------------------------------------------------------- |
+| `services/collab.ts`                                     | +171 行      | teamsApi(12方法) + permissionRequestsApi(4) + rolesApi + permissionsApi扩展 |
+| `components/files/permissions/FilePermissionsDialog.tsx` | +340/-135 行 | 三Tab切换 + 角色模板卡片 + 来源标签 + 批量模式                              |
+| `App.tsx`                                                | +9 行        | /teams 路由注册                                                             |
+| `components/layouts/MainLayout.tsx`                      | +2 行        | 导航入口                                                                    |
 
 ### API Endpoints Summary
 
 **团队管理 API（12 个端点）：**
 
-| 方法 | 路径 | 功能 |
-|------|------|------|
-| GET | `/api/teams` | 列出用户的团队（owned + joined） |
-| POST | `/api/teams` | 创建团队 |
-| GET | `/api/teams/:id` | 获取团队详情 |
-| PUT | `/api/teams/:id` | 更新团队信息 |
-| DELETE | `/api/teams/:id` | 删除团队 |
-| GET | `/api/teams/:id/members` | 列出团队成员 |
-| POST | `/api/teams/:id/members` | 添加成员 |
-| DELETE | `/api/teams/:id/members/:userId` | 移除成员 |
-| PUT | `/api/teams/:id/members/:userId/role` | 变更角色 |
-| POST | `/api/teams/:id/resources` | 挂载资源到团队 |
-| DELETE | `/api/teams/:id/resources/:fileId` | 卸载资源 |
-| GET | `/api/teams/:id/resources/list` | 列出团队资源 |
+| 方法   | 路径                                  | 功能                             |
+| ------ | ------------------------------------- | -------------------------------- |
+| GET    | `/api/teams`                          | 列出用户的团队（owned + joined） |
+| POST   | `/api/teams`                          | 创建团队                         |
+| GET    | `/api/teams/:id`                      | 获取团队详情                     |
+| PUT    | `/api/teams/:id`                      | 更新团队信息                     |
+| DELETE | `/api/teams/:id`                      | 删除团队                         |
+| GET    | `/api/teams/:id/members`              | 列出团队成员                     |
+| POST   | `/api/teams/:id/members`              | 添加成员                         |
+| DELETE | `/api/teams/:id/members/:userId`      | 移除成员                         |
+| PUT    | `/api/teams/:id/members/:userId/role` | 变更角色                         |
+| POST   | `/api/teams/:id/resources`            | 挂载资源到团队                   |
+| DELETE | `/api/teams/:id/resources/:fileId`    | 卸载资源                         |
+| GET    | `/api/teams/:id/resources/list`       | 列出团队资源                     |
 
 **权限扩展 API（7 个新端点）：**
 
-| 方法 | 路径 | 功能 |
-|------|------|------|
-| POST | `/api/permissions/requests` | 发起权限申请 |
-| GET | `/api/permissions/requests/my` | 我的申请列表 |
-| GET | `/api/permissions/requests/pending` | 待审批列表 |
-| PUT | `/api/permissions/requests/:id/review` | 审批申请 |
-| POST | `/api/permissions/batch-grant` | 批量授权 |
-| POST | `/api/permissions/batch-revoke` | 批量撤销 |
-| GET | `/api/roles/templates` | 获取角色模板列表 |
+| 方法 | 路径                                   | 功能             |
+| ---- | -------------------------------------- | ---------------- |
+| POST | `/api/permissions/requests`            | 发起权限申请     |
+| GET  | `/api/permissions/requests/my`         | 我的申请列表     |
+| GET  | `/api/permissions/requests/pending`    | 待审批列表       |
+| PUT  | `/api/permissions/requests/:id/review` | 审批申请         |
+| POST | `/api/permissions/batch-grant`         | 批量授权         |
+| POST | `/api/permissions/batch-revoke`        | 批量撤销         |
+| GET  | `/api/roles/templates`                 | 获取角色模板列表 |
 
 **现有 API 扩展：**
 
-| 端点 | 扩展内容 |
-|------|---------|
-| POST `/api/permissions/grant` | 新增 subjectType='team' + teamId 参数 |
-| POST `/api/permissions/revoke` | 新增 teamId 参数支持团队权限撤销 |
+| 端点                           | 扩展内容                              |
+| ------------------------------ | ------------------------------------- |
+| POST `/api/permissions/grant`  | 新增 subjectType='team' + teamId 参数 |
+| POST `/api/permissions/revoke` | 新增 teamId 参数支持团队权限撤销      |
 
 ---
 

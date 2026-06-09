@@ -8,7 +8,6 @@
  * 4. 接受成功 → 跳转到团队工作区
  */
 
-import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import api from '@/services/api-client';
@@ -17,7 +16,7 @@ import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { useToast } from '@/components/ui/useToast';
-import { Loader2, Users, UserPlus, CheckCircle, XCircle, Clock, AlertTriangle, Crown, Shield, Eye } from 'lucide-react';
+import { Loader2, Users, UserPlus, CheckCircle, XCircle, Clock, AlertTriangle, Shield, Eye } from 'lucide-react';
 
 interface InviteInfo {
   id: string;
@@ -45,7 +44,11 @@ export default function AcceptInvite() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   // 获取邀请详情（公开接口，无需登录）
-  const { data: invite, isLoading, error } = useQuery({
+  const {
+    data: invite,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['invite-info', token],
     queryFn: async () => {
       const res = await api.get<{ success: boolean; data: InviteInfo }>(`/api/invite/${token}`);
@@ -85,7 +88,9 @@ export default function AcceptInvite() {
             <XCircle className="h-12 w-12 text-destructive" />
             <h2 className="text-lg font-semibold">邀请链接无效</h2>
             <p className="text-sm text-muted-foreground text-center">该邀请链接可能已被删除或不存在</p>
-            <Button variant="outline" onClick={() => navigate('/')}>返回首页</Button>
+            <Button variant="outline" onClick={() => navigate('/')}>
+              返回首页
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -117,9 +122,7 @@ export default function AcceptInvite() {
                 <p className="text-sm text-muted-foreground text-center">该邀请已被撤销或使用过</p>
               </>
             )}
-            <Button onClick={() => navigate(`/teams/${invite.teamId}/workspace`)}>
-              前往团队空间
-            </Button>
+            <Button onClick={() => navigate(`/teams/${invite.teamId}/workspace`)}>前往团队空间</Button>
           </CardContent>
         </Card>
       </div>
@@ -137,9 +140,7 @@ export default function AcceptInvite() {
             <UserPlus className="h-7 w-7 text-primary" />
           </div>
           <CardTitle className="text-xl">团队邀请</CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            你被邀请加入以下团队
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">你被邀请加入以下团队</p>
         </CardHeader>
 
         <CardContent className="space-y-5">
@@ -184,9 +185,7 @@ export default function AcceptInvite() {
             <div className="space-y-3">
               <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs">
                 <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-amber-700 dark:text-amber-400">
-                  请先登录后再接受邀请
-                </p>
+                <p className="text-amber-700 dark:text-amber-400">请先登录后再接受邀请</p>
               </div>
               <Button className="w-full" onClick={() => navigate(`/login?redirect=/invite/${token}`)}>
                 登录并接受邀请

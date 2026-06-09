@@ -282,7 +282,9 @@ export const permissionsApi = {
   renameTag: (data: { oldName: string; newName: string }) =>
     api.put<ApiResponse<{ message: string }>>('/api/permissions/tags/rename', data),
   deleteTag: (tagName: string) =>
-    api.delete<ApiResponse<{ message: string; affectedRows: number }>>(`/api/permissions/tags/${encodeURIComponent(tagName)}`),
+    api.delete<ApiResponse<{ message: string; affectedRows: number }>>(
+      `/api/permissions/tags/${encodeURIComponent(tagName)}`
+    ),
 
   // ── 全局权限视图 ──
   getAllPermissions: () => api.get<ApiResponse<{ permissions: GlobalPermission[] }>>('/api/permissions/all'),
@@ -299,12 +301,13 @@ export const permissionsApi = {
     targetTeamId?: string;
     roleTemplate: 'viewer' | 'editor' | 'manager';
     expiresAt?: string;
-  }) => api.post<ApiResponse<{ message: string }>>('/api/permissions/grant', {
-    ...data,
-    // 将 roleTemplate 映射为 permission: viewer→read, editor→write, manager→admin
-    permission: data.roleTemplate === 'viewer' ? 'read' : data.roleTemplate === 'editor' ? 'write' : 'admin',
-    subjectType: data.targetTeamId ? 'team' : data.targetGroupId ? 'group' : 'user',
-  }),
+  }) =>
+    api.post<ApiResponse<{ message: string }>>('/api/permissions/grant', {
+      ...data,
+      // 将 roleTemplate 映射为 permission: viewer→read, editor→write, manager→admin
+      permission: data.roleTemplate === 'viewer' ? 'read' : data.roleTemplate === 'editor' ? 'write' : 'admin',
+      subjectType: data.targetTeamId ? 'team' : data.targetGroupId ? 'group' : 'user',
+    }),
 
   batchGrant: (data: {
     fileIds: string[];
@@ -313,7 +316,11 @@ export const permissionsApi = {
     targetTeamId?: string;
     permission: 'read' | 'write' | 'admin';
     subjectType?: 'user' | 'group' | 'team';
-  }) => api.post<ApiResponse<{ succeeded: number; failed: number; errors: string[] }>>('/api/permissions/batch-grant', data),
+  }) =>
+    api.post<ApiResponse<{ succeeded: number; failed: number; errors: string[] }>>(
+      '/api/permissions/batch-grant',
+      data
+    ),
 
   batchRevoke: (data: {
     fileIds: string[];
@@ -592,50 +599,49 @@ export interface TeamStorageStats {
 
 export const teamsApi = {
   list: () => api.get<ApiResponse<{ owned: Team[]; joined: Team[] }>>('/api/teams'),
-  create: (data: { name: string; description?: string }) =>
-    api.post<ApiResponse<Team>>('/api/teams', data),
+  create: (data: { name: string; description?: string }) => api.post<ApiResponse<Team>>('/api/teams', data),
   get: (id: string) => api.get<ApiResponse<Team>>(`/api/teams/${id}`),
-  update: (id: string, data: { name?: string; description?: string; storageQuota?: number; defaultMemberRole?: string }) =>
-    api.put<ApiResponse<{ message: string }>>(`/api/teams/${id}`, data),
+  update: (
+    id: string,
+    data: { name?: string; description?: string; storageQuota?: number; defaultMemberRole?: string }
+  ) => api.put<ApiResponse<{ message: string }>>(`/api/teams/${id}`, data),
   delete: (id: string) => api.delete<ApiResponse<{ message: string }>>(`/api/teams/${id}`),
-  getMembers: (id: string) =>
-    api.get<ApiResponse<TeamMember[]>>(`/api/teams/${id}/members`),
+  getMembers: (id: string) => api.get<ApiResponse<TeamMember[]>>(`/api/teams/${id}/members`),
   addMember: (teamId: string, data: { userId: string; role?: string }) =>
     api.post<ApiResponse<Record<string, unknown>>>(`/api/teams/${teamId}/members`, data),
   removeMember: (teamId: string, userId: string) =>
     api.delete<ApiResponse<{ message: string }>>(`/api/teams/${teamId}/members/${userId}`),
   updateMemberRole: (teamId: string, userId: string, role: string) =>
     api.put<ApiResponse<{ message: string }>>(`/api/teams/${teamId}/members/${userId}/role`, { role }),
-  mountResource: (teamId: string, fileId: string) =>
-    api.post<ApiResponse<Record<string, unknown>>>(`/api/teams/${teamId}/resources`, { fileId }),
+  mountResource: (teamId: string, fileId: string, options?: { targetFolderId?: string | null }) =>
+    api.post<ApiResponse<Record<string, unknown>>>(`/api/teams/${teamId}/resources`, { fileId, ...options }),
   unmountResource: (teamId: string, fileId: string) =>
     api.delete<ApiResponse<{ message: string }>>(`/api/teams/${teamId}/resources/${fileId}`),
-  listResources: (teamId: string) =>
-    api.get<ApiResponse<TeamResource[]>>(`/api/teams/${teamId}/resources/list`),
+  listResources: (teamId: string) => api.get<ApiResponse<TeamResource[]>>(`/api/teams/${teamId}/resources/list`),
 
   // ── 工作区文件 ─-
 
   /** 获取团队工作区文件列表 */
   getWorkspaceFiles: (teamId: string, params?: { folderId?: string; limit?: number; offset?: number }) =>
-    api.get<ApiResponse<{ files: WorkspaceFile[]; total: number }>>(
-      `/api/teams/${teamId}/workspace/files`,
-      { params: params ?? {} }
-    ),
+    api.get<ApiResponse<{ files: WorkspaceFile[]; total: number }>>(`/api/teams/${teamId}/workspace/files`, {
+      params: params ?? {},
+    }),
 
   // ── 邀请管理 ─-
 
   /** 创建邀请链接 */
-  createInvite: (teamId: string, data: {
-    role?: 'member' | 'guest';
-    email?: string;
-    message?: string;
-    expiresInDays?: number;
-  }) =>
-    api.post<ApiResponse<TeamInvite>>(`/api/teams/${teamId}/invites`, data),
+  createInvite: (
+    teamId: string,
+    data: {
+      role?: 'member' | 'guest';
+      email?: string;
+      message?: string;
+      expiresInDays?: number;
+    }
+  ) => api.post<ApiResponse<TeamInvite>>(`/api/teams/${teamId}/invites`, data),
 
   /** 列出待定邀请 */
-  listInvites: (teamId: string) =>
-    api.get<ApiResponse<{ invites: PendingInvite[] }>>(`/api/teams/${teamId}/invites`),
+  listInvites: (teamId: string) => api.get<ApiResponse<{ invites: PendingInvite[] }>>(`/api/teams/${teamId}/invites`),
 
   /** 撤销邀请 */
   revokeInvite: (teamId: string, inviteId: string) =>
@@ -651,16 +657,14 @@ export const teamsApi = {
 
   /** 获取团队活动时间线 */
   getActivities: (teamId: string, params?: { limit?: number; offset?: number }) =>
-    api.get<ApiResponse<{ items: TeamActivity[]; total: number }>>(
-      `/api/teams/${teamId}/activities`,
-      { params: params ?? {} }
-    ),
+    api.get<ApiResponse<{ items: TeamActivity[]; total: number }>>(`/api/teams/${teamId}/activities`, {
+      params: params ?? {},
+    }),
 
   // ── 存储统计 ─-
 
   /** 获取团队存储统计 */
-  getStorageStats: (teamId: string) =>
-    api.get<ApiResponse<TeamStorageStats>>(`/api/teams/${teamId}/storage`),
+  getStorageStats: (teamId: string) => api.get<ApiResponse<TeamStorageStats>>(`/api/teams/${teamId}/storage`),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -668,7 +672,7 @@ export const teamsApi = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const rolesApi = {
-  getTemplates: () => api.get<ApiResponse<RoleTemplate[]>>('/api/roles/templates'),
+  getTemplates: () => api.get<ApiResponse<RoleTemplate[]>>('/api/permissions/roles/templates'),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
