@@ -26,6 +26,8 @@ export interface CreateInviteInput {
   email?: string;
   message?: string;
   expiresInDays?: number;
+  /** 可选：从路由层传入的真实 baseUrl，优先级高于环境变量 */
+  requestBaseUrl?: string;
 }
 
 export interface InviteInfo {
@@ -86,7 +88,10 @@ export async function createInvite(
   });
 
   const inviter = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, inviterUserId)).get();
-  const baseUrl = getBaseUrl(env);
+  // 优先使用请求传入的 baseUrl，其次环境变量，最后 fallback
+  let baseUrl = input.requestBaseUrl || getBaseUrl(env);
+  // 确保 baseUrl 不以 / 结尾
+  if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
 
   logger.info('InviteService', '创建邀请', { teamId, inviterUserId, role, token: token.slice(0, 8) + '...' });
 

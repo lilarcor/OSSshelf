@@ -47,6 +47,7 @@ import { resolveBucketConfig, updateBucketStats, updateUserStorage, checkBucketQ
 import { checkFolderMimeTypeRestriction } from '../lib/folderPolicy';
 import { getEncryptionKey } from '../lib/crypto';
 import { createAuditLog, getClientIp, getUserAgent } from '../lib/audit';
+import { recordActivityWithEnv } from '../lib/teamActivityService';
 import {
   tgUploadFile,
   tgDownloadFile,
@@ -2083,6 +2084,20 @@ app.delete('/:id', async (c) => {
 
   const result = await serviceSoftDeleteFile(c.env, userId, fileId);
   if (!result.success) throwAppError('FILE_NOT_FOUND', result.error);
+
+  // 团队活动记录：文件/文件夹删除
+  if (file.teamId) {
+    c.executionCtx.waitUntil(
+      recordActivityWithEnv(c.env, {
+        teamId: file.teamId,
+        userId,
+        action: 'file_deleted',
+        resourceType: 'file',
+        resourceId: fileId,
+        details: { fileName: file.name, isFolder: file.isFolder },
+      }).catch(() => {})
+    );
+  }
 
   sendNotification(c, {
     userId,

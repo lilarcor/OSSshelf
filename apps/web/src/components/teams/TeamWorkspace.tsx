@@ -28,7 +28,7 @@ import {
   FolderOpen, HardDrive, Users, Loader2, Grid, List,
   RefreshCw, Lock, Edit, Crown, Plus, Upload, Trash2,
   FolderPlus, Eye, Download, ChevronRight, Search, SortAsc, SortDesc,
-  CheckSquare, X, Pencil,
+  CheckSquare, X, Pencil, Link2Off,
 } from 'lucide-react';
 import { cn, formatBytes } from '@/utils';
 import type { ViewMode } from '@/stores/files';
@@ -201,6 +201,20 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
     },
     onError: (e: any) => {
       toast({ title: '删除失败', description: e.response?.data?.error?.message || e.message, variant: 'destructive' });
+    },
+  });
+
+  // ── 卸载挂载资源（仅对 source='mounted' 的文件）──
+  const unmountMutation = useMutation({
+    mutationFn: (fileId: string) =>
+      teamsApi.unmountResource(teamId, fileId).then((r) => r.data),
+    onSuccess: () => {
+      toast({ title: '已卸载' });
+      setSelectedFileIds(prev => { const next = new Set(prev); return next; });
+      refetchFiles();
+    },
+    onError: (e: any) => {
+      toast({ title: '卸载失败', description: e.response?.data?.error?.message || e.message, variant: 'destructive' });
     },
   });
 
@@ -672,6 +686,12 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                       <>
                         <FileIcon mimeType={file.mimeType} isFolder={file.isFolder} size="sm" />
                         <span className="truncate">{file.fileName}</span>
+                        {/* 挂载资源视觉区分标识 */}
+                        {(file as any).source === 'mounted' && (
+                          <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                            挂载
+                          </span>
+                        )}
                       </>
                     )}
                   </div>
@@ -700,14 +720,25 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                     )}
-                    {canWrite && (
+                    {canWrite && ((file as any).source === 'mounted' ? (
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
+                        onClick={(e) => { e.stopPropagation();
+                          if (confirm(`确定卸载挂载资源「${file.fileName}」？`)) unmountMutation.mutate(file.fileId);
+                        }}
+                        title="卸载（仅移除挂载，不删除原文件）"
+                      >
+                        <Link2Off className="h-3.5 w-3.5" />
+                      </Button>
+                    ) : (
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={(e) => { e.stopPropagation();
                           if (confirm(`确定删除「${file.fileName}」？`)) deleteMutation.mutate(file.fileId);
-                        }}>
+                        }}
+                        title="删除"
+                      >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
-                    )}
+                    ))}
                   </div>
                   <div className="col-span-1 text-xs text-muted-foreground">
                     {getFileDate(file)}
@@ -736,6 +767,12 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
                 >
                   <FileIcon mimeType={file.mimeType} isFolder={file.isFolder} size="lg" />
                   <span className="text-sm text-center truncate w-full mt-2">{file.fileName}</span>
+                  {/* 挂载资源视觉区分标识 — 网格视图 */}
+                  {(file as any).source === 'mounted' && (
+                    <span className="text-[10px] font-medium rounded bg-amber-500/10 text-amber-600 border border-amber-500/20 px-1.5 py-0.5">
+                      挂载
+                    </span>
+                  )}
                   <PermissionBadge permission={file.permission} />
                   {/* 操作按钮 */}
                   <div className="flex items-center justify-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -830,7 +867,16 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
               <Pencil className="h-4 w-4" /> 重命名
             </button>
           )}
-          {canWrite && (
+          {canWrite && (contextMenuFile as any).source === 'mounted' ? (
+            <button
+              className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 text-amber-600"
+              onClick={() => { setContextMenuFile(null);
+                if (confirm(`确定卸载挂载资源「${contextMenuFile.fileName}」？`)) unmountMutation.mutate(contextMenuFile.fileId);
+              }}
+            >
+              <Link2Off className="h-4 w-4" /> 卸载资源
+            </button>
+          ) : canWrite ? (
             <button
               className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 text-destructive"
               onClick={() => { setContextMenuFile(null);
@@ -839,7 +885,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
             >
               <Trash2 className="h-4 w-4" /> 删除
             </button>
-          )}
+          ) : null}
         </div>
       )}
     </div>

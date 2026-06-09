@@ -44,6 +44,7 @@ import { decryptSecret, s3Delete } from '../lib/s3client';
 import { getUserOrFail, encodeFilename } from '../lib/utils';
 import { checkAndClaimDedup } from '../lib/dedup';
 import { enqueueAutoProcessFile } from '../lib/ai/features';
+import { recordActivityWithEnv } from '../lib/teamActivityService';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use('*', authMiddleware);
@@ -868,6 +869,20 @@ app.post('/complete', async (c) => {
         await updateUserStorage(db, userId, task.fileSize);
         const physicalDelta = isDedupHit ? 0 : task.fileSize;
         await updateBucketStats(db, task.bucketId!, physicalDelta, 1);
+
+        // 团队活动记录
+        if (resolvedTeamId) {
+          c.executionCtx.waitUntil(
+            recordActivityWithEnv(c.env, {
+              teamId: resolvedTeamId,
+              userId,
+              action: 'file_uploaded',
+              resourceType: 'file',
+              resourceId: fileId,
+              details: { fileName: task.fileName },
+            }).catch(() => {})
+          );
+        }
       }
 
       c.executionCtx.waitUntil(
@@ -994,6 +1009,20 @@ app.post('/complete', async (c) => {
         await updateUserStorage(db, userId, task.fileSize);
         const physicalDelta = isDedupHit ? 0 : task.fileSize;
         await updateBucketStats(db, task.bucketId!, physicalDelta, 1);
+
+        // 团队活动记录
+        if (resolvedTeamId) {
+          c.executionCtx.waitUntil(
+            recordActivityWithEnv(c.env, {
+              teamId: resolvedTeamId,
+              userId,
+              action: 'file_uploaded',
+              resourceType: 'file',
+              resourceId: fileId,
+              details: { fileName: task.fileName },
+            }).catch(() => {})
+          );
+        }
       }
 
       c.executionCtx.waitUntil(
@@ -1108,6 +1137,20 @@ app.post('/complete', async (c) => {
     await updateUserStorage(db, userId, task.fileSize);
 
     await updateBucketStats(db, task.bucketId, task.fileSize, 1);
+
+    // 团队活动记录
+    if (resolvedTeamId) {
+      c.executionCtx.waitUntil(
+        recordActivityWithEnv(c.env, {
+          teamId: resolvedTeamId,
+          userId,
+          action: 'file_uploaded',
+          resourceType: 'file',
+          resourceId: fileId,
+          details: { fileName: task.fileName },
+        }).catch(() => {})
+      );
+    }
 
     c.executionCtx.waitUntil(
       enqueueAutoProcessFile(c.env, fileId, userId).catch((error) => {

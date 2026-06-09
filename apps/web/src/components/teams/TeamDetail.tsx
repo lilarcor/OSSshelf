@@ -3,7 +3,7 @@
  * 团队详情面板
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
@@ -377,11 +377,18 @@ const SettingsSection: React.FC<SettingsSectionProps> = ({ teamData, onUpdate, o
 
   const [name, setName] = useState(teamData.name);
   const [description, setDescription] = useState(teamData.description ?? '');
+  // 优先使用 storageStats（从存储统计API获取的最新值），其次用 teamData，最后默认5GB
+  const effectiveQuota = storageStats?.storageQuota ?? teamData?.storageQuota ?? 5368709120;
   const [storageQuotaMB, setStorageQuotaMB] = useState(
-    (storageStats?.storageQuota ?? teamData.storageQuota)
-      ? Math.round((storageStats?.storageQuota ?? teamData.storageQuota!) / 1024 / 1024)
-      : 5120
+    Math.round(effectiveQuota / 1024 / 1024)
   );
+
+  // 当 storageStats 异步加载完成后，同步最新配额值
+  useEffect(() => {
+    if (storageStats?.storageQuota) {
+      setStorageQuotaMB(Math.round(storageStats.storageQuota / 1024 / 1024));
+    }
+  }, [storageStats?.storageQuota]);
 
   return (
     <div className="space-y-4 p-4 rounded-lg border bg-muted/30">

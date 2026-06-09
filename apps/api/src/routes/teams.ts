@@ -528,10 +528,18 @@ app.post('/:id/invites', async (c) => {
     }, 400);
   }
 
+  // 从请求头构建真实 baseUrl（优先 Origin，其次 Host）
+  const origin = c.req.header('origin') || '';
+  const host = c.req.header('host') || '';
+  const protocol = c.req.header('x-forwarded-proto') || (c.req.header('x-forwarded-host') ? 'https' : 'http');
+  const requestBaseUrl = origin
+    || (host ? `${protocol}://${host}` : '');
+
   const result = await createInvite(c.env, userId, {
     teamId,
     inviterUserId: userId,
     ...parseResult.data,
+    requestBaseUrl: requestBaseUrl || undefined,
   });
 
   if (!result.success) {

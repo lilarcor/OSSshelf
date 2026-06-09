@@ -845,13 +845,28 @@ export async function getTeamStorageStats(
   if (!team) return null;
 
   const quota = (team as any).storageQuota ?? 5368709120;
-  const used = (team as any).storageUsed ?? 0;
 
-  const resourceCount = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(teamResources)
-    .where(eq(teamResources.teamId, teamId))
-    .get();
+  // 实际计算：团队自有文件大小 + 挂载资源文件大小
+  const [teamFilesResult, mountedFilesResult, resourceCount] = await Promise.all([
+    // 团队自有文件（teamId 字段标记）
+    db.select({ totalSize: sql<number>`COALESCE(SUM(${files.size}), 0)` })
+      .from(files)
+      .where(and(eq(files.teamId, teamId), isNull(files.deletedAt)))
+      .get(),
+    // 挂载资源（通过 teamResources 关联 files 表）
+    db.select({ totalSize: sql<number>`COALESCE(SUM(${files.size}), 0)` })
+      .from(teamResources)
+      .innerJoin(files, eq(teamResources.fileId, files.id))
+      .where(and(eq(teamResources.teamId, teamId), isNull(files.deletedAt)))
+      .get(),
+    // 挂载资源数量
+    db.select({ count: sql<number>`count(*)` })
+      .from(teamResources)
+      .where(eq(teamResources.teamId, teamId))
+      .get(),
+  ]);
+
+  const used = (teamFilesResult?.totalSize ?? 0) + (mountedFilesResult?.totalSize ?? 0);
 
   return {
     storageQuota: quota,
