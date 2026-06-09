@@ -316,6 +316,7 @@ export const uploadTasks = sqliteTable(
     mimeType: text('mime_type'),
     parentId: text('parent_id'),
     bucketId: text('bucket_id'),
+    teamId: text('team_id'),
     r2Key: text('r2_key').notNull(),
     uploadId: text('upload_id').notNull(),
     totalParts: integer('total_parts').notNull(),

@@ -154,6 +154,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
   const { isDragActive, handleDragOver, handleDragLeave, handleDrop } = useFileDragDrop({
     folderId: currentFolderId ?? null,
     setUploadProgresses,
+    teamId,
   });
 
   // 拖拽上传完成后刷新文件列表
@@ -234,6 +235,7 @@ const TeamWorkspace: React.FC<TeamWorkspaceProps> = ({ teamId, teamName, userRol
         await presignUpload({
           file,
           parentId: currentFolderId || null,
+          teamId,
           onProgress: (progress) => setUploadProgresses(prev => ({ ...prev, [key]: progress })),
         });
         setUploadProgresses(p => { const n = { ...p }; delete n[key]; return n; });

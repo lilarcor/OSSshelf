@@ -56,6 +56,7 @@ const createTaskSchema = z.object({
   mimeType: z.string().optional().default('application/octet-stream'),
   parentId: z.string().nullable().optional(),
   bucketId: z.string().nullable().optional(),
+  teamId: z.string().nullable().optional(), // 团队工作区上传时标记团队ID
 });
 
 const uploadPartSchema = z.object({
@@ -88,7 +89,7 @@ app.post('/create', async (c) => {
     );
   }
 
-  const { fileName, fileSize, mimeType: providedMimeType, parentId, bucketId: requestedBucketId } = result.data;
+  const { fileName, fileSize, mimeType: providedMimeType, parentId, bucketId: requestedBucketId, teamId } = result.data;
   const db = getDb(c.env.DB);
   const encKey = getEncryptionKey(c.env);
 
@@ -151,6 +152,7 @@ app.post('/create', async (c) => {
         mimeType: mimeType || null,
         parentId: parentId || null,
         bucketId: bucketConfig.id,
+        teamId: teamId || null,
         r2Key,
         uploadId: 'telegram', // 小文件标记
         totalParts: 1,
@@ -191,6 +193,7 @@ app.post('/create', async (c) => {
       mimeType: mimeType || null,
       parentId: parentId || null,
       bucketId: bucketConfig.id,
+      teamId: teamId || null,
       r2Key,
       uploadId,
       totalParts,
@@ -241,6 +244,7 @@ app.post('/create', async (c) => {
       mimeType: mimeType || null,
       parentId: parentId || null,
       bucketId: bucketConfig.id,
+      teamId: teamId || null,
       r2Key,
       uploadId: '', // 小文件不需要 multipart uploadId
       totalParts: 1,
@@ -279,6 +283,7 @@ app.post('/create', async (c) => {
     mimeType: mimeType || null,
     parentId: parentId || null,
     bucketId: bucketConfig.id,
+    teamId: teamId || null,
     r2Key,
     uploadId,
     totalParts,
@@ -782,6 +787,16 @@ app.post('/complete', async (c) => {
     const isTelegramSmall = task.uploadId === 'telegram';
     const now = new Date().toISOString();
 
+    // ── 解析团队 ID：优先使用任务记录的，否则从 parentId 向上追溯 ──
+    let resolvedTeamId: string | null = task.teamId || null;
+    if (!resolvedTeamId && task.parentId) {
+      try {
+        const parentFile = await db.select({ teamId: files.teamId }).from(files)
+          .where(eq(files.id, task.parentId)).get();
+        if (parentFile?.teamId) resolvedTeamId = parentFile.teamId;
+      } catch { /* 父文件夹不存在时忽略 */ }
+    }
+
     // Telegram 小文件任务：写入 files + telegramFileRefs
     if (isTelegramSmall) {
       const uploadedParts: Array<{ partNumber: number; etag: string }> = (() => {
@@ -831,6 +846,7 @@ app.post('/complete', async (c) => {
           refCount: 1,
           isFolder: false,
           bucketId: task.bucketId,
+          teamId: resolvedTeamId,
           createdAt: now,
           updatedAt: now,
           deletedAt: null,
@@ -955,6 +971,7 @@ app.post('/complete', async (c) => {
           refCount: 1,
           isFolder: false,
           bucketId: task.bucketId,
+          teamId: resolvedTeamId,
           createdAt: now,
           updatedAt: now,
           deletedAt: null,
@@ -1082,6 +1099,7 @@ app.post('/complete', async (c) => {
       refCount: finalRefCount,
       isFolder: false,
       bucketId: task.bucketId,
+      teamId: resolvedTeamId,
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
