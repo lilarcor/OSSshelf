@@ -2,7 +2,7 @@
  * teamService.ts — 团队管理核心服务层
  */
 
-import { eq, and, isNull, sql, or, inArray } from 'drizzle-orm';
+import { eq, and, isNull, sql, or, inArray, like } from 'drizzle-orm';
 import { getDb, teams, teamMembers, teamResources, files, users, filePermissions } from '../db';
 import type { DrizzleDb } from '../db';
 import type { Env } from '../types/env';
@@ -563,7 +563,7 @@ export async function mountResourceToTeam(
   userId: string,
   teamId: string,
   fileId: string,
-  options?: { targetFolderId?: string | null }
+  options?: { targetFolderId?: string | null; penetrate?: boolean }
 ): Promise<{ success: true; message: string } | { success: false; error: string }> {
   const db = getDb(env.DB);
 
@@ -651,6 +651,66 @@ export async function mountResourceToTeam(
       createdAt: now,
       updatedAt: now,
     });
+  }
+
+  // 穿透挂载：如果目标是文件夹且启用穿透，递归挂载所有子文件
+  if (file.isFolder && options?.penetrate) {
+    const folderPath = file.path.endsWith('/') ? file.path.slice(0, -1) : file.path;
+    const childFiles = await db
+      .select({ id: files.id, name: files.name, isFolder: files.isFolder })
+      .from(files)
+      .where(and(eq(files.userId, file.userId), isNull(files.deletedAt), like(files.path, `${folderPath}/%`)))
+      .all();
+
+    for (const child of childFiles) {
+      // 检查子文件是否已挂载
+      const existingChildMount = await db
+        .select()
+        .from(teamResources)
+        .where(and(eq(teamResources.teamId, teamId), eq(teamResources.fileId, child.id)))
+        .get();
+
+      if (!existingChildMount) {
+        await db.insert(teamResources).values({
+          id: crypto.randomUUID(),
+          teamId,
+          fileId: child.id,
+          mountedBy: userId,
+          mountedAt: now,
+          targetFolderId: options?.targetFolderId ?? null,
+        });
+
+        // 子文件也同步创建权限
+        const existingChildPerm = await db
+          .select()
+          .from(filePermissions)
+          .where(
+            and(
+              eq(filePermissions.fileId, child.id),
+              eq(filePermissions.subjectType, 'team'),
+              eq(filePermissions.teamId, teamId)
+            )
+          )
+          .get();
+
+        if (!existingChildPerm) {
+          await db.insert(filePermissions).values({
+            id: crypto.randomUUID(),
+            fileId: child.id,
+            userId: null,
+            groupId: null,
+            teamId,
+            subjectType: 'team',
+            permission: 'read',
+            grantedBy: userId,
+            inheritToChildren: true,
+            scope: 'explicit',
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+      }
+    }
   }
 
   // Activity
@@ -959,17 +1019,18 @@ export async function getTeamStorageStats(
       .innerJoin(files, eq(teamResources.fileId, files.id))
       .where(and(eq(teamResources.teamId, teamId), isNull(files.deletedAt)))
       .get(),
-    // 团队自有文件数量
+    // 团队自有文件数量（排除文件夹）
     db
       .select({ count: sql<number>`count(*)` })
       .from(files)
-      .where(and(eq(files.teamId, teamId), isNull(files.deletedAt)))
+      .where(and(eq(files.teamId, teamId), isNull(files.deletedAt), eq(files.isFolder, false)))
       .get(),
-    // 挂载资源数量
+    // 挂载资源数量（排除文件夹）
     db
       .select({ count: sql<number>`count(*)` })
       .from(teamResources)
-      .where(eq(teamResources.teamId, teamId))
+      .innerJoin(files, eq(teamResources.fileId, files.id))
+      .where(and(eq(teamResources.teamId, teamId), eq(files.isFolder, false)))
       .get(),
   ]);
 

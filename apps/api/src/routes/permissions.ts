@@ -21,6 +21,7 @@ import {
   groupMembers,
   teams,
   teamMembers,
+  teamResources,
   roleTemplates,
 } from '../db';
 import { authMiddleware } from '../middleware/auth';
@@ -62,6 +63,8 @@ const grantPermissionSchema = z.object({
   permission: z.enum(['read', 'write', 'admin']),
   subjectType: z.enum(['user', 'group', 'team']).default('user'),
   expiresAt: z.string().optional(),
+  /** 授权文件夹时是否穿透下级所有文件/文件夹（默认 true） */
+  inheritToChildren: z.boolean().default(true),
 });
 
 const revokePermissionSchema = z.object({
@@ -230,7 +233,7 @@ app.post('/grant', async (c) => {
     );
   }
 
-  const { fileId, userId: targetUserId, groupId, teamId, permission, subjectType, expiresAt } = result.data;
+  const { fileId, userId: targetUserId, groupId, teamId, permission, subjectType, expiresAt, inheritToChildren } = result.data;
 
   if (subjectType === 'user' && !targetUserId) {
     return c.json({ success: false, error: { code: ERROR_CODES.VALIDATION_ERROR, message: '用户ID不能为空' } }, 400);
@@ -354,7 +357,8 @@ app.post('/grant', async (c) => {
 
   await grantPermissionForFile(fileId);
 
-  if (file.isFolder) {
+  // 文件夹授权：根据用户选择决定是否穿透下级
+  if (file.isFolder && inheritToChildren) {
     const folderPath = file.path.endsWith('/') ? file.path.slice(0, -1) : file.path;
     const childFiles = await db
       .select({ id: files.id })
@@ -364,6 +368,27 @@ app.post('/grant', async (c) => {
 
     for (const child of childFiles) {
       await grantPermissionForFile(child.id);
+    }
+  }
+
+  // 团队授权时，同步创建挂载记录（与 /teams/:id/mount-resource 端点保持一致）
+  if (subjectType === 'team' && teamId) {
+    const existingMount = await db
+      .select()
+      .from(teamResources)
+      .where(and(eq(teamResources.teamId, teamId), eq(teamResources.fileId, fileId)))
+      .get();
+
+    if (!existingMount) {
+      const now = new Date().toISOString();
+      await db.insert(teamResources).values({
+        id: crypto.randomUUID(),
+        teamId,
+        fileId,
+        mountedBy: userId,
+        mountedAt: now,
+        targetFolderId: null, // 权限弹窗中不指定挂载目录
+      });
     }
   }
 
@@ -676,6 +701,7 @@ app.get('/file/:fileId', async (c) => {
       id: filePermissions.id,
       userId: filePermissions.userId,
       groupId: filePermissions.groupId,
+      teamId: filePermissions.teamId,
       permission: filePermissions.permission,
       grantedBy: filePermissions.grantedBy,
       subjectType: filePermissions.subjectType,
@@ -685,10 +711,12 @@ app.get('/file/:fileId', async (c) => {
       userName: users.name,
       userEmail: users.email,
       groupName: userGroups.name,
+      teamName: teams.name,
     })
     .from(filePermissions)
     .leftJoin(users, eq(filePermissions.userId, users.id))
     .leftJoin(userGroups, eq(filePermissions.groupId, userGroups.id))
+    .leftJoin(teams, eq(filePermissions.teamId, teams.id))
     .where(eq(filePermissions.fileId, fileId))
     .all();
 
@@ -700,6 +728,7 @@ app.get('/file/:fileId', async (c) => {
         id: p.id,
         userId: p.userId,
         groupId: p.groupId,
+        teamId: p.teamId,
         permission: p.permission,
         grantedBy: p.grantedBy,
         subjectType: p.subjectType,
@@ -708,6 +737,7 @@ app.get('/file/:fileId', async (c) => {
         userName: p.userName,
         userEmail: p.userEmail,
         groupName: p.groupName,
+        teamName: p.teamName,
         createdAt: p.createdAt,
       })),
     },

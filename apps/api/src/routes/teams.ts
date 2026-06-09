@@ -72,6 +72,8 @@ const changeRoleSchema = z.object({
 const mountResourceSchema = z.object({
   fileId: z.string().min(1, '文件ID不能为空'),
   targetFolderId: z.string().nullable().optional(),
+  /** 文件夹挂载时是否穿透下级（默认 true） */
+  penetrate: z.boolean().default(true),
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -411,6 +413,7 @@ app.post('/:id/resources', async (c) => {
 
   const result = await mountResourceToTeam(c.env, userId, teamId, parseResult.data.fileId, {
     targetFolderId: parseResult.data.targetFolderId,
+    penetrate: parseResult.data.penetrate,
   });
 
   if (!result.success) {
